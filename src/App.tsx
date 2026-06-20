@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
+import { DirectoryPage } from './pages/DirectoryPage'
 
 type ConnectionStatus = 'checking' | 'connected' | 'error'
 
@@ -79,8 +80,14 @@ export default function App() {
         </header>
 
         {/* Content area */}
-        <div className="flex-1 overflow-auto p-8">
-          <Placeholder name={activeItem} />
+        <div className="flex-1 overflow-hidden">
+          {activeItem === 'Directory' ? (
+            <DirectoryPage />
+          ) : (
+            <div className="p-8">
+              <Placeholder name={activeItem} />
+            </div>
+          )}
         </div>
       </main>
     </div>

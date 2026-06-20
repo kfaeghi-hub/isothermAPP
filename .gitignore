@@ -22,6 +22,10 @@ dist-ssr
 # Vite cache
 .vite/
 
+# Verification / test artifacts
+verify-ss-*.png
+verify-directory.mjs
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
