@@ -140,6 +140,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     fetchAll()
   }
 
+  async function changeStatus(status: 'active' | 'completed') {
+    await supabase.from('projects').update({ status }).eq('id', projectId)
+    fetchAll()
+  }
+
   // ── Phase management ────────────────────────────────────────────────────
 
   async function addPhase() {
@@ -210,6 +215,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               <span className={`text-[11px] font-semibold rounded px-2 py-0.5 ${type.badge}`}>
                 {type.label}
               </span>
+              {project.status === 'completed' && (
+                <span className="text-[11px] font-semibold rounded px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Completed
+                </span>
+              )}
               {project.com_number && (
                 <span className="font-mono text-xs text-gray-500">{project.com_number}</span>
               )}
@@ -224,12 +234,29 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               )}
             </div>
           </div>
-          <button
-            onClick={openEdit}
-            className="flex-shrink-0 text-xs text-gray-500 hover:text-teal-700 border border-gray-200 hover:border-teal-400 rounded px-3 py-1.5 transition-colors"
-          >
-            Edit Project
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {project.status === 'active' ? (
+              <button
+                onClick={() => changeStatus('completed')}
+                className="text-xs text-gray-500 hover:text-emerald-700 border border-gray-200 hover:border-emerald-400 rounded px-3 py-1.5 transition-colors"
+              >
+                Mark as Completed
+              </button>
+            ) : (
+              <button
+                onClick={() => changeStatus('active')}
+                className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 hover:border-emerald-400 rounded px-3 py-1.5 transition-colors"
+              >
+                Reopen
+              </button>
+            )}
+            <button
+              onClick={openEdit}
+              className="text-xs text-gray-500 hover:text-teal-700 border border-gray-200 hover:border-teal-400 rounded px-3 py-1.5 transition-colors"
+            >
+              Edit Project
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

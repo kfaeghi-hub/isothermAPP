@@ -5,7 +5,7 @@ import { Modal } from '../components/ui/Modal'
 import { ProjectDetailPage } from './ProjectDetailPage'
 import type { ProjectWithClient, Company, ProjectType } from '../types/database'
 
-// ── Form state ─────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface ProjectForm {
   name: string
@@ -31,6 +31,8 @@ const EMPTY_FORM: ProjectForm = {
 
 const TYPE_ENTRIES = Object.entries(PROJECT_TYPES) as [ProjectType, typeof PROJECT_TYPES[ProjectType]][]
 
+type Section = 'active' | 'completed'
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function ProjectsPage() {
@@ -45,6 +47,18 @@ export function ProjectsPage() {
   const [form, setForm] = useState<ProjectForm>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Section + filters
+  const [section, setSection] = useState<Section>('active')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<ProjectType | ''>('')
+  const [clientFilter, setClientFilter] = useState('')
+
+  // Delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; project: ProjectWithClient | null }>({
+    open: false, project: null,
+  })
+  const [deleting, setDeleting] = useState(false)
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +85,32 @@ export function ProjectsPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // ── Derived ───────────────────────────────────────────────────────────────
+
+  const activeCount    = projects.filter(p => p.status === 'active').length
+  const completedCount = projects.filter(p => p.status === 'completed').length
+
+  // Clients that actually appear in projects (for the filter dropdown)
+  const uniqueClients = [...new Map(
+    projects
+      .filter(p => p.client_company_id && p.companies)
+      .map(p => [p.client_company_id!, { id: p.client_company_id!, name: p.companies!.name }])
+  ).values()].sort((a, b) => a.name.localeCompare(b.name))
+
+  const filteredProjects = projects
+    .filter(p => p.status === section)
+    .filter(p => {
+      if (!search) return true
+      const q = search.toLowerCase()
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.com_number?.toLowerCase().includes(q) ?? false) ||
+        (p.companies?.name.toLowerCase().includes(q) ?? false)
+      )
+    })
+    .filter(p => !typeFilter || p.project_type === typeFilter)
+    .filter(p => !clientFilter || p.client_company_id === clientFilter)
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function openProject(id: string) {
@@ -81,12 +121,25 @@ export function ProjectsPage() {
     setSelectedProjectId(id)
   }
 
+  async function setProjectStatus(id: string, status: 'active' | 'completed') {
+    await supabase.from('projects').update({ status }).eq('id', id)
+    fetchData()
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirm.project) return
+    setDeleting(true)
+    await supabase.from('projects').delete().eq('id', deleteConfirm.project.id)
+    setDeleting(false)
+    setDeleteConfirm({ open: false, project: null })
+    fetchData()
+  }
+
   async function saveProject() {
     if (!form.name.trim()) { setFormError('Project name is required.'); return }
     setSaving(true)
     setFormError(null)
 
-    // 1. Insert project
     const { data: project, error: pErr } = await supabase
       .from('projects')
       .insert({
@@ -102,14 +155,12 @@ export function ProjectsPage() {
 
     if (pErr || !project) { setFormError(pErr?.message ?? 'Insert failed.'); setSaving(false); return }
 
-    // 2. Phases
     if (form.phases.length > 0) {
       await supabase.from('project_phases').insert(
         form.phases.map((name, i) => ({ project_id: project.id, name, sort_order: i }))
       )
     }
 
-    // 3. Copy the Standard Comprehensive Cx Index defaults to this project
     const { data: cxDefault } = await supabase
       .from('cx_index_defaults')
       .select('id')
@@ -117,7 +168,6 @@ export function ProjectsPage() {
       .single()
 
     if (cxDefault) {
-      // Fetch all groups and all columns in 2 queries, then batch-insert
       const [{ data: groups }, { data: allCols }] = await Promise.all([
         supabase
           .from('cx_index_default_groups')
@@ -143,10 +193,8 @@ export function ProjectsPage() {
           .select('id, source_group_id')
 
         if (newGroups && allCols && allCols.length > 0) {
-          // Map default group id → new project group id
           const groupMap: Record<string, string> = {}
           for (const ng of newGroups) groupMap[ng.source_group_id] = ng.id
-
           const colsToInsert = allCols
             .filter(c => groupMap[c.group_id])
             .map(c => ({
@@ -155,7 +203,6 @@ export function ProjectsPage() {
               name: c.name,
               sort_order: c.sort_order,
             }))
-
           if (colsToInsert.length > 0) {
             await supabase.from('project_cx_columns').insert(colsToInsert)
           }
@@ -163,7 +210,6 @@ export function ProjectsPage() {
       }
     }
 
-    // 4. Auto-load deliverables from template pool (no-op until Phase 2 populates the pool)
     const { data: templateDefaults } = await supabase
       .from('project_type_template_defaults')
       .select('template_id')
@@ -206,34 +252,124 @@ export function ProjectsPage() {
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading projects…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">Error: {error}</div>
 
+  const hasFilters = !!search || !!typeFilter || !!clientFilter
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* Toolbar */}
-      <div className="border-b border-gray-200 bg-white px-5 py-2.5 flex items-center flex-shrink-0">
-        <span className="text-xs text-gray-400">
-          {projects.length} project{projects.length !== 1 ? 's' : ''}
-        </span>
+      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
+      <div className="border-b border-gray-200 bg-white px-5 flex items-stretch h-11 flex-shrink-0">
+
+        {/* Section tabs — full-height underline style */}
+        <div className="flex items-stretch mr-4">
+          {(['active', 'completed'] as Section[]).map(s => {
+            const count = s === 'active' ? activeCount : completedCount
+            return (
+              <button
+                key={s}
+                onClick={() => setSection(s)}
+                className={`flex items-center gap-1.5 px-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  section === s
+                    ? 'border-teal-500 text-teal-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="capitalize">{s}</span>
+                <span className={`text-[11px] font-normal tabular-nums px-1.5 py-0.5 rounded-full ${
+                  section === s ? 'bg-teal-50 text-teal-600' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Divider */}
+        <div className="self-center h-4 w-px bg-gray-200 mr-3" />
+
+        {/* Search */}
+        <div className="relative self-center mr-2">
+          <svg
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search name, COM#, client…"
+            className="w-52 pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          />
+        </div>
+
+        {/* Type filter */}
+        <select
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value as ProjectType | '')}
+          className="self-center text-xs border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-600 mr-2"
+        >
+          <option value="">All types</option>
+          {TYPE_ENTRIES.map(([v, info]) => (
+            <option key={v} value={v}>{info.label}</option>
+          ))}
+        </select>
+
+        {/* Client filter — only shown when there are clients to filter by */}
+        {uniqueClients.length > 0 && (
+          <select
+            value={clientFilter}
+            onChange={e => setClientFilter(e.target.value)}
+            className="self-center text-xs border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-600 mr-2"
+          >
+            <option value="">All clients</option>
+            {uniqueClients.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
+
+        {hasFilters && (
+          <button
+            onClick={() => { setSearch(''); setTypeFilter(''); setClientFilter('') }}
+            className="self-center text-xs text-gray-400 hover:text-gray-600 mr-2"
+          >
+            Clear
+          </button>
+        )}
+
         <button
           onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true) }}
-          className="ml-auto text-sm bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium"
+          className="ml-auto self-center text-sm bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium whitespace-nowrap"
         >
           + New Project
         </button>
       </div>
 
-      {/* List */}
+      {/* ── List ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">
-        {projects.length === 0 ? (
+        {filteredProjects.length === 0 ? (
           <div className="p-20 text-center">
             <div className="text-3xl mb-3 opacity-20">📋</div>
-            <p className="text-sm text-gray-400 mb-5">No projects yet.</p>
-            <button
-              onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true) }}
-              className="text-sm bg-teal-700 text-white rounded px-4 py-2 hover:bg-teal-800 transition-colors font-medium"
-            >
-              Create your first project
-            </button>
+            {hasFilters ? (
+              <p className="text-sm text-gray-400">No {section} projects match your filters.</p>
+            ) : section === 'active' ? (
+              <>
+                <p className="text-sm text-gray-400 mb-5">No active projects yet.</p>
+                <button
+                  onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true) }}
+                  className="text-sm bg-teal-700 text-white rounded px-4 py-2 hover:bg-teal-800 transition-colors font-medium"
+                >
+                  Create your first project
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400 max-w-xs mx-auto">
+                No completed projects yet. Use "Mark as Completed" on a project when it wraps up — it stays fully intact here.
+              </p>
+            )}
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">
@@ -245,34 +381,63 @@ export function ProjectsPage() {
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Type</th>
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">Created</th>
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">Last Opened</th>
+                <th className="w-44" />
               </tr>
             </thead>
             <tbody>
-              {projects.map(p => {
+              {filteredProjects.map(p => {
                 const type = PROJECT_TYPES[p.project_type]
                 return (
                   <tr
                     key={p.id}
                     onClick={() => openProject(p.id)}
-                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer group"
                   >
-                    <td className="px-5 py-2.5 font-medium text-gray-900">{p.name}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">
+                    <td className="px-5 py-2 font-medium text-gray-900">{p.name}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-gray-500">
                       {p.com_number ?? <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-gray-600">
+                    <td className="px-4 py-2 text-gray-600">
                       {p.companies?.name ?? <span className="text-gray-400 text-xs italic">Standalone</span>}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2">
                       <span className={`text-[11px] font-medium rounded px-2 py-0.5 ${type.badge}`}>
                         {type.label}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-400">
-                      {formatDate(p.created_at)}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-400">
+                    <td className="px-4 py-2 font-mono text-xs text-gray-400">{formatDate(p.created_at)}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-gray-400">
                       {p.last_visited_at ? formatDate(p.last_visited_at) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2">
+                      {/* Row actions — visible on row hover, clicks don't open the project */}
+                      <div
+                        className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {p.status === 'active' ? (
+                          <button
+                            onClick={() => setProjectStatus(p.id, 'completed')}
+                            className="text-xs text-gray-400 hover:text-teal-700 whitespace-nowrap"
+                          >
+                            Mark complete
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setProjectStatus(p.id, 'active')}
+                            className="text-xs text-gray-400 hover:text-teal-700 whitespace-nowrap"
+                          >
+                            Reopen
+                          </button>
+                        )}
+                        <span className="text-gray-200 text-xs select-none">|</span>
+                        <button
+                          onClick={() => setDeleteConfirm({ open: true, project: p })}
+                          className="text-xs text-gray-400 hover:text-red-600 whitespace-nowrap"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -282,11 +447,10 @@ export function ProjectsPage() {
         )}
       </div>
 
-      {/* ── Create Project modal ──────────────────────────── */}
+      {/* ── Create Project modal ──────────────────────────────────────────── */}
       <Modal title="New Project" open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="lg">
         <div className="space-y-5">
 
-          {/* Name + COM# */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
@@ -313,7 +477,6 @@ export function ProjectsPage() {
             </div>
           </div>
 
-          {/* Address + Client */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Address</label>
@@ -340,7 +503,6 @@ export function ProjectsPage() {
             </div>
           </div>
 
-          {/* Project Type */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Project Type</label>
             <div className="grid grid-cols-2 gap-2">
@@ -366,7 +528,6 @@ export function ProjectsPage() {
             </div>
           </div>
 
-          {/* Phases */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Phases
@@ -403,7 +564,6 @@ export function ProjectsPage() {
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
             <textarea
@@ -429,6 +589,41 @@ export function ProjectsPage() {
               className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
             >
               {saving ? 'Creating…' : 'Create Project'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Delete confirmation modal ─────────────────────────────────────── */}
+      <Modal
+        title="Delete Project"
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, project: null })}
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Permanently delete <span className="font-semibold">{deleteConfirm.project?.name}</span>?
+          </p>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            All findings, Cx Index data, site reports, phases, distribution, and related records will be permanently removed. This cannot be undone.
+          </p>
+          <p className="text-[11px] text-amber-600 bg-amber-50 rounded px-3 py-2">
+            To keep the project on record, use <strong>Mark as Completed</strong> instead — completed projects are fully intact and can be reopened at any time.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              onClick={() => setDeleteConfirm({ open: false, project: null })}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+            >
+              {deleting ? 'Deleting…' : 'Delete Project'}
             </button>
           </div>
         </div>

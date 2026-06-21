@@ -61,6 +61,7 @@ export interface Project {
   client_company_id: string | null
   address: string | null
   project_type: ProjectType
+  status: 'active' | 'completed'
   notes: string | null
   created_at: string
   last_visited_at: string | null
