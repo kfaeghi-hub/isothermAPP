@@ -1,0 +1,814 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { supabase } from '../lib/supabase'
+import { formatDate } from '../lib/projectTypes'
+import { Modal } from '../components/ui/Modal'
+import type { ProjectPhase, ContactWithCompany, FindingDiaryEntry, FindingPhoto } from '../types/database'
+
+// ── Local types ────────────────────────────────────────────────────────────
+
+interface FindingRow {
+  id: string
+  number: string | null
+  category: string
+  responsible_party_id: string | null
+  status: 'open' | 'closed'
+  origin: string
+  date_raised: string
+  date_closed: string | null
+  phase_id: string | null
+  contacts: {
+    id: string
+    name: string
+    trade: string | null
+    companies: { name: string; abbreviation: string | null } | null
+  } | null
+}
+
+interface CreateForm {
+  category: string
+  responsible_party_id: string
+  origin: string
+  phase_id: string
+  initialEntry: string
+}
+
+interface EditForm {
+  category: string
+  responsible_party_id: string
+  origin: string
+  phase_id: string
+}
+
+const EMPTY_CREATE: CreateForm = {
+  category: 'INFO',
+  responsible_party_id: '',
+  origin: 'site_visit',
+  phase_id: '',
+  initialEntry: '',
+}
+
+const ORIGIN_LABELS: Record<string, string> = {
+  site_visit: 'Site Visit',
+  ivc: 'IVC',
+  pfc: 'PFC',
+  fpt: 'FPT',
+}
+
+const CATEGORY_SUGGESTIONS = [
+  'INFO', 'Mechanical', 'Electrical', 'BAS', 'Controls',
+  'General Contractor', 'Owner', 'Plumbing', 'Structural', 'TAB',
+]
+
+// ── Image compression ───────────────────────────────────────────────────────
+
+async function compressImage(file: File): Promise<Blob | File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const maxDim = 1400
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { resolve(file); return }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(b => resolve(b ?? file), 'image/jpeg', 0.82)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
+}
+
+// ── Date helpers ───────────────────────────────────────────────────────────
+
+function entryDateLabel(dateStr: string): string {
+  // dateStr is 'YYYY-MM-DD' — add T12:00 to avoid timezone shift when parsing
+  const d = new Date(dateStr + 'T12:00:00')
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function todayISO(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+interface Props {
+  projectId: string
+  phases: ProjectPhase[]
+}
+
+export function IssuesLogPage({ projectId, phases }: Props) {
+  const [findings, setFindings]       = useState<FindingRow[]>([])
+  const [allContacts, setAllContacts] = useState<ContactWithCompany[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [filter, setFilter]           = useState<'open' | 'closed' | 'all'>('open')
+  const [selectedId, setSelectedId]   = useState<string | null>(null)
+
+  // Detail panel
+  const [diary, setDiary]               = useState<FindingDiaryEntry[]>([])
+  const [photos, setPhotos]             = useState<FindingPhoto[]>([])
+  const [newEntry, setNewEntry]         = useState('')
+  const [addingEntry, setAddingEntry]   = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Create modal
+  const [createOpen, setCreateOpen]     = useState(false)
+  const [createForm, setCreateForm]     = useState<CreateForm>(EMPTY_CREATE)
+  const [createError, setCreateError]   = useState<string | null>(null)
+  const [creating, setCreating]         = useState(false)
+
+  // Edit modal
+  const [editOpen, setEditOpen]         = useState(false)
+  const [editForm, setEditForm]         = useState<EditForm>({ category: '', responsible_party_id: '', origin: 'site_visit', phase_id: '' })
+  const [savingEdit, setSavingEdit]     = useState(false)
+
+  // ── Data ────────────────────────────────────────────────────────────────
+
+  const fetchFindings = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('findings')
+      .select('id, number, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, contacts(id, name, trade, companies(name, abbreviation))')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true })
+    setFindings((data ?? []) as FindingRow[])
+    setLoading(false)
+  }, [projectId])
+
+  const fetchContacts = useCallback(async () => {
+    const { data } = await supabase
+      .from('contacts')
+      .select('*, companies(id, name, abbreviation)')
+      .order('name')
+    setAllContacts((data ?? []) as ContactWithCompany[])
+  }, [])
+
+  const fetchDetail = useCallback(async (findingId: string) => {
+    const [dRes, pRes] = await Promise.all([
+      supabase
+        .from('finding_diary_entries')
+        .select('*')
+        .eq('finding_id', findingId)
+        .order('entry_date', { ascending: true })
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('finding_photos')
+        .select('*')
+        .eq('finding_id', findingId)
+        .order('uploaded_at', { ascending: true }),
+    ])
+    setDiary((dRes.data ?? []) as FindingDiaryEntry[])
+    setPhotos((pRes.data ?? []) as FindingPhoto[])
+  }, [])
+
+  useEffect(() => { fetchFindings(); fetchContacts() }, [fetchFindings, fetchContacts])
+
+  useEffect(() => {
+    if (selectedId) fetchDetail(selectedId)
+    else { setDiary([]); setPhotos([]) }
+  }, [selectedId, fetchDetail])
+
+  // ── Derived ──────────────────────────────────────────────────────────────
+
+  const openCount      = findings.filter(f => f.status === 'open').length
+  const closedCount    = findings.filter(f => f.status === 'closed').length
+  const filteredList   = findings.filter(f => filter === 'all' || f.status === filter)
+  const selectedFinding = findings.find(f => f.id === selectedId) ?? null
+  const hasFindings    = findings.length > 0
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+
+  async function createFinding() {
+    if (!createForm.initialEntry.trim()) { setCreateError('An initial description is required.'); return }
+    setCreating(true); setCreateError(null)
+
+    const { data: finding, error } = await supabase
+      .from('findings')
+      .insert({
+        project_id: projectId,
+        category: createForm.category.trim() || 'INFO',
+        responsible_party_id: createForm.responsible_party_id || null,
+        origin: createForm.origin,
+        phase_id: createForm.phase_id || null,
+        // number auto-set by DB trigger; date_raised auto-set by column default
+      })
+      .select('id, number')
+      .single()
+
+    if (error || !finding) {
+      setCreateError(error?.message ?? 'Failed to create finding.')
+      setCreating(false); return
+    }
+
+    await supabase.from('finding_diary_entries').insert({
+      finding_id: finding.id,
+      entry_date: todayISO(),
+      body: createForm.initialEntry.trim(),
+    })
+
+    setCreating(false); setCreateOpen(false); setCreateForm(EMPTY_CREATE)
+    await fetchFindings()
+    setSelectedId(finding.id)
+    setFilter('open')
+  }
+
+  async function addDiaryEntry() {
+    if (!selectedId || !newEntry.trim()) return
+    setAddingEntry(true)
+    await supabase.from('finding_diary_entries').insert({
+      finding_id: selectedId,
+      entry_date: todayISO(),
+      body: newEntry.trim(),
+    })
+    setNewEntry('')
+    setAddingEntry(false)
+    fetchDetail(selectedId)
+  }
+
+  async function toggleStatus() {
+    if (!selectedFinding) return
+    const closing = selectedFinding.status === 'open'
+    await supabase
+      .from('findings')
+      .update({
+        status: closing ? 'closed' : 'open',
+        date_closed: closing ? todayISO() : null,
+      })
+      .eq('id', selectedFinding.id)
+    fetchFindings()
+  }
+
+  function openEditModal() {
+    if (!selectedFinding) return
+    setEditForm({
+      category: selectedFinding.category,
+      responsible_party_id: selectedFinding.responsible_party_id ?? '',
+      origin: selectedFinding.origin,
+      phase_id: selectedFinding.phase_id ?? '',
+    })
+    setEditOpen(true)
+  }
+
+  async function saveEdit() {
+    if (!selectedId) return
+    setSavingEdit(true)
+    await supabase
+      .from('findings')
+      .update({
+        category: editForm.category.trim() || 'INFO',
+        responsible_party_id: editForm.responsible_party_id || null,
+        origin: editForm.origin,
+        phase_id: editForm.phase_id || null,
+      })
+      .eq('id', selectedId)
+    setSavingEdit(false); setEditOpen(false)
+    fetchFindings()
+  }
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !selectedId) return
+    e.target.value = ''
+    setUploadingPhoto(true)
+    try {
+      const blob = await compressImage(file)
+      const storagePath = `findings/${selectedId}/${Date.now()}.jpg`
+      const { data: uploaded, error: uploadErr } = await supabase.storage
+        .from('finding-photos')
+        .upload(storagePath, blob, { contentType: 'image/jpeg' })
+      if (uploadErr) throw uploadErr
+      const { data: { publicUrl } } = supabase.storage
+        .from('finding-photos')
+        .getPublicUrl(uploaded.path)
+      await supabase.from('finding_photos').insert({
+        finding_id: selectedId,
+        storage_url: publicUrl,
+        caption: file.name,
+      })
+      fetchDetail(selectedId)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (loading) return <div className="p-8 text-sm text-gray-400">Loading issues log…</div>
+
+  const narrow = !!selectedId
+
+  return (
+    <div className="flex h-full overflow-hidden">
+
+      {/* ── Finding list panel ────────────────────────────────────── */}
+      <div className={`flex flex-col bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 transition-all ${narrow ? 'w-80' : 'flex-1'}`}>
+
+        {/* Toolbar */}
+        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
+          <div className="flex gap-1">
+            {(['open', 'closed', 'all'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                  filter === f
+                    ? f === 'open' ? 'bg-amber-50 text-amber-700 font-semibold'
+                    : f === 'closed' ? 'bg-gray-100 text-gray-600 font-semibold'
+                    : 'bg-slate-100 text-slate-600 font-semibold'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {f === 'open' ? `Open (${openCount})` : f === 'closed' ? `Closed (${closedCount})` : 'All'}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => { setCreateForm(EMPTY_CREATE); setCreateError(null); setCreateOpen(true) }}
+            className="ml-auto text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium whitespace-nowrap flex-shrink-0"
+          >
+            + New Finding
+          </button>
+        </div>
+
+        {/* Finding rows */}
+        <div className="flex-1 overflow-auto">
+          {filteredList.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="text-3xl mb-3 opacity-20">⚠️</div>
+              {!hasFindings ? (
+                <>
+                  <p className="text-sm font-medium text-gray-600 mb-1">No findings yet</p>
+                  <p className="text-xs text-gray-400 mb-5 max-w-[200px] mx-auto">
+                    Log issues as they're discovered on site, during IVC/PFC, or in FPT.
+                  </p>
+                  <button
+                    onClick={() => { setCreateForm(EMPTY_CREATE); setCreateError(null); setCreateOpen(true) }}
+                    className="text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium"
+                  >
+                    + New Finding
+                  </button>
+                </>
+              ) : (
+                <p className="text-xs text-gray-400">No {filter} findings.</p>
+              )}
+            </div>
+          ) : (
+            filteredList.map(f => {
+              const isSelected = f.id === selectedId
+              const isClosed   = f.status === 'closed'
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedId(isSelected ? null : f.id)}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors relative ${
+                    isSelected ? 'bg-teal-50/40' : ''
+                  }`}
+                >
+                  {isSelected && <div className="absolute left-0 inset-y-0 w-0.5 bg-teal-500" />}
+                  <div className={`flex items-center gap-2 mb-1 ${isClosed ? 'opacity-50' : ''}`}>
+                    <span className="font-mono text-[11px] text-gray-400 flex-shrink-0">
+                      #{f.number ?? '—'}
+                    </span>
+                    <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 flex-shrink-0 ${
+                      isClosed ? 'bg-gray-100 text-gray-400' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {isClosed ? 'CLOSED' : 'OPEN'}
+                    </span>
+                    <span className="text-xs font-medium text-gray-700 truncate">{f.category}</span>
+                  </div>
+                  <div className={`text-[11px] flex items-center justify-between gap-2 ${isClosed ? 'text-gray-300' : 'text-gray-400'}`}>
+                    <span className="truncate">
+                      {f.contacts?.name ?? <em className="not-italic">Unassigned</em>}
+                    </span>
+                    <span className="font-mono text-[10px] flex-shrink-0">
+                      {formatDate(f.date_raised)}
+                    </span>
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── Finding detail panel ──────────────────────────────────── */}
+      {selectedFinding ? (
+        <div className="flex-1 flex flex-col overflow-hidden bg-white">
+
+          {/* Detail header */}
+          <div className="px-5 py-3.5 border-b border-gray-200 flex items-start gap-3 flex-shrink-0">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-mono text-xs text-gray-400">#{selectedFinding.number ?? '—'}</span>
+                <span className={`text-[10px] font-semibold rounded px-2 py-0.5 ${
+                  selectedFinding.status === 'open'
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {selectedFinding.status === 'open' ? 'OPEN' : 'CLOSED'}
+                </span>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900 truncate">{selectedFinding.category}</h3>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {selectedFinding.status === 'open' ? (
+                <button
+                  onClick={toggleStatus}
+                  className="text-xs border border-gray-200 rounded px-3 py-1.5 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                >
+                  Close Finding
+                </button>
+              ) : (
+                <button
+                  onClick={toggleStatus}
+                  className="text-xs border border-teal-200 bg-teal-50 rounded px-3 py-1.5 text-teal-700 hover:border-teal-400 transition-colors"
+                >
+                  Reopen
+                </button>
+              )}
+              <button
+                onClick={openEditModal}
+                className="text-xs border border-gray-200 rounded px-3 py-1.5 text-gray-500 hover:text-teal-700 hover:border-teal-400 transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setSelectedId(null)}
+                className="text-gray-400 hover:text-gray-700 text-lg leading-none ml-1"
+                title="Close panel"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          {/* Detail body — scrollable */}
+          <div className="flex-1 overflow-auto p-5 space-y-6">
+
+            {/* Meta */}
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Responsible Party</dt>
+                <dd className="text-sm text-gray-700">
+                  {selectedFinding.contacts ? (
+                    <>
+                      {selectedFinding.contacts.name}
+                      {selectedFinding.contacts.companies && (
+                        <span className="text-gray-400 ml-1.5 text-xs">
+                          ({selectedFinding.contacts.companies.abbreviation ?? selectedFinding.contacts.companies.name})
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic text-xs">Unassigned</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Origin</dt>
+                <dd className="text-sm text-gray-700">{ORIGIN_LABELS[selectedFinding.origin] ?? selectedFinding.origin}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Phase</dt>
+                <dd className="text-sm text-gray-700">
+                  {selectedFinding.phase_id
+                    ? (phases.find(p => p.id === selectedFinding.phase_id)?.name ?? '—')
+                    : <span className="text-gray-400">—</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date Raised</dt>
+                <dd className="text-sm font-mono text-gray-700">{formatDate(selectedFinding.date_raised)}</dd>
+              </div>
+              {selectedFinding.status === 'closed' && selectedFinding.date_closed && (
+                <div>
+                  <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date Closed</dt>
+                  <dd className="text-sm font-mono text-gray-700">{formatDate(selectedFinding.date_closed)}</dd>
+                </div>
+              )}
+            </dl>
+
+            {/* Diary */}
+            <div>
+              <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Diary</h4>
+
+              {diary.length === 0 ? (
+                <p className="text-xs text-gray-400 mb-4">No entries yet.</p>
+              ) : (
+                <div className="space-y-4 mb-6">
+                  {diary.map(entry => (
+                    <div key={entry.id} className="flex gap-4">
+                      <div className="w-24 flex-shrink-0 pt-0.5">
+                        <span className="text-[11px] font-mono text-gray-400">
+                          {entryDateLabel(entry.entry_date)}
+                        </span>
+                      </div>
+                      <div
+                        className={`flex-1 text-sm leading-relaxed whitespace-pre-wrap ${
+                          selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
+                        }`}
+                      >
+                        {entry.body}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add entry */}
+              <div className="border-t border-dashed border-gray-200 pt-4">
+                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  New Entry · <span className="font-mono">{todayISO()}</span>
+                </div>
+                <textarea
+                  value={newEntry}
+                  onChange={e => setNewEntry(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault()
+                      addDiaryEntry()
+                    }
+                  }}
+                  rows={3}
+                  placeholder="Describe what was observed, discussed, or actioned…"
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-y"
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-gray-400">⌘↵ to submit</span>
+                  <button
+                    onClick={addDiaryEntry}
+                    disabled={!newEntry.trim() || addingEntry}
+                    className="text-sm bg-teal-700 text-white rounded px-4 py-1.5 hover:bg-teal-800 disabled:opacity-40 transition-colors font-medium"
+                  >
+                    {addingEntry ? 'Adding…' : 'Add Entry'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Photos */}
+            <div>
+              <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Photos</h4>
+              <div className="flex flex-wrap gap-2">
+                {photos.map(photo => (
+                  <a
+                    key={photo.id}
+                    href={photo.storage_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={photo.caption ?? undefined}
+                  >
+                    <img
+                      src={photo.storage_url}
+                      alt={photo.caption ?? 'Finding photo'}
+                      className="w-24 h-24 object-cover rounded border border-gray-200 hover:opacity-90 transition-opacity cursor-zoom-in"
+                    />
+                  </a>
+                ))}
+
+                {/* Upload button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="w-24 h-24 rounded border-2 border-dashed border-gray-200 hover:border-teal-400 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-teal-600 transition-colors disabled:opacity-40"
+                >
+                  {uploadingPhoto ? (
+                    <span className="text-[10px]">Uploading…</span>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-[10px]">Add Photo</span>
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+              </div>
+              {photos.length === 0 && !uploadingPhoto && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Attach before/after photos as evidence. Images are compressed automatically.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* No finding selected and list is full width — no right panel needed */
+        null
+      )}
+
+      {/* ── Create Finding modal ──────────────────────────────────── */}
+      <Modal title="New Finding" open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md">
+        <div className="space-y-4">
+
+          {/* Category */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Category
+            </label>
+            <input
+              type="text"
+              list="category-list"
+              value={createForm.category}
+              onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))}
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              placeholder="INFO, Mechanical, BAS, etc."
+              autoFocus
+            />
+            <datalist id="category-list">
+              {CATEGORY_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </div>
+
+          {/* Responsible Party + Origin */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Responsible Party
+              </label>
+              <select
+                value={createForm.responsible_party_id}
+                onChange={e => setCreateForm(f => ({ ...f, responsible_party_id: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="">Unassigned</option>
+                {allContacts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.companies ? ` — ${c.companies.abbreviation ?? c.companies.name}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Origin
+              </label>
+              <select
+                value={createForm.origin}
+                onChange={e => setCreateForm(f => ({ ...f, origin: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                {Object.entries(ORIGIN_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Phase */}
+          {phases.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Phase
+                <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              </label>
+              <select
+                value={createForm.phase_id}
+                onChange={e => setCreateForm(f => ({ ...f, phase_id: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="">No phase</option>
+                {phases.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Initial diary entry */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Description <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={createForm.initialEntry}
+              onChange={e => setCreateForm(f => ({ ...f, initialEntry: e.target.value }))}
+              rows={4}
+              placeholder="Describe the deficiency or observation found…"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Becomes the first diary entry — add further updates as the finding progresses.
+            </p>
+          </div>
+
+          {createError && <p className="text-sm text-red-600">{createError}</p>}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={() => setCreateOpen(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+            <button
+              onClick={createFinding}
+              disabled={creating}
+              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
+            >
+              {creating ? 'Creating…' : 'Create Finding'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Edit Finding modal ────────────────────────────────────── */}
+      <Modal
+        title={`Edit Finding #${selectedFinding?.number ?? '—'}`}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
+            <input
+              type="text"
+              list="category-list-edit"
+              value={editForm.category}
+              onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              autoFocus
+            />
+            <datalist id="category-list-edit">
+              {CATEGORY_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Responsible Party</label>
+              <select
+                value={editForm.responsible_party_id}
+                onChange={e => setEditForm(f => ({ ...f, responsible_party_id: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="">Unassigned</option>
+                {allContacts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.companies ? ` — ${c.companies.abbreviation ?? c.companies.name}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Origin</label>
+              <select
+                value={editForm.origin}
+                onChange={e => setEditForm(f => ({ ...f, origin: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                {Object.entries(ORIGIN_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {phases.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phase</label>
+              <select
+                value={editForm.phase_id}
+                onChange={e => setEditForm(f => ({ ...f, phase_id: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="">No phase</option>
+                {phases.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={() => setEditOpen(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={savingEdit}
+              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
+            >
+              {savingEdit ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}

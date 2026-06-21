@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
 import { Modal } from '../components/ui/Modal'
+import { IssuesLogPage } from './IssuesLogPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType,
 } from '../types/database'
@@ -32,7 +33,7 @@ type Tab = 'overview' | 'issues' | 'cx_index' | 'site_reports' | 'deliverables'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
-  { id: 'issues',       label: 'Issues Log',   built: false },
+  { id: 'issues',       label: 'Issues Log',   built: true  },
   { id: 'cx_index',     label: 'Cx Index',     built: false },
   { id: 'site_reports', label: 'Site Reports', built: false },
   { id: 'deliverables', label: 'Deliverables', built: false },
@@ -423,16 +424,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           </div>
         )}
 
-        {/* Issues Log stub */}
+        {/* Issues Log */}
         {activeTab === 'issues' && (
-          <div className="p-20 text-center">
-            <div className="text-3xl mb-3 opacity-20">⚠️</div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Issues Log</p>
-            <p className="text-sm text-gray-400 max-w-sm mx-auto">
-              Findings with auto-numbered diary, responsible party, photos, and Open/Closed status.
-              Building next session.
-            </p>
-          </div>
+          <IssuesLogPage projectId={projectId} phases={phases} />
         )}
 
         {/* Cx Index stub */}

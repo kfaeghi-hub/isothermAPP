@@ -128,6 +128,14 @@ export interface FindingDiaryEntry {
   created_at: string
 }
 
+export interface FindingPhoto {
+  id: string
+  finding_id: string
+  storage_url: string
+  caption: string | null
+  uploaded_at: string
+}
+
 // ── Site reports ───────────────────────────────────────────────────────────
 
 export interface SiteReport {
