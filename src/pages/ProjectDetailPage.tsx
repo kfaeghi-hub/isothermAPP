@@ -4,7 +4,7 @@ import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import type {
-  ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType,
+  ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType, TradeType,
 } from '../types/database'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -64,6 +64,13 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
 
+  // Trade management
+  const [allTrades, setAllTrades]         = useState<TradeType[]>([])
+  const [projectTradeIds, setProjectTradeIds] = useState<string[]>([])
+  const [editTradeIds, setEditTradeIds]   = useState<string[]>([])
+  const [addingTrade, setAddingTrade]     = useState(false)
+  const [newTradeName, setNewTradeName]   = useState('')
+
   // Phase management
   const [phaseInput, setPhaseInput] = useState('')
 
@@ -75,7 +82,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
-    const [pRes, phRes, dRes, ctRes] = await Promise.all([
+    const [pRes, phRes, dRes, ctRes, tRes, ptRes] = await Promise.all([
       supabase
         .from('projects')
         .select('*, companies(id, name, abbreviation)')
@@ -94,12 +101,16 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         .from('contacts')
         .select('*, companies(id, name, abbreviation)')
         .order('name'),
+      supabase.from('trade_types').select('*').order('sort_order'),
+      supabase.from('project_trades').select('trade_type_id').eq('project_id', projectId),
     ])
     if (pRes.error)  { setError(pRes.error.message);  setLoading(false); return }
     setProject(pRes.data as ProjectWithClient)
     setPhases((phRes.data ?? []) as ProjectPhase[])
     setDistribution((dRes.data ?? []) as DistributionRow[])
     setAllContacts((ctRes.data ?? []) as ContactWithCompany[])
+    setAllTrades((tRes.data ?? []) as TradeType[])
+    setProjectTradeIds((ptRes.data ?? []).map(r => r.trade_type_id))
     setLoading(false)
   }, [projectId])
 
@@ -117,6 +128,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       project_type: project.project_type,
       notes: project.notes ?? '',
     })
+    setEditTradeIds([...projectTradeIds])
+    setAddingTrade(false)
+    setNewTradeName('')
     setEditError(null)
     setEditOpen(true)
   }
@@ -135,10 +149,37 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         notes: editForm.notes.trim() || null,
       })
       .eq('id', projectId)
+    if (error) { setSavingEdit(false); setEditError(error.message); return }
+
+    // Sync project_trades: replace all with current selection
+    await supabase.from('project_trades').delete().eq('project_id', projectId)
+    if (editTradeIds.length > 0) {
+      await supabase.from('project_trades').insert(
+        editTradeIds.map(trade_type_id => ({ project_id: projectId, trade_type_id }))
+      )
+    }
+
     setSavingEdit(false)
-    if (error) { setEditError(error.message); return }
     setEditOpen(false)
     fetchAll()
+  }
+
+  async function addNewTradeEdit() {
+    const name = newTradeName.trim()
+    if (!name) return
+    const maxOrder = allTrades.reduce((m, t) => Math.max(m, t.sort_order), 0)
+    const { data } = await supabase
+      .from('trade_types')
+      .insert({ name, sort_order: maxOrder + 1 })
+      .select('*')
+      .single()
+    if (data) {
+      const trade = data as TradeType
+      setAllTrades(prev => [...prev, trade])
+      setEditTradeIds(prev => [...prev, trade.id])
+    }
+    setNewTradeName('')
+    setAddingTrade(false)
   }
 
   async function changeStatus(status: 'active' | 'completed') {
@@ -552,6 +593,57 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               rows={3}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
             />
+          </div>
+
+          {/* Trades in Scope */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Trades in Scope
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {allTrades.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setEditTradeIds(prev =>
+                    prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                  )}
+                  className={`text-xs rounded-full px-3 py-1 border transition-colors ${
+                    editTradeIds.includes(t.id)
+                      ? 'bg-teal-700 text-white border-teal-700'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-teal-400 hover:text-teal-700'
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+              {addingTrade ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={newTradeName}
+                    onChange={e => setNewTradeName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); addNewTradeEdit() }
+                      if (e.key === 'Escape') { setAddingTrade(false); setNewTradeName('') }
+                    }}
+                    placeholder="Trade name…"
+                    className="text-xs border border-teal-300 rounded-full px-3 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    autoFocus
+                  />
+                  <button onClick={addNewTradeEdit} className="text-teal-700 text-sm font-medium leading-none">✓</button>
+                  <button onClick={() => { setAddingTrade(false); setNewTradeName('') }} className="text-gray-400 text-sm leading-none">✕</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingTrade(true)}
+                  className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded-full px-3 py-1 transition-colors"
+                >
+                  + Add trade
+                </button>
+              )}
+            </div>
           </div>
 
           {editError && <p className="text-sm text-red-600">{editError}</p>}

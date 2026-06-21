@@ -6,13 +6,9 @@ import { DirectoryPage } from './pages/DirectoryPage'
 type ConnectionStatus = 'checking' | 'connected' | 'error'
 
 const NAV_ITEMS = [
-  { label: 'Projects', icon: '📋', phase: 1 },
-  { label: 'Directory', icon: '👥', phase: 1 },
-  { label: 'Issues Log', icon: '⚠️', phase: 1 },
-  { label: 'Cx Index', icon: '📊', phase: 1 },
-  { label: 'Site Reports', icon: '📄', phase: 1 },
-  { label: 'Checklists', icon: '✅', phase: 2 },
-  { label: 'Templates', icon: '🗂️', phase: 2 },
+  { label: 'Projects',       icon: '📋', phase: 1 },
+  { label: 'Directory',      icon: '👥', phase: 1 },
+  { label: 'Templates',      icon: '🗂️', phase: 2 },
   { label: 'Action Summary', icon: '📌', phase: 3 },
 ]
 

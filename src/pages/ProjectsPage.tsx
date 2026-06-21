@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
 import { Modal } from '../components/ui/Modal'
 import { ProjectDetailPage } from './ProjectDetailPage'
-import type { ProjectWithClient, Company, ProjectType } from '../types/database'
+import type { ProjectWithClient, Company, ProjectType, TradeType } from '../types/database'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +48,12 @@ export function ProjectsPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Trade selection for new project
+  const [allTrades, setAllTrades]           = useState<TradeType[]>([])
+  const [selectedTradeIds, setSelectedTradeIds] = useState<string[]>([])
+  const [addingTrade, setAddingTrade]       = useState(false)
+  const [newTradeName, setNewTradeName]     = useState('')
+
   // Section + filters
   const [section, setSection] = useState<Section>('active')
   const [search, setSearch] = useState('')
@@ -65,7 +71,7 @@ export function ProjectsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [pRes, cRes] = await Promise.all([
+    const [pRes, cRes, tRes] = await Promise.all([
       supabase
         .from('projects')
         .select('*, companies(id, name, abbreviation)')
@@ -75,11 +81,16 @@ export function ProjectsPage() {
         .from('companies')
         .select('id, name, abbreviation')
         .order('name'),
+      supabase
+        .from('trade_types')
+        .select('*')
+        .order('sort_order'),
     ])
     if (pRes.error) { setError(pRes.error.message); setLoading(false); return }
     if (cRes.error) { setError(cRes.error.message); setLoading(false); return }
     setProjects(pRes.data as ProjectWithClient[])
     setCompanies(cRes.data as Company[])
+    setAllTrades((tRes.data ?? []) as TradeType[])
     setLoading(false)
   }, [])
 
@@ -161,6 +172,12 @@ export function ProjectsPage() {
       )
     }
 
+    if (selectedTradeIds.length > 0) {
+      await supabase.from('project_trades').insert(
+        selectedTradeIds.map(trade_type_id => ({ project_id: project.id, trade_type_id }))
+      )
+    }
+
     const { data: cxDefault } = await supabase
       .from('cx_index_defaults')
       .select('id')
@@ -235,6 +252,24 @@ export function ProjectsPage() {
     const name = form.phaseInput.trim()
     if (!name || form.phases.includes(name)) return
     setForm(f => ({ ...f, phases: [...f.phases, name], phaseInput: '' }))
+  }
+
+  async function addNewTrade() {
+    const name = newTradeName.trim()
+    if (!name) return
+    const maxOrder = allTrades.reduce((m, t) => Math.max(m, t.sort_order), 0)
+    const { data } = await supabase
+      .from('trade_types')
+      .insert({ name, sort_order: maxOrder + 1 })
+      .select('*')
+      .single()
+    if (data) {
+      const trade = data as TradeType
+      setAllTrades(prev => [...prev, trade])
+      setSelectedTradeIds(prev => [...prev, trade.id])
+    }
+    setNewTradeName('')
+    setAddingTrade(false)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -341,7 +376,7 @@ export function ProjectsPage() {
         )}
 
         <button
-          onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true) }}
+          onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
           className="ml-auto self-center text-sm bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium whitespace-nowrap"
         >
           + New Project
@@ -359,7 +394,7 @@ export function ProjectsPage() {
               <>
                 <p className="text-sm text-gray-400 mb-5">No active projects yet.</p>
                 <button
-                  onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true) }}
+                  onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
                   className="text-sm bg-teal-700 text-white rounded px-4 py-2 hover:bg-teal-800 transition-colors font-medium"
                 >
                   Create your first project
@@ -561,6 +596,58 @@ export function ProjectsPage() {
               >
                 Add
               </button>
+            </div>
+          </div>
+
+          {/* Trades in Scope */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Trades in Scope
+              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {allTrades.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelectedTradeIds(prev =>
+                    prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                  )}
+                  className={`text-xs rounded-full px-3 py-1 border transition-colors ${
+                    selectedTradeIds.includes(t.id)
+                      ? 'bg-teal-700 text-white border-teal-700'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-teal-400 hover:text-teal-700'
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+              {addingTrade ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={newTradeName}
+                    onChange={e => setNewTradeName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); addNewTrade() }
+                      if (e.key === 'Escape') { setAddingTrade(false); setNewTradeName('') }
+                    }}
+                    placeholder="Trade name…"
+                    className="text-xs border border-teal-300 rounded-full px-3 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    autoFocus
+                  />
+                  <button onClick={addNewTrade} className="text-teal-700 text-sm font-medium leading-none">✓</button>
+                  <button onClick={() => { setAddingTrade(false); setNewTradeName('') }} className="text-gray-400 text-sm leading-none">✕</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingTrade(true)}
+                  className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded-full px-3 py-1 transition-colors"
+                >
+                  + Add trade
+                </button>
+              )}
             </div>
           </div>
 

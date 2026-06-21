@@ -102,6 +102,21 @@ export interface Equipment {
   updated_at: string
 }
 
+// ── Trades ─────────────────────────────────────────────────────────────────
+
+export interface TradeType {
+  id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ProjectTrade {
+  id: string
+  project_id: string
+  trade_type_id: string
+}
+
 // ── Findings ───────────────────────────────────────────────────────────────
 
 export interface Finding {

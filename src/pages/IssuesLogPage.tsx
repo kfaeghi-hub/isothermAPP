@@ -4,6 +4,8 @@ import { formatDate } from '../lib/projectTypes'
 import { Modal } from '../components/ui/Modal'
 import type { ProjectPhase, ContactWithCompany, FindingDiaryEntry, FindingPhoto } from '../types/database'
 
+interface ProjectTradeOption { id: string; name: string; sort_order: number }
+
 // ── Local types ────────────────────────────────────────────────────────────
 
 interface FindingRow {
@@ -53,11 +55,6 @@ const ORIGIN_LABELS: Record<string, string> = {
   pfc: 'PFC',
   fpt: 'FPT',
 }
-
-const CATEGORY_SUGGESTIONS = [
-  'INFO', 'Mechanical', 'Electrical', 'BAS', 'Controls',
-  'General Contractor', 'Owner', 'Plumbing', 'Structural', 'TAB',
-]
 
 // ── Image compression ───────────────────────────────────────────────────────
 
@@ -129,6 +126,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   const [editForm, setEditForm]         = useState<EditForm>({ category: '', responsible_party_id: '', origin: 'site_visit', phase_id: '' })
   const [savingEdit, setSavingEdit]     = useState(false)
 
+  // Project trade options (for category select)
+  const [projectTrades, setProjectTrades] = useState<ProjectTradeOption[]>([])
+
   // ── Data ────────────────────────────────────────────────────────────────
 
   const fetchFindings = useCallback(async () => {
@@ -150,6 +150,15 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     setAllContacts((data ?? []) as ContactWithCompany[])
   }, [])
 
+  const fetchProjectTrades = useCallback(async () => {
+    const [ptRes, ttRes] = await Promise.all([
+      supabase.from('project_trades').select('trade_type_id').eq('project_id', projectId),
+      supabase.from('trade_types').select('id, name, sort_order').order('sort_order'),
+    ])
+    const tradeIds = new Set((ptRes.data ?? []).map(r => r.trade_type_id))
+    setProjectTrades((ttRes.data ?? []).filter(t => tradeIds.has(t.id)))
+  }, [projectId])
+
   const fetchDetail = useCallback(async (findingId: string) => {
     const [dRes, pRes] = await Promise.all([
       supabase
@@ -168,7 +177,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     setPhotos((pRes.data ?? []) as FindingPhoto[])
   }, [])
 
-  useEffect(() => { fetchFindings(); fetchContacts() }, [fetchFindings, fetchContacts])
+  useEffect(() => { fetchFindings(); fetchContacts(); fetchProjectTrades() }, [fetchFindings, fetchContacts, fetchProjectTrades])
 
   useEffect(() => {
     if (selectedId) fetchDetail(selectedId)
@@ -622,18 +631,22 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Category
             </label>
-            <input
-              type="text"
-              list="category-list"
+            <select
               value={createForm.category}
               onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              placeholder="INFO, Mechanical, BAS, etc."
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
               autoFocus
-            />
-            <datalist id="category-list">
-              {CATEGORY_SUGGESTIONS.map(s => <option key={s} value={s} />)}
-            </datalist>
+            >
+              <option value="INFO">INFO</option>
+              {projectTrades.map(t => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+            {projectTrades.length === 0 && (
+              <p className="text-[11px] text-amber-600 mt-1.5">
+                No trades in scope — add them via <strong>Edit Project</strong> to use specific categories.
+              </p>
+            )}
           </div>
 
           {/* Responsible Party + Origin */}
@@ -736,17 +749,21 @@ export function IssuesLogPage({ projectId, phases }: Props) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
-            <input
-              type="text"
-              list="category-list-edit"
+            <select
               value={editForm.category}
               onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
               autoFocus
-            />
-            <datalist id="category-list-edit">
-              {CATEGORY_SUGGESTIONS.map(s => <option key={s} value={s} />)}
-            </datalist>
+            >
+              <option value="INFO">INFO</option>
+              {/* Preserve old value if it's no longer in the trade list */}
+              {editForm.category !== 'INFO' && !projectTrades.some(t => t.name === editForm.category) && (
+                <option value={editForm.category}>{editForm.category}</option>
+              )}
+              {projectTrades.map(t => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
