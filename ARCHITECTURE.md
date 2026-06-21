@@ -159,6 +159,18 @@ These are the points where external services connect. Each is a single-file boun
 
 ---
 
+## Open Design Decisions (pending)
+
+### IST — Integrated Systems Testing (CAN/ULC-S1001)
+
+IST is a distinct, code-mandated Ontario process proving that fire/life-safety systems work together as a system — fire alarm triggering damper closure, smoke control actuation, elevator recall, emergency power transfer — run after all per-equipment FPTs are complete. Isotherm performs IST.
+
+**Decision pending:** should the Cx Index have a dedicated IST stage group (separate from FPT), or is IST tracked elsewhere (e.g., as a checklist instance, a deliverable, or a separate module)?
+
+**Do NOT build IST support until the tracking approach is confirmed.** The data model and Cx Index stage structure must leave room for it — don't make the FPT stage the final stage in a way that precludes adding IST after it.
+
+---
+
 ## How to Add a New Feature
 
 1. **DB change** → write a Supabase migration, update `src/types/database.ts`
