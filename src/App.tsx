@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
+import { ProjectsPage } from './pages/ProjectsPage'
 import { DirectoryPage } from './pages/DirectoryPage'
 
 type ConnectionStatus = 'checking' | 'connected' | 'error'
@@ -81,7 +82,9 @@ export default function App() {
 
         {/* Content area */}
         <div className="flex-1 overflow-hidden">
-          {activeItem === 'Directory' ? (
+          {activeItem === 'Projects' ? (
+            <ProjectsPage />
+          ) : activeItem === 'Directory' ? (
             <DirectoryPage />
           ) : (
             <div className="p-8">
