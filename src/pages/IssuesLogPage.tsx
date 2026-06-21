@@ -113,6 +113,8 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   const [newEntry, setNewEntry]         = useState('')
   const [addingEntry, setAddingEntry]   = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [confirmDeletePhotoId, setConfirmDeletePhotoId] = useState<string | null>(null)
+  const [deletingPhotoId, setDeletingPhotoId]           = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Create modal
@@ -252,6 +254,21 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       })
       .eq('id', selectedFinding.id)
     fetchFindings()
+  }
+
+  async function deletePhoto(photo: FindingPhoto) {
+    setDeletingPhotoId(photo.id)
+    // Delete DB record first — source of truth for UI visibility
+    await supabase.from('finding_photos').delete().eq('id', photo.id)
+    // Then remove from Storage (best-effort; orphaned files are preferable to broken UI state)
+    const marker = '/finding-photos/'
+    const idx = photo.storage_url.indexOf(marker)
+    if (idx >= 0) {
+      await supabase.storage.from('finding-photos').remove([photo.storage_url.slice(idx + marker.length)])
+    }
+    setDeletingPhotoId(null)
+    setConfirmDeletePhotoId(null)
+    if (selectedId) fetchDetail(selectedId)
   }
 
   function openEditModal() {
@@ -569,19 +586,52 @@ export function IssuesLogPage({ projectId, phases }: Props) {
               <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Photos</h4>
               <div className="flex flex-wrap gap-2">
                 {photos.map(photo => (
-                  <a
-                    key={photo.id}
-                    href={photo.storage_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={photo.caption ?? undefined}
-                  >
-                    <img
-                      src={photo.storage_url}
-                      alt={photo.caption ?? 'Finding photo'}
-                      className="w-24 h-24 object-cover rounded border border-gray-200 hover:opacity-90 transition-opacity cursor-zoom-in"
-                    />
-                  </a>
+                  <div key={photo.id} className="relative group w-24 h-24 flex-shrink-0">
+                    {confirmDeletePhotoId === photo.id ? (
+                      /* Inline confirm — replaces thumbnail */
+                      <div className="w-24 h-24 rounded border border-red-200 bg-red-50 flex flex-col items-center justify-center gap-2 text-center">
+                        <span className="text-[10px] text-red-700 font-medium leading-tight px-1">Delete photo?</span>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setConfirmDeletePhotoId(null)}
+                            className="text-[10px] px-2 py-0.5 rounded border border-gray-200 bg-white text-gray-500 hover:text-gray-700"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => deletePhoto(photo)}
+                            disabled={deletingPhotoId === photo.id}
+                            className="text-[10px] px-2 py-0.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {deletingPhotoId === photo.id ? '…' : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <a
+                          href={photo.storage_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={photo.caption ?? undefined}
+                        >
+                          <img
+                            src={photo.storage_url}
+                            alt={photo.caption ?? 'Finding photo'}
+                            className="w-24 h-24 object-cover rounded border border-gray-200 group-hover:opacity-80 transition-opacity cursor-zoom-in"
+                          />
+                        </a>
+                        {/* Delete button — visible on hover */}
+                        <button
+                          onClick={() => setConfirmDeletePhotoId(photo.id)}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-[11px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          title="Remove photo"
+                        >
+                          ×
+                        </button>
+                      </>
+                    )}
+                  </div>
                 ))}
 
                 {/* Upload button */}
