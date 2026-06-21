@@ -240,7 +240,7 @@ export function DirectoryPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  if (loading) return <div className="p-8 text-sm text-gray-500">Loading directory…</div>
+  if (loading) return <div className="p-8 text-sm text-gray-400">Loading directory…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">Error: {error}</div>
 
   return (
@@ -256,7 +256,7 @@ export function DirectoryPage() {
             placeholder="Search companies…"
             value={companySearch}
             onChange={e => setCompanySearch(e.target.value)}
-            className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full text-sm border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           />
         </div>
 
@@ -268,7 +268,7 @@ export function DirectoryPage() {
             onClick={() => setSelectedCompanyId(null)}
             className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors
               ${!selectedCompanyId
-                ? 'bg-blue-50 text-blue-700 font-semibold'
+                ? 'bg-teal-50 text-teal-700 font-semibold'
                 : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <span>All Companies</span>
@@ -285,15 +285,15 @@ export function DirectoryPage() {
               onClick={() => setSelectedCompanyId(company.id)}
               className={`group px-3 py-2.5 cursor-pointer border-l-2 transition-colors
                 ${selectedCompanyId === company.id
-                  ? 'border-l-blue-500 bg-blue-50'
+                  ? 'border-l-teal-500 bg-teal-50'
                   : 'border-l-transparent hover:bg-gray-50'}`}
             >
               <div className="flex items-start justify-between gap-1">
                 <span className={`text-sm font-medium leading-snug truncate
-                  ${selectedCompanyId === company.id ? 'text-blue-700' : 'text-gray-800'}`}>
+                  ${selectedCompanyId === company.id ? 'text-teal-700' : 'text-gray-800'}`}>
                   {company.name}
                   {company.abbreviation && (
-                    <span className="font-normal text-gray-400 ml-1">({company.abbreviation})</span>
+                    <span className="font-mono font-normal text-gray-400 ml-1 text-xs">({company.abbreviation})</span>
                   )}
                 </span>
                 <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
@@ -306,7 +306,7 @@ export function DirectoryPage() {
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {company.company_roles.slice(0, 3).map(r => (
                     <span key={r.id}
-                      className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 leading-none">
+                      className="text-[10px] font-medium bg-teal-50 text-teal-600 rounded px-1.5 py-0.5 leading-none">
                       {r.role}
                     </span>
                   ))}
@@ -320,7 +320,7 @@ export function DirectoryPage() {
               <div className="hidden group-hover:flex items-center gap-2 mt-1.5">
                 <button
                   onClick={e => openEditCompany(company, e)}
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-teal-700 hover:underline"
                 >
                   Edit
                 </button>
@@ -340,7 +340,7 @@ export function DirectoryPage() {
         <div className="p-3 border-t border-gray-100">
           <button
             onClick={openAddCompany}
-            className="w-full text-sm bg-slate-800 text-white rounded-md px-3 py-2 hover:bg-slate-700 transition-colors font-medium"
+            className="w-full text-sm bg-slate-800 text-white rounded px-3 py-2 hover:bg-slate-700 transition-colors font-medium"
           >
             + Add Company
           </button>
@@ -351,7 +351,7 @@ export function DirectoryPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Sub-header: filters + actions */}
-        <div className="border-b border-gray-200 bg-white px-4 py-3 flex items-center gap-3 flex-wrap flex-shrink-0">
+        <div className="border-b border-gray-200 bg-white px-4 py-2.5 flex items-center gap-3 flex-wrap flex-shrink-0">
           {selectedCompany && (
             <span className="text-sm font-semibold text-gray-700 mr-1 truncate max-w-xs">
               {selectedCompany.name}
@@ -362,13 +362,13 @@ export function DirectoryPage() {
             placeholder="Search contacts…"
             value={contactSearch}
             onChange={e => setContactSearch(e.target.value)}
-            className="text-sm border border-gray-200 rounded-md px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm border border-gray-200 rounded px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           />
           {allRoles.length > 0 && (
             <select
               value={roleFilter}
               onChange={e => setRoleFilter(e.target.value)}
-              className="text-sm border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             >
               <option value="">All roles</option>
               {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
@@ -379,7 +379,7 @@ export function DirectoryPage() {
           </span>
           <button
             onClick={openAddContact}
-            className="text-sm bg-blue-600 text-white rounded-md px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium"
+            className="text-sm bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium"
           >
             + Add Contact
           </button>
@@ -389,6 +389,7 @@ export function DirectoryPage() {
         <div className="flex-1 overflow-auto">
           {filteredContacts.length === 0 ? (
             <div className="p-16 text-center">
+              <div className="text-3xl mb-3 opacity-20">👥</div>
               <p className="text-sm text-gray-400">
                 {contacts.length === 0
                   ? 'No contacts yet — add a company first, then add contacts to it.'
@@ -399,37 +400,37 @@ export function DirectoryPage() {
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                 <tr>
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">Name</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">Company</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">Trade / Role</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">Email</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">Phone</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Name</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Company</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Trade / Role</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Email</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Phone</th>
                   <th className="w-20" />
                 </tr>
               </thead>
               <tbody>
                 {filteredContacts.map(contact => (
                   <tr key={contact.id} className="border-b border-gray-100 hover:bg-gray-50 group">
-                    <td className="px-4 py-2.5 font-medium text-gray-900">{contact.name}</td>
-                    <td className="px-4 py-2.5 text-gray-600">
+                    <td className="px-4 py-2 font-medium text-gray-900">{contact.name}</td>
+                    <td className="px-4 py-2 text-gray-600">
                       {contact.companies?.abbreviation
-                        ? <span title={contact.companies.name}>{contact.companies.abbreviation}</span>
+                        ? <span title={contact.companies.name} className="font-mono text-xs">{contact.companies.abbreviation}</span>
                         : (contact.companies?.name ?? <span className="text-gray-300">—</span>)
                       }
                     </td>
-                    <td className="px-4 py-2.5 text-gray-600">{contact.trade ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2 text-gray-600">{contact.trade ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-2">
                       {contact.email
-                        ? <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">{contact.email}</a>
+                        ? <a href={`mailto:${contact.email}`} className="text-teal-700 hover:underline">{contact.email}</a>
                         : <span className="text-gray-300">—</span>
                       }
                     </td>
-                    <td className="px-4 py-2.5 text-gray-600">{contact.phone ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2 text-gray-600">{contact.phone ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-2">
                       <div className="hidden group-hover:flex items-center gap-2">
                         <button
                           onClick={e => openEditContact(contact, e)}
-                          className="text-blue-600 hover:underline text-xs"
+                          className="text-teal-700 hover:underline text-xs"
                         >
                           Edit
                         </button>
@@ -457,42 +458,42 @@ export function DirectoryPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company name <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Company name <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={companyForm.name}
               onChange={e => setCompanyForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               placeholder="e.g. Active Mechanical Inc."
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Abbreviation</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Abbreviation</label>
             <input
               type="text"
               value={companyForm.abbreviation}
               onChange={e => setCompanyForm(f => ({ ...f, abbreviation: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               placeholder="e.g. AMI"
             />
           </div>
 
           {/* Roles */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Roles</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Roles</label>
             {companyForm.roles.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {companyForm.roles.map(role => (
                   <span key={role}
-                    className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs rounded-full px-2.5 py-1">
+                    className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-xs rounded px-2 py-0.5">
                     {role}
                     <button
                       onClick={() => setCompanyForm(f => ({ ...f, roles: f.roles.filter(r => r !== role) }))}
-                      className="text-slate-400 hover:text-red-500 leading-none font-bold ml-0.5"
+                      className="text-teal-400 hover:text-red-500 leading-none font-bold ml-0.5"
                     >
                       ×
                     </button>
@@ -507,11 +508,11 @@ export function DirectoryPage() {
                 onChange={e => setCompanyForm(f => ({ ...f, roleInput: e.target.value }))}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRole() } }}
                 placeholder="Type a role and press Enter…"
-                className="flex-1 border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               />
               <button
                 onClick={addRole}
-                className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors"
+                className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
               >
                 Add
               </button>
@@ -520,12 +521,12 @@ export function DirectoryPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
             <textarea
               value={companyForm.notes}
               onChange={e => setCompanyForm(f => ({ ...f, notes: e.target.value }))}
               rows={2}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
             />
           </div>
 
@@ -534,14 +535,14 @@ export function DirectoryPage() {
           <div className="flex justify-end gap-2 pt-1">
             <button
               onClick={() => setCompanyModal({ open: false, editing: null })}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
             >
               Cancel
             </button>
             <button
               onClick={saveCompany}
               disabled={savingCompany}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
             >
               {savingCompany ? 'Saving…' : companyModal.editing ? 'Save Changes' : 'Add Company'}
             </button>
@@ -557,27 +558,27 @@ export function DirectoryPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Name <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={contactForm.name}
               onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               placeholder="Full name"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Company <span className="text-red-400">*</span>
             </label>
             <select
               value={contactForm.company_id}
               onChange={e => setContactForm(f => ({ ...f, company_id: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             >
               <option value="">Select a company…</option>
               {companies.map(c => (
@@ -587,33 +588,33 @@ export function DirectoryPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Trade / Role</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Trade / Role</label>
             <input
               type="text"
               value={contactForm.trade}
               onChange={e => setContactForm(f => ({ ...f, trade: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               placeholder="e.g. Mechanical Engineer, Project Manager"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
             <input
               type="email"
               value={contactForm.email}
               onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
             <input
               type="tel"
               value={contactForm.phone}
               onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))}
-              className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             />
           </div>
 
@@ -622,14 +623,14 @@ export function DirectoryPage() {
           <div className="flex justify-end gap-2 pt-1">
             <button
               onClick={() => setContactModal({ open: false, editing: null })}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
             >
               Cancel
             </button>
             <button
               onClick={saveContact}
               disabled={savingContact}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
             >
               {savingContact ? 'Saving…' : contactModal.editing ? 'Save Changes' : 'Add Contact'}
             </button>

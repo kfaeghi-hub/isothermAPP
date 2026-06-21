@@ -23,11 +23,11 @@ function StatusBadge({ status }: { status: ConnectionStatus }) {
   }
   const labels: Record<ConnectionStatus, string> = {
     checking: 'Checking…',
-    connected: 'Supabase connected',
+    connected: 'DB connected',
     error: 'Connection error',
   }
   return (
-    <span className={`text-xs font-medium px-2 py-1 rounded-full ${styles[status]}`}>
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles[status]}`}>
       {labels[status]}
     </span>
   )
@@ -48,13 +48,15 @@ export default function App() {
   const phase3 = NAV_ITEMS.filter(i => i.phase === 3)
 
   return (
-    <div className="flex h-screen bg-gray-50 text-gray-900">
+    <div className="flex h-screen bg-slate-50 text-gray-900">
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col">
         {/* Logo */}
-        <div className="px-4 py-5 border-b border-slate-700">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Isotherm Engineering</p>
-          <h1 className="text-lg font-bold leading-tight">Cx System</h1>
+        <div className="px-5 py-4 border-b border-slate-800">
+          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-slate-500 mb-1">Isotherm Engineering</p>
+          <h1 className="text-[15px] font-semibold text-white leading-tight tracking-tight">
+            <span className="font-mono text-teal-400">Cx</span>{' '}System
+          </h1>
         </div>
 
         {/* Nav */}
@@ -65,7 +67,7 @@ export default function App() {
         </nav>
 
         {/* Connection status */}
-        <div className="px-4 py-4 border-t border-slate-700">
+        <div className="px-5 py-3 border-t border-slate-800">
           <StatusBadge status={status} />
         </div>
       </aside>
@@ -73,10 +75,8 @@ export default function App() {
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="h-14 border-b border-gray-200 bg-white flex items-center px-6 gap-3 flex-shrink-0">
-          <h2 className="text-base font-semibold">{activeItem}</h2>
-          <span className="text-gray-300">|</span>
-          <span className="text-sm text-gray-500">Phase 1 — skeleton</span>
+        <header className="h-12 border-b border-gray-200 bg-white flex items-center px-5 flex-shrink-0">
+          <h2 className="text-sm font-semibold text-gray-800">{activeItem}</h2>
         </header>
 
         {/* Content area */}
@@ -109,22 +109,29 @@ function NavSection({
 }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 px-2 mb-1">{label}</p>
-      {items.map(item => (
-        <button
-          key={item.label}
-          onClick={() => !muted && onSelect(item.label)}
-          className={`w-full text-left flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors
-            ${active === item.label ? 'bg-slate-700 text-white' : ''}
-            ${muted ? 'text-slate-600 cursor-default' : 'hover:bg-slate-800 text-slate-300'}`}
-        >
-          <span>{item.icon}</span>
-          <span>{item.label}</span>
-          {muted && (
-            <span className="ml-auto text-xs text-slate-600">soon</span>
-          )}
-        </button>
-      ))}
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 px-3 mb-1">{label}</p>
+      {items.map(item => {
+        const isActive = active === item.label && !muted
+        return (
+          <div key={item.label} className="relative">
+            {isActive && (
+              <div className="absolute left-0 inset-y-0 w-0.5 bg-teal-400 rounded-r" />
+            )}
+            <button
+              onClick={() => !muted && onSelect(item.label)}
+              className={`w-full text-left flex items-center gap-2.5 pl-3 pr-2 py-1.5 text-sm transition-colors
+                ${isActive ? 'text-white bg-white/[0.07]' : ''}
+                ${muted ? 'text-slate-600 cursor-default' : 'hover:bg-white/[0.05] text-slate-400'}`}
+            >
+              <span className={muted ? 'opacity-40' : ''}>{item.icon}</span>
+              <span>{item.label}</span>
+              {muted && (
+                <span className="ml-auto text-[10px] text-slate-600 font-medium">soon</span>
+              )}
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -132,13 +139,11 @@ function NavSection({
 function Placeholder({ name }: { name: string }) {
   return (
     <div className="max-w-2xl">
-      <div className="rounded-xl border-2 border-dashed border-gray-200 bg-white p-12 text-center">
+      <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
         <p className="text-3xl mb-4">🚧</p>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">{name}</h3>
+        <h3 className="text-base font-semibold text-gray-700 mb-2">{name}</h3>
         <p className="text-sm text-gray-400">
           This module will be built in an upcoming session.
-          <br />
-          The Supabase connection, routing, and shell are ready.
         </p>
       </div>
     </div>
