@@ -180,4 +180,31 @@ Future: move to a `tests/` directory with named spec files as coverage grows.
 
 ---
 
-*Last updated: 2026-06-21 — reflects Phase 1 build (Projects, Directory, Issues Log, Trades).*
+## Data Retention & Portability
+
+**Legal requirement:** Ontario requires completed project records to be retained for **10 years**. All build decisions must keep data in the firm's custody and in formats that remain openable in 2036 regardless of the app's future.
+
+**Standing rule: never lock data into proprietary formats.** Every piece of project data must be exportable in standard formats at any time:
+
+| Data type | Format | How it exits |
+|---|---|---|
+| All relational data | PostgreSQL | Supabase full DB export (pg_dump); project-level SQL export (Phase 3 feature) |
+| Photos & file attachments | JPEG / original format | Retrievable from Supabase Storage via standard HTTP at any time |
+| Reports (site reports, IVC/PFC, FPT) | `.docx` + PDF | Generated on demand; stored as files, not in opaque binary columns |
+| Structured project data | JSON / CSV | Queryable from Postgres; exportable as standard relational tables |
+
+**Current status (Phase 1):** all formats are already portable.
+- DB: standard PostgreSQL via Supabase (pg_dump-compatible at any time)
+- Photos: stored as standard JPEG files in Supabase Storage; `finding_photos.storage_url` holds the full public URL — files are retrievable independently of the app
+- No proprietary binary formats, no opaque blobs, no vendor-specific encodings
+
+**What NOT to do (enforce this as new features are built):**
+- Do not store report content in binary blobs inside the DB — generate and store as `.docx`/PDF files
+- Do not serialize UI state or config as opaque JSON without a documented schema
+- Do not use any storage or DB feature that makes bulk export harder (e.g., Supabase-specific encrypted columns without export tooling)
+
+**Export feature (Phase 3, not yet built):** a per-project export that bundles reports, photos, and a data snapshot into a portable folder for archiving to the firm's on-premise server (ShareSync). The data architecture already supports this — no rework needed when that feature is added.
+
+---
+
+*Last updated: 2026-06-21 — reflects Phase 1 build (Projects, Directory, Issues Log, Trades) + data retention requirement from §9C.*
