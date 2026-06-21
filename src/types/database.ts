@@ -168,6 +168,54 @@ export interface SiteReport {
   updated_at: string
 }
 
+// ── Cx Index ───────────────────────────────────────────────────────────────
+
+export interface CxDefaultStageGroup {
+  id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+export interface CxDefaultColumn {
+  id: string
+  stage_group_id: string
+  label: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ProjectCxStageGroup {
+  id: string
+  project_id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ProjectCxColumn {
+  id: string
+  stage_group_id: string
+  label: string
+  sort_order: number
+  created_at: string
+}
+
+export interface CxCellValue {
+  id: string
+  project_id: string
+  equipment_id: string
+  column_id: string
+  status: 'done' | 'in_progress' | 'na'
+  notes: string | null
+  updated_at: string
+}
+
+// Composite used in the UI — stage group with its columns pre-joined and sorted
+export interface CxStageGroupWithColumns extends ProjectCxStageGroup {
+  columns: ProjectCxColumn[]
+}
+
 // ── Joined types (used in UI queries) ─────────────────────────────────────
 
 export interface CompanyWithRoles extends Company {

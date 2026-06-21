@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
+import { CxIndexPage } from './CxIndexPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType, TradeType,
 } from '../types/database'
@@ -34,7 +35,7 @@ type Tab = 'overview' | 'issues' | 'cx_index' | 'site_reports' | 'deliverables'
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
   { id: 'issues',       label: 'Issues Log',   built: true  },
-  { id: 'cx_index',     label: 'Cx Index',     built: false },
+  { id: 'cx_index',     label: 'Cx Index',     built: true  },
   { id: 'site_reports', label: 'Site Reports', built: false },
   { id: 'deliverables', label: 'Deliverables', built: false },
 ]
@@ -470,18 +471,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           <IssuesLogPage projectId={projectId} phases={phases} />
         )}
 
-        {/* Cx Index stub */}
+        {/* Cx Index */}
         {activeTab === 'cx_index' && (
-          <div className="p-20 text-center">
-            <div className="text-3xl mb-3 opacity-20">📊</div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Cx Index</p>
-            <p className="text-sm text-gray-400 max-w-sm mx-auto">
-              Equipment list × commissioning stages progress matrix.
-            </p>
-            <p className="text-xs text-teal-600 mt-3">
-              ✓ Standard Comprehensive stage structure ({'>'}60 columns) copied to this project at creation.
-            </p>
-          </div>
+          <CxIndexPage projectId={projectId} />
         )}
 
         {/* Site Reports stub */}

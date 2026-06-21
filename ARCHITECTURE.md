@@ -95,10 +95,40 @@ findings              → issues log entries per project
 finding_diary_entries → append-only diary per finding (oldest-first)
 finding_photos        → photo records per finding; storage_url = full public URL
 
-project_cx_groups     → Cx Index stage groups per project
-project_cx_columns    → individual sub-columns per stage group
-cx_index_defaults     → firm-level default Cx Index templates
+── Cx Index ───────────────────────────────────────────────────────────────────
+
+equipment             → equipment/system rows per project (rich nameplate schema:
+                        kind, category, tag, descriptor, location, area_served,
+                        manufacturer, model, serial_number, voltage, phase, hz,
+                        amperage, flow, capacity, nameplate_extra jsonb)
+                        Reused as Cx Index rows; also the source for issue linking.
+
+cx_default_stage_groups → firm-level default template: 12 stage groups
+cx_default_columns      → 88 columns across the 12 groups (never edited by users)
+
+project_cx_stage_groups → per-project editable copy of stage groups
+                          (FK → projects CASCADE; initialized from defaults on first open)
+project_cx_columns      → per-project editable columns
+                          (FK → project_cx_stage_groups CASCADE; label, sort_order)
+
+cx_cell_values          → sparse progress cells: one row per (equipment × column) where
+                          status is set; blank = no row (status: done | in_progress | na)
+                          ON DELETE CASCADE on both equipment_id and column_id FKs.
+                          Unique constraint on (equipment_id, column_id).
 ```
+
+**Cx Index invariants:**
+- Editing a project's stage groups/columns NEVER touches `cx_default_stage_groups` / `cx_default_columns`.
+- Deleting a column with progress data warns the user first; deletion cascades via FK.
+- Progress % per row = done / (total - na); na cells excluded from denominator.
+- Collapsed groups show a single summary % cell per equipment row.
+
+**Default stage structure (12 groups, 88 columns — as of 2026-06-21):**
+1. Doc Review Stage (11) · 2. Mechanical Static Verification (8) · 3. Plumbing/Domestic (7)
+4. Electrical Static - Physical Install (5) · 5. Electrical Testing (14) · 6. BAS Static Verification (6)
+7. Pre-FPT Mech (5, includes TAB Air+Water Balancing Reports) · 8. FPT Elec (7, life safety at end)
+9. FPT BAS/Mech (5) · 10. IST — Integrated Systems Testing (7, CAN/ULC-S1001)
+11. Turnover (8) · 12. Post-Construction (5)
 
 All project-referencing FKs use `ON DELETE CASCADE`. Phase 1 uses dev-permissive RLS (`USING (true) WITH CHECK (true)`) — replaced with real auth policies in Phase 7.
 
@@ -163,11 +193,10 @@ These are the points where external services connect. Each is a single-file boun
 
 ### IST — Integrated Systems Testing (CAN/ULC-S1001)
 
-IST is a distinct, code-mandated Ontario process proving that fire/life-safety systems work together as a system — fire alarm triggering damper closure, smoke control actuation, elevator recall, emergency power transfer — run after all per-equipment FPTs are complete. Isotherm performs IST.
+IST is now included as **Group 10** in the Cx Index default stage structure with 7 columns:
+IST Plan Prepared · Cause-and-Effect Matrix Developed · Trades Coordinated · IST Execution/Witnessing · Deficiencies Documented · IST Report Issued · AHJ/Fire Dept Acceptance.
 
-**Decision pending:** should the Cx Index have a dedicated IST stage group (separate from FPT), or is IST tracked elsewhere (e.g., as a checklist instance, a deliverable, or a separate module)?
-
-**Do NOT build IST support until the tracking approach is confirmed.** The data model and Cx Index stage structure must leave room for it — don't make the FPT stage the final stage in a way that precludes adding IST after it.
+This tracks IST progress at the equipment/system level within the same matrix. No separate IST module is planned.
 
 ---
 
@@ -219,4 +248,4 @@ Future: move to a `tests/` directory with named spec files as coverage grows.
 
 ---
 
-*Last updated: 2026-06-21 — reflects Phase 1 build (Projects, Directory, Issues Log, Trades) + data retention requirement from §9C.*
+*Last updated: 2026-06-21 — reflects Phase 1 build (Projects, Directory, Issues Log, Trades, Cx Index matrix with full 12-group / 88-column default) + data retention requirement from §9C.*
