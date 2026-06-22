@@ -203,17 +203,25 @@ export interface FindingPhoto {
 
 // ── Site reports ───────────────────────────────────────────────────────────
 
+export interface DocRegisterItem {
+  id: string
+  label: string
+  status: 'outstanding' | 'received' | 'na'
+  finding_number: string | null
+}
+
 export interface SiteReport {
   id: string
   project_id: string
   report_number: string
+  site_visit_date: string
   report_date: string
-  observation_date: string | null
-  narrative: string | null
-  site_progress: string | null
-  current_status: string | null
+  authored_by: string
+  progress_narrative: string | null
   show_closed: boolean
-  created_by: string | null
+  doc_register: DocRegisterItem[] | null
+  storage_url: string | null
+  pdf_url: string | null
   created_at: string
   updated_at: string
 }

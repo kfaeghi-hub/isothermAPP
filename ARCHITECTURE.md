@@ -122,6 +122,18 @@ project_cx_stage_groups → per-project editable copy of stage groups
 project_cx_columns      → per-project editable columns
                           (FK → project_cx_stage_groups CASCADE; label, sort_order)
 
+── Site Reports ───────────────────────────────────────────────────────────────
+
+site_reports            → numbered Cx Site Notes per project
+                          report_number (text), site_visit_date (date), report_date (date),
+                          authored_by (text, default 'Tony Faeghi'),
+                          progress_narrative (text), show_closed (boolean, default true),
+                          doc_register (jsonb → DocRegisterItem[]),
+                          storage_url (text, .docx public URL),
+                          pdf_url (text, PDF public URL)
+                          Generation: Supabase Edge Function 'generate-site-report'
+                          (Deno, npm:docx@8 + npm:pdf-lib, uploads to 'site-reports' bucket)
+
 cx_cell_values          → sparse progress cells: one row per (equipment × column) where
                           status is set; blank = no row (status: done | in_progress | na)
                           ON DELETE CASCADE on both equipment_id and column_id FKs.
@@ -259,4 +271,4 @@ Future: move to a `tests/` directory with named spec files as coverage grows.
 
 ---
 
-*Last updated: 2026-06-21 — reflects Phase 1 build: Projects, Directory, Issues Log, Trades, Cx Index matrix (12-group / 88-column), Equipment / Systems Register (11 type field templates, tag glossary, file attachments) + data retention requirement from §9C.*
+*Last updated: 2026-06-22 — reflects Phase 1 build: Projects, Directory, Issues Log, Trades, Cx Index matrix (12-group / 88-column), Equipment / Systems Register (11 type field templates, tag glossary, file attachments), Site Reports (.docx + PDF generation via Edge Function) + data retention requirement from §9C.*

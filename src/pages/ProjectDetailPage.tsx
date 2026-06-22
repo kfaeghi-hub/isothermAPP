@@ -5,6 +5,7 @@ import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
 import { EquipmentPage } from './EquipmentPage'
+import { SiteReportsPage } from './SiteReportsPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType, TradeType,
 } from '../types/database'
@@ -38,7 +39,7 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'issues',       label: 'Issues Log',   built: true  },
   { id: 'cx_index',     label: 'Cx Index',     built: true  },
   { id: 'equipment',    label: 'Equipment',    built: true  },
-  { id: 'site_reports', label: 'Site Reports', built: false },
+  { id: 'site_reports', label: 'Site Reports', built: true  },
   { id: 'deliverables', label: 'Deliverables', built: false },
 ]
 
@@ -483,15 +484,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           <EquipmentPage projectId={projectId} />
         )}
 
-        {/* Site Reports stub */}
+        {/* Site Reports */}
         {activeTab === 'site_reports' && (
-          <div className="p-20 text-center">
-            <div className="text-3xl mb-3 opacity-20">📄</div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Site Reports</p>
-            <p className="text-sm text-gray-400 max-w-sm mx-auto">
-              Numbered site reports with carry-forward findings and .docx export.
-            </p>
-          </div>
+          <SiteReportsPage projectId={projectId} />
         )}
 
         {/* Deliverables stub */}
