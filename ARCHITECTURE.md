@@ -97,11 +97,22 @@ finding_photos        → photo records per finding; storage_url = full public U
 
 ── Cx Index ───────────────────────────────────────────────────────────────────
 
-equipment             → equipment/system rows per project (rich nameplate schema:
-                        kind, category, tag, descriptor, location, area_served,
-                        manufacturer, model, serial_number, voltage, phase, hz,
-                        amperage, flow, capacity, nameplate_extra jsonb)
-                        Reused as Cx Index rows; also the source for issue linking.
+equipment             → single source for BOTH Cx Index rows and Equipment tab entries.
+                        equipment_type text column maps to field template (e.g. 'ahu', 'pump').
+                        nameplate_extra jsonb stores {spec:{}, shop_drawing:{}, installed:{}}
+                        keyed by field_name. Basic fields (manufacturer, model, etc.) on root
+                        columns; type-specific fields in nameplate_extra.
+
+equipment_tag_glossary     → firm-level editable tag glossary (~80 entries: tag, descriptor,
+                              discipline, equipment_type, category_label, sort_order)
+equipment_type_field_defs  → firm-level default field defs (11 types × 3 sections × ~8-17
+                              fields; never edited by users)
+project_equipment_field_defs → per-project editable copy of field defs (same editable-defaults
+                              pattern as Cx Index stage groups); initialized from firm defaults
+                              on first equipment of that type added to the project
+equipment_attachments      → per-equipment file attachments; storage in 'equipment-files' bucket
+                              (PDF, DOCX, XLS, images; 20 MB limit)
+                              file_type: shop_drawing|cut_sheet|submittal|startup_report|om_manual|other
 
 cx_default_stage_groups → firm-level default template: 12 stage groups
 cx_default_columns      → 88 columns across the 12 groups (never edited by users)
@@ -248,4 +259,4 @@ Future: move to a `tests/` directory with named spec files as coverage grows.
 
 ---
 
-*Last updated: 2026-06-21 — reflects Phase 1 build (Projects, Directory, Issues Log, Trades, Cx Index matrix with full 12-group / 88-column default) + data retention requirement from §9C.*
+*Last updated: 2026-06-21 — reflects Phase 1 build: Projects, Directory, Issues Log, Trades, Cx Index matrix (12-group / 88-column), Equipment / Systems Register (11 type field templates, tag glossary, file attachments) + data retention requirement from §9C.*

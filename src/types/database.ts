@@ -78,10 +78,18 @@ export interface ProjectPhase {
 
 // ── Equipment ──────────────────────────────────────────────────────────────
 
+// nameplate_extra stores three-section field values keyed by field_name
+export interface NameplateExtra {
+  spec:         Record<string, string>
+  shop_drawing: Record<string, string>
+  installed:    Record<string, string>
+}
+
 export interface Equipment {
   id: string
   project_id: string
   kind: 'equipment' | 'system'
+  equipment_type: string | null      // maps to field template (e.g. 'heat_pump', 'pump')
   category: string | null
   tag: string | null
   descriptor: string | null
@@ -96,10 +104,52 @@ export interface Equipment {
   amperage: string | null
   flow: string | null
   capacity: string | null
-  nameplate_extra: Record<string, string> | null
+  nameplate_extra: NameplateExtra | null
   sort_order: number
   created_at: string
   updated_at: string
+}
+
+export interface EquipmentTagGlossary {
+  id: string
+  tag: string
+  descriptor: string
+  discipline: string
+  equipment_type: string | null
+  category_label: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface EquipmentTypeFieldDef {
+  id: string
+  equipment_type: string
+  section: 'spec' | 'shop_drawing' | 'installed'
+  field_name: string
+  unit: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface ProjectEquipmentFieldDef {
+  id: string
+  project_id: string
+  equipment_type: string
+  section: 'spec' | 'shop_drawing' | 'installed'
+  field_name: string
+  unit: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface EquipmentAttachment {
+  id: string
+  project_id: string
+  equipment_id: string
+  filename: string
+  file_type: 'shop_drawing' | 'cut_sheet' | 'submittal' | 'startup_report' | 'om_manual' | 'other'
+  storage_url: string
+  uploaded_at: string
 }
 
 // ── Trades ─────────────────────────────────────────────────────────────────

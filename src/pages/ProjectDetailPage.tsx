@@ -4,6 +4,7 @@ import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
+import { EquipmentPage } from './EquipmentPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType, TradeType,
 } from '../types/database'
@@ -30,12 +31,13 @@ interface EditForm {
   notes: string
 }
 
-type Tab = 'overview' | 'issues' | 'cx_index' | 'site_reports' | 'deliverables'
+type Tab = 'overview' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'deliverables'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
   { id: 'issues',       label: 'Issues Log',   built: true  },
   { id: 'cx_index',     label: 'Cx Index',     built: true  },
+  { id: 'equipment',    label: 'Equipment',    built: true  },
   { id: 'site_reports', label: 'Site Reports', built: false },
   { id: 'deliverables', label: 'Deliverables', built: false },
 ]
@@ -474,6 +476,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         {/* Cx Index */}
         {activeTab === 'cx_index' && (
           <CxIndexPage projectId={projectId} />
+        )}
+
+        {/* Equipment / Systems Register */}
+        {activeTab === 'equipment' && (
+          <EquipmentPage projectId={projectId} />
         )}
 
         {/* Site Reports stub */}
