@@ -290,7 +290,9 @@ async function toDocx(html: string): Promise<Buffer> {
   const safeHtml = html.replace(/(<t[hd][^>]*?) style="[^"]*"/gi, '$1')
   const result = await HTMLtoDOCX(safeHtml, null, {
     table:    { row: { cantSplit: true } },
-    margins:  { top: 720, right: 1080, bottom: 900, left: 1080 },
+    // header/footer/gutter must be explicit integers — html-to-docx writes
+    // the string "undefined" for omitted margin fields, which Word rejects.
+    margins:  { top: 720, right: 1080, bottom: 900, left: 1080, header: 708, footer: 708, gutter: 0 },
     font:     'Arial',
     fontSize: 20,   // half-points (= 10pt)
     footer:   false,
