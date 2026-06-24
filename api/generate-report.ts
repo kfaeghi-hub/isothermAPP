@@ -279,15 +279,170 @@ async function toPdf(html: string): Promise<Buffer> {
   }
 }
 
+// ── DOCX-specific HTML builder ────────────────────────────────────────────────
+// Generates a Word-friendly HTML using real <table> elements and inline styles
+// instead of CSS classes / display:table divs. buildHtml() is left untouched
+// for PDF — this is a separate path so neither output affects the other.
+
+function buildDocxHtml(
+  project: any, report: any,
+  distribution: any[], findings: any[],
+  photoBuffers: Map<string, Buffer>,
+): string {
+  const TH = 'style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid #1F3A5F;font-size:9pt;"'
+  const td  = (i: number, extra = '') =>
+    `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;${i%2===1 ? 'background-color:#F6F8FB;' : ''}${extra}"`
+
+  const distRows = distribution.map((r: any, i: number) => {
+    const c  = Array.isArray(r.contacts)  ? r.contacts[0]  : r.contacts
+    const co = Array.isArray(c?.companies) ? c?.companies[0] : c?.companies
+    return `<tr>
+      <td ${td(i)}>${esc(c?.name)}</td>
+      <td ${td(i)}>${esc(co?.name)}</td>
+      <td ${td(i)}>${esc(co?.abbreviation)}</td>
+      <td ${td(i)}>${esc(c?.email)}</td>
+    </tr>`
+  }).join('\n')
+
+  const docItems: any[] = report.doc_register ?? []
+  const docSection = docItems.length > 0
+    ? `<table style="width:100%;border-collapse:collapse;font-size:9.5pt;">
+        <thead><tr>
+          <th ${TH}>Documents</th>
+          <th ${TH}>Status</th>
+          <th ${TH}>Issues Log Item #</th>
+        </tr></thead>
+        <tbody>${docItems.map((item: any, i: number) =>
+          `<tr>
+            <td ${td(i)}>${esc(item.label)}</td>
+            <td ${td(i)}>${statusHtml(item.status)}</td>
+            <td ${td(i)}>${esc(item.finding_number ?? '—')}</td>
+          </tr>`
+        ).join('\n')}</tbody>
+      </table>`
+    : `<p style="font-style:italic;color:#888;font-size:9.5pt;">No documentation items recorded.</p>`
+
+  const findingRows = findings.map((f: any, rowIdx: number) => {
+    const closed      = f.status === 'closed'
+    const entries     = [...(f.finding_diary_entries ?? [])].sort((a: any, b: any) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const fContact    = Array.isArray(f.contacts)         ? f.contacts[0]         : f.contacts
+    const fCompany    = Array.isArray(fContact?.companies) ? fContact?.companies[0] : fContact?.companies
+    const responsible = fCompany?.abbreviation ?? fContact?.trade ?? '—'
+    const headingText = f.title || f.category
+    const hasTitle    = !!(f.title)
+    const rowBg       = closed ? '#E3E3E3' : (rowIdx % 2 === 1 ? '#F6F8FB' : '#ffffff')
+    const rowFg       = closed ? '#777777' : '#222222'
+
+    const tdBase = `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;background-color:${rowBg};color:${rowFg};"`
+    const tdNum  = `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${closed ? '#777' : '#1F3A5F'};"`
+    const tdAct  = `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${rowFg};"`
+
+    const diaryHtml = entries.map((e: any) =>
+      `<p style="margin:4px 0;"><em style="color:#8A93A0;font-size:8.5pt;">${esc(isoShort(e.entry_date))}</em><br>${esc(e.body ?? '')}</p>`
+    ).join('')
+
+    const photosHtml = (f.finding_photos ?? []).map((ph: any) => {
+      const buf = photoBuffers.get(ph.id)
+      if (!buf) return ''
+      const b64 = toBase64(buf)
+      const cap = isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '')
+      return `${cap ? `<p style="font-style:italic;font-size:8.5pt;color:#555;margin:4px 0;">${esc(cap)}</p>` : ''}<p><img src="data:image/jpeg;base64,${b64}" style="max-width:230px;" alt=""></p>`
+    }).join('')
+
+    const closedTag = closed && f.date_closed
+      ? `<br><span style="font-size:8pt;font-weight:bold;color:#888;">CLOSED: ${esc(isoShort(f.date_closed))}</span>` : ''
+
+    return `<tr>
+      <td ${tdNum}>${esc(f.number)}${closedTag}</td>
+      <td ${tdBase}>
+        <strong style="color:${closed ? '#777' : '#1F3A5F'};font-size:9.5pt;">${esc(headingText)}</strong>
+        ${hasTitle ? `<br><span style="font-size:8pt;color:#999;">${esc(f.category)}</span>` : ''}
+        ${diaryHtml}${photosHtml}
+      </td>
+      <td ${tdAct}>${esc(responsible)}</td>
+    </tr>`
+  }).join('\n')
+
+  const narrativeHtml = (report.progress_narrative ?? '').split('\n').map((line: string) =>
+    `<p style="margin:4px 0;">${esc(line) || '&nbsp;'}</p>`
+  ).join('')
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #222; }
+  h2   { color: #1F3A5F; font-size: 12pt; font-weight: bold; margin: 20px 0 7px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 4px; }
+  p { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1 style="color:#1F3A5F;font-size:19pt;font-weight:bold;text-align:center;margin:0;">ISOTHERM ENGINEERING LTD.</h1>
+<p style="text-align:center;font-size:8.5pt;color:#555;margin:2px 0;">95 Mural Street, Suite 600, Richmond Hill, ON, L4B 3G2 &nbsp;&bull;&nbsp; Ph 905-822-2430 &nbsp;&bull;&nbsp; info@isothermengineering.com</p>
+
+<table style="width:100%;border:1px solid #C9D2DD;border-collapse:collapse;margin-top:14px;font-size:9.5pt;">
+  <tr>
+    <td style="padding:9px 13px;border:1px solid #C9D2DD;vertical-align:middle;">
+      <div><span style="color:#777;font-size:8.5pt;">Project:</span> <strong>${esc(project.name)}</strong></div>
+      <div><span style="color:#777;font-size:8.5pt;">Reference:</span> <strong>${esc(project.com_number ?? '—')}</strong></div>
+    </td>
+    <td style="padding:9px 13px;border:1px solid #C9D2DD;text-align:center;background-color:#F4F7FB;vertical-align:middle;">
+      <strong style="color:#1F3A5F;font-size:11pt;">Cx Site Note #${esc(report.report_number)}</strong>
+    </td>
+    <td style="padding:9px 13px;border:1px solid #C9D2DD;vertical-align:middle;">
+      <div><span style="color:#777;font-size:8.5pt;">Date:</span> <strong>${esc(isoShort(report.report_date))}</strong></div>
+      <div><span style="color:#777;font-size:8.5pt;">By:</span> <strong>${esc(report.authored_by)}</strong></div>
+    </td>
+  </tr>
+</table>
+
+<h2>Distribution</h2>
+<table style="width:100%;border-collapse:collapse;font-size:9.5pt;">
+  <thead><tr>
+    <th ${TH}>Name</th><th ${TH}>Company</th><th ${TH}>ABRV</th><th ${TH}>Email</th>
+  </tr></thead>
+  <tbody>${distRows}</tbody>
+</table>
+
+<p style="margin:12px 0 2px 0;font-style:italic;color:#333;">${esc(report.authored_by)} made the following site review observations on ${esc(isoLong(report.site_visit_date))}:</p>
+
+<h2>Site Progress Observations</h2>
+${narrativeHtml}
+
+<h2>Required Documentations</h2>
+${docSection}
+
+<h2>Observed Issues &amp; Progress &mdash; Site Notes #${esc(report.report_number)}: ${esc(isoShort(report.site_visit_date))}</h2>
+<table style="width:100%;border-collapse:collapse;font-size:9.5pt;">
+  <thead><tr>
+    <th ${TH} style="text-align:center;">#</th>
+    <th ${TH}>Issue Details</th>
+    <th ${TH} style="text-align:center;">Action</th>
+  </tr></thead>
+  <tbody>${findingRows}</tbody>
+</table>
+
+<p style="font-size:7.5pt;font-style:italic;color:#888;margin-top:20px;border-top:1px solid #E5E5E5;padding-top:6px;">${esc(DISCLAIMER)}</p>
+
+</body>
+</html>`
+}
+
 // ── docx via html-to-docx (pure JS, no native binary) ─────────────────────────
-// The docx won't inherit all CSS (no navy backgrounds in Word) but the content
-// is complete and the file opens cleanly in desktop Word — no orphaned parts.
 
 async function toDocx(html: string): Promise<Buffer> {
-  // html-to-docx@1.8.0 buildTableCellWidth crashes on CSS width values in style
-  // attributes — strip all inline styles from th/td since the library ignores
-  // most CSS anyway and Word will auto-size the columns.
-  const safeHtml = html.replace(/(<t[hd][^>]*?) style="[^"]*"/gi, '$1')
+  // Only strip width: from th/td style attrs — html-to-docx crashes on those.
+  // Other inline styles (background-color, color, border, padding) are kept
+  // so the DOCX-specific HTML formatting carries through to Word.
+  const safeHtml = html.replace(/(<t[hd][^>]*?) style="([^"]*)"/gi, (_: string, tag: string, styles: string) => {
+    const filtered = styles.split(';').map((s: string) => s.trim())
+      .filter((s: string) => s && !s.toLowerCase().startsWith('width'))
+      .join('; ')
+    return filtered ? `${tag} style="${filtered}"` : tag
+  })
   const result = await HTMLtoDOCX(safeHtml, null, {
     table:    { row: { cantSplit: true } },
     // header/footer/gutter must be explicit integers — html-to-docx writes
@@ -348,12 +503,13 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const html = buildHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
+    const pdfHtml  = buildHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
+    const docxHtml = buildDocxHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
 
     // Run PDF (Chromium) and docx (html-to-docx) in parallel.
     const [pdfBuffer, docxBuffer] = await Promise.all([
-      toPdf(html),
-      toDocx(html),
+      toPdf(pdfHtml),
+      toDocx(docxHtml),
     ])
 
     // Upload both to Supabase Storage.
