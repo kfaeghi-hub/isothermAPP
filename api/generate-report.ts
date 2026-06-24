@@ -11,7 +11,7 @@ import HTMLtoDOCX from 'html-to-docx'
 // cached for the lifetime of the Lambda instance (subsequent calls are fast).
 // Update this URL when upgrading @sparticuz/chromium-min.
 const CHROMIUM_PACK_URL =
-  'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.tar'
+  'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
