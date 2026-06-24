@@ -133,8 +133,10 @@ function buildHtml(
   photoBuffers: Map<string, Buffer>,
 ): string {
   const distRows = distribution.map((r: any) => {
-    const c = r.contacts
-    return `<tr><td>${esc(c?.name)}</td><td>${esc(c?.companies?.name)}</td><td>${esc(c?.companies?.abbreviation)}</td><td>${esc(c?.email)}</td></tr>`
+    // Supabase may return the joined contact as an object or single-element array
+    const c  = Array.isArray(r.contacts)  ? r.contacts[0]  : r.contacts
+    const co = Array.isArray(c?.companies) ? c?.companies[0] : c?.companies
+    return `<tr><td>${esc(c?.name)}</td><td>${esc(co?.name)}</td><td>${esc(co?.abbreviation)}</td><td>${esc(c?.email)}</td></tr>`
   }).join('\n')
 
   const docItems: any[] = report.doc_register ?? []
@@ -155,7 +157,9 @@ function buildHtml(
     const closed      = f.status === 'closed'
     const entries     = [...(f.finding_diary_entries ?? [])].sort((a: any, b: any) =>
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    const responsible = f.contacts?.companies?.abbreviation ?? f.contacts?.trade ?? '—'
+    const fContact  = Array.isArray(f.contacts)         ? f.contacts[0]         : f.contacts
+    const fCompany  = Array.isArray(fContact?.companies) ? fContact?.companies[0] : fContact?.companies
+    const responsible = fCompany?.abbreviation ?? fContact?.trade ?? '—'
     const headingText = f.title || f.category
     const hasTitle    = !!(f.title)
 
@@ -253,7 +257,7 @@ async function toPdf(html: string): Promise<Buffer> {
   const execPath = await chromium.executablePath(CHROMIUM_PACK_URL)
 
   const browser = await puppeteer.launch({
-    args: await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }),
+    args: chromium.args,
     executablePath: execPath,
     headless: 'shell',
     defaultViewport: null,
