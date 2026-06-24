@@ -144,7 +144,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       .select('id, number, title, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, contacts(id, name, trade, companies(name, abbreviation))')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true })
-    setFindings((data ?? []) as FindingRow[])
+    setFindings((data ?? []) as unknown as FindingRow[])
     setLoading(false)
   }, [projectId])
 

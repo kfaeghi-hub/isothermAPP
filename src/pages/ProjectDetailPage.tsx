@@ -111,7 +111,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     if (pRes.error)  { setError(pRes.error.message);  setLoading(false); return }
     setProject(pRes.data as ProjectWithClient)
     setPhases((phRes.data ?? []) as ProjectPhase[])
-    setDistribution((dRes.data ?? []) as DistributionRow[])
+    setDistribution((dRes.data ?? []) as unknown as DistributionRow[])
     setAllContacts((ctRes.data ?? []) as ContactWithCompany[])
     setAllTrades((tRes.data ?? []) as TradeType[])
     setProjectTradeIds((ptRes.data ?? []).map(r => r.trade_type_id))

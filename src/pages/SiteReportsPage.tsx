@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
-import { formatDate } from '../lib/projectTypes'
 import type { SiteReport, DocRegisterItem } from '../types/database'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -336,7 +335,7 @@ export function SiteReportsPage({ projectId }: Props) {
         title={modalMode === 'new' ? 'New Site Report' : `Edit Site Note #${form.report_number}`}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        maxWidth="2xl"
+        maxWidth="lg"
       >
         <div className="space-y-5">
 
