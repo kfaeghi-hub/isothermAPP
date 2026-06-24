@@ -284,7 +284,11 @@ async function toPdf(html: string): Promise<Buffer> {
 // is complete and the file opens cleanly in desktop Word — no orphaned parts.
 
 async function toDocx(html: string): Promise<Buffer> {
-  const result = await HTMLtoDOCX(html, null, {
+  // html-to-docx@1.8.0 buildTableCellWidth crashes on CSS width values in style
+  // attributes — strip all inline styles from th/td since the library ignores
+  // most CSS anyway and Word will auto-size the columns.
+  const safeHtml = html.replace(/(<t[hd][^>]*?) style="[^"]*"/gi, '$1')
+  const result = await HTMLtoDOCX(safeHtml, null, {
     table:    { row: { cantSplit: true } },
     margins:  { top: 720, right: 1080, bottom: 900, left: 1080 },
     font:     'Arial',
