@@ -139,8 +139,8 @@ export function SiteReportsPage({ projectId }: Props) {
     setModalOpen(false)
     await fetchReports()
 
-    // Auto-generate on new report creation
-    if (modalMode === 'new' && savedId) {
+    // Auto-generate after every save so files always reflect the latest inputs
+    if (savedId) {
       generateReport(savedId)
     }
   }
@@ -150,20 +150,28 @@ export function SiteReportsPage({ projectId }: Props) {
   async function generateReport(reportId: string) {
     setGeneratingId(reportId)
     setGenError(null)
-    const { data, error } = await supabase.functions.invoke('generate-site-report', {
-      body: { report_id: reportId },
-    })
-    setGeneratingId(null)
-    if (error) {
-      setGenError(`Generation failed: ${error.message}`)
-      return
+    try {
+      const res = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_id: reportId }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        setGenError(`Generation failed: ${payload.error ?? res.statusText}`)
+        return
+      }
+      // Update local state immediately with returned URLs
+      setReports(prev => prev.map(r =>
+        r.id === reportId
+          ? { ...r, storage_url: payload.storage_url, pdf_url: payload.pdf_url }
+          : r
+      ))
+    } catch (err: any) {
+      setGenError(`Generation failed: ${err.message}`)
+    } finally {
+      setGeneratingId(null)
     }
-    // Update local state immediately with returned URLs
-    setReports(prev => prev.map(r =>
-      r.id === reportId
-        ? { ...r, storage_url: data.storage_url, pdf_url: data.pdf_url }
-        : r
-    ))
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -494,9 +502,7 @@ export function SiteReportsPage({ projectId }: Props) {
 
           <div className="flex items-center justify-between pt-1">
             <p className="text-xs text-gray-400">
-              {modalMode === 'new'
-                ? 'Saving will create the report record and automatically start generation.'
-                : 'Saving updates inputs. Use Regenerate on the list to rebuild the files.'}
+              Saving will update the record and automatically regenerate the .docx and PDF.
             </p>
             <div className="flex gap-2">
               <button
@@ -510,7 +516,7 @@ export function SiteReportsPage({ projectId }: Props) {
                 disabled={saving}
                 className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
               >
-                {saving ? 'Saving…' : modalMode === 'new' ? 'Save & Generate' : 'Save Changes'}
+                {saving ? 'Saving…' : 'Save & Generate'}
               </button>
             </div>
           </div>

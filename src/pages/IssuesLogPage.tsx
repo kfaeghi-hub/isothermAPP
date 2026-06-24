@@ -11,6 +11,7 @@ interface ProjectTradeOption { id: string; name: string; sort_order: number }
 interface FindingRow {
   id: string
   number: string | null
+  title: string | null
   category: string
   responsible_party_id: string | null
   status: 'open' | 'closed'
@@ -27,6 +28,7 @@ interface FindingRow {
 }
 
 interface CreateForm {
+  title: string
   category: string
   responsible_party_id: string
   origin: string
@@ -35,6 +37,7 @@ interface CreateForm {
 }
 
 interface EditForm {
+  title: string
   category: string
   responsible_party_id: string
   origin: string
@@ -42,6 +45,7 @@ interface EditForm {
 }
 
 const EMPTY_CREATE: CreateForm = {
+  title: '',
   category: 'INFO',
   responsible_party_id: '',
   origin: 'site_visit',
@@ -125,7 +129,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
 
   // Edit modal
   const [editOpen, setEditOpen]         = useState(false)
-  const [editForm, setEditForm]         = useState<EditForm>({ category: '', responsible_party_id: '', origin: 'site_visit', phase_id: '' })
+  const [editForm, setEditForm]         = useState<EditForm>({ title: '', category: '', responsible_party_id: '', origin: 'site_visit', phase_id: '' })
   const [savingEdit, setSavingEdit]     = useState(false)
 
   // Project trade options (for category select)
@@ -137,7 +141,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from('findings')
-      .select('id, number, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, contacts(id, name, trade, companies(name, abbreviation))')
+      .select('id, number, title, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, contacts(id, name, trade, companies(name, abbreviation))')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true })
     setFindings((data ?? []) as FindingRow[])
@@ -204,6 +208,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       .from('findings')
       .insert({
         project_id: projectId,
+        title: createForm.title.trim() || null,
         category: createForm.category.trim() || 'INFO',
         responsible_party_id: createForm.responsible_party_id || null,
         origin: createForm.origin,
@@ -274,6 +279,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   function openEditModal() {
     if (!selectedFinding) return
     setEditForm({
+      title: selectedFinding.title ?? '',
       category: selectedFinding.category,
       responsible_party_id: selectedFinding.responsible_party_id ?? '',
       origin: selectedFinding.origin,
@@ -288,6 +294,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     await supabase
       .from('findings')
       .update({
+        title: editForm.title.trim() || null,
         category: editForm.category.trim() || 'INFO',
         responsible_party_id: editForm.responsible_party_id || null,
         origin: editForm.origin,
@@ -409,7 +416,10 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                     }`}>
                       {isClosed ? 'CLOSED' : 'OPEN'}
                     </span>
-                    <span className="text-xs font-medium text-gray-700 truncate">{f.category}</span>
+                    <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">{f.category}</span>
+                    {f.title && (
+                      <span className="text-xs font-medium text-gray-700 truncate">{f.title}</span>
+                    )}
                   </div>
                   <div className={`text-[11px] flex items-center justify-between gap-2 ${isClosed ? 'text-gray-300' : 'text-gray-400'}`}>
                     <span className="truncate">
@@ -443,7 +453,17 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                   {selectedFinding.status === 'open' ? 'OPEN' : 'CLOSED'}
                 </span>
               </div>
-              <h3 className="text-sm font-semibold text-gray-900 truncate">{selectedFinding.category}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedFinding.title && (
+                  <h3 className="text-sm font-semibold text-gray-900">{selectedFinding.title}</h3>
+                )}
+                <span className="text-[10px] font-mono text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 flex-shrink-0">
+                  {selectedFinding.category}
+                </span>
+                {!selectedFinding.title && (
+                  <span className="text-xs text-gray-400 italic">No title set</span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {selectedFinding.status === 'open' ? (
@@ -676,6 +696,22 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       <Modal title="New Finding" open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md">
         <div className="space-y-4">
 
+          {/* Title */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Title
+              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+            </label>
+            <input
+              type="text"
+              value={createForm.title}
+              onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Brief subject — e.g. BAS setpoint not persisting after restart"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              autoFocus
+            />
+          </div>
+
           {/* Category */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
@@ -685,7 +721,6 @@ export function IssuesLogPage({ projectId, phases }: Props) {
               value={createForm.category}
               onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-              autoFocus
             >
               <option value="INFO">INFO</option>
               {projectTrades.map(t => (
@@ -798,12 +833,26 @@ export function IssuesLogPage({ projectId, phases }: Props) {
         <div className="space-y-4">
 
           <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Title
+              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+            </label>
+            <input
+              type="text"
+              value={editForm.title}
+              onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Brief subject — e.g. BAS setpoint not persisting after restart"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              autoFocus
+            />
+          </div>
+
+          <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
             <select
               value={editForm.category}
               onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-              autoFocus
             >
               <option value="INFO">INFO</option>
               {/* Preserve old value if it's no longer in the trade list */}

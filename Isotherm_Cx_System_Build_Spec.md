@@ -6,6 +6,27 @@
 
 ---
 
+## 1A. Build status (living — update as modules ship)
+
+**Built, tested, committed:**
+- Scaffold (Vite + React + TS + Tailwind), Supabase wired (ca-central-1), project on local disk, GitHub repo connected, ARCHITECTURE.md in place.
+- Database schema (all tables) with temporary dev "allow-all" RLS policies (MUST be replaced with per-role policies at the auth step before real data).
+- Directory (companies & contacts, extensible roles, filtering).
+- Projects (list, create with project-type, active/completed sections, search, filters, delete).
+- Project trades (firm master list + per-project selection; feeds finding categories).
+- Issues Log (findings, oldest-first append-only diary, photo upload + delete, open/closed-stays-grey, category from project trades).
+- Cx Index (final 12-group / 88-column structure, per-project editable copy, progress cells, edit-structure controls).
+
+**Next:** Equipment List tab (shared single source with Cx Index; type-specific editable field templates in Spec/Shop-Dwg/Installed sections, 10 seeded equipment types; per-equipment file attachments; firm-level editable equipment tag glossary with discipline-aware descriptors).
+
+**Remaining Phase 1:** Site reports (.docx generation), Auth & roles (+ replace dev RLS policies).
+
+**Then:** Phase 2 (template library IVC/PFC/FPT, checklist instances auto-creating findings, FPT, LEED deliverable tracking, attachments), Phase 3 (reminders, Status & Action Summary, data import, long-form docs, client portal, MBCx/OCx).
+
+**Open real-world decisions (not build tasks):** confirm Ontario 10-yr retention specifics with compliance advisor (§9C); finalize hosting model with firm (§9C); replace dev RLS policies at auth step; show dad/senior employee for buy-in; capture baseline time-per-report.
+
+---
+
 ## 1. Executive Summary
 
 Isotherm Engineering performs building commissioning (Cx). Today the firm runs each project through a set of Word and Excel documents: a master Cx Index/Schedule workbook, equipment IVC/PFC checklists, FPT scripts, dated site reports, and a manually maintained issues log. These are disconnected — a deficiency found during an FPT is re-typed into the issues log, then re-typed again into a site report, with no link between them, and progress is tracked by hand across spreadsheet tabs.
@@ -83,12 +104,12 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 - distribution[] (contactId references)
 - createdAt, lastVisitedAt (for aging reminders)
 
-**Equipment / System** (the Cx Index rows)
+**Equipment / System** (the Cx Index rows — see §4.0 for the full Equipment/Systems Register)
 - id, projectId, kind ("equipment" | "system")
 - category/group (e.g., "ERVs", "Fans", "Geothermal System")
 - tag (ERV-1, B-1, P-3), descriptor, location, areaServed
-- nameplate data (manufacturer, model, serial, V/Ø/Hz/A, flow, capacities…)
-- **progress matrix**: per-stage status cells (Doc Review: Spec / Shop Dwg / Startup Plan; Static Testing stages; FPT) — values: done / n/a / blank / in-progress
+- nameplate/spec/installed data in three editable sections (§4.0); `nameplate_extra` JSON for type-specific fields
+- **progress matrix**: per-column status cells against the project's copy of the 12-group stage structure (§4.2) — values: done / in_progress / na / blank
 - Systems (geothermal, refrigeration, PV, lighting controls) carry their own sub-item checklist with % complete + comments.
 
 **Finding** (issues log — the backbone)
@@ -147,39 +168,76 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 
 ## 4. The Cx Index (progress tracking)
 
-The Cx Index is the equipment/systems list × commissioning-stage progress matrix — the heart of project tracking (today's Master Schedule workbook). Rows = equipment (grouped by category) and systems. Columns = a structured set of **stage groups, each containing discipline-specific sub-columns**, separating Mechanical / Electrical / BAS. Cells: done / in-progress / n/a / blank, rolling up to per-equipment and per-project % complete.
+### 4.0 Equipment / Systems Register (the project's equipment list — first-class)
 
-### 4.1 Canonical default stage structure (from Isotherm's most comprehensive Master Schedule)
+Every project has an **Equipment / Systems Register**: the list of all commissioned units and systems on that project. This is a first-class entity in its own right (in the prototype it had its own tab), not merely "rows of the Cx Index" — though it also serves as those rows. It is referenced by four other parts of the system, which is why it is central:
+- **Cx Index** — each equipment/system is a row in the progress matrix.
+- **Findings** — a finding can link to a specific equipment item (`linkedEquipmentId`).
+- **Checklists** — IVC/PFC/FPT instances attach to specific equipment; nameplate data flows from here.
+- **Reports & documents** — generated deliverables pull the equipment context.
 
-This is the **default** structure a new project starts with. (See §4.2 — it is fully editable per project.)
+**Each entry holds:** id, projectId, `kind` ("equipment" | "system"), category/group (e.g. PUMPS, AHU, BOILERS, or a system like GEOTHERMAL), tag (P-1, AHU-2-1, B-1), descriptor, location, area served, full nameplate data (manufacturer, model, serial, V/Ø/Hz/A, flow, capacities, coil data…), plus a `nameplate_extra` JSON catch-all for type-specific fields. **Systems** (geothermal, refrigeration, PV, lighting controls) are entries of kind "system" and carry their own sub-checklist with % complete + comments rather than standard equipment columns.
 
-1. **Doc Review Stage** — IFC Drawings/Specs · Start-up Form · Shop Dwgs · Equipment Submittals · Controls Submittals (BAS) · Sequence of Operation · Control Wiring Diagrams · Elec. Panel Schedules · O&M Manuals (Preliminary) · TAB Plan / Pre-Req · Short Circuit / Coordination
-2. **Mechanical Static Verification** — Piping/Ductwork Pressure Test · Duct Leakage Test · Hydronic Flushing & Cleaning · Glycol Concentration · Water Treatment Report · Insulation Complete · TAB Valves/Dampers Installed · Fire Stopping
-3. **Electrical Static Verification** — Equipment Anchoring · Mechanical Labeling · Conduit/Cable Install · Panelboards Installed · Grounding & Bonding · Megger Test · Breaker Settings · e-Power/ATS Static Test · Life Safety Verification · Lighting Control Rough-in
-4. **BAS Static Verification** — BAS Panels Powered · Network Connections · Sensors/Devices Installed · BAS Point Database · I/O Wiring · Controller Addressing
-5. **Pre-FPT Stage (Mech)** — Manufacturer Start-Up · Pump Rotation/Flow · Fan Rotation · Air Balancing Report · Water Balancing Report
-6. **FPT Stage (Elec)** — HVAC Control Functional · Lighting Control Verification · Emergency Lighting Test · ATS Functional Test
-7. **FPT Stage (BAS/Mech)** — Point-to-Point Verification · Alarm & Fault Verification · Sequence of Operation · Trend Log Review · BAS Graphics Verification
-8. **Turnover Stage** — O&Ms Final · Training · As-Builts · Spare Parts/Consumables
-9. **Post-Construction Stage** — Master Issue Log Sign-off · Cx Report Draft · Cx Report Final · Seasonal (Winter / Summer) · Closeout Report
-10. **Progress** + **Comments** (always present)
+**Entry methods:** add manually, or **import per-project** from a mechanical equipment schedule / existing Cx Index Excel (see §8). Managed on its own screen (browse/add/edit equipment, view nameplate detail) and surfaced as the rows of the Cx Index; equipment-level detail (its findings, checklists, progress) should be reachable from an equipment entry.
 
-Systems (geothermal, refrigeration, PV, lighting controls) expand into their own sub-checklists (design docs, installation records, testing docs, O&M) each with % complete + comments. The Index is the dashboard view of the project; checklists and findings update it.
+**Type-specific, editable data fields (three sections).** Equipment data is NOT a fixed flat field list — different equipment types (Heat Pump, Boiler, Pump, ATS, AHU…) have different fields. Organize equipment data into three sections matching the real IVC forms' columns: **Spec data**, **Shop Drawing data**, and **Installed nameplate data** (the Specified / Shop Drawing / Installed structure). Each equipment type has a **default field template** (fields per section) pre-loaded when adding equipment of that type, but **fully editable per project** — add, remove, or rename fields for a project's equipment without affecting the firm default or other projects (same editable-defaults principle as §4.3 and §5.2). Implemented via `template_nameplate_fields` (per equipment type) plus `nameplate_extra` JSON for flexibility. Seed defaults for common types from the real IVC forms (heat pump: cooling/heating coil + electrical; boiler: gas/water-treatment/heating; etc.).
 
-### 4.2 CORE PRINCIPLE: editable defaults, never hardcoded
+**File attachments per equipment:** shop drawings, cut sheets, and submittals attach to the equipment item (storage + download), same pattern as finding photos / file attachments.
 
-**Everything above is a starting template, not a fixed schema.** This is a primary architectural requirement, not a nice-to-have:
+**Equipment tag glossary (firm-level, editable reference).** Isotherm uses a standard set of equipment tag abbreviations, organized by discipline. Stored as an editable firm-level reference and used two ways: (1) **tag/descriptor autocomplete** when adding equipment (type/pick a tag → fills descriptor + suggests discipline/category, keeping naming consistent across projects); (2) **mapping major equipment types to the type-specific field templates** (§4.0) — significant equipment (AHU, FCU, ERV/HRV, RTU, boiler, pump variants, chiller, cooling tower, generator, ATS, VRF…) map to full field sets; simpler items (sensors, dampers, exit signs, pull stations) are basic entries without full nameplate forms.
 
-- The stage structure is stored as **configurable data**, not hardcoded columns. The app ships with a **default Cx Index template** (and the firm can maintain more than one default — e.g., a Mechanical-focused default and an Electrical-focused default, since Isotherm separates these).
-- On any project, the user can **add, remove, rename, or reorder** stage groups and individual sub-columns to fit that project's scope.
-- Stage groups already separate **Mechanical / Electrical / BAS** — keep that separation; a small mechanical-only project can delete the Electrical/BAS groups, a large one keeps all.
-- Changing a project's structure must not break existing data (additive/edit-safe).
+- **Mechanical:** AHU, RTU, MAU, ERV, HRV, HRU, FCU, UV, VAV, CAV, EF, SF, RF, RLF, CUH, UH, FFH, RP, FPB, CH, CT, CU, HP, VRF, HWP, CHWP, CWP, GP, BP, SP, SEP, B/BLR, EB, DWH, DHWB, HX, ET, AS, GF, CPF, FD, SD, FSD
+- **Controls/BAS:** TS, STS, HS, CO2, PS, DPS, FS, T, FZS, CS, CP
+- **Electrical:** MSB, SWGR, DB, PNL, T, MCC, ATS, GEN, UPS, INV
+- **Lighting:** LP, LC, OS, DS, EX, EL
+- **Fire Alarm:** FACP, FAA, SD, HD, PS, HS, SPKR, DSD
+- **Security:** CR, DC, ES, CAM, ACP
+- **Data Center:** CRAH, CRAC, PDU, RPP, STS, CDU, IRC, UPS, GEN
 
-The same principle applies to **deliverables** (see §5.2).
+(Full descriptors maintained in the app's reference table.) **Note — overlapping abbreviations across disciplines:** SD = Smoke Damper (mech) vs Smoke Detector (fire); T = Thermostat (BAS) vs Transformer (elec); PS, HS, STS also overlap. The glossary must carry discipline context so the correct descriptor applies.
+
+### 4.1 The Cx Index matrix
+
+The Cx Index is the Equipment/Systems Register × commissioning-stage progress matrix — the heart of project tracking (today's Master Schedule workbook). Rows = equipment (grouped by category) and systems from the register. Columns = a structured set of **stage groups, each containing discipline-specific sub-columns**, separating Mechanical / Electrical / BAS. Cells: done / in-progress / n/a / blank, rolling up to per-equipment and per-project % complete.
+
+### 4.2 Canonical default stage structure — FINAL (12 groups, 88 columns)
+
+This is the agreed default a new project starts with, grounded in Isotherm's real workbooks plus Ontario/ASHRAE/LEED practice. Fully editable per project (§4.3). Detailed verification columns exist only for work Isotherm performs (mechanical, electrical, BAS, plumbing, IST); work subbed out or coordinated (structural, envelope, PV) is tracked as received documents in the documentation register, NOT as Cx Index groups.
+
+1. **Doc Review Stage** (11) — IFC Drawings/Specs · Shop Dwgs · Equipment Submittals · Controls Submittals (BAS) · Sequence of Operation (SOO) · Control Wiring Diagrams/Schematics · Elec. Panel Schedules/Single Line · O&M Manuals–Preliminary (ToC) · TAB Plan/Pre-Req · Short Circuit/Coordination Study · Startup Plan
+2. **Mechanical Static Verification** (8) — Pressure Test Report (Hydronic/CHW/HW/Glycol) · Duct Leakage Test · Hydronic Flushing & Cleaning · Glycol Concentration · Water Treatment Report · Insulation Complete/Verified · TAB Valves/Dampers Installed & Set · Fire Stopping Completed
+3. **Plumbing / Domestic** (7) — Domestic Water Pressure Test · Backflow Preventer Test/Certification · DHW System Verification · Sanitary/Storm Verification · Domestic Water Flushing/Disinfection · Fixture/Trim Verification · Sump/Sewage Pump Functional
+4. **Electrical Static — Physical Install** (5) — Equipment Anchoring · Mechanical Labeling · Conduit/Cable Install · Panelboards Installed & Labeled · Lighting Control Rough-In
+5. **Electrical Testing** (14) — Insulation Resistance (Megger) · Contact/Bolted Resistance (Ductor) · Ground Continuity & Resistance · Connection Torque · Phase Rotation/Phasing · Breaker Settings · Protective Device/Relay (Coordination) · Transformer Turns-Ratio (TTR) · e-Power ATS Static Test · ATS Transfer/Re-transfer Timing · Generator Load Bank (100%) · Battery/Engine Start Sequence · Load Bank/Loading · Power Quality
+6. **BAS Static Verification** (6) — BAS Panels Powered · Network Connections · Sensors/Devices Installed & Wired · BAS Point Database · I/O Wiring · Controller Addressing/Commissioned
+7. **Pre-FPT (Mech)** (3) — Manufacturer Start-Up · Pump Rotation/Flow · Fan Rotation
+8. **FPT (Elec)** (7, life-safety at end) — HVAC Control Functional · ATS Functional · Lighting Control Verification · Cx Verification (per-equipment sign-off) · Life Safety Verification (FA Interface) · Life Safety Interlock Test · Emergency Lighting Test
+9. **FPT (BAS/Mech)** (7) — Air Balancing (TAB-Air) · Water Balancing (TAB-Water) · Point-to-Point (P2P) · Alarm & Fault · Sequence of Operation–Functional · Trend Log Review · BAS Graphics
+10. **IST (Integrated Systems Testing, CAN/ULC-S1001)** (7, core Isotherm service) — IST Plan Prepared · Cause-and-Effect Matrix · Trades/Contractors Coordinated · IST Execution/Witnessing · Deficiencies Documented · IST Report Issued · AHJ/Fire Dept Acceptance
+11. **Turnover** (8) — Start-Up Reports · Permanent Power ON · O&Ms Final · Training · As-Builts · Spare Parts/Consumables · Master Issue Log Sign-off · Substantial Performance
+12. **Post-Construction** (5) — Cx Report Draft · Cx Report Final · Seasonal–Winter · Seasonal–Summer · Closeout Report
+
+**Always present (system-computed):** Progress % · Comments.
+
+**Tracked as received documents (NOT Cx Index groups):** Structural Cx Report · Envelope Cx Report · PV Commissioning Report · Inverter Startup Report · PV Generation/Performance Report.
+
+Systems (geothermal, refrigeration, PV, lighting controls) are register entries of kind "system" and carry their own sub-checklist with % complete + comments.
+
+### 4.3 CORE PRINCIPLE: editable defaults, never hardcoded
+
+**The structure above is a starting default, not a fixed schema.** Primary architectural requirement:
+- Stored as **configurable data**, not hardcoded columns. Firm-level default is copied into each project at creation (`project_cx_stage_groups` / `project_cx_columns`); the firm default is never edited by project work.
+- On any project, the user can **add, remove, rename, or reorder** stage groups and individual columns to fit scope.
+- Mechanical / Electrical / BAS / Plumbing / IST stay separated; out-of-scope groups are marked N/A or removed per project.
+- Editing a project's structure must **not** affect the firm default or other projects, and must **not** break progress data already entered (additive/edit-safe).
+
+The same editable-defaults principle applies to **deliverables** (§5.2) and **equipment data fields** (§4.0).
 
 ---
 
 ## 5. Deliverables by project type (LEED-conditional)
+
+### 5.1 Required deliverable sets by project type
 
 When a project is created, the user selects **project type**, which determines the required deliverable set the system tracks and can flag as missing.
 
@@ -307,6 +365,53 @@ The difference between a throwaway prototype and a system the firm can depend on
 
 ---
 
+## 9B. Maintainability & extensibility (build for future change — right-sized)
+
+Build the codebase so future work — new features, UI/UX improvements, and external integrations (e.g. construction/BAS APIs, PM tools) — is easy for a future Claude Code session, another AI agent, or a developer to do safely. Most of what makes a codebase AI-agent-friendly is simply what makes it good code, so this is not a trade-off against quality.
+
+**Do:**
+- **Separation of concerns** — keep data layer (Supabase access), business logic, and UI as distinct, well-defined layers. Change the look without touching logic; change storage without rewriting screens.
+- **Consistent, predictable structure** — clear folder layout and naming conventions, applied uniformly.
+- **Living architecture doc** — maintain `ARCHITECTURE.md` in the repo explaining how the code is organized and how the pieces fit; update it as modules are added. This is the map a future agent/developer reads first.
+- **Integration seams** — put external connections behind clean adapter boundaries so a new API integration is one new adapter, not a rewire. Leave the seam; don't build the integration until needed.
+- **Strong typing & validation** — TypeScript types for all data, input validation everywhere (already in place). This is what makes AI-assisted edits safe.
+- **Tests on critical flows** — Playwright on key paths (create finding → generate report, etc.) so future changes (human or agent) are caught if they break something.
+- **Favor clarity and modularity over cleverness.**
+
+**Don't (avoid over-engineering):**
+- No abstraction layers, plugin systems, or "maximum flexibility" for hypothetical futures you can't name. Add seams only where extension is genuinely expected (external integrations, UI theming, new deliverable types).
+- Mirrors §9A: right-sized, not maximal. Clean and simple now, with seams at known extension points; resist pre-building for the unknown.
+
+**Standing instruction for Claude Code:** "Build this codebase to be maintainable and extensible — clear separation of data/logic/UI, consistent structure, external integrations behind adapter boundaries, strong typing, tests on critical flows, and a maintained ARCHITECTURE.md — favoring clarity and modularity over cleverness, without over-abstracting for hypothetical needs."
+
+---
+
+## 9C. Data retention, backup & hosting (IMPORTANT — decision pending compliance confirmation)
+
+**Legal context:** Ontario record-retention rules require closed/completed projects to be kept for **10 years**. The firm currently runs its own on-premise server with ShareSync. This shapes where data lives and how it is preserved.
+
+**Two distinct needs (don't conflate):**
+- **Backup** — recover from failure (deletion, corruption, ransomware). Largely covered by Supabase automated daily backups of the database; storage files are also recoverable.
+- **Retention** — keep completed projects retrievable for 10 years, in the firm's custody, in a form that outlives the software.
+
+**Recommended approach (hybrid — to confirm with firm + compliance advisor):**
+- **Live app:** cloud-hosted (Supabase, Canadian region) for accessibility (field work) and managed daily backups.
+- **Retention archive:** keep an **independent copy on the firm's own server** (via ShareSync). Two independent copies = no single point of failure; legal custody satisfied.
+- **Portability is mandatory:** data and files must always be extractable in **standard formats** (Postgres data export, reports as Word/PDF, photos as image files) — never locked into proprietary formats. A 2026 archive must be openable in 2036 regardless of the app's future.
+
+**Retention method — options, simplest to most built (decide based on what Ontario actually requires):**
+1. **Operational full export** (no feature to build): periodically export the full Supabase database + storage files to the firm server via ShareSync. May satisfy retention on its own.
+2. **Per-project export feature** (build later): a button bundling one project's reports, data, and photos into a portable folder for archiving a completed project.
+3. **Automated export-on-completion** (build later, nice-to-have): packages a completed project into a self-contained archive automatically.
+
+**Decisions pending (before storing real client data):**
+- Confirm with the firm's compliance advisor what Ontario retention actually requires (what must be kept, in what form, whether periodic full exports to the firm server satisfy it, or whether per-project records in a specific format are needed). **This is a legal/compliance question, not a software one** — the build should keep everything portable and in the firm's custody; the legal specifics are confirmed separately.
+- Finalize hosting (cloud vs. self-host vs. hybrid). Recommended: hybrid as above.
+
+**Do NOW (costs nothing, prevents lock-in):** keep the data architecture export-friendly — standard formats, files in storage, reports as Word/PDF — so any retention/export method can be added later without rework. **Do NOT build an export feature yet** — it's later-phase; the decision matters now, the build does not.
+
+---
+
 ## 10. Build phasing
 
 ### Phase 1 — Demonstrable core (show your dad; deploy internally)
@@ -361,18 +466,19 @@ AI features are valuable seasoning on a reliable core — **build the core first
 
 ## 11. How to drive Claude Code (prompt sequence)
 
-Build in this order; each step is a focused Claude Code session. Keep the issues-log backbone and data model from §3 as the constant reference.
+> **Current position:** see §1A for what's built. The list below is the full Phase-1 sequence for reference; steps 1–5 are DONE. Use §1A as the source of truth for "where am I"; don't re-run completed steps.
 
-1. **Scaffold:** "Set up a React + TypeScript + Tailwind app with Supabase (Postgres, Auth, Storage). Create the schema from the data model in this spec (companies, contacts, roles, clients, projects, equipment, findings, site_reports, templates, attachments, users)."
-2. **Directory:** "Build the company/contact directory with extensible roles and role filtering, reusable across projects."
-3. **Projects:** "Build the projects list + create-project flow with project-type selection (Standard/LEED Fundamental/Enhanced/MBCx) and optional phases; clients and standalone projects."
-4. **Issues log:** "Build the project issues log: findings with auto-numbering, oldest-first append-only diary, photo upload (compressed), Open/Closed with closed-stays-grey, responsible party from the directory, auto dateRaised/dateClosed."
-5. **Cx Index:** "Build the equipment/system list and the Cx Index progress matrix (equipment/systems × stages with rollup % complete); systems carry their own sub-checklists."
-6. **Site reports:** "Build site reports that carry the issues log forward and generate a .docx matching the provided Isotherm template (letterhead, distribution, progress, documentation, issues table with grey closed rows and embedded photos)." *(Feed the proven generator code.)*
-7. **Auth/roles:** "Add Supabase Auth with Admin/Developer/User/Client roles and row-level security."
-8. Then Phase 2/3 modules in order: template library → checklist instances (auto-findings) → FPT → LEED deliverables → attachments → reminders → import → portal.
+Build in order; each step is a focused Claude Code session. Keep the issues-log backbone and data model (§3) as the constant reference. Give Claude Code the matching real sample document when building each deliverable module — matching the real artifact is what makes adoption effortless.
 
-**Tip:** give Claude Code the real sample documents (IVC, PFC, FPT, site report, Cx Index) as references when building each corresponding module — matching the real artifact is what makes adoption effortless.
+1. ~~Scaffold~~ — DONE.
+2. ~~Directory~~ — DONE.
+3. ~~Projects (with project-type, active/completed, search/filters/delete)~~ — DONE.
+4. ~~Issues log (diary, photos, categories from project trades)~~ — DONE.
+5. ~~Cx Index (12-group editable structure)~~ — DONE.
+6. **Equipment List** (CURRENT) — shared single source with Cx Index; type-specific editable fields in Spec/Shop-Dwg/Installed sections (§4.0); file attachments per equipment.
+7. **Site reports** — carry the issues log forward; generate a .docx matching the Isotherm template (letterhead, distribution, progress, documentation, issues table with grey closed rows and embedded photos); auto-populate from the active project (§6). Feed a real site report sample.
+8. **Auth/roles** — Supabase Auth with Admin/Developer/User/Client + row-level security; **replace the temporary dev allow-all RLS policies** with proper per-role policies.
+9. Then Phase 2/3 in order (§10): template library → checklist instances (auto-findings) → FPT → LEED deliverables → attachments → reminders → Action Summary → import → portal → MBCx/OCx.
 
 ---
 

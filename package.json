@@ -10,7 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sparticuz/chromium-min": "^149.0.0",
     "@supabase/supabase-js": "^2.49.8",
+    "html-to-docx": "^1.8.0",
+    "puppeteer-core": "^25.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

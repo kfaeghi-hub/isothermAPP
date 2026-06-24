@@ -22,9 +22,17 @@ dist-ssr
 # Vite cache
 .vite/
 
-# Verification / test artifacts
+# Test / verification artifacts
 verify-ss-*.png
 verify-directory.mjs
+ss-*.png
+
+# Temporary DOCX/PDF inspection folders
+docx-inspect*/
+
+# Generated report files at repo root (dev artifacts)
+site-report-*.docx
+site-report-*.pdf
 
 # Editor
 .vscode/*

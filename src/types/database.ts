@@ -175,6 +175,7 @@ export interface Finding {
   number: string
   phase_id: string | null
   category: string
+  title: string | null
   responsible_party_id: string | null
   status: FindingStatus
   origin: FindingOrigin
