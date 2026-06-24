@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
-import { supabase } from './lib/supabase'
+import { useState } from 'react'
+import { useAuth } from './contexts/AuthContext'
+import { LoginPage } from './pages/LoginPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { DirectoryPage } from './pages/DirectoryPage'
-
-type ConnectionStatus = 'checking' | 'connected' | 'error'
 
 const NAV_ITEMS = [
   { label: 'Projects',       icon: '📋', phase: 1 },
@@ -12,33 +12,39 @@ const NAV_ITEMS = [
   { label: 'Action Summary', icon: '📌', phase: 3 },
 ]
 
-function StatusBadge({ status }: { status: ConnectionStatus }) {
-  const styles: Record<ConnectionStatus, string> = {
-    checking: 'bg-yellow-100 text-yellow-800',
-    connected: 'bg-green-100 text-green-800',
-    error: 'bg-red-100 text-red-800',
-  }
-  const labels: Record<ConnectionStatus, string> = {
-    checking: 'Checking…',
-    connected: 'DB connected',
-    error: 'Connection error',
-  }
-  return (
-    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles[status]}`}>
-      {labels[status]}
-    </span>
-  )
-}
-
 export default function App() {
-  const [status, setStatus] = useState<ConnectionStatus>('checking')
+  const { session, profile, loading, signOut } = useAuth()
   const [activeItem, setActiveItem] = useState('Projects')
 
-  useEffect(() => {
-    supabase.auth.getSession()
-      .then(() => setStatus('connected'))
-      .catch(() => setStatus('error'))
-  }, [])
+  // Password-reset link always resolves here regardless of auth state
+  if (window.location.pathname === '/reset-password') {
+    return <ResetPasswordPage />
+  }
+
+  if (loading) return <LoadingScreen />
+  if (!session) return <LoginPage />
+
+  // Logged in but profile row missing — user created in Supabase without a profile row
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+           style={{ background: 'linear-gradient(160deg, #eef2f7 0%, #dce6f0 100%)' }}>
+        <div className="text-center bg-white rounded-xl shadow-lg px-10 py-8 max-w-sm">
+          <p className="text-sm font-semibold mb-2" style={{ color: '#1F3A5F' }}>
+            Account setup incomplete
+          </p>
+          <p className="text-xs mb-5" style={{ color: '#6B7A8F' }}>
+            Your account exists but has no profile. Contact your administrator.
+          </p>
+          <button onClick={signOut}
+                  className="text-xs px-4 py-2 rounded text-white"
+                  style={{ background: '#1F3A5F' }}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const phase1 = NAV_ITEMS.filter(i => i.phase === 1)
   const phase2 = NAV_ITEMS.filter(i => i.phase === 2)
@@ -50,7 +56,9 @@ export default function App() {
       <aside className="w-56 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col">
         {/* Logo */}
         <div className="px-5 py-4 border-b border-slate-800">
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-slate-500 mb-1">Isotherm Engineering</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-slate-500 mb-1">
+            Isotherm Engineering
+          </p>
           <h1 className="text-[15px] font-semibold text-white leading-tight tracking-tight">
             <span className="font-mono text-teal-400">Cx</span>{' '}System
           </h1>
@@ -63,20 +71,28 @@ export default function App() {
           <NavSection label="Phase 3" items={phase3} active={activeItem} onSelect={setActiveItem} muted />
         </nav>
 
-        {/* Connection status */}
-        <div className="px-5 py-3 border-t border-slate-800">
-          <StatusBadge status={status} />
+        {/* User footer with logout */}
+        <div className="border-t border-slate-800 px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{profile.name}</p>
+            <p className="text-[10px] text-slate-400 capitalize">{profile.role}</p>
+          </div>
+          <button
+            onClick={signOut}
+            title="Sign out"
+            className="flex-shrink-0 text-slate-500 hover:text-slate-200 transition-colors p-1 rounded"
+          >
+            <LogoutIcon />
+          </button>
         </div>
       </aside>
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
         <header className="h-12 border-b border-gray-200 bg-white flex items-center px-5 flex-shrink-0">
           <h2 className="text-sm font-semibold text-gray-800">{activeItem}</h2>
         </header>
 
-        {/* Content area */}
         <div className="flex-1 overflow-hidden">
           {activeItem === 'Projects' ? (
             <ProjectsPage />
@@ -90,6 +106,28 @@ export default function App() {
         </div>
       </main>
     </div>
+  )
+}
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center"
+         style={{ background: 'linear-gradient(160deg, #eef2f7 0%, #dce6f0 100%)' }}>
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 rounded-full animate-spin mx-auto mb-3"
+             style={{ borderColor: '#1F3A5F', borderTopColor: 'transparent' }} />
+        <p className="text-sm" style={{ color: '#6B7A8F' }}>Loading…</p>
+      </div>
+    </div>
+  )
+}
+
+function LogoutIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round"
+            d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+    </svg>
   )
 }
 
