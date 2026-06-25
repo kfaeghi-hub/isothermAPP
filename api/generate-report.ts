@@ -53,10 +53,10 @@ function toBase64(data: Buffer): string {
 // ── CSS (matches site_report_mockup.html exactly) ─────────────────────────────
 
 const CSS = `
-  @page { size: letter; margin: 0.5in 0 0 0; }
+  @page { size: letter; margin: 0.5in 0 0.75in 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, 'Segoe UI', sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
-  .page { padding: 0 46px 80px 46px; }
+  .page { padding: 0 46px 12px 46px; }
 
   /* letterhead */
   .firm { text-align: center; }
@@ -79,9 +79,11 @@ const CSS = `
 
   /* tables */
   table { width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 9.5pt; }
+  thead { display: table-header-group; }
   thead th { background: #1F3A5F; color: #fff; font-weight: 600; text-align: left; padding: 6px 10px; font-size: 9pt; border: 1px solid #1F3A5F; }
   tbody td { padding: 6px 10px; border: 1px solid #DDE3EA; vertical-align: top; }
   tbody tr:nth-child(even) td { background: #F6F8FB; }
+  tr { page-break-inside: avoid; break-inside: avoid; }
 
   .intro     { margin: 12px 0 2px 0; font-style: italic; color: #333; }
   .narrative { padding: 2px 0; margin: 4px 0; }
