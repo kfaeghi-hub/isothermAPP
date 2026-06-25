@@ -53,10 +53,10 @@ function toBase64(data: Buffer): string {
 // ── CSS (matches site_report_mockup.html exactly) ─────────────────────────────
 
 const CSS = `
-  @page { size: letter; margin: 0.5in 0 0.5in 0; }
+  @page { size: letter; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, 'Segoe UI', sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
-  .page { padding: 0 46px 12px 46px; }
+  .page { padding: 0 46px 0 46px; }
 
   /* letterhead */
   .firm { text-align: center; }
@@ -119,13 +119,6 @@ const CSS = `
   tr.closed td.act     { color: #777; }
   .closedtag           { display: block; font-size: 8pt; font-weight: 700; color: #888; }
 
-  /* fixed footer on every page */
-  .footer {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    padding: 6px 46px 14px 46px; text-align: center;
-    background: white; border-top: 1px solid #E5E5E5;
-  }
-  .footer .disc { font-size: 7.5pt; font-style: italic; color: #888; line-height: 1.3; }
 `
 
 // ── HTML builder ───────────────────────────────────────────────────────────────
@@ -155,6 +148,15 @@ function buildHtml(
         ).join('\n')}</tbody>
       </table>`
     : `<p class="none">No documentation items recorded.</p>`
+
+  // Verify every doc row made it into the HTML — each data row has exactly one </tr> in tbody.
+  // The thead contributes one </tr>, so subtract 1.
+  if (docItems.length > 0) {
+    const renderedDocRows = (docSection.match(/<\/tr>/g) ?? []).length - 1
+    if (renderedDocRows !== docItems.length) {
+      console.error(`[report] DOC ROW MISMATCH: input=${docItems.length} rendered=${renderedDocRows}`)
+    }
+  }
 
   const findingRows = findings.map((f: any) => {
     const closed      = f.status === 'closed'
@@ -192,6 +194,12 @@ function buildHtml(
       <td class="act">${esc(responsible)}</td>
     </tr>`
   }).join('\n')
+
+  // Verify every finding made it into the HTML — each row closes with </tr>.
+  const renderedFindingRows = (findingRows.match(/<\/tr>/g) ?? []).length
+  if (renderedFindingRows !== findings.length) {
+    console.error(`[report] FINDING ROW MISMATCH: input=${findings.length} rendered=${renderedFindingRows}`)
+  }
 
   const narrativeHtml = (report.progress_narrative ?? '').split('\n').map((line: string) =>
     `<p class="narrative">${esc(line) || '&nbsp;'}</p>`
@@ -247,10 +255,6 @@ function buildHtml(
 
 </div>
 
-<div class="footer">
-  <div class="disc">${esc(DISCLAIMER)}</div>
-</div>
-
 </body>
 </html>`
 }
@@ -274,8 +278,12 @@ async function toPdf(html: string): Promise<Buffer> {
     const pdf = await page.pdf({
       format: 'letter',
       printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      preferCSSPageSize: true,
+      // top/bottom margins managed here so Puppeteer owns the footer zone;
+      // position:fixed footer removed from HTML to prevent overlay clipping rows.
+      margin: { top: '0.5in', right: '0', bottom: '0.55in', left: '0' },
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      footerTemplate: `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;font-style:italic;color:#888888;border-top:1px solid #e5e5e5;box-sizing:border-box;line-height:1.3;">${DISCLAIMER}</div>`,
     })
     return Buffer.from(pdf)
   } finally {
