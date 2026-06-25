@@ -132,6 +132,10 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   const [editForm, setEditForm]         = useState<EditForm>({ title: '', category: '', responsible_party_id: '', origin: 'site_visit', phase_id: '' })
   const [savingEdit, setSavingEdit]     = useState(false)
 
+  // Delete finding
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingFinding, setDeletingFinding] = useState(false)
+
   // Project trade options (for category select)
   const [projectTrades, setProjectTrades] = useState<ProjectTradeOption[]>([])
 
@@ -303,6 +307,33 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       .eq('id', selectedId)
     setSavingEdit(false); setEditOpen(false)
     fetchFindings()
+  }
+
+  async function deleteFinding(findingId: string) {
+    setDeletingFinding(true)
+
+    // Fetch photo rows before the cascade wipes them, so we have storage paths
+    const { data: photoRows } = await supabase
+      .from('finding_photos')
+      .select('storage_url')
+      .eq('finding_id', findingId)
+
+    // Delete storage files (best-effort — orphaned files < broken DB state)
+    if (photoRows && photoRows.length > 0) {
+      const marker = '/finding-photos/'
+      const paths = photoRows
+        .map(p => { const i = p.storage_url.indexOf(marker); return i >= 0 ? p.storage_url.slice(i + marker.length) : null })
+        .filter((p): p is string => p !== null)
+      if (paths.length > 0) await supabase.storage.from('finding-photos').remove(paths)
+    }
+
+    // Delete the finding row — CASCADE removes diary entries + photo rows
+    await supabase.from('findings').delete().eq('id', findingId)
+
+    setDeletingFinding(false)
+    setConfirmDeleteId(null)
+    setSelectedId(null)
+    await fetchFindings()
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -486,6 +517,13 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                 className="text-xs border border-gray-200 rounded px-3 py-1.5 text-gray-500 hover:text-teal-700 hover:border-teal-400 transition-colors"
               >
                 Edit
+              </button>
+              <button
+                onClick={() => setConfirmDeleteId(selectedFinding.id)}
+                className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 hover:border-red-400 transition-colors"
+                title="Delete this finding permanently"
+              >
+                Delete
               </button>
               <button
                 onClick={() => setSelectedId(null)}
@@ -822,6 +860,60 @@ export function IssuesLogPage({ projectId, phases }: Props) {
           </div>
         </div>
       </Modal>
+
+      {/* ── Delete Finding confirmation modal ────────────────────── */}
+      {(() => {
+        const f = findings.find(x => x.id === confirmDeleteId)
+        if (!f) return null
+        return (
+          <Modal
+            title="Delete Finding"
+            open={!!confirmDeleteId}
+            onClose={() => !deletingFinding && setConfirmDeleteId(null)}
+            maxWidth="sm"
+          >
+            <div className="space-y-4">
+              <div className="flex gap-3 p-3 rounded-md bg-red-50 border border-red-100">
+                <span className="text-red-500 mt-0.5 flex-shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-red-800">
+                    Delete Finding #{f.number ?? '—'}
+                    {f.title ? ` — ${f.title}` : ''}
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    This will permanently remove the finding, all diary entries, and all photos
+                    (including files from storage). This cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Finding numbers are never renumbered — the gap left by #{f.number ?? '—'} will remain
+                so existing reports and cross-references stay valid.
+              </p>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  disabled={deletingFinding}
+                  className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteFinding(f.id)}
+                  disabled={deletingFinding}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+                >
+                  {deletingFinding ? 'Deleting…' : 'Delete Permanently'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )
+      })()}
 
       {/* ── Edit Finding modal ────────────────────────────────────── */}
       <Modal
