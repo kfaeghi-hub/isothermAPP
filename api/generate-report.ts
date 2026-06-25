@@ -53,10 +53,10 @@ function toBase64(data: Buffer): string {
 // ── CSS (matches site_report_mockup.html exactly) ─────────────────────────────
 
 const CSS = `
-  @page { size: letter; margin: 0; }
+  @page { size: letter; margin: 0.5in 0 0 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, 'Segoe UI', sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
-  .page { padding: 38px 46px 80px 46px; }
+  .page { padding: 0 46px 80px 46px; }
 
   /* letterhead */
   .firm { text-align: center; }
@@ -104,9 +104,10 @@ const CSS = `
   .dentry { margin-bottom: 7px; }
   .ddate  { font-style: italic; color: #8A93A0; font-size: 8.5pt; }
   .dtext  { margin-top: 1px; }
-  .photo-cap  { font-style: italic; font-size: 8.5pt; color: #555; margin: 4px 0 2px 0; }
-  .photo-wrap { margin: 4px 0 6px 0; }
-  .photo-wrap img { max-width: 230px; border-radius: 3px; display: block; }
+  .photo-grid { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px 0; }
+  .photo-grid-item { display: flex; flex-direction: column; align-items: flex-start; }
+  .photo-grid-item img { width: 140px; height: 105px; object-fit: cover; border-radius: 3px; display: block; }
+  .photo-cap  { font-size: 7.5pt; font-style: italic; color: #777; margin-top: 2px; max-width: 140px; }
   .closeddate { font-style: italic; font-size: 8.5pt; color: #888; margin-top: 6px; }
 
   /* closed rows */
@@ -167,13 +168,14 @@ function buildHtml(
       `<div class="dentry"><div class="ddate">${esc(isoShort(e.entry_date))}</div><div class="dtext">${esc(e.body ?? '')}</div></div>`
     ).join('')
 
-    const photosHtml = (f.finding_photos ?? []).map((ph: any) => {
+    const photoItems = (f.finding_photos ?? []).map((ph: any) => {
       const buf = photoBuffers.get(ph.id)
       if (!buf) return ''
-      const b64 = toBase64(buf)
-      const cap = isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '')
-      return `${cap ? `<div class="photo-cap">${esc(cap)}</div>` : ''}<div class="photo-wrap"><img src="data:image/jpeg;base64,${b64}" alt=""></div>`
-    }).join('')
+      const b64  = toBase64(buf)
+      const cap  = isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '')
+      return `<div class="photo-grid-item"><img src="data:image/jpeg;base64,${b64}" alt="">${cap ? `<div class="photo-cap">${esc(cap)}</div>` : ''}</div>`
+    }).filter(Boolean)
+    const photosHtml = photoItems.length > 0 ? `<div class="photo-grid">${photoItems.join('')}</div>` : ''
 
     const closedDateHtml = closed && f.date_closed
       ? `<div class="closeddate">Closed: ${esc(isoShort(f.date_closed))}</div>` : ''
@@ -342,13 +344,25 @@ function buildDocxHtml(
       `<p style="margin:4px 0;"><em style="color:#8A93A0;font-size:8.5pt;">${esc(isoShort(e.entry_date))}</em><br>${esc(e.body ?? '')}</p>`
     ).join('')
 
-    const photosHtml = (f.finding_photos ?? []).map((ph: any) => {
+    const allPhotos = (f.finding_photos ?? []).map((ph: any) => {
       const buf = photoBuffers.get(ph.id)
-      if (!buf) return ''
-      const b64 = toBase64(buf)
-      const cap = isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '')
-      return `${cap ? `<p style="font-style:italic;font-size:8.5pt;color:#555;margin:4px 0;">${esc(cap)}</p>` : ''}<p><img src="data:image/jpeg;base64,${b64}" style="max-width:230px;" alt=""></p>`
-    }).join('')
+      if (!buf) return null
+      return { b64: toBase64(buf), cap: isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '') }
+    }).filter(Boolean) as { b64: string; cap: string }[]
+    // 2-per-row table for DOCX (flexbox not supported by html-to-docx)
+    let photosHtml = ''
+    if (allPhotos.length > 0) {
+      const rows: string[] = []
+      for (let i = 0; i < allPhotos.length; i += 2) {
+        const cell = (ph: { b64: string; cap: string }) =>
+          `<td style="padding:4px;vertical-align:top;">${ph.cap ? `<p style="font-size:8pt;font-style:italic;color:#777;margin:0 0 2px 0;">${esc(ph.cap)}</p>` : ''}<img src="data:image/jpeg;base64,${ph.b64}" style="max-width:200px;" alt=""></td>`
+        const row = allPhotos[i + 1]
+          ? `<tr>${cell(allPhotos[i])}${cell(allPhotos[i + 1])}</tr>`
+          : `<tr>${cell(allPhotos[i])}<td></td></tr>`
+        rows.push(row)
+      }
+      photosHtml = `<table style="border-collapse:collapse;margin:6px 0 8px 0;"><tbody>${rows.join('')}</tbody></table>`
+    }
 
     const closedTag = closed && f.date_closed
       ? `<br><span style="font-size:8pt;font-weight:bold;color:#888;">CLOSED: ${esc(isoShort(f.date_closed))}</span>` : ''
