@@ -53,7 +53,7 @@ function toBase64(data: Buffer): string {
 // ── CSS (matches site_report_mockup.html exactly) ─────────────────────────────
 
 const CSS = `
-  @page { size: letter; margin: 0.5in 0 0.75in 0; }
+  @page { size: letter; margin: 0.5in 0 0.5in 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, 'Segoe UI', sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
   .page { padding: 0 46px 12px 46px; }
@@ -75,7 +75,7 @@ const CSS = `
   .phead .note  { color: #1F3A5F; font-weight: 700; font-size: 11pt; }
 
   /* section headings */
-  h2.sec { color: #1F3A5F; font-size: 12pt; font-weight: 700; margin: 20px 0 7px 0; padding-bottom: 3px; border-bottom: 2px solid #1F3A5F; }
+  h2.sec { color: #1F3A5F; font-size: 12pt; font-weight: 700; margin: 20px 0 7px 0; padding-bottom: 3px; border-bottom: 2px solid #1F3A5F; page-break-after: avoid; break-after: avoid; }
 
   /* tables */
   table { width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 9.5pt; }
