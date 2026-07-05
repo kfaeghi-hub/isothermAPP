@@ -8,22 +8,27 @@
 
 ## 1A. Build status (living — update as modules ship)
 
+### Phase 1 — COMPLETE (deployed to https://isotherm-app.vercel.app)
+
 **Built, tested, committed:**
-- Scaffold (Vite + React + TS + Tailwind), Supabase wired (ca-central-1), project on local disk, GitHub repo connected, ARCHITECTURE.md in place.
-- Database schema (all tables) with temporary dev "allow-all" RLS policies (MUST be replaced with per-role policies at the auth step before real data).
-- Directory (companies & contacts, extensible roles, filtering).
-- Projects (list, create with project-type, active/completed sections, search, filters, delete).
-- Project trades (firm master list + per-project selection; feeds finding categories).
-- Issues Log (findings, oldest-first append-only diary, photo upload + delete, open/closed-stays-grey, category from project trades).
-- Cx Index (final 12-group / 88-column structure, per-project editable copy, progress cells, edit-structure controls).
+- Scaffold (Vite + React + TS + Tailwind v4), Supabase wired (ca-central-1), project on local disk, GitHub repo connected, ARCHITECTURE.md in place.
+- **Auth & roles:** branded login page, inline forgot-password flow, Supabase password-reset flow (redirects to `/reset-password`), AuthContext wrapping the full app, no public signup, logout. Four roles: admin / developer / user / client.
+- Database schema (all tables) with **real per-role RLS** via `get_my_role()` SECURITY DEFINER function (38 tables; dev allow-all fully replaced).
+- **Directory** — companies & contacts, extensible roles, filtering.
+- **Projects** — list, create with project-type, active/completed sections, search, filters, delete.
+- **Project trades** — firm master list + per-project selection; feeds finding categories.
+- **Issues Log** — findings with optional `title` field (distinct from category), oldest-first append-only diary, photo upload + delete, open/closed-stays-grey, **finding delete** (confirmation modal, cascades diary entries + photos + storage files, no renumbering).
+- **Cx Index** — final 12-group / 88-column structure, per-project editable copy, progress cells, edit-structure controls.
+- **Equipment Register** — type-specific editable fields in Spec / Shop Drawing / Installed sections (11 seeded equipment types), tag glossary with discipline-aware descriptors and tag/descriptor autocomplete, per-equipment file attachments.
+- **Site Reports** — list, create, PDF generation (Puppeteer + @sparticuz/chromium-min@133.0.0 via Vercel serverless function) + DOCX generation (html-to-docx@1.8.0 via same function). Both outputs from `api/generate-report.ts` (Node.js, `maxDuration: 60`). Report: letterhead, project header, distribution table, narrative, documentation register, issues log with photos. Footer rendered via Puppeteer `displayHeaderFooter` / `footerTemplate` (not `position:fixed`) to prevent row-clipping at page breaks.
 
-**Next:** Equipment List tab (shared single source with Cx Index; type-specific editable field templates in Spec/Shop-Dwg/Installed sections, 10 seeded equipment types; per-equipment file attachments; firm-level editable equipment tag glossary with discipline-aware descriptors).
+### Phase 2 — IN PROGRESS (checklist engine)
 
-**Remaining Phase 1:** Site reports (.docx generation), Auth & roles (+ replace dev RLS policies).
+**Next:** Template library (IVC/PFC/FPT built from Isotherm's real forms) → checklist instances (multi-unit, confirmed auto-finding creation) → FPT module → LEED deliverables tracking.
 
-**Then:** Phase 2 (template library IVC/PFC/FPT, checklist instances auto-creating findings, FPT, LEED deliverable tracking, attachments), Phase 3 (reminders, Status & Action Summary, data import, long-form docs, client portal, MBCx/OCx).
+**Then:** Phase 3 — reminders/aging, Status & Action Summary (§6A), data import (contacts, equipment), long-form documents (Cx Plan, OPR, BOD, Systems Manual, Final Report), client portal, MBCx/OCx.
 
-**Open real-world decisions (not build tasks):** confirm Ontario 10-yr retention specifics with compliance advisor (§9C); finalize hosting model with firm (§9C); replace dev RLS policies at auth step; show dad/senior employee for buy-in; capture baseline time-per-report.
+**Open real-world decisions (not build tasks):** confirm Ontario 10-yr retention specifics with compliance advisor (§9C); finalize hybrid hosting model (§9C); show dad/senior employee for buy-in; capture baseline time-per-report (action item from §12).
 
 ---
 
@@ -114,12 +119,14 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 
 **Finding** (issues log — the backbone)
 - id, projectId, number (auto-managed), phase tag
-- category (INFO or a role/trade), responsibleParty (contactId — ANY role incl. owner)
+- **title** (optional free text — displayed prominently above category; distinguishes a specific issue description from its trade/category classification)
+- category (INFO or a role/trade from project trades), responsibleParty (contactId — ANY role incl. owner)
 - status (Open / Closed), origin (Site Visit / IVC / PFC / FPT — auto-set when generated from a checklist)
 - dateRaised (auto), dateClosed (auto)
 - **diary[]**: ordered list of { date, text }, OLDEST FIRST, append-only (supports paragraphs, sub-numbering, bullets)
 - photos[] (compressed; before/after accumulate over time)
-- linkedEquipmentId (optional — ties finding to a specific unit)
+- linkedEquipmentId (optional — ties finding to a specific unit in the equipment register)
+- **Delete:** findings may be deleted by admin/user with an explicit confirmation modal. Deletion cascades diary entries, photos (DB rows), and photo files from storage (best-effort). Finding numbers are NOT renumbered after deletion — gaps are intentional and preserve the audit trail in reports and documents already issued.
 - **Rule:** closed findings remain in all future reports, rendered grey, marked CLOSED, in original position.
 
 **Template Pool** (firm library — the single reusable source for ALL deliverables; see §5.2)
@@ -307,6 +314,23 @@ Build note: this is a Phase 2/3 module (needs the issues log, Cx Index, and deli
 
 ---
 
+## 6B. Project dashboards (visual summaries — planned, build after real-world use)
+
+A visual summary view for a project — charts and graphs over data the system already holds (no new data, no new integrations; high-value, low-risk). Extends the Status & Action Summary (§6A) as its visual form. **Build after the team has used the core app on real projects**, so the dashboard is built around the metrics they actually find useful, against real data — not guessed against test data.
+
+**Internal/user project dashboard** (build first):
+- **Cx Index progress** — overall % complete + per-discipline breakdown (mech/elec/BAS/plumbing/IST), donut or bar.
+- **Issues summary** — open vs. closed counts; findings by category/trade; findings by responsible party (who owes most); aging (how long open).
+- **Deliverables status** — complete vs. outstanding (esp. valuable on LEED projects).
+- **Activity over time** — findings opened vs. closed per week (is the project converging?).
+- **Equipment status** — verified vs. in-progress.
+
+**Client dashboard** (Phase 3, portal): a filtered, simplified, read-only version of the same dashboard — clients see progress and open items, not internal detail. Same engine as the internal dashboard + the client lens of §6A; built on the Client role (already implemented). Mostly a permission/presentation layer over the internal dashboard.
+
+**Tech:** React + a charting library (e.g. Recharts, already compatible with the stack). The work is choosing the right metrics (hence "after real use"), not the charting itself.
+
+---
+
 ## 7. Reminders & notifications
 - Aging open findings (e.g., open > N days without update).
 - Projects not visited/updated in a while (uses lastVisitedAt).
@@ -452,6 +476,7 @@ AI features are valuable seasoning on a reliable core — **build the core first
 
 **Useful later (needs solid core data):**
 - **Consistency / gap checks** before generation — e.g., flag a finding assigned to a party not on the distribution list, an FPT referencing equipment not in the project list, or likely-duplicate findings to merge.
+- **AI-assisted equipment extraction / auto-population** — feed a project document (mechanical equipment schedule, existing Cx Index Excel, equipment list from drawings) and have AI read it and propose equipment-register entries (tag, type, nameplate/spec fields), instead of manual entry. Strong fit: AI's strength is document → structured data, the data already exists in handed-over documents, and it saves genuinely tedious work. **Must be "AI proposes → human reviews/corrects → accepts," never silent auto-fill** — real schedules are messy (merged cells, abbreviations, inconsistencies) and a wrong nameplate value matters in a Cx context. Builds on the data-import capability (§8); sequence after manual equipment entry has been used enough to know what good data looks like and where AI is likely to slip. This is one of the higher-value AI features for the app.
 
 **Phase 3+ (separate, harder build; ties to recurring revenue):**
 - **OCx/MBCx anomaly detection** — when live BAS data is integrated, flag equipment drifting from setpoint or out-of-sequence operation.
@@ -475,10 +500,10 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 3. ~~Projects (with project-type, active/completed, search/filters/delete)~~ — DONE.
 4. ~~Issues log (diary, photos, categories from project trades)~~ — DONE.
 5. ~~Cx Index (12-group editable structure)~~ — DONE.
-6. **Equipment List** (CURRENT) — shared single source with Cx Index; type-specific editable fields in Spec/Shop-Dwg/Installed sections (§4.0); file attachments per equipment.
-7. **Site reports** — carry the issues log forward; generate a .docx matching the Isotherm template (letterhead, distribution, progress, documentation, issues table with grey closed rows and embedded photos); auto-populate from the active project (§6). Feed a real site report sample.
-8. **Auth/roles** — Supabase Auth with Admin/Developer/User/Client + row-level security; **replace the temporary dev allow-all RLS policies** with proper per-role policies.
-9. Then Phase 2/3 in order (§10): template library → checklist instances (auto-findings) → FPT → LEED deliverables → attachments → reminders → Action Summary → import → portal → MBCx/OCx.
+6. ~~**Equipment List**~~ — DONE. Shared single source with Cx Index; type-specific editable fields in Spec/Shop-Dwg/Installed sections (§4.0); tag glossary with autocomplete; file attachments per equipment.
+7. ~~**Site reports**~~ — DONE. PDF (Puppeteer + @sparticuz/chromium-min via Vercel serverless `api/generate-report.ts`) + DOCX (html-to-docx same function). Letterhead, distribution, narrative, documentation register, issues log with photos; footer via Puppeteer `displayHeaderFooter` to prevent row clipping at page breaks.
+8. ~~**Auth/roles**~~ — DONE. Supabase Auth; branded login / forgot-password / reset-password; AuthContext; four roles; per-role RLS on 38 tables via `get_my_role()` SECURITY DEFINER.
+9. **Phase 2/3 in order (§10):** template library → checklist instances (confirmed auto-findings) → FPT → LEED deliverables → file attachments → reminders → Action Summary → data import → client portal → MBCx/OCx.
 
 ---
 
@@ -491,7 +516,7 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 - **Baseline metric — ACTION:** before the tool replaces the manual process, **time one real site report end-to-end** and note monthly report volume. This is the proof-of-value number for stakeholders and the success measure; it is intentionally not estimated here.
 
 **Still open (decide during build, low risk):**
-- Exact PDF generation approach (LibreOffice vs. library) for document fidelity — test early against a real report.
+- ~~Exact PDF generation approach~~ — RESOLVED: Puppeteer + @sparticuz/chromium-min on Vercel serverless; DOCX via html-to-docx same function.
 - Whether phases get their own deliverable sets or just tag findings/notes.
 - Photo/file storage limits and reminder thresholds (tunable later).
 - Client portal scope (status only, or issue-level visibility) — phase 3.

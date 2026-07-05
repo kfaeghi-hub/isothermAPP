@@ -6,7 +6,7 @@
 
 ## Overview
 
-A React SPA for managing building commissioning (Cx) projects. Used daily by field engineers at Isotherm Engineering. The system tracks projects through their full lifecycle: directory of companies and contacts, issues found on site (findings log with diary and photos), Cx Index checklists, site reports, and deliverables. Future phases will add auth, template management, and potentially external API integrations (construction PM tools, BAS systems).
+A React SPA for managing building commissioning (Cx) projects. Used daily by field engineers at Isotherm Engineering. **Phase 1 is complete and deployed** (https://isotherm-app.vercel.app): auth & roles, directory, projects, issues log (findings diary + photos + delete), Cx Index (12-group/88-col), equipment register (type-specific field templates, tag glossary, file attachments), and site reports (PDF + DOCX generation via Vercel serverless). Phase 2 (checklist engine — IVC/PFC/FPT templates and instances with auto-findings) is next. External integrations (construction PM tools, BAS systems) are seamed but not yet built.
 
 ---
 
@@ -29,37 +29,62 @@ A React SPA for managing building commissioning (Cx) projects. Used daily by fie
 ```
 src/
 ├── lib/
-│   ├── supabase.ts        # Supabase client singleton (data layer boundary)
+│   ├── supabase.ts        # Supabase client singleton — the only place @supabase/supabase-js is imported
+│   ├── auth.ts            # Auth helpers: signIn, signOut, sendPasswordReset, updatePassword
 │   └── projectTypes.ts    # Project-type labels/badges + shared formatDate()
 │
 ├── types/
-│   └── database.ts        # TypeScript interfaces mirroring DB schema exactly
-│                          # Includes joined types used in UI queries (e.g. ProjectWithClient)
+│   └── database.ts        # TypeScript interfaces mirroring DB schema exactly.
+│                          # Rule: update here first whenever the DB schema changes.
+│                          # Includes joined types used in UI queries (e.g. ProjectWithClient, FindingWithParty)
+│
+├── contexts/
+│   └── AuthContext.tsx    # Provides session, profile (id/name/email/role), loading, signOut.
+│                          # Wraps app via <AuthProvider> in main.tsx.
+│                          # Loads user_profiles row after auth state change; bubbles "no profile" state.
 │
 ├── components/
 │   └── ui/
-│       └── Modal.tsx      # Reusable overlay modal (title, onClose, maxWidth)
+│       └── Modal.tsx      # Reusable overlay modal (title, onClose, maxWidth prop)
 │
 ├── pages/
-│   ├── ProjectsPage.tsx   # Project list (active/completed tabs, search, filters, CRUD)
-│   ├── ProjectDetailPage.tsx  # Single-project view with tab nav (Overview, Issues Log, …)
-│   ├── DirectoryPage.tsx  # Company + contact management (two-panel)
-│   └── IssuesLogPage.tsx  # Findings log (two-panel list/detail, diary, photos)
+│   ├── LoginPage.tsx          # Branded login card (navy #1F3A5F, teal accent) + inline forgot-password flow
+│   ├── ResetPasswordPage.tsx  # Password reset — listens for PASSWORD_RECOVERY auth event; signs out + redirects on success
+│   ├── ProjectsPage.tsx       # Project list (active/completed tabs, search, filters, create, delete)
+│   ├── ProjectDetailPage.tsx  # Single-project shell with tab nav: Overview · Cx Index · Issues Log · Equipment · Site Reports
+│   ├── DirectoryPage.tsx      # Company + contact management (two-panel layout)
+│   ├── IssuesLogPage.tsx      # Findings log (two-panel list/detail, diary, photos, delete with confirmation)
+│   ├── CxIndexPage.tsx        # Cx Index matrix (12-group/88-col progress, stage structure editor)
+│   ├── EquipmentPage.tsx      # Equipment/Systems Register (type-specific field sections, tag autocomplete, attachments)
+│   └── SiteReportsPage.tsx    # Site reports list + create + trigger PDF/DOCX generation
 │
-└── App.tsx                # Root: sidebar nav, top bar, page routing
+├── main.tsx               # Entry point: wraps app in <AuthProvider> from AuthContext
+└── App.tsx                # Root: auth gate (reset-password bypass → loading → login → no-profile fallback → app shell)
+                           # Sidebar: Isotherm branding, nav sections by phase, user name/role + logout button
+
+api/
+└── generate-report.ts     # Vercel serverless function (Node.js runtime, maxDuration: 60)
+                           # POST handler: fetches project + report data from Supabase, fetches finding photos,
+                           # builds two separate HTML strings (PDF path and DOCX path), generates both outputs.
+                           # PDF: Puppeteer + @sparticuz/chromium-min@133.0.0 (chromium-pack downloaded to /tmp on cold start)
+                           #      displayHeaderFooter/footerTemplate for disclaimer (not position:fixed, which clips rows)
+                           # DOCX: html-to-docx@1.8.0 (inline styles only; width: stripped from th/td to prevent crash)
+                           # Uploads both to Supabase Storage 'site-reports' bucket; stores public URLs in site_reports row
 ```
 
 ---
 
 ## Layers
 
-### Data Layer — `src/lib/supabase.ts` + `src/types/database.ts`
+### Data Layer — `src/lib/supabase.ts` + `src/lib/auth.ts` + `src/types/database.ts`
 
-All Supabase access goes through the single `supabase` client exported from `src/lib/supabase.ts`. No page or component imports from `@supabase/supabase-js` directly — they import from this module. This is the **integration seam**: if the backend changes (e.g. a REST API replaces direct DB access, or RLS policies tighten in Phase 7), only this file changes.
+All Supabase access goes through the single `supabase` client exported from `src/lib/supabase.ts`. No page or component imports from `@supabase/supabase-js` directly — they import from this module. This is the **integration seam**: if the backend changes, only this file and `auth.ts` change.
 
-`src/types/database.ts` is the schema mirror. Every table has a matching TypeScript interface. Joined/augmented shapes (e.g. `ProjectWithClient`, `ContactWithCompany`) extend the base types and are used in query results. **Rule:** when the DB schema changes, update this file first.
+`src/lib/auth.ts` wraps the four auth operations (signIn, signOut, sendPasswordReset, updatePassword) used by login/reset pages. `AuthContext.tsx` provides the session + user profile to all components via `useAuth()`, loaded once after the auth state change event fires.
 
-Key enums: `ProjectType`, `FindingStatus`, `FindingOrigin`, `CxProgress`, `DeliverableType`, etc.
+`src/types/database.ts` is the schema mirror. Every table has a matching TypeScript interface. Joined/augmented shapes (e.g. `ProjectWithClient`, `ContactWithCompany`, `FindingWithParty`) extend the base types and are used in query results. **Rule:** when the DB schema changes, update this file first.
+
+Key enums: `ProjectType`, `UserRole`, `FindingStatus`, `FindingOrigin`, `CxProgress`, `ChecklistType`, `DeliverableType`, etc.
 
 ### Business Logic
 
@@ -81,6 +106,27 @@ Pages own their own data fetching, local state, and layout. Shared UI primitives
 ## Database Schema (key tables)
 
 ```
+── Auth ──────────────────────────────────────────────────────────────────────
+
+auth.users            → Supabase-managed; email + password only (public signup DISABLED)
+user_profiles         → id (= auth.uid()), name, email, role (admin|developer|user|client)
+                        get_my_role() SECURITY DEFINER function reads this bypassing its own RLS —
+                        required to bootstrap the RLS chicken-and-egg cycle.
+                        Missing profile row → "Account setup incomplete" screen at login.
+
+RLS pattern (38 tables as of Phase 1):
+  Firm-level tables (trade_types, equipment_tag_glossary, cx_default_*, etc.):
+    SELECT: admin | developer | user
+    ALL:    admin | developer
+  Project-scoped tables (findings, equipment, site_reports, cx_cell_values, etc.):
+    ALL:    admin | developer | user
+  user_profiles:
+    SELECT own row: WHERE id = auth.uid()
+    ALL:            admin
+  All policies call get_my_role() — a SECURITY DEFINER function — to avoid RLS recursion on user_profiles.
+
+── Directory & Projects ───────────────────────────────────────────────────────
+
 projects              → the top-level entity; status: active | completed
 project_phases        → ordered phases per project (FK → projects CASCADE)
 project_trades        → which trade_types are in scope per project (junction)
@@ -91,9 +137,19 @@ companies             → firms (clients, contractors, vendors)
 company_roles         → what roles a company plays (many per company)
 contacts              → people at companies
 
+── Issues Log ─────────────────────────────────────────────────────────────────
+
 findings              → issues log entries per project
-finding_diary_entries → append-only diary per finding (oldest-first)
-finding_photos        → photo records per finding; storage_url = full public URL
+                        number (text, auto-managed, NOT renumbered on delete — gaps are intentional)
+                        title (text nullable — optional specific description above the category)
+                        category (from project trades or 'INFO'), responsible_party_id (FK → contacts)
+                        origin: site_visit | ivc | pfc | fpt
+                        linked_equipment_id (FK → equipment, nullable)
+                        Deletable: CASCADE on diary entries + photos; storage files deleted best-effort
+finding_diary_entries → append-only dated diary per finding (oldest-first); CASCADE on finding_id
+finding_photos        → photo records per finding; storage_url = Supabase Storage full public URL
+                        path convention: findings/{finding_id}/{timestamp}.jpg
+                        CASCADE on finding_id
 
 ── Cx Index ───────────────────────────────────────────────────────────────────
 
@@ -129,10 +185,17 @@ site_reports            → numbered Cx Site Notes per project
                           authored_by (text, default 'Tony Faeghi'),
                           progress_narrative (text), show_closed (boolean, default true),
                           doc_register (jsonb → DocRegisterItem[]),
-                          storage_url (text, .docx public URL),
-                          pdf_url (text, PDF public URL)
-                          Generation: Supabase Edge Function 'generate-site-report'
-                          (Deno, npm:docx@8 + npm:pdf-lib, uploads to 'site-reports' bucket)
+                          storage_url (text, .docx Supabase Storage URL),
+                          pdf_url (text, PDF Supabase Storage URL)
+                          Generation: Vercel serverless function api/generate-report.ts (Node.js,
+                          maxDuration: 60). Two separate HTML builders: buildHtml() for PDF path,
+                          buildDocxHtml() for DOCX path (inline styles, no flexbox, width: stripped
+                          from th/td to prevent html-to-docx crash). PDF via Puppeteer +
+                          @sparticuz/chromium-min@133.0.0; chromium pack downloaded to /tmp on cold
+                          start and cached for instance lifetime. Footer via Puppeteer
+                          displayHeaderFooter/footerTemplate — NOT position:fixed (which caused
+                          rows at page breaks to be clipped/dropped). Row count assertions in
+                          buildHtml() log mismatches to Vercel function logs.
 
 cx_cell_values          → sparse progress cells: one row per (equipment × column) where
                           status is set; blank = no row (status: done | in_progress | na)
@@ -159,19 +222,27 @@ All project-referencing FKs use `ON DELETE CASCADE`. Phase 1 uses dev-permissive
 
 ## Storage
 
-Supabase Storage bucket: **`finding-photos`** (public, 10 MB file limit).
+**`finding-photos`** bucket (public, 10 MB limit).
+- Upload: browser canvas → JPEG (1400px max, 0.82 quality) → upload → store full public URL in `finding_photos.storage_url`
+- Delete: remove DB record first, then Storage file (best-effort)
+- Path: `findings/{finding_id}/{timestamp}.jpg`
 
-Upload flow: browser canvas → JPEG (1400px max, 0.82 quality) → `supabase.storage.from('finding-photos').upload(path, blob)` → store the full public URL in `finding_photos.storage_url`.
+**`equipment-files`** bucket (access-controlled, 20 MB limit).
+- PDF, DOCX, XLS, images for equipment shop drawings, submittals, cut sheets, O&M manuals, etc.
+- `equipment_attachments.storage_url` stores full URL; `file_type`: shop_drawing | cut_sheet | submittal | startup_report | om_manual | other
 
-Delete flow: remove DB record first (preserves UI consistency), then remove from Storage (best-effort).
+**`site-reports`** bucket (public, no size limit effectively).
+- Generated by `api/generate-report.ts` serverless function on Vercel
+- `.docx` stored at `site-reports/{report_id}/report.docx`; URL in `site_reports.storage_url`
+- `.pdf` stored at `site-reports/{report_id}/report.pdf`; URL in `site_reports.pdf_url`
 
-Path convention: `findings/{finding_id}/{timestamp}.jpg`
+**Rule for new buckets:** no new public buckets without review. Access-controlled storage uses signed URLs or service-role upload only.
 
 ---
 
 ## Routing
 
-No router library. `App.tsx` holds a `activeItem` string mapped to `<Page />` components. `ProjectsPage` manages its own "selected project" state, rendering `<ProjectDetailPage>` in place when a project is open (replaces the list, not a new route). This is fine for Phase 1; a URL router (e.g. TanStack Router) is the natural Phase 7 addition alongside auth.
+No router library. `App.tsx` applies auth gating in order: (1) `window.location.pathname === '/reset-password'` bypasses everything → `<ResetPasswordPage>`; (2) `loading` → `<LoadingScreen>`; (3) no session → `<LoginPage>`; (4) session but no `profile` row → "Account setup incomplete" fallback; (5) authenticated → app shell. Within the app shell, `activeItem` string drives which page renders. `ProjectsPage` manages its own `selectedProjectId` state, rendering `<ProjectDetailPage projectId=...>` in place (replaces list, not a new route). A URL router (e.g. TanStack Router) is the natural Phase 3 addition for deep-linking into projects and checklist instances.
 
 ---
 
@@ -271,4 +342,4 @@ Future: move to a `tests/` directory with named spec files as coverage grows.
 
 ---
 
-*Last updated: 2026-06-22 — reflects Phase 1 build: Projects, Directory, Issues Log, Trades, Cx Index matrix (12-group / 88-column), Equipment / Systems Register (11 type field templates, tag glossary, file attachments), Site Reports (.docx + PDF generation via Edge Function) + data retention requirement from §9C.*
+*Last updated: 2026-07-05 — Phase 1 complete. All modules built and deployed: auth (login/reset/RLS), directory, projects, trades, issues log (findings + diary + photos + delete), Cx Index (12-group/88-col editable), equipment register (11 type templates, tag glossary, attachments), site reports (PDF + DOCX via Vercel serverless api/generate-report.ts). Phase 2 (checklist engine) in progress.*
