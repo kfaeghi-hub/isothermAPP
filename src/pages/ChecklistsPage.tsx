@@ -28,11 +28,6 @@ function TypeBadge({ type }: { type: ChecklistType }) {
   return <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${TYPE_COLORS[type]}`}>{TYPE_LABELS[type]}</span>
 }
 
-function todayISO(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 // ── Target type for the create flow ────────────────────────────────────────
 
 interface TargetDraft { equipment_id: string; role: 'primary' | 'tested_unit' | 'related'; sort_order: number }
