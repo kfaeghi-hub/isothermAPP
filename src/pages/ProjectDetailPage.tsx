@@ -6,6 +6,7 @@ import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
 import { EquipmentPage } from './EquipmentPage'
 import { SiteReportsPage } from './SiteReportsPage'
+import { ChecklistsPage } from './ChecklistsPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType, TradeType,
 } from '../types/database'
@@ -32,7 +33,7 @@ interface EditForm {
   notes: string
 }
 
-type Tab = 'overview' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'deliverables'
+type Tab = 'overview' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'checklists' | 'deliverables'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
@@ -40,6 +41,7 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'cx_index',     label: 'Cx Index',     built: true  },
   { id: 'equipment',    label: 'Equipment',    built: true  },
   { id: 'site_reports', label: 'Site Reports', built: true  },
+  { id: 'checklists',   label: 'Checklists',   built: true  },
   { id: 'deliverables', label: 'Deliverables', built: false },
 ]
 
@@ -327,7 +329,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       </div>
 
       {/* ── Tab content ─────────────────────────────────── */}
-      <div className="flex-1 overflow-auto bg-slate-50">
+      <div className={`flex-1 bg-slate-50 ${activeTab === 'checklists' ? 'overflow-hidden' : 'overflow-auto'}`}>
 
         {/* Overview */}
         {activeTab === 'overview' && (
@@ -487,6 +489,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         {/* Site Reports */}
         {activeTab === 'site_reports' && (
           <SiteReportsPage projectId={projectId} />
+        )}
+
+        {/* Checklists */}
+        {activeTab === 'checklists' && (
+          <ChecklistsPage projectId={projectId} phases={phases} />
         )}
 
         {/* Deliverables stub */}
