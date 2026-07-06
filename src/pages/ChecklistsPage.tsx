@@ -189,22 +189,33 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   }, [])
 
   const fetchCreateData = useCallback(async () => {
-    const [tmplRes, eqRes, trRes, ctRes] = await Promise.all([
+    const [tmplRes, eqRes] = await Promise.all([
       supabase.from('checklist_templates').select('*').eq('active', true).order('type').order('name'),
       supabase.from('equipment').select('id, tag, descriptor, kind, equipment_type')
         .eq('project_id', projectId).order('sort_order'),
-      supabase.from('project_trades').select('trade_type_id, trade_types(id, name)')
-        .eq('project_id', projectId),
-      supabase.from('contacts').select('id, name').order('name'),
     ])
     setTemplates((tmplRes.data ?? []) as ChecklistTemplate[])
     setEquipment((eqRes.data ?? []) as Equipment[])
-    const tradeNames = (trRes.data ?? []).flatMap((r: any) => r.trade_types ? [{ id: r.trade_types.id, name: r.trade_types.name }] : [])
-    setProjectTrades(tradeNames)
-    setContacts((ctRes.data ?? []) as Array<{ id: string; name: string }>)
   }, [projectId])
 
   useEffect(() => { fetchInstances() }, [fetchInstances])
+
+  // Trades + contacts needed by the finding modal — fetch on mount, not just when create modal opens
+  useEffect(() => {
+    async function fetchSupportData() {
+      const [trRes, ctRes] = await Promise.all([
+        supabase.from('project_trades').select('trade_type_id, trade_types(id, name)')
+          .eq('project_id', projectId),
+        supabase.from('contacts').select('id, name').order('name'),
+      ])
+      const tradeNames = (trRes.data ?? []).flatMap((r: any) =>
+        r.trade_types ? [{ id: r.trade_types.id, name: r.trade_types.name }] : []
+      )
+      setProjectTrades(tradeNames)
+      setContacts((ctRes.data ?? []) as Array<{ id: string; name: string }>)
+    }
+    fetchSupportData()
+  }, [projectId])
 
   useEffect(() => {
     if (selectedId) fetchDetail(selectedId)
