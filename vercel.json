@@ -5,6 +5,9 @@
   "functions": {
     "api/generate-report.ts": {
       "maxDuration": 60
+    },
+    "api/generate-checklist.ts": {
+      "maxDuration": 60
     }
   }
 }

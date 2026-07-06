@@ -130,6 +130,9 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting, setDeleting]           = useState(false)
 
+  // ── Generate document state ───────────────────────────────────────────────
+  const [generating, setGenerating] = useState<'completed' | 'blank' | null>(null)
+
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   const fetchInstances = useCallback(async () => {
@@ -589,6 +592,29 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     fetchInstances()
   }
 
+  // ── Generate document ──────────────────────────────────────────────────
+
+  async function generateDoc(mode: 'completed' | 'blank') {
+    if (!instance) return
+    setGenerating(mode)
+    try {
+      const resp = await fetch('/api/generate-checklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instance_id: instance.id, mode }),
+      })
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.error ?? 'Generation failed')
+      // Open PDF in new tab; DOCX auto-downloads or opens
+      if (data.pdf_url)     window.open(data.pdf_url, '_blank')
+      if (data.storage_url) window.open(data.storage_url, '_blank')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to generate document.')
+    } finally {
+      setGenerating(null)
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   const narrow = !!selectedId
@@ -696,6 +722,24 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                   Reopen
                 </button>
               )}
+              {instance.status === 'complete' && (
+                <button
+                  onClick={() => generateDoc('completed')}
+                  disabled={!!generating}
+                  className="text-xs border border-slate-300 text-slate-600 rounded px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50 transition-colors font-medium"
+                  title="Generate completed checklist PDF + DOCX"
+                >
+                  {generating === 'completed' ? 'Generating…' : 'Export'}
+                </button>
+              )}
+              <button
+                onClick={() => generateDoc('blank')}
+                disabled={!!generating}
+                className="text-xs border border-slate-300 text-slate-600 rounded px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50 transition-colors font-medium"
+                title="Generate blank hand-out for contractor (Spec + Shop Drawing pre-filled)"
+              >
+                {generating === 'blank' ? 'Generating…' : 'Print Blank'}
+              </button>
               <button onClick={() => {
                 setHeaderForm({
                   authored_by: instance.authored_by ?? '',
