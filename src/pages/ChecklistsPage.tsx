@@ -122,6 +122,10 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const [confirmComplete, setConfirmComplete] = useState(false)
   const [completing, setCompleting]           = useState(false)
 
+  // ── Reopen state ──────────────────────────────────────────────────────────
+  const [confirmReopen, setConfirmReopen] = useState(false)
+  const [reopening, setReopening]         = useState(false)
+
   // ── Delete state ─────────────────────────────────────────────────────────
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting, setDeleting]           = useState(false)
@@ -230,6 +234,11 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const filteredInstances = instances.filter(i => filter === 'all' || i.type === filter)
   // Targets that get response columns (primary + tested_unit; not related)
   const responseTargets = targets.filter(t => t.role !== 'related')
+  // Reopen allowed for admin always, or the person who completed it
+  const canReopen = instance?.status === 'complete' && (
+    profile?.role === 'admin' ||
+    (profile?.name != null && profile.name === instance.completed_by)
+  )
 
   // ── Create instance ────────────────────────────────────────────────────
 
@@ -537,6 +546,22 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     fetchDetail(instance.id)
   }
 
+  // ── Reopen instance ────────────────────────────────────────────────────
+
+  async function reopenInstance() {
+    if (!instance) return
+    setReopening(true)
+    await supabase.from('checklist_instances').update({
+      status: 'in_progress',
+      reopened_by: profile?.name ?? null,
+      reopened_at: new Date().toISOString(),
+    }).eq('id', instance.id)
+    setReopening(false)
+    setConfirmReopen(false)
+    await fetchInstances()
+    fetchDetail(instance.id)
+  }
+
   // ── Header save ────────────────────────────────────────────────────────
 
   async function saveHeader() {
@@ -665,6 +690,12 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                   Mark Complete
                 </button>
               )}
+              {canReopen && (
+                <button onClick={() => setConfirmReopen(true)}
+                  className="text-xs border border-amber-300 text-amber-700 bg-amber-50 rounded px-3 py-1.5 hover:bg-amber-100 transition-colors font-medium">
+                  Reopen
+                </button>
+              )}
               <button onClick={() => {
                 setHeaderForm({
                   authored_by: instance.authored_by ?? '',
@@ -690,9 +721,19 @@ export function ChecklistsPage({ projectId, phases }: Props) {
           ) : (
             <div className="flex-1 overflow-auto">
               {/* Meta row */}
-              <div className="flex items-center gap-6 px-5 py-2.5 border-b border-gray-100 text-xs text-gray-500 bg-gray-50">
+              <div className="flex items-center gap-6 px-5 py-2.5 border-b border-gray-100 text-xs text-gray-500 bg-gray-50 flex-wrap">
                 {instance.date_performed && <span>Date: <span className="font-mono text-gray-700">{instance.date_performed}</span></span>}
                 {instance.authored_by && <span>By: <span className="text-gray-700">{instance.authored_by}</span></span>}
+                {instance.completed_at && (
+                  <span>Completed: <span className="text-emerald-700 font-medium">
+                    {new Date(instance.completed_at).toLocaleDateString()}{instance.completed_by ? ` · ${instance.completed_by}` : ''}
+                  </span></span>
+                )}
+                {instance.reopened_at && (
+                  <span className="text-amber-600">Reopened: <span className="font-medium">
+                    {new Date(instance.reopened_at).toLocaleDateString()}{instance.reopened_by ? ` · ${instance.reopened_by}` : ''}
+                  </span></span>
+                )}
                 {instance.notes && <span className="text-gray-400 italic truncate max-w-xs">{instance.notes}</span>}
               </div>
 
@@ -995,6 +1036,30 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       )}
 
       {/* ── Complete confirmation ───────────────────────────────────── */}
+      {/* ── Reopen confirmation ──────────────────────────────────────── */}
+      <Modal title="Reopen Completed Checklist" open={confirmReopen}
+        onClose={() => !reopening && setConfirmReopen(false)} maxWidth="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            This will reopen a completed checklist for editing. All existing responses, grid
+            readings, signoffs, and finding links are preserved — nothing is deleted.
+          </p>
+          <p className="text-xs text-gray-400">
+            The reopen is logged with your name and a timestamp. On re-completion, nameplate
+            data will be re-snapshotted from the current equipment records.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setConfirmReopen(false)} disabled={reopening}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50">Cancel</button>
+            <button onClick={reopenInstance} disabled={reopening}
+              className="px-4 py-2 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium">
+              {reopening ? 'Reopening…' : 'Reopen for Editing'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Complete confirmation ───────────────────────────────────────── */}
       <Modal title="Mark Checklist Complete" open={confirmComplete}
         onClose={() => !completing && setConfirmComplete(false)} maxWidth="sm">
         <div className="space-y-4">

@@ -372,6 +372,8 @@ export interface ChecklistInstance {
   notes: string | null
   completed_at: string | null
   completed_by: string | null
+  reopened_by: string | null
+  reopened_at: string | null
   nameplate_snapshot: Record<string, EquipmentNameplateSnapshot> | null
   created_at: string
   updated_at: string
