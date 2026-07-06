@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { DirectoryPage } from './pages/DirectoryPage'
+import { TemplatesPage } from './pages/TemplatesPage'
 
 const NAV_ITEMS = [
   { label: 'Projects',       icon: '📋', phase: 1 },
@@ -67,7 +68,7 @@ export default function App() {
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
           <NavSection label="Phase 1" items={phase1} active={activeItem} onSelect={setActiveItem} />
-          <NavSection label="Phase 2" items={phase2} active={activeItem} onSelect={setActiveItem} muted />
+          <NavSection label="Phase 2" items={phase2} active={activeItem} onSelect={setActiveItem} />
           <NavSection label="Phase 3" items={phase3} active={activeItem} onSelect={setActiveItem} muted />
         </nav>
 
@@ -98,6 +99,8 @@ export default function App() {
             <ProjectsPage />
           ) : activeItem === 'Directory' ? (
             <DirectoryPage />
+          ) : activeItem === 'Templates' ? (
+            <TemplatesPage />
           ) : (
             <div className="p-8">
               <Placeholder name={activeItem} />

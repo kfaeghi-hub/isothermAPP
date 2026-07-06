@@ -293,3 +293,221 @@ export interface FindingWithParty extends Finding {
   contacts: Pick<Contact, 'id' | 'name' | 'trade'> | null
   equipment: Pick<Equipment, 'id' | 'tag' | 'descriptor'> | null
 }
+
+// ── Checklist Engine (Phase 2) ─────────────────────────────────────────────
+
+// Template pool — firm-level, admin/developer managed
+
+export interface ChecklistTemplate {
+  id: string
+  name: string
+  type: ChecklistType
+  equipment_type: string | null
+  description: string | null
+  revision_label: string | null
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ChecklistTemplateSection {
+  id: string
+  template_id: string
+  title: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ChecklistTemplateItem {
+  id: string
+  section_id: string
+  label: string
+  hint: string | null
+  status_type: 'yn_nr_na' | 'pass_yn'
+  creates_finding: boolean
+  expected_response: string | null
+  suggested_category: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface GridColumn { key: string; label: string; unit: string | null }
+export interface GridRow    { key: string; label: string }
+export interface GridDefinition { columns: GridColumn[]; rows: GridRow[] }
+
+export interface ChecklistTemplateGrid {
+  id: string
+  section_id: string
+  title: string
+  definition: GridDefinition
+  sort_order: number
+  created_at: string
+}
+
+export interface ChecklistTemplateSignoff {
+  id: string
+  template_id: string
+  role_label: string
+  sort_order: number
+  created_at: string
+}
+
+// Checklist instances — per-project, fully snapshotted at creation
+
+export type ChecklistStatus = 'not_started' | 'in_progress' | 'complete'
+export type TargetRole = 'primary' | 'tested_unit' | 'related'
+
+export interface ChecklistInstance {
+  id: string
+  project_id: string
+  source_template_id: string | null
+  source_template_name_snapshot: string
+  source_template_type_snapshot: ChecklistType
+  source_template_revision_label_snapshot: string | null
+  created_from_template_at: string
+  type: ChecklistType
+  status: ChecklistStatus
+  date_performed: string | null
+  authored_by: string | null
+  notes: string | null
+  completed_at: string | null
+  completed_by: string | null
+  nameplate_snapshot: Record<string, EquipmentNameplateSnapshot> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EquipmentNameplateSnapshot {
+  tag: string | null
+  descriptor: string | null
+  manufacturer: string | null
+  model: string | null
+  serial_number: string | null
+  voltage: string | null
+  phase: string | null
+  hz: string | null
+  amperage: string | null
+  flow: string | null
+  capacity: string | null
+  nameplate_extra: NameplateExtra | null
+}
+
+export interface ChecklistInstanceTarget {
+  id: string
+  instance_id: string
+  equipment_id: string
+  role: TargetRole
+  sort_order: number
+  created_at: string
+}
+
+export interface ChecklistInstanceSection {
+  id: string
+  instance_id: string
+  source_section_id: string | null
+  title: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ChecklistInstanceItem {
+  id: string
+  instance_id: string
+  section_id: string
+  source_item_id: string | null
+  label: string
+  hint: string | null
+  status_type: 'yn_nr_na' | 'pass_yn'
+  creates_finding: boolean
+  expected_response: string | null
+  suggested_category: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface ChecklistInstanceGrid {
+  id: string
+  instance_id: string
+  section_id: string
+  source_grid_id: string | null
+  title: string
+  definition: GridDefinition
+  sort_order: number
+  created_at: string
+}
+
+export interface ChecklistInstanceSignoff {
+  id: string
+  instance_id: string
+  source_signoff_id: string | null
+  role_label_snapshot: string
+  signer_name: string | null
+  signer_company: string | null
+  signed_at: string | null
+  created_at: string
+}
+
+// Response tables
+
+export type YnNrNaStatus = 'y' | 'n' | 'nr' | 'na'
+export type PassFailStatus = 'pass' | 'fail'
+export type ResponseStatus = YnNrNaStatus | PassFailStatus
+
+export interface ChecklistResponse {
+  id: string
+  instance_id: string
+  item_id: string
+  target_id: string
+  status_type: 'yn_nr_na' | 'pass_yn'
+  status: ResponseStatus | null
+  comment: string | null
+  actual_response: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ChecklistGridResponse {
+  id: string
+  instance_id: string
+  grid_id: string
+  target_id: string
+  row_key: string
+  data: Record<string, string>
+  created_at: string
+  updated_at: string
+}
+
+export interface ChecklistFindingLink {
+  id: string
+  instance_id: string
+  item_id: string
+  target_id: string
+  finding_id: string
+  created_at: string
+}
+
+// Joined types used in checklist UI
+
+export interface ChecklistTemplateSectionWithItems extends ChecklistTemplateSection {
+  items: ChecklistTemplateItem[]
+  grids: ChecklistTemplateGrid[]
+}
+
+export interface ChecklistTemplateWithSections extends ChecklistTemplate {
+  sections: ChecklistTemplateSectionWithItems[]
+  signoffs: ChecklistTemplateSignoff[]
+}
+
+export interface ChecklistInstanceSectionWithItems extends ChecklistInstanceSection {
+  items: ChecklistInstanceItem[]
+  grids: ChecklistInstanceGrid[]
+}
+
+export interface ChecklistInstanceWithDetail extends ChecklistInstance {
+  targets: (ChecklistInstanceTarget & { equipment: Pick<Equipment, 'id' | 'tag' | 'descriptor' | 'kind'> })[]
+  sections: ChecklistInstanceSectionWithItems[]
+  signoffs: ChecklistInstanceSignoff[]
+  responses: ChecklistResponse[]
+  grid_responses: ChecklistGridResponse[]
+  finding_links: ChecklistFindingLink[]
+}
