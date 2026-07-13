@@ -74,11 +74,20 @@ no renumbering), equipment/system register with tag glossary and spec/shop-drawi
 nameplate sections, Cx Index (12 groups / 88 columns, per-project copies), site report
 generation (PDF/DOCX via serverless), Supabase Auth + roles + explicit RLS.
 
-Phase 2 (Checklist Engine) is the current build. Phase 6 is fully specified in
-`docs/BAS-SPEC.md`, validated against real TDSB Delta enteliWEB exports and approved
-submittals, with parsers designed around observed real-world failure modes (misaligned
-multi-trend timestamps, Excel-corrupted files, sentinel values, DST ambiguity, filename/
-header identity mismatches).
+Phase 2 (Checklist Engine) is substantially built and committed (through `815e03a`):
+the 14-table checklist migration is applied and live; Template Library UI; project
+instance creation with full snapshots (template name/type/revision/provenance, sections,
+items, grids, signoffs); checklist fill-out view; failed-item Create Finding modal with
+duplicate prevention (`checklist_finding_links`); signoffs; completion with equipment
+nameplate snapshot; and reopen-with-audit-trail. One real template is seeded (A/C / Fan
+Coil / Heat Pump IVC). Remaining on the checklist track: field-resilience acceptance
+tests (§5 Phase 2) and seeding the real IVC/PFC/FPT forms at scale; then checklist/FPT
+document generation and LEED deliverable tracking, which are Phase 3 (§5).
+
+Phase 6 is fully specified in `docs/BAS-SPEC.md`, validated against real TDSB Delta
+enteliWEB exports and approved submittals, with parsers designed around observed
+real-world failure modes (misaligned multi-trend timestamps, Excel-corrupted files,
+sentinel values, DST ambiguity, filename/header identity mismatches).
 
 ## 5. Master roadmap (canonical phase numbering — all other docs defer to this)
 
@@ -217,15 +226,26 @@ commissioning deficiencies before they become expensive post-occupancy problems.
 
 ## 10. What Claude Code does next
 
-Immediate task is Phase 2, not AI/BAS. Pre-flight before any migration:
-confirm the 14 checklist tables; add cross-instance integrity constraints; confirm
-snapshot strategy; confirm finding-link duplicate prevention; confirm RLS for template
-and instance workflows; confirm issue-origins/evidence design isn't blocked; confirm
-every new table carries `org_id` (rule 17). Then: migration → TypeScript types →
-ARCHITECTURE.md update → Template Library UI → Template Builder → instance creation →
-fill-out UI (with field-resilience acceptance tests) → failed-item-to-finding modal →
-duplicate prevention + linked-finding badges → Playwright tests. Seed real Isotherm
-IVC/PFC/FPT forms only after the flow works with one minimal dev template.
+Still the Phase 2/3 checklist track, not AI/BAS yet. The §10 pre-flight and the core
+Phase 2 build sequence are DONE and must not re-run: the migration (14 tables,
+cross-instance integrity constraints, `org_id` per rule 17), TypeScript types,
+ARCHITECTURE.md schema update, Template Library UI, Template Builder, instance creation
+with snapshots, fill-out UI, failed-item-to-finding modal with duplicate prevention and
+linked-finding badges, signoffs, completion with nameplate snapshot, and
+reopen-with-audit-trail — all built and committed through `815e03a`, with one minimal
+real template seeded (A/C / Fan Coil / Heat Pump IVC).
+
+Next, in order:
+1. Field-resilience acceptance tests on the fill-out UI — autosave per response (not per
+   form), graceful offline/reconnect with no silent data loss, phone photo capture. This
+   is an acceptance test, not a nice-to-have (§5 Phase 2).
+2. Seed the real Isotherm IVC/PFC/FPT forms at scale, now that the flow works end-to-end.
+3. Checklist/FPT PDF-DOCX generation (Phase 3) — reuse the `api/generate-report.ts`
+   serverless pattern; render from the snapshotted instance data, never retyped.
+4. LEED deliverable tracking (Phase 3).
+
+Only after the checklist track lands do the low-risk AI phases begin (Phase 4 onward;
+Phase 6 build order is BAS-SPEC §11).
 
 ## 11. Final destination
 
