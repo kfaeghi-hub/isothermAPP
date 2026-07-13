@@ -464,6 +464,10 @@ export interface ChecklistInstanceSignoff {
   org_id: string | null
   instance_id: string
   source_signoff_id: string | null
+  // Snapshotted from the template. Signature blocks MUST render deterministically:
+  // all signoffs for an instance are bulk-inserted and share an identical created_at,
+  // so created_at alone is not a stable sort key. Always order by sort_order, then id.
+  sort_order: number
   role_label_snapshot: string
   signer_name: string | null
   signer_company: string | null

@@ -229,8 +229,10 @@ export function ChecklistsPage({ projectId, phases }: Props) {
         .eq('instance_id', instanceId).order('sort_order'),
       supabase.from('checklist_instance_sections').select('*')
         .eq('instance_id', instanceId).order('sort_order'),
+      // sort_order, then id: created_at is identical across an instance's signoffs
+      // (bulk insert), so it is not a stable sort key. Signature order must be fixed.
       supabase.from('checklist_instance_signoffs').select('*')
-        .eq('instance_id', instanceId).order('created_at'),
+        .eq('instance_id', instanceId).order('sort_order').order('id'),
     ])
     setInstance(instRes.data as ChecklistInstance)
     setTargets((tRes.data ?? []) as unknown as DetailTarget[])
@@ -453,6 +455,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
             instance_id: instanceId,
             source_signoff_id: s.id,
             role_label_snapshot: s.role_label,
+            sort_order: s.sort_order,   // carry the template's signature-block order
           }))
         )
       }

@@ -733,8 +733,11 @@ export default async function handler(req: any, res: any) {
     const [rRes, grRes, soRes] = await Promise.all([
       supabase.from('checklist_responses').select('*').eq('instance_id', instance_id),
       supabase.from('checklist_grid_responses').select('*').eq('instance_id', instance_id),
+      // sort_order, then id. NOT created_at: an instance's signoffs are bulk-inserted and
+      // share an identical created_at, so ordering by it is non-deterministic — the same
+      // checklist could regenerate with its signature block in a different order.
       supabase.from('checklist_instance_signoffs').select('*')
-        .eq('instance_id', instance_id).order('created_at'),
+        .eq('instance_id', instance_id).order('sort_order').order('id'),
     ])
 
     // Build response maps
