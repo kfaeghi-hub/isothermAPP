@@ -11,13 +11,7 @@
 // Needs: dev server on :5173, and `email` / `password` in .env (gitignored, never hardcoded).
 
 import { chromium } from 'playwright'
-
-const EMAIL = process.env.email
-const PASSWORD = process.env.password
-if (!EMAIL || !PASSWORD) {
-  console.error('Missing `email` / `password` in env. Run with: node --env-file=.env pw-checklist-offline.mjs')
-  process.exit(1)
-}
+import { login, openTestProject, TEST_PROJECT } from './pw-config.mjs'
 
 const fails = []
 const check = (ok, msg) => {
@@ -31,18 +25,13 @@ const page = await context.newPage()
 await page.setViewportSize({ width: 1500, height: 950 })
 
 // ── Login ──────────────────────────────────────────────────────────────────
-await page.goto('http://localhost:5173')
-await page.locator('input[type="email"]').fill(EMAIL)
-await page.locator('input[type="password"]').fill(PASSWORD)
-await page.getByRole('button', { name: 'Sign In' }).click()
-await page.waitForTimeout(3000)
+await login(page)
 await page.screenshot({ path: 'ss-off-0-loggedin.png' })
 check(await page.locator('input[type="password"]').count() === 0, 'logged in with test account')
 
-// ── Open a project -> Checklists ───────────────────────────────────────────
-// Click the first project row, whatever it happens to be named.
-await page.getByText(/Parkdale Chiller|York Memorial/).first().click()
-await page.waitForTimeout(1800)
+// ── Open the TEST project (throws rather than touch a real one) -> Checklists ──
+await openTestProject(page)
+console.log(`  (running against "${TEST_PROJECT}")`)
 const cxTab = page.getByRole('button', { name: 'Checklists', exact: true })
 if (await cxTab.count() === 0) {
   await page.screenshot({ path: 'ss-off-ERR-noproject.png' })
@@ -143,8 +132,7 @@ console.log('\n--- RELOAD (local state wiped; anything still here came from the 
 await page.reload()
 await page.waitForTimeout(4000)
 // No router: a reload lands back on the Projects list, so re-navigate from scratch.
-await page.getByText(/Parkdale Chiller|York Memorial/).first().click()
-await page.waitForTimeout(1800)
+await openTestProject(page)
 await page.getByRole('button', { name: 'Checklists', exact: true }).click()
 await page.waitForTimeout(1500)
 // The instance we just made is newest-first at the top of the list.
