@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import * as outbox from '../lib/checklistOutbox'
+import { uploadFindingPhoto } from '../lib/photos'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/ui/Modal'
 import type {
@@ -123,6 +124,8 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const [contacts, setContacts]           = useState<Array<{ id: string; name: string }>>([])
   const [savingFinding, setSavingFinding] = useState(false)
   const [findingError, setFindingError]   = useState<string | null>(null)
+  // Photos captured in the modal, uploaded once the finding row exists.
+  const [findingPhotos, setFindingPhotos] = useState<File[]>([])
 
   // ── Complete state ────────────────────────────────────────────────────────
   const [confirmComplete, setConfirmComplete] = useState(false)
@@ -733,6 +736,32 @@ export function ChecklistsPage({ projectId, phases }: Props) {
         finding_id: findingId, created_at: '',
       },
     }))
+
+    // Photos: the storage path only needs the (client-generated) finding id, so this works
+    // as soon as the finding exists — even if the finding itself is still queued.
+    // Image blobs cannot live in localStorage, so an upload that fails offline is reported
+    // plainly rather than pretended away.
+    if (findingPhotos.length > 0) {
+      const results = await Promise.all(
+        findingPhotos.map(async f => ({ file: f, result: await uploadFindingPhoto(findingId, f) })),
+      )
+      const failed = results.filter(r => !r.result.ok).map(r => r.file)
+
+      if (failed.length > 0) {
+        // Keep only the failures, so Retry re-sends those and cannot duplicate the
+        // photos that already landed (the finding upsert itself is idempotent).
+        setFindingPhotos(failed)
+        setSavingFinding(false)
+        setFindingError(
+          `The finding is saved, but ${failed.length} photo${failed.length === 1 ? '' : 's'} ` +
+          `could not be uploaded — photos need a live connection. Retry once you reconnect, ` +
+          `or attach them later from the Issues Log.`,
+        )
+        return  // keep the modal open so the photos are not silently dropped
+      }
+    }
+
+    setFindingPhotos([])
     setSavingFinding(false)
     setFindingModal(null)
   }
@@ -1343,17 +1372,50 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 </select>
               </div>
             )}
+            {/* Photo capture — `capture="environment"` opens the rear camera straight from
+                the phone, which is the whole point: photograph the defect where you find it. */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Photos
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={e => {
+                  const files = Array.from(e.target.files ?? [])
+                  e.target.value = ''
+                  if (files.length) setFindingPhotos(p => [...p, ...files])
+                }}
+                className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-gray-200 file:text-xs file:font-medium file:bg-gray-50 file:text-gray-600 hover:file:bg-gray-100"
+              />
+              {findingPhotos.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {findingPhotos.map((f, i) => (
+                    <span key={`${f.name}-${i}`}
+                      className="flex items-center gap-1 text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1">
+                      <span className="truncate max-w-[140px] text-gray-600">{f.name}</span>
+                      <button
+                        onClick={() => setFindingPhotos(p => p.filter((_, j) => j !== i))}
+                        className="text-gray-300 hover:text-red-500 leading-none">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {findingError && (
               <p className="text-xs text-red-700 bg-red-50 rounded px-3 py-2 border border-red-200">
                 {findingError}
               </p>
             )}
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => { setFindingError(null); setFindingModal(null) }}
+              <button onClick={() => { setFindingError(null); setFindingPhotos([]); setFindingModal(null) }}
                 className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Skip for now</button>
               <button onClick={createFinding} disabled={savingFinding || !findingForm.category}
                 className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium">
-                {savingFinding ? 'Creating…' : 'Create Finding'}
+                {savingFinding ? 'Saving…' : findingError ? 'Retry' : 'Create Finding'}
               </button>
             </div>
           </div>
