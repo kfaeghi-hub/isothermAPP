@@ -508,7 +508,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       setFindLinks(fl => ({
         ...fl,
         [key]: {
-          id: '', instance_id: instance.id,
+          id: '', org_id: null, instance_id: instance.id,
           item_id: findingModal.itemId, target_id: findingModal.targetId,
           finding_id: finding.id, created_at: '',
         },

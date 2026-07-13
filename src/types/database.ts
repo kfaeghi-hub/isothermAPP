@@ -15,6 +15,17 @@ export type DeliverableStatus = 'not_started' | 'in_progress' | 'received' | 'co
 export type DocRegisterStatus = 'outstanding' | 'received' | 'reviewed' | 'na'
 export type AttachmentType = 'shop_drawing' | 'tab_report' | 'pressure_test' | 'startup' | 'om_manual' | 'factory_test' | 'other'
 
+// ── Orgs ───────────────────────────────────────────────────────────────────
+// MASTER-BRIEF rule 17: tenant groundwork. Every new table carries org_id,
+// nullable + defaulted to the Isotherm org. RLS still keys on role/project
+// membership — org_id is NOT an active security key until Phase 11.
+
+export interface Org {
+  id: string
+  name: string
+  created_at: string
+}
+
 // ── Directory ──────────────────────────────────────────────────────────────
 
 export interface Company {
@@ -300,6 +311,7 @@ export interface FindingWithParty extends Finding {
 
 export interface ChecklistTemplate {
   id: string
+  org_id: string | null
   name: string
   type: ChecklistType
   equipment_type: string | null
@@ -312,6 +324,7 @@ export interface ChecklistTemplate {
 
 export interface ChecklistTemplateSection {
   id: string
+  org_id: string | null
   template_id: string
   title: string
   sort_order: number
@@ -320,6 +333,7 @@ export interface ChecklistTemplateSection {
 
 export interface ChecklistTemplateItem {
   id: string
+  org_id: string | null
   section_id: string
   label: string
   hint: string | null
@@ -337,6 +351,7 @@ export interface GridDefinition { columns: GridColumn[]; rows: GridRow[] }
 
 export interface ChecklistTemplateGrid {
   id: string
+  org_id: string | null
   section_id: string
   title: string
   definition: GridDefinition
@@ -346,6 +361,7 @@ export interface ChecklistTemplateGrid {
 
 export interface ChecklistTemplateSignoff {
   id: string
+  org_id: string | null
   template_id: string
   role_label: string
   sort_order: number
@@ -359,6 +375,7 @@ export type TargetRole = 'primary' | 'tested_unit' | 'related'
 
 export interface ChecklistInstance {
   id: string
+  org_id: string | null
   project_id: string
   source_template_id: string | null
   source_template_name_snapshot: string
@@ -396,6 +413,7 @@ export interface EquipmentNameplateSnapshot {
 
 export interface ChecklistInstanceTarget {
   id: string
+  org_id: string | null
   instance_id: string
   equipment_id: string
   role: TargetRole
@@ -405,6 +423,7 @@ export interface ChecklistInstanceTarget {
 
 export interface ChecklistInstanceSection {
   id: string
+  org_id: string | null
   instance_id: string
   source_section_id: string | null
   title: string
@@ -414,6 +433,7 @@ export interface ChecklistInstanceSection {
 
 export interface ChecklistInstanceItem {
   id: string
+  org_id: string | null
   instance_id: string
   section_id: string
   source_item_id: string | null
@@ -429,6 +449,7 @@ export interface ChecklistInstanceItem {
 
 export interface ChecklistInstanceGrid {
   id: string
+  org_id: string | null
   instance_id: string
   section_id: string
   source_grid_id: string | null
@@ -440,6 +461,7 @@ export interface ChecklistInstanceGrid {
 
 export interface ChecklistInstanceSignoff {
   id: string
+  org_id: string | null
   instance_id: string
   source_signoff_id: string | null
   role_label_snapshot: string
@@ -457,6 +479,7 @@ export type ResponseStatus = YnNrNaStatus | PassFailStatus
 
 export interface ChecklistResponse {
   id: string
+  org_id: string | null
   instance_id: string
   item_id: string
   target_id: string
@@ -470,6 +493,7 @@ export interface ChecklistResponse {
 
 export interface ChecklistGridResponse {
   id: string
+  org_id: string | null
   instance_id: string
   grid_id: string
   target_id: string
@@ -481,6 +505,7 @@ export interface ChecklistGridResponse {
 
 export interface ChecklistFindingLink {
   id: string
+  org_id: string | null
   instance_id: string
   item_id: string
   target_id: string
