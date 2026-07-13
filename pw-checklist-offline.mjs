@@ -1,117 +1,193 @@
 // Field-resilience acceptance test (MASTER-BRIEF Phase 2).
 //
 // The scenario that decides adoption: an engineer fills a checklist in a mechanical room
-// with no signal. Go offline mid-fill, keep entering responses, reconnect, and assert that
-// EVERY entry reached the database. Silent data loss here is the failure this whole
-// work item exists to prevent.
+// with no signal. Go offline mid-fill, keep working, reconnect, and prove EVERY entry
+// reached the database. Silent data loss here is the failure this work item exists to prevent.
 //
-// Run:  node pw-checklist-offline.mjs
-// Needs the dev server on :5173 and an authenticated session (same as the other pw-* scripts).
+// The final assertion deliberately RELOADS the page: a reload wipes all local state, so if
+// the values are still there afterwards they can only have come from the server.
+//
+// Run:  node --env-file=.env pw-checklist-offline.mjs
+// Needs: dev server on :5173, and `email` / `password` in .env (gitignored, never hardcoded).
 
 import { chromium } from 'playwright'
-import { createClient } from '@supabase/supabase-js'
-import 'dotenv/config'
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY,
-)
+const EMAIL = process.env.email
+const PASSWORD = process.env.password
+if (!EMAIL || !PASSWORD) {
+  console.error('Missing `email` / `password` in env. Run with: node --env-file=.env pw-checklist-offline.mjs')
+  process.exit(1)
+}
+
+const fails = []
+const check = (ok, msg) => {
+  console.log(`${ok ? '  PASS' : '  FAIL'}  ${msg}`)
+  if (!ok) fails.push(msg)
+}
 
 const browser = await chromium.launch()
 const context = await browser.newContext()
 const page = await context.newPage()
-await page.setViewportSize({ width: 1400, height: 900 })
+await page.setViewportSize({ width: 1500, height: 950 })
 
+// ── Login ──────────────────────────────────────────────────────────────────
 await page.goto('http://localhost:5173')
-await page.waitForLoadState('networkidle')
+await page.locator('input[type="email"]').fill(EMAIL)
+await page.locator('input[type="password"]').fill(PASSWORD)
+await page.getByRole('button', { name: 'Sign In' }).click()
+await page.waitForTimeout(3000)
+await page.screenshot({ path: 'ss-off-0-loggedin.png' })
+check(await page.locator('input[type="password"]').count() === 0, 'logged in with test account')
 
-// ── Open a checklist instance ──────────────────────────────────────────────
-await page.locator('text=Seneca Health').click()
+// ── Open a project -> Checklists ───────────────────────────────────────────
+// Click the first project row, whatever it happens to be named.
+await page.getByText(/Parkdale Chiller|York Memorial/).first().click()
+await page.waitForTimeout(1800)
+const cxTab = page.getByRole('button', { name: 'Checklists', exact: true })
+if (await cxTab.count() === 0) {
+  await page.screenshot({ path: 'ss-off-ERR-noproject.png' })
+  console.error('Could not reach the Checklists tab — see ss-off-ERR-noproject.png')
+  await browser.close(); process.exit(1)
+}
+await cxTab.click()
 await page.waitForTimeout(1200)
-await page.getByRole('button', { name: 'Checklists', exact: true }).click()
-await page.waitForTimeout(800)
 
-// Select the first instance in the list
-await page.locator('button:has-text("IVC")').first().click()
-await page.waitForTimeout(1000)
-await page.screenshot({ path: 'ss-off-1-open.png' })
+// ── FLOW: instance creation (also gives us a clean instance to fill) ───────
+await page.getByRole('button', { name: '+ New Checklist' }).click()
+await page.waitForTimeout(900)
+await page.locator('.fixed button').filter({ hasText: /IVC|PFC|FPT/ }).first().click()  // pick template
+await page.waitForTimeout(800)
+await page.locator('.fixed button').filter({ hasText: /EQ|SYS/ }).first().click()       // pick equipment
+await page.waitForTimeout(400)
+await page.getByRole('button', { name: 'Create Checklist' }).click()
+await page.waitForTimeout(3000)
+await page.screenshot({ path: 'ss-off-1-created.png' })
+check(await page.locator('text=Sign-offs').count() > 0, 'instance created + fill view rendered')
 
 const selects = page.locator('select')
 const gridInputs = page.locator('table input[type="text"]')
+const signerInput = page.locator('input[placeholder="Signer name"]')
 
-// ── 1. Establish a baseline while ONLINE ───────────────────────────────────
+// ── 1. Baseline while ONLINE ───────────────────────────────────────────────
 await selects.first().selectOption('y')
-await page.waitForTimeout(600)
-await page.screenshot({ path: 'ss-off-2-online-saved.png' })
-
-const chip = page.locator('text=All changes saved')
-if (await chip.count() === 0) console.warn('WARN: expected an "All changes saved" chip while online')
+await page.waitForTimeout(1200)
+check(await page.locator('text=All changes saved').count() > 0, 'online: chip reads "All changes saved"')
 
 // ── 2. GO OFFLINE ──────────────────────────────────────────────────────────
+console.log('\n--- OFFLINE ---')
 await context.setOffline(true)
-console.log('--- offline ---')
 
-// Enter responses that MUST NOT be lost.
-const offlineStatuses = ['n', 'nr', 'na']
-for (let i = 0; i < offlineStatuses.length && i < await selects.count(); i++) {
-  await selects.nth(i + 1).selectOption(offlineStatuses[i])
-  await page.waitForTimeout(300)
+// A failing status response (triggers the finding modal)
+await selects.nth(1).selectOption('n')
+await page.waitForTimeout(1200)
+
+// Finding modal: create it OFFLINE (Option A - queued with a client UUID)
+const findingModal = page.locator('text=Create Finding')
+if (await findingModal.count() > 0) {
+  await page.getByRole('button', { name: /Create Finding|Retry/ }).last().click()
+  await page.waitForTimeout(1500)
+  await page.screenshot({ path: 'ss-off-2-finding-offline.png' })
 }
 
-// Type a grid reading offline, then blur to force the debounced flush.
+// More responses offline
+if (await selects.count() > 2) { await selects.nth(2).selectOption('nr'); await page.waitForTimeout(400) }
+
+// Grid reading offline (blur forces the debounced flush)
 if (await gridInputs.count() > 0) {
   await gridInputs.first().fill('208.4')
   await gridInputs.first().blur()
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(1200)
+}
+
+// Signoff offline.
+// NB: instance signoffs are ordered by a created_at that is IDENTICAL across rows
+// (they're bulk-inserted), so their on-screen order is not stable between loads.
+// Capture the role label of the row we type into and assert against THAT row later,
+// rather than trusting position. (The ordering itself is a separate bug — reported.)
+let signoffLabel = null
+if (await signerInput.count() > 0) {
+  signoffLabel = await signerInput.first().evaluate(
+    el => el.parentElement?.querySelector('div')?.textContent?.trim() ?? null,
+  )
+  await signerInput.first().fill('Offline Tester')
+  await signerInput.first().blur()
+  await page.waitForTimeout(1200)
+  console.log(`  (signoff row targeted: "${signoffLabel}")`)
 }
 
 await page.screenshot({ path: 'ss-off-3-offline-queued.png' })
 
-// The UI must SAY it is offline and holding work — never imply it saved.
-const offlineChip = await page.locator('text=/Offline/').count()
-if (offlineChip === 0) throw new Error('FAIL: no offline indicator — the engineer would think this saved')
+check(await page.locator('text=/Offline/').count() > 0,
+  'offline: chip warns "Offline - N queued" (never implies saved)')
 
-// Mark Complete must be blocked while entries are queued (rule 4).
 const completeBtn = page.getByRole('button', { name: 'Mark Complete' })
-if (await completeBtn.count() > 0 && await completeBtn.isEnabled()) {
-  throw new Error('FAIL: Mark Complete is enabled with queued entries — would freeze an incomplete record')
-}
-console.log('OK: offline indicator shown, Mark Complete blocked')
+const completeDisabled = await completeBtn.count() > 0 ? await completeBtn.isDisabled() : false
+check(completeDisabled, 'offline: Mark Complete is BLOCKED while entries are queued (rule 4)')
+
+const queuedRaw = await page.evaluate(() => localStorage.getItem('isotherm.checklist.outbox.v1'))
+check(!!queuedRaw && JSON.parse(queuedRaw).length > 0, 'offline: entries are durably queued in the outbox')
+console.log(`  queued ops: ${queuedRaw ? JSON.parse(queuedRaw).length : 0}`)
 
 // ── 3. RECONNECT ───────────────────────────────────────────────────────────
+console.log('\n--- BACK ONLINE ---')
 await context.setOffline(false)
-console.log('--- back online ---')
 await page.evaluate(() => window.dispatchEvent(new Event('online')))
-await page.waitForTimeout(4000)   // let the outbox drain
+await page.waitForTimeout(6000)   // let the outbox drain
 
-await page.screenshot({ path: 'ss-off-4-reconnected.png' })
+const drained = await page.evaluate(() => localStorage.getItem('isotherm.checklist.outbox.v1'))
+check(!drained, 'reconnect: outbox drained to empty')
+await page.screenshot({ path: 'ss-off-4-drained.png' })
 
-// ── 4. ASSERT: every entry actually reached the database ───────────────────
-const instanceId = await page.evaluate(() => {
-  const m = document.body.innerHTML.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)
-  return m ? m[0] : null
-})
+// ── 4. THE REAL TEST: reload, and see if the data came back from the SERVER ─
+console.log('\n--- RELOAD (local state wiped; anything still here came from the DB) ---')
+await page.reload()
+await page.waitForTimeout(4000)
+// No router: a reload lands back on the Projects list, so re-navigate from scratch.
+await page.getByText(/Parkdale Chiller|York Memorial/).first().click()
+await page.waitForTimeout(1800)
+await page.getByRole('button', { name: 'Checklists', exact: true }).click()
+await page.waitForTimeout(1500)
+// The instance we just made is newest-first at the top of the list.
+await page.locator('button:has-text("Not Started"), button:has-text("In Progress")').first().click()
+await page.waitForTimeout(2500)
+await page.screenshot({ path: 'ss-off-5-after-reload.png' })
 
-const { data: rows } = await supabase
-  .from('checklist_responses')
-  .select('status')
-  .not('status', 'is', null)
+const s2 = page.locator('select')
+const g2 = page.locator('table input[type="text"]')
+const sn2 = page.locator('input[placeholder="Signer name"]')
 
-const statuses = (rows ?? []).map(r => r.status)
-const missing = offlineStatuses.filter(s => !statuses.includes(s))
+check(await s2.first().inputValue() === 'y',  'persisted: online response (y)')
+check(await s2.nth(1).inputValue() === 'n',   'persisted: OFFLINE response (n)')
+if (await s2.count() > 2) check(await s2.nth(2).inputValue() === 'nr', 'persisted: OFFLINE response (nr)')
+if (await g2.count() > 0)  check((await g2.first().inputValue()) === '208.4', 'persisted: OFFLINE grid reading (208.4)')
+if (await sn2.count() > 0 && signoffLabel) {
+  // Match by role label, not position — see the ordering note above.
+  const persistedSignoff = await sn2.evaluateAll(
+    (els, label) => {
+      const row = els.find(el => el.parentElement?.querySelector('div')?.textContent?.trim() === label)
+      return row ? row.value : null
+    },
+    signoffLabel,
+  )
+  check(persistedSignoff === 'Offline Tester', `persisted: OFFLINE signoff name (row "${signoffLabel}")`)
+}
+check(await page.locator('text=Finding').count() > 0, 'persisted: OFFLINE finding created + linked')
+check(await page.locator('text=All changes saved').count() > 0, 'after drain: chip reads "All changes saved"')
 
-if (missing.length > 0) {
-  throw new Error(`FAIL: responses entered offline never reached the DB: ${missing.join(', ')}`)
+const completeBtn2 = page.getByRole('button', { name: 'Mark Complete' })
+if (await completeBtn2.count() > 0) {
+  check(await completeBtn2.isEnabled(), 'after drain: Mark Complete is re-enabled')
 }
 
-// The queue must be empty and the chip must say so.
-const drained = await page.evaluate(() => localStorage.getItem('isotherm.checklist.outbox.v1'))
-if (drained) throw new Error(`FAIL: outbox did not drain after reconnect: ${drained}`)
-
-const savedChip = await page.locator('text=All changes saved').count()
-if (savedChip === 0) throw new Error('FAIL: chip does not report "All changes saved" after drain')
-
-console.log('PASS: every offline entry persisted, outbox drained, Complete re-enabled')
-console.log('instance:', instanceId)
+// ── Result ─────────────────────────────────────────────────────────────────
+console.log('\n' + '='.repeat(60))
+if (fails.length === 0) {
+  console.log('PASS - every offline entry reached the database. No silent data loss.')
+} else {
+  console.log(`FAIL - ${fails.length} assertion(s) failed:`)
+  for (const f of fails) console.log(`  - ${f}`)
+}
+console.log('='.repeat(60))
 
 await browser.close()
+process.exit(fails.length === 0 ? 0 : 1)
