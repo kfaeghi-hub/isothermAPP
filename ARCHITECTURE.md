@@ -236,9 +236,23 @@ Links to existing tables: `bas_point_mappings.equipment_id → equipment`,
 ## Storage
 
 **`finding-photos`** bucket (public, 10 MB limit).
+- Compression + upload live in `src/lib/photos.ts`, shared by the Issues Log and checklist fill-out.
 - Upload: browser canvas → JPEG (1400px max, 0.82 quality) → upload → store full public URL in `finding_photos.storage_url`
 - Delete: remove DB record first, then Storage file (best-effort)
-- Path: `findings/{finding_id}/{timestamp}.jpg`
+- Path: `findings/{finding_id}/{timestamp}.jpg` — only needs the finding id, so it works with a
+  client-generated id (a finding still queued in the checklist outbox can still take photos).
+
+> **KNOWN LIMITATION — photos require a live connection.** The checklist outbox
+> (`src/lib/checklistOutbox.ts`) makes responses, grid readings, signoffs and findings survive a
+> dead-signal mechanical room, but it cannot carry photos: image blobs do not fit in localStorage,
+> and durable offline blobs would need IndexedDB — deliberately out of scope (§9A right-sizing).
+>
+> Behaviour is therefore honest rather than lossy: an upload that fails offline keeps the finding
+> modal open, reports exactly how many photos failed, and retains **only** the failed files so a
+> retry cannot duplicate ones that already landed. The finding itself is never lost — it queues.
+>
+> **Workaround:** once back in coverage the queued finding exists in the Issues Log; attach the
+> photo to it there.
 
 **`equipment-files`** bucket (access-controlled, 20 MB limit).
 - PDF, DOCX, XLS, images for equipment shop drawings, submittals, cut sheets, O&M manuals, etc.
