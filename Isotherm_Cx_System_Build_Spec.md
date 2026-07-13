@@ -1,6 +1,11 @@
 # Isotherm Engineering — Commissioning Management System
 ## Production Build Specification & Claude Code Blueprint
 
+> **Phase numbering:** the canonical roadmap is `docs/MASTER-BRIEF.md` §5; translations
+> in `docs/PHASE-MAP.md`. This document owns product detail for Master Phases 1–3 only.
+> "Phase 3 — Intelligence, scale, portal" below is an umbrella dissolved into Master
+> Phases 4–9.
+
 **Prepared for:** Tony Faeghi, Isotherm Engineering Ltd.
 **Purpose:** Complete blueprint to build Isotherm's internal commissioning management system, replacing the current manual Word/Excel workflow. This document is written to be handed to **Claude Code** to build the production application, and to brief stakeholders.
 
@@ -27,6 +32,13 @@
 **Next:** Template library (IVC/PFC/FPT built from Isotherm's real forms) → checklist instances (multi-unit, confirmed auto-finding creation) → FPT module → LEED deliverables tracking.
 
 **Then:** Phase 3 — reminders/aging, Status & Action Summary (§6A), data import (contacts, equipment), long-form documents (Cx Plan, OPR, BOD, Systems Manual, Final Report), client portal, MBCx/OCx.
+
+### Master Phase 6 — AI Trend-Log Verification (SPEC'D — see docs/BAS-SPEC.md)
+- Module spec complete (v1.2), validated against real TDSB enteliWEB exports and
+  approved BAS submittals (Delta: Steele JPS, Winston Churchill CI; ALC: Bloor CI)
+- Build order: BAS-1a submittal point extraction → BAS-1b CSV trend ingestion →
+  BAS-2 sequences + AI candidate findings. Scheduled/live sources: Master Phases 8–9.
+- Not started; blocked on Phase 2 completion by design (MASTER-BRIEF §10)
 
 **Open real-world decisions (not build tasks):** confirm Ontario 10-yr retention specifics with compliance advisor (§9C); finalize hybrid hosting model (§9C); show dad/senior employee for buy-in; capture baseline time-per-report (action item from §12).
 
@@ -331,6 +343,35 @@ A visual summary view for a project — charts and graphs over data the system a
 
 ---
 
+## 6C. Field & mobile use, drawing markup (roadmap — informed by competitive research)
+
+Noted from the established Cx platforms (CxPlanner, Facility Grid, CxAlloy): field/mobile use and drawing markup are common, valued features. Captured here for later; not current focus. Isotherm's edge is fit (tailored to its exact forms/workflow), not feature-parity with enterprise tools — add these selectively.
+
+**Mobile / field use (moderate; partly achievable sooner).** The app is already a web app, so it opens in a phone browser today. "Mobile" means making it work *well* on site:
+- **Responsive layouts** — issues log, equipment forms, finding entry reflow for small screens. The 88-column Cx Index needs a simplified mobile view (it's unusable as a wide matrix on a phone).
+- **Fast mobile finding entry** — large tap targets, direct photo capture from the phone camera attaching straight to a finding (you're on site, photograph the issue, it attaches).
+- **Offline capability (the hard part)** — mechanical rooms/basements often have no signal; enter findings offline, sync when back in coverage. This is the genuinely difficult piece (local cache + conflict-free sync) and is its own project. Do responsive + camera first; offline later.
+
+**Drawing markup (significant standalone build; later).** Pin a finding to a location on a floor plan/schematic: open the drawing, tap the spot, create a finding linked to those coordinates. This is a real interactive sub-system — upload/display large drawing PDFs, zoom/pan canvas, place and store pin coordinates linked to findings, render markups. Valuable but a focused build on its own; sequence after the checklist engine, dashboards, and basic mobile.
+
+**Deliberately NOT pursuing** (enterprise scope irrelevant to a small firm): Procore/CMMS two-way integrations, 3D model viewers, oil & gas / hyperscale-data-center scale. Per §9A right-sizing.
+
+---
+
+## 6D. Contractor-fillable checklists (hand-out & ingestion — workflow, phased)
+
+Real workflow: Isotherm pre-fills the **Spec** and **Shop Drawing** nameplate columns (design/submittal data — already in the equipment register), hands a checklist to the contractor, and the contractor completes the **static checks** and **Installed/measured** data on site. Isotherm then needs that completed data back in the app.
+
+**Capability A — pre-filled blank checklist to hand out (build with checklist doc generation, §6 / Phase 2).** Generate a checklist document from an instance with Spec/Shop-Drawing nameplate data pre-populated (pulled from the equipment register) and static checks + Installed column blank — a clean fillable form to hand to the contractor. Same generator as completed-checklist output, in a "blank/fillable" mode. Achievable and natural; fold into checklist document generation.
+
+**Capability B — ingest the contractor's completed sheet (harder; phased).** Getting the contractor's filled data back into the app:
+- **Best solution: digital/mobile field entry.** The contractor (or Isotherm on site) enters the static checks and installed data *directly* on a phone/tablet — no paper, no re-typing, no OCR. This is the clean path and ties to the mobile/field-use roadmap (§6C). Preferred.
+- **Harder later option: AI extraction of a filled form.** Upload a contractor's completed sheet and auto-populate the instance. Works far better if the filled form is *digital/structured* than *scanned handwriting* (handwriting OCR on checkmarks/measurements is error-prone and risky for commissioning records). File under the AI-extraction roadmap (§11A) as a later, human-reviewed feature; do not rely on OCR of handwriting for records.
+
+**Guidance:** build Capability A soon (pre-filled hand-out). For Capability B, favor digital/mobile entry over scan-and-extract — the "get the contractor's data back" problem is really an argument for on-site digital entry, not handwriting OCR.
+
+---
+
 ## 7. Reminders & notifications
 - Aging open findings (e.g., open > N days without update).
 - Projects not visited/updated in a while (uses lastVisitedAt).
@@ -479,7 +520,11 @@ AI features are valuable seasoning on a reliable core — **build the core first
 - **AI-assisted equipment extraction / auto-population** — feed a project document (mechanical equipment schedule, existing Cx Index Excel, equipment list from drawings) and have AI read it and propose equipment-register entries (tag, type, nameplate/spec fields), instead of manual entry. Strong fit: AI's strength is document → structured data, the data already exists in handed-over documents, and it saves genuinely tedious work. **Must be "AI proposes → human reviews/corrects → accepts," never silent auto-fill** — real schedules are messy (merged cells, abbreviations, inconsistencies) and a wrong nameplate value matters in a Cx context. Builds on the data-import capability (§8); sequence after manual equipment entry has been used enough to know what good data looks like and where AI is likely to slip. This is one of the higher-value AI features for the app.
 
 **Phase 3+ (separate, harder build; ties to recurring revenue):**
-- **OCx/MBCx anomaly detection** — when live BAS data is integrated, flag equipment drifting from setpoint or out-of-sequence operation.
+- **OCx/MBCx anomaly detection** — flag equipment drifting from setpoint or operating
+  out of sequence. Fully specified as Master Phase 6 (`docs/BAS-SPEC.md` §6): rule
+  engine first, LLM narrative second; AI proposes candidate findings which a Cx user
+  accepts into the Issues Log — AI never creates issues directly. Live BAS connectivity
+  is NOT a prerequisite: uploaded trend exports enable the first increment.
 
 **Design hooks now (so AI is easy to add, not a retrofit):**
 - Put an explicit **review step** in the document-generation flow where a polish/summarize/draft pass can slot in.
@@ -514,6 +559,13 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 - **Hosting / data residency:** default to a **Canadian region** (Supabase) with automated backups from day one, given TDSB and public-sector clients.
 - **Pilot/build-against project:** **Seneca Health & Wellness** (most comprehensive real Master Schedule available) — swap if another active project fits better.
 - **Baseline metric — ACTION:** before the tool replaces the manual process, **time one real site report end-to-end** and note monthly report volume. This is the proof-of-value number for stakeholders and the success measure; it is intentionally not estimated here.
+- **TDSB centralized enteliWEB access (Track B, MASTER-BRIEF §6)** — TDSB runs a central
+  enteliWEB production server covering its Delta schools. One read-only access
+  negotiation (service account or scheduled export) with TDSB facilities/IT unlocks
+  trend data for every Delta TDSB project. Owner: Tony/Peiman. Start during Phase 2.
+- **org_id groundwork (MASTER-BRIEF rule 17)** — every new table ships with a nullable
+  `org_id uuid` defaulted to the Isotherm org row. Phase 1 legacy tables get backfilled
+  in a quiet maintenance window well before any SaaS work.
 
 **Still open (decide during build, low risk):**
 - ~~Exact PDF generation approach~~ — RESOLVED: Puppeteer + @sparticuz/chromium-min on Vercel serverless; DOCX via html-to-docx same function.

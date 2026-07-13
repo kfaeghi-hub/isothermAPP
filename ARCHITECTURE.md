@@ -218,6 +218,19 @@ cx_cell_values          → sparse progress cells: one row per (equipment × col
 
 All project-referencing FKs use `ON DELETE CASCADE`. Phase 1 uses dev-permissive RLS (`USING (true) WITH CHECK (true)`) — replaced with real auth policies in Phase 7.
 
+### Conventions (MASTER-BRIEF rules 16–17)
+- Every new table carries `org_id uuid` (nullable, defaulted to the Isotherm org,
+  indexed). RLS still keys on project membership; org_id is Phase 11 groundwork.
+- Evidence attached to issues is snapshotted into `metadata_json` at attach time —
+  closed issues never change because source data changed.
+
+### BAS layer (Master Phase 6/8 — full DDL in docs/BAS-SPEC.md §3)
+`bas_sources` · `bas_points` · `bas_point_mappings` · `bas_imports` ·
+`trend_samples` (PK `(bas_point_id, ts)`) · `trend_events` ·
+`sequence_documents` · `sequence_clauses` · `ai_analysis_runs` · `ai_candidate_findings`
+Links to existing tables: `bas_point_mappings.equipment_id → equipment`,
+`ai_candidate_findings.accepted_issue_id → issues`.
+
 ---
 
 ## Storage
@@ -237,6 +250,10 @@ All project-referencing FKs use `ON DELETE CASCADE`. Phase 1 uses dev-permissive
 - `.pdf` stored at `site-reports/{report_id}/report.pdf`; URL in `site_reports.pdf_url`
 
 **Rule for new buckets:** no new public buckets without review. Access-controlled storage uses signed URLs or service-role upload only.
+
+- `bas-trend-files` (private) — uploaded BAS trend exports; originals retained for audit/replay
+- `bas-documents` (private) — BAS submittals/shop drawings. **Source PDFs contain network
+  details and credentials — never public; extraction redacts credential lines (BAS-SPEC §8).**
 
 ---
 
@@ -277,7 +294,7 @@ These are the points where external services connect. Each is a single-file boun
 | Supabase DB | `src/lib/supabase.ts` | All table queries go through this client |
 | Supabase Storage | `src/lib/supabase.ts` (same client) | `supabase.storage.from(bucket)` |
 | Future: construction PM API | `src/lib/pmAdapter.ts` (not yet built) | Will wrap project create/sync |
-| Future: BAS API | `src/lib/basAdapter.ts` (not yet built) | Will wrap point import for Cx Index |
+| BAS file ingestion | `src/lib/bas/adapters/` (registry + per-vendor adapters) | Master Phase 6; spec: `docs/BAS-SPEC.md`. Vendor-specific parsing lives ONLY here; first adapter: Delta enteliWEB. Live connections: seams S-CONNECT-DELTA / S-WORKER (Master Phases 8–9). |
 
 **Rule:** when a new external integration is needed, create a new adapter module in `src/lib/`. Pages and components must not call external APIs directly.
 
@@ -312,6 +329,12 @@ Playwright scripts in the repo root (`pw-*.mjs`) cover key flows:
 - Project status lifecycle (active → completed → reopen)
 
 Future: move to a `tests/` directory with named spec files as coverage grows.
+
+- BAS parsers: Vitest unit tests against real-file fixtures in `fixtures/bas/`
+  (sanitized TDSB exports — TL/MT variants, Excel-damaged file, sentinel values).
+  Playwright covers upload → review → commit.
+- Checklist fill-out: field-resilience acceptance tests (autosave per response,
+  offline/reconnect without data loss) per MASTER-BRIEF Phase 2.
 
 ---
 
