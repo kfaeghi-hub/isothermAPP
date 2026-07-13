@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import * as outbox from '../lib/checklistOutbox'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/ui/Modal'
 import type {
@@ -51,6 +52,10 @@ type GridKey = string      // `${grid_id}:${target_id}:${row_key}`
 
 function rKey(itemId: string, targetId: string): ResponseKey { return `${itemId}:${targetId}` }
 function gKey(gridId: string, targetId: string, rowKey: string): GridKey { return `${gridId}:${targetId}:${rowKey}` }
+
+// 'saving'  = write in flight (or debouncing)
+// 'pending' = write failed and was durably queued in the outbox — recorded, not yet synced
+type SaveState = 'saving' | 'pending'
 
 // ── Finding form ───────────────────────────────────────────────────────────
 
@@ -139,7 +144,28 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   // Status inputs (Y/N/NR/NA, Pass/Fail, Sign) write immediately — one discrete action.
   const [gridDrafts,    setGridDrafts]    = useState<Record<string, string>>({})
   const [signoffDrafts, setSignoffDrafts] = useState<Record<string, string>>({})
-  const [saveState,     setSaveState]     = useState<Record<string, 'saving' | 'error'>>({})
+  const [saveState,     setSaveState]     = useState<Record<string, SaveState>>({})
+
+  // ── Outbox: queued writes survive a dead-signal room, a reload, and a tab kill ──
+  const [queued, setQueued] = useState(0)
+  const [stuck,  setStuck]  = useState(0)
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine)
+
+  useEffect(() => {
+    const unsubscribe = outbox.subscribe(n => { setQueued(n); setStuck(outbox.stuckOps().length) })
+    const stopAutoFlush = outbox.startAutoFlush()
+    const goOnline  = () => { setOnline(true); void outbox.flushOutbox() }
+    const goOffline = () => setOnline(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      unsubscribe(); stopAutoFlush()
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
+
+  const prevQueued = useRef(queued)
 
   // Refs mirror state so a debounced write reads current values, not its closure's.
   const gridRespsRef  = useRef(gridResps)
@@ -149,7 +175,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
   const pending = useRef<Record<string, { timer: ReturnType<typeof setTimeout>; run: () => void }>>({})
 
-  function mark(key: string, state: 'saving' | 'error' | null) {
+  function mark(key: string, state: SaveState | null) {
     setSaveState(s => {
       if (state === null) { const { [key]: _gone, ...rest } = s; return rest }
       return { ...s, [key]: state }
@@ -176,7 +202,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     for (const p of Object.values(pending.current)) clearTimeout(p.timer)
   }, [])
 
-  const saveErrors = Object.values(saveState).filter(s => s === 'error').length
+  const syncing = Object.values(saveState).some(s => s === 'saving')
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -276,6 +302,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       setGrids([]); setSignoffs([]); setResponses({}); setGridResps({}); setFindLinks({})
     }
   }, [selectedId, fetchDetail])
+
+  // Once the outbox drains, refetch so the view picks up server-assigned values
+  // (finding numbers, real row ids, org_id) instead of our local placeholders.
+  useEffect(() => {
+    if (prevQueued.current > 0 && queued === 0 && selectedId) fetchDetail(selectedId)
+    prevQueued.current = queued
+  }, [queued, selectedId, fetchDetail])
 
   // ── Derived ────────────────────────────────────────────────────────────
 
@@ -440,25 +473,36 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
     // Upsert on the natural key. No insert-vs-update branch, so two fast changes
     // can't both take the insert path and collide on the unique constraint.
+    const payload = {
+      instance_id: instance.id,
+      item_id: item.id,
+      target_id: targetId,
+      status_type: item.status_type,
+      status,
+    }
+
     const { data, error } = await supabase
       .from('checklist_responses')
-      .upsert(
-        {
-          instance_id: instance.id,
-          item_id: item.id,
-          target_id: targetId,
-          status_type: item.status_type,
-          status,
-        },
-        { onConflict: 'instance_id,item_id,target_id' },
-      )
+      .upsert(payload, { onConflict: 'instance_id,item_id,target_id' })
       .select()
       .single()
 
-    // Never present an unsaved response as saved.
-    if (error || !data) { mark(key, 'error'); return }
-    mark(key, null)
-    setResponses(r => ({ ...r, [key]: data as ChecklistResponse }))
+    if (error || !data) {
+      // Not lost — durably queued. The entry stands; it is pending sync.
+      outbox.enqueue({
+        key: `response:${key}`,
+        label: item.label,
+        kind: 'upsert',
+        table: 'checklist_responses',
+        onConflict: 'instance_id,item_id,target_id',
+        payload,
+      })
+      mark(key, 'pending')
+      setResponses(r => ({ ...r, [key]: { ...(r[key] ?? {}), ...payload } as ChecklistResponse }))
+    } else {
+      mark(key, null)
+      setResponses(r => ({ ...r, [key]: data as ChecklistResponse }))
+    }
 
     // Promote to in_progress if still not_started
     if (instance.status === 'not_started') {
@@ -511,16 +555,32 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     }
     merged[colKey] = value
 
+    const payload = {
+      instance_id: instance.id, grid_id: grid.id, target_id: targetId,
+      row_key: rowKey, data: merged,
+    }
+
     const { data, error } = await supabase
       .from('checklist_grid_responses')
-      .upsert(
-        { instance_id: instance.id, grid_id: grid.id, target_id: targetId, row_key: rowKey, data: merged },
-        { onConflict: 'instance_id,grid_id,target_id,row_key' },
-      )
+      .upsert(payload, { onConflict: 'instance_id,grid_id,target_id,row_key' })
       .select()
       .single()
 
-    if (error || !data) { mark(cellKey, 'error'); return }
+    if (error || !data) {
+      // Queue the whole row (merged), so replay restores every column, not just this cell.
+      outbox.enqueue({
+        key: `grid:${key}`,
+        label: `${grid.title} · ${rowKey}`,
+        kind: 'upsert',
+        table: 'checklist_grid_responses',
+        onConflict: 'instance_id,grid_id,target_id,row_key',
+        payload,
+      })
+      mark(cellKey, 'pending')
+      setGridResps(r => ({ ...r, [key]: { ...(r[key] ?? {}), ...payload } as ChecklistGridResponse }))
+      return
+    }
+
     mark(cellKey, null)
     setGridResps(r => ({ ...r, [key]: data as ChecklistGridResponse }))
     // Drop the draft only if the user hasn't typed something newer since this flush.
@@ -552,7 +612,21 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     const key = soKey(signoffId, field)
     const { error } = await supabase
       .from('checklist_instance_signoffs').update({ [field]: value }).eq('id', signoffId)
-    if (error) { mark(key, 'error'); return }
+
+    if (error) {
+      outbox.enqueue({
+        key: `signoff:${signoffId}:${field}`,
+        label: `Sign-off · ${field === 'signer_name' ? 'name' : 'company'}`,
+        kind: 'update',
+        table: 'checklist_instance_signoffs',
+        match: { id: signoffId },
+        payload: { [field]: value },
+      })
+      mark(key, 'pending')
+      setSignoffs(s => s.map(so => so.id === signoffId ? { ...so, [field]: value } : so))
+      return
+    }
+
     mark(key, null)
     setSignoffs(s => s.map(so => so.id === signoffId ? { ...so, [field]: value } : so))
     setSignoffDrafts(d => {
@@ -578,8 +652,20 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     const now = new Date().toISOString()
     const { error } = await supabase
       .from('checklist_instance_signoffs').update({ signed_at: now }).eq('id', signoffId)
-    if (error) { mark(key, 'error'); return }
-    mark(key, null)
+
+    if (error) {
+      outbox.enqueue({
+        key: `signoff:${signoffId}:signed_at`,
+        label: 'Sign-off · signature',
+        kind: 'update',
+        table: 'checklist_instance_signoffs',
+        match: { id: signoffId },
+        payload: { signed_at: now },
+      })
+      mark(key, 'pending')
+    } else {
+      mark(key, null)
+    }
     setSignoffs(s => s.map(so => so.id === signoffId ? { ...so, signed_at: now } : so))
   }
 
@@ -594,42 +680,51 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     // (and, once the outbox lands, so both can be queued together offline).
     const findingId = crypto.randomUUID()
 
-    const { error: findingErr } = await supabase
-      .from('findings')
-      .insert({
-        id: findingId,
-        project_id: projectId,
-        title: findingForm.title.trim() || null,
-        category: findingForm.category || 'INFO',
-        responsible_party_id: findingForm.responsible_party_id || null,
-        origin: findingModal.prefillOrigin,
-        linked_equipment_id: findingModal.prefillEquipmentId || null,
-        phase_id: findingForm.phase_id || null,
-      })
+    const findingPayload = {
+      id: findingId,
+      project_id: projectId,
+      title: findingForm.title.trim() || null,
+      category: findingForm.category || 'INFO',
+      responsible_party_id: findingForm.responsible_party_id || null,
+      origin: findingModal.prefillOrigin,
+      linked_equipment_id: findingModal.prefillEquipmentId || null,
+      phase_id: findingForm.phase_id || null,
+    }
+    const linkPayload = {
+      instance_id: instance.id,
+      item_id: findingModal.itemId,
+      target_id: findingModal.targetId,
+      finding_id: findingId,
+    }
+    const key = rKey(findingModal.itemId, findingModal.targetId)
 
-    if (findingErr) {
-      setSavingFinding(false)
-      setFindingError('The finding could not be saved. Check your connection and try again.')
-      return  // keep the modal open — never pretend a finding was filed
+    // Queue finding + link as ONE op. Because the finding carries a client-generated id,
+    // the link can reference it offline, and both replay as idempotent upserts.
+    function queueFinding() {
+      outbox.enqueue({
+        key: `finding:${key}`,
+        label: `Finding · ${findingForm.title || 'untitled'}`,
+        kind: 'finding',
+        finding: findingPayload,
+        link: { onConflict: 'instance_id,item_id,target_id', payload: linkPayload },
+      })
     }
 
-    const { error: linkErr } = await supabase.from('checklist_finding_links').upsert(
-      {
-        instance_id: instance.id,
-        item_id: findingModal.itemId,
-        target_id: findingModal.targetId,
-        finding_id: findingId,
-      },
-      { onConflict: 'instance_id,item_id,target_id' },
+    const { error: findingErr } = await supabase.from('findings').upsert(
+      findingPayload, { onConflict: 'id' },
     )
 
-    if (linkErr) {
-      setSavingFinding(false)
-      setFindingError('The finding was created but could not be linked to this item. Try again.')
-      return
+    if (findingErr) {
+      queueFinding()
+    } else {
+      const { error: linkErr } = await supabase.from('checklist_finding_links').upsert(
+        linkPayload, { onConflict: 'instance_id,item_id,target_id' },
+      )
+      // The finding landed but the link didn't — queue the pair; replay is idempotent,
+      // so re-upserting the finding is a no-op and the link gets its second chance.
+      if (linkErr) queueFinding()
     }
 
-    const key = rKey(findingModal.itemId, findingModal.targetId)
     setFindLinks(fl => ({
       ...fl,
       [key]: {
@@ -646,6 +741,20 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
   async function completeInstance() {
     if (!instance) return
+
+    // Rule 4: a completed checklist is a frozen historical record. Freezing one while
+    // responses are still sitting in the outbox would freeze a lie. Try to drain first,
+    // and refuse outright if anything is still unsynced.
+    const { remaining } = await outbox.flushOutbox()
+    if (remaining > 0) {
+      setConfirmComplete(false)
+      alert(
+        `${remaining} ${remaining === 1 ? 'entry has' : 'entries have'} not reached the server yet. ` +
+        `Reconnect and let them sync before marking this checklist complete.`,
+      )
+      return
+    }
+
     setCompleting(true)
 
     // Snapshot nameplate data for all targets
@@ -834,9 +943,30 @@ export function ChecklistsPage({ projectId, phases }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Sync chip — the engineer must never have to guess whether their work landed. */}
+              {instance.status !== 'complete' && (
+                <span className={`text-[11px] font-medium rounded px-2 py-1 whitespace-nowrap ${
+                  !online  ? 'bg-slate-100 text-slate-600'
+                  : stuck > 0  ? 'bg-red-50 text-red-700'
+                  : queued > 0 ? 'bg-amber-50 text-amber-700'
+                  : syncing    ? 'bg-slate-50 text-slate-500'
+                  : 'bg-emerald-50 text-emerald-700'
+                }`}
+                title={queued > 0 ? 'Entries are saved on this device and will sync automatically.' : undefined}>
+                  {!online     ? `Offline — ${queued} queued`
+                  : stuck > 0  ? `${stuck} failed`
+                  : queued > 0 ? `Syncing — ${queued} pending`
+                  : syncing    ? 'Saving…'
+                  : 'All changes saved'}
+                </span>
+              )}
               {instance.status !== 'complete' && (
                 <button onClick={() => setConfirmComplete(true)}
-                  className="text-xs bg-emerald-600 text-white border border-emerald-700 rounded px-3 py-1.5 hover:bg-emerald-700 transition-colors font-medium">
+                  disabled={queued > 0 || stuck > 0}
+                  title={queued > 0 || stuck > 0
+                    ? 'Cannot complete: some entries have not reached the server yet.'
+                    : undefined}
+                  className="text-xs bg-emerald-600 text-white border border-emerald-700 rounded px-3 py-1.5 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium">
                   Mark Complete
                 </button>
               )}
@@ -905,16 +1035,14 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 {instance.notes && <span className="text-gray-400 italic truncate max-w-xs">{instance.notes}</span>}
               </div>
 
-              {/* Save failures must never be silent — the engineer has to know. */}
-              {saveErrors > 0 && (
-                <div className="px-5 py-2 bg-red-50 border-b border-red-200 text-xs text-red-700 flex items-center gap-2">
+              {/* Stuck ops need a human — they will not drain on their own. */}
+              {stuck > 0 && (
+                <div className="px-5 py-2 bg-red-50 border-b border-red-200 text-xs text-red-700">
                   <span className="font-semibold">
-                    {saveErrors} {saveErrors === 1 ? 'entry' : 'entries'} did not save.
-                  </span>
-                  <span className="text-red-600">
-                    Marked in red below. Check your connection and re-enter them — do not
-                    assume this checklist is recorded.
-                  </span>
+                    {stuck} {stuck === 1 ? 'entry' : 'entries'} could not be saved after several attempts.
+                  </span>{' '}
+                  This is not a connection problem — re-enter them, or contact an admin.
+                  Do not mark this checklist complete.
                 </div>
               )}
 
@@ -991,7 +1119,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                           placeholder="Signer name"
                           disabled={instance.status === 'complete'}
                           className={`flex-1 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400 ${
-                            saveState[soKey(s.id, 'signer_name')] === 'error' ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                            saveState[soKey(s.id, 'signer_name')] === 'pending' ? 'border-amber-400 bg-amber-50' : 'border-gray-200'
                           }`}
                         />
                         <input
@@ -1002,7 +1130,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                           placeholder="Company"
                           disabled={instance.status === 'complete'}
                           className={`w-36 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400 ${
-                            saveState[soKey(s.id, 'signer_company')] === 'error' ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                            saveState[soKey(s.id, 'signer_company')] === 'pending' ? 'border-amber-400 bg-amber-50' : 'border-gray-200'
                           }`}
                         />
                         {s.signed_at ? (
@@ -1308,7 +1436,7 @@ function ItemRow({
   responseTargets: DetailTarget[]
   responses: Record<string, ChecklistResponse>
   findLinks: Record<string, ChecklistFindingLink>
-  saveState: Record<string, 'saving' | 'error'>
+  saveState: Record<string, SaveState>
   onSetResponse: (item: ChecklistInstanceItem, targetId: string, status: ResponseStatus | null) => void
   isComplete: boolean
 }) {
@@ -1347,9 +1475,10 @@ function ItemRow({
                 disabled={isComplete}
               />
             )}
-            {state === 'error' && (
-              <span className="text-[10px] text-red-600 font-semibold" title="This response did not save.">
-                Not saved
+            {state === 'pending' && (
+              <span className="text-[10px] text-amber-600 font-medium"
+                title="Saved on this device — will sync when you reconnect.">
+                Pending
               </span>
             )}
             {link && (
@@ -1432,7 +1561,7 @@ function GridBlock({
   responseTargets: DetailTarget[]
   gridResps: Record<GridKey, ChecklistGridResponse>
   gridDrafts: Record<string, string>
-  saveState: Record<string, 'saving' | 'error'>
+  saveState: Record<string, SaveState>
   onCellChange: (grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string, value: string) => void
   onCellBlur: (grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string) => void
   isComplete: boolean
@@ -1480,10 +1609,11 @@ function GridBlock({
                           onChange={e => !isComplete && onCellChange(grid, target.id, row.key, col.key, e.target.value)}
                           onBlur={() => !isComplete && onCellBlur(grid, target.id, row.key, col.key)}
                           disabled={isComplete}
-                          title={state === 'error' ? 'This reading did not save.' : undefined}
+                          title={state === 'pending'
+                            ? 'Saved on this device — will sync when you reconnect.' : undefined}
                           className={`w-full min-w-[60px] border rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400 ${
-                            state === 'error'  ? 'border-red-400 bg-red-50'
-                            : state === 'saving' ? 'border-amber-300'
+                            state === 'pending' ? 'border-amber-400 bg-amber-50'
+                            : state === 'saving' ? 'border-slate-300'
                             : 'border-gray-200'
                           }`}
                         />
