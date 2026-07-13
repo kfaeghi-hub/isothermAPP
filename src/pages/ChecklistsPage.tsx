@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/ui/Modal'
@@ -117,6 +117,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const [projectTrades, setProjectTrades] = useState<Array<{ id: string; name: string }>>([])
   const [contacts, setContacts]           = useState<Array<{ id: string; name: string }>>([])
   const [savingFinding, setSavingFinding] = useState(false)
+  const [findingError, setFindingError]   = useState<string | null>(null)
 
   // ── Complete state ────────────────────────────────────────────────────────
   const [confirmComplete, setConfirmComplete] = useState(false)
@@ -132,6 +133,50 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
   // ── Generate document state ───────────────────────────────────────────────
   const [generating, setGenerating] = useState<'completed' | 'blank' | null>(null)
+
+  // ── Field resilience: drafts + per-field save state ───────────────────────
+  // Text inputs hold a local draft so typing is never gated on a DB round-trip.
+  // Status inputs (Y/N/NR/NA, Pass/Fail, Sign) write immediately — one discrete action.
+  const [gridDrafts,    setGridDrafts]    = useState<Record<string, string>>({})
+  const [signoffDrafts, setSignoffDrafts] = useState<Record<string, string>>({})
+  const [saveState,     setSaveState]     = useState<Record<string, 'saving' | 'error'>>({})
+
+  // Refs mirror state so a debounced write reads current values, not its closure's.
+  const gridRespsRef  = useRef(gridResps)
+  const gridDraftsRef = useRef(gridDrafts)
+  useEffect(() => { gridRespsRef.current  = gridResps  }, [gridResps])
+  useEffect(() => { gridDraftsRef.current = gridDrafts }, [gridDrafts])
+
+  const pending = useRef<Record<string, { timer: ReturnType<typeof setTimeout>; run: () => void }>>({})
+
+  function mark(key: string, state: 'saving' | 'error' | null) {
+    setSaveState(s => {
+      if (state === null) { const { [key]: _gone, ...rest } = s; return rest }
+      return { ...s, [key]: state }
+    })
+  }
+
+  function debounce(key: string, ms: number, run: () => void) {
+    const prev = pending.current[key]
+    if (prev) clearTimeout(prev.timer)
+    mark(key, 'saving')
+    const timer = setTimeout(() => { delete pending.current[key]; run() }, ms)
+    pending.current[key] = { timer, run }
+  }
+
+  function flush(key: string) {
+    const p = pending.current[key]
+    if (!p) return
+    clearTimeout(p.timer)
+    delete pending.current[key]
+    p.run()
+  }
+
+  useEffect(() => () => {
+    for (const p of Object.values(pending.current)) clearTimeout(p.timer)
+  }, [])
+
+  const saveErrors = Object.values(saveState).filter(s => s === 'error').length
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -391,33 +436,38 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   async function setResponse(item: ChecklistInstanceItem, targetId: string, status: ResponseStatus | null) {
     if (!instance) return
     const key = rKey(item.id, targetId)
-    const existing = responses[key]
-    const payload = {
-      instance_id: instance.id,
-      item_id: item.id,
-      target_id: targetId,
-      status_type: item.status_type,
-      status,
-    }
+    mark(key, 'saving')
 
-    let savedId = existing?.id
-    if (existing) {
-      await supabase.from('checklist_responses').update({ status }).eq('id', existing.id)
-    } else {
-      const { data } = await supabase.from('checklist_responses').insert(payload).select('id').single()
-      savedId = data?.id
-    }
+    // Upsert on the natural key. No insert-vs-update branch, so two fast changes
+    // can't both take the insert path and collide on the unique constraint.
+    const { data, error } = await supabase
+      .from('checklist_responses')
+      .upsert(
+        {
+          instance_id: instance.id,
+          item_id: item.id,
+          target_id: targetId,
+          status_type: item.status_type,
+          status,
+        },
+        { onConflict: 'instance_id,item_id,target_id' },
+      )
+      .select()
+      .single()
 
-    setResponses(r => ({
-      ...r,
-      [key]: { ...(existing ?? { id: savedId ?? '', comment: null, actual_response: null, created_at: '', updated_at: '' }), ...payload, id: savedId ?? '' },
-    }))
+    // Never present an unsaved response as saved.
+    if (error || !data) { mark(key, 'error'); return }
+    mark(key, null)
+    setResponses(r => ({ ...r, [key]: data as ChecklistResponse }))
 
     // Promote to in_progress if still not_started
     if (instance.status === 'not_started') {
-      await supabase.from('checklist_instances').update({ status: 'in_progress' }).eq('id', instance.id)
-      setInstance(i => i ? { ...i, status: 'in_progress' } : i)
-      setInstances(list => list.map(i => i.id === instance.id ? { ...i, status: 'in_progress' } : i))
+      const { error: statusErr } = await supabase
+        .from('checklist_instances').update({ status: 'in_progress' }).eq('id', instance.id)
+      if (!statusErr) {
+        setInstance(i => i ? { ...i, status: 'in_progress' } : i)
+        setInstances(list => list.map(i => i.id === instance.id ? { ...i, status: 'in_progress' } : i))
+      }
     }
 
     // Trigger finding modal on N/fail if creates_finding and no existing link
@@ -444,37 +494,92 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
   // ── Grid response upsert ───────────────────────────────────────────────
 
-  async function setGridCell(grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string, value: string) {
+  // Persist a grid row. Upsert on the natural key kills the duplicate-insert race;
+  // the row is rebuilt from persisted data + every pending draft for that row, so a
+  // fast typist can't lose a sibling cell that hasn't flushed yet.
+  async function persistGridCell(
+    grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string, value: string,
+  ) {
     if (!instance) return
     const key = gKey(grid.id, targetId, rowKey)
-    const existing = gridResps[key]
-    const newData = { ...(existing?.data ?? {}), [colKey]: value }
-    const payload = {
-      instance_id: instance.id,
-      grid_id: grid.id,
-      target_id: targetId,
-      row_key: rowKey,
-      data: newData,
+    const cellKey = `${key}:${colKey}`
+
+    const merged: Record<string, string> = { ...(gridRespsRef.current[key]?.data ?? {}) }
+    for (const col of grid.definition.columns) {
+      const ck = `${key}:${col.key}`
+      if (ck in gridDraftsRef.current) merged[col.key] = gridDraftsRef.current[ck]
     }
-    if (existing) {
-      await supabase.from('checklist_grid_responses').update({ data: newData }).eq('id', existing.id)
-      setGridResps(r => ({ ...r, [key]: { ...existing, data: newData } }))
-    } else {
-      const { data } = await supabase.from('checklist_grid_responses').insert(payload).select('id').single()
-      if (data) setGridResps(r => ({ ...r, [key]: { ...payload, id: data.id, updated_at: '', created_at: '' } as ChecklistGridResponse }))
-    }
+    merged[colKey] = value
+
+    const { data, error } = await supabase
+      .from('checklist_grid_responses')
+      .upsert(
+        { instance_id: instance.id, grid_id: grid.id, target_id: targetId, row_key: rowKey, data: merged },
+        { onConflict: 'instance_id,grid_id,target_id,row_key' },
+      )
+      .select()
+      .single()
+
+    if (error || !data) { mark(cellKey, 'error'); return }
+    mark(cellKey, null)
+    setGridResps(r => ({ ...r, [key]: data as ChecklistGridResponse }))
+    // Drop the draft only if the user hasn't typed something newer since this flush.
+    setGridDrafts(d => {
+      if (d[cellKey] !== value) return d
+      const { [cellKey]: _gone, ...rest } = d
+      return rest
+    })
+  }
+
+  // Typing updates the draft immediately — the input never waits on the network.
+  function onGridCellChange(
+    grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string, value: string,
+  ) {
+    const cellKey = `${gKey(grid.id, targetId, rowKey)}:${colKey}`
+    setGridDrafts(d => ({ ...d, [cellKey]: value }))
+    debounce(cellKey, 500, () => persistGridCell(grid, targetId, rowKey, colKey, value))
+  }
+
+  function onGridCellBlur(grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string) {
+    flush(`${gKey(grid.id, targetId, rowKey)}:${colKey}`)
   }
 
   // ── Signoff update ─────────────────────────────────────────────────────
 
-  async function updateSignoff(signoffId: string, field: 'signer_name' | 'signer_company', value: string) {
-    await supabase.from('checklist_instance_signoffs').update({ [field]: value }).eq('id', signoffId)
+  const soKey = (signoffId: string, field: string) => `signoff:${signoffId}:${field}`
+
+  async function persistSignoff(signoffId: string, field: 'signer_name' | 'signer_company', value: string) {
+    const key = soKey(signoffId, field)
+    const { error } = await supabase
+      .from('checklist_instance_signoffs').update({ [field]: value }).eq('id', signoffId)
+    if (error) { mark(key, 'error'); return }
+    mark(key, null)
     setSignoffs(s => s.map(so => so.id === signoffId ? { ...so, [field]: value } : so))
+    setSignoffDrafts(d => {
+      if (d[key] !== value) return d
+      const { [key]: _gone, ...rest } = d
+      return rest
+    })
+  }
+
+  function onSignoffChange(signoffId: string, field: 'signer_name' | 'signer_company', value: string) {
+    const key = soKey(signoffId, field)
+    setSignoffDrafts(d => ({ ...d, [key]: value }))
+    debounce(key, 500, () => persistSignoff(signoffId, field, value))
   }
 
   async function signSignoff(signoffId: string) {
+    // Flush any in-flight name/company edits before stamping the signature.
+    flush(soKey(signoffId, 'signer_name'))
+    flush(soKey(signoffId, 'signer_company'))
+
+    const key = soKey(signoffId, 'signed_at')
+    mark(key, 'saving')
     const now = new Date().toISOString()
-    await supabase.from('checklist_instance_signoffs').update({ signed_at: now }).eq('id', signoffId)
+    const { error } = await supabase
+      .from('checklist_instance_signoffs').update({ signed_at: now }).eq('id', signoffId)
+    if (error) { mark(key, 'error'); return }
+    mark(key, null)
     setSignoffs(s => s.map(so => so.id === signoffId ? { ...so, signed_at: now } : so))
   }
 
@@ -483,9 +588,16 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   async function createFinding() {
     if (!findingModal || !instance) return
     setSavingFinding(true)
-    const { data: finding } = await supabase
+    setFindingError(null)
+
+    // Client-generated id so the link row can reference the finding immediately
+    // (and, once the outbox lands, so both can be queued together offline).
+    const findingId = crypto.randomUUID()
+
+    const { error: findingErr } = await supabase
       .from('findings')
       .insert({
+        id: findingId,
         project_id: projectId,
         title: findingForm.title.trim() || null,
         category: findingForm.category || 'INFO',
@@ -494,26 +606,38 @@ export function ChecklistsPage({ projectId, phases }: Props) {
         linked_equipment_id: findingModal.prefillEquipmentId || null,
         phase_id: findingForm.phase_id || null,
       })
-      .select('id, number')
-      .single()
 
-    if (finding) {
-      await supabase.from('checklist_finding_links').insert({
+    if (findingErr) {
+      setSavingFinding(false)
+      setFindingError('The finding could not be saved. Check your connection and try again.')
+      return  // keep the modal open — never pretend a finding was filed
+    }
+
+    const { error: linkErr } = await supabase.from('checklist_finding_links').upsert(
+      {
         instance_id: instance.id,
         item_id: findingModal.itemId,
         target_id: findingModal.targetId,
-        finding_id: finding.id,
-      })
-      const key = rKey(findingModal.itemId, findingModal.targetId)
-      setFindLinks(fl => ({
-        ...fl,
-        [key]: {
-          id: '', org_id: null, instance_id: instance.id,
-          item_id: findingModal.itemId, target_id: findingModal.targetId,
-          finding_id: finding.id, created_at: '',
-        },
-      }))
+        finding_id: findingId,
+      },
+      { onConflict: 'instance_id,item_id,target_id' },
+    )
+
+    if (linkErr) {
+      setSavingFinding(false)
+      setFindingError('The finding was created but could not be linked to this item. Try again.')
+      return
     }
+
+    const key = rKey(findingModal.itemId, findingModal.targetId)
+    setFindLinks(fl => ({
+      ...fl,
+      [key]: {
+        id: '', org_id: null, instance_id: instance.id,
+        item_id: findingModal.itemId, target_id: findingModal.targetId,
+        finding_id: findingId, created_at: '',
+      },
+    }))
     setSavingFinding(false)
     setFindingModal(null)
   }
@@ -781,6 +905,19 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 {instance.notes && <span className="text-gray-400 italic truncate max-w-xs">{instance.notes}</span>}
               </div>
 
+              {/* Save failures must never be silent — the engineer has to know. */}
+              {saveErrors > 0 && (
+                <div className="px-5 py-2 bg-red-50 border-b border-red-200 text-xs text-red-700 flex items-center gap-2">
+                  <span className="font-semibold">
+                    {saveErrors} {saveErrors === 1 ? 'entry' : 'entries'} did not save.
+                  </span>
+                  <span className="text-red-600">
+                    Marked in red below. Check your connection and re-enter them — do not
+                    assume this checklist is recorded.
+                  </span>
+                </div>
+              )}
+
               {/* Column header for multi-unit */}
               {responseTargets.length > 1 && (
                 <div className="sticky top-0 z-10 flex items-center border-b border-gray-200 bg-white px-5 py-2">
@@ -812,6 +949,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                         responseTargets={responseTargets}
                         responses={responses}
                         findLinks={findLinks}
+                        saveState={saveState}
                         onSetResponse={setResponse}
                         isComplete={instance.status === 'complete'}
                       />
@@ -824,7 +962,10 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                         grid={grid}
                         responseTargets={responseTargets}
                         gridResps={gridResps}
-                        onSetCell={setGridCell}
+                        gridDrafts={gridDrafts}
+                        saveState={saveState}
+                        onCellChange={onGridCellChange}
+                        onCellBlur={onGridCellBlur}
                         isComplete={instance.status === 'complete'}
                       />
                     ))}
@@ -844,19 +985,25 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                         <div className="w-48 flex-shrink-0 text-xs font-medium text-gray-700">{s.role_label_snapshot}</div>
                         <input
                           type="text"
-                          value={s.signer_name ?? ''}
-                          onChange={e => updateSignoff(s.id, 'signer_name', e.target.value)}
+                          value={signoffDrafts[soKey(s.id, 'signer_name')] ?? s.signer_name ?? ''}
+                          onChange={e => onSignoffChange(s.id, 'signer_name', e.target.value)}
+                          onBlur={() => flush(soKey(s.id, 'signer_name'))}
                           placeholder="Signer name"
                           disabled={instance.status === 'complete'}
-                          className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          className={`flex-1 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400 ${
+                            saveState[soKey(s.id, 'signer_name')] === 'error' ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                          }`}
                         />
                         <input
                           type="text"
-                          value={s.signer_company ?? ''}
-                          onChange={e => updateSignoff(s.id, 'signer_company', e.target.value)}
+                          value={signoffDrafts[soKey(s.id, 'signer_company')] ?? s.signer_company ?? ''}
+                          onChange={e => onSignoffChange(s.id, 'signer_company', e.target.value)}
+                          onBlur={() => flush(soKey(s.id, 'signer_company'))}
                           placeholder="Company"
                           disabled={instance.status === 'complete'}
-                          className="w-36 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          className={`w-36 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400 ${
+                            saveState[soKey(s.id, 'signer_company')] === 'error' ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                          }`}
                         />
                         {s.signed_at ? (
                           <span className="text-[11px] font-mono text-emerald-600 w-28 flex-shrink-0">
@@ -1068,8 +1215,14 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 </select>
               </div>
             )}
+            {findingError && (
+              <p className="text-xs text-red-700 bg-red-50 rounded px-3 py-2 border border-red-200">
+                {findingError}
+              </p>
+            )}
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setFindingModal(null)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Skip for now</button>
+              <button onClick={() => { setFindingError(null); setFindingModal(null) }}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Skip for now</button>
               <button onClick={createFinding} disabled={savingFinding || !findingForm.category}
                 className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium">
                 {savingFinding ? 'Creating…' : 'Create Finding'}
@@ -1149,12 +1302,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 // ── Line item row ──────────────────────────────────────────────────────────
 
 function ItemRow({
-  item, responseTargets, responses, findLinks, onSetResponse, isComplete,
+  item, responseTargets, responses, findLinks, saveState, onSetResponse, isComplete,
 }: {
   item: ChecklistInstanceItem
   responseTargets: DetailTarget[]
   responses: Record<string, ChecklistResponse>
   findLinks: Record<string, ChecklistFindingLink>
+  saveState: Record<string, 'saving' | 'error'>
   onSetResponse: (item: ChecklistInstanceItem, targetId: string, status: ResponseStatus | null) => void
   isComplete: boolean
 }) {
@@ -1176,6 +1330,7 @@ function ItemRow({
         const resp = responses[key]
         const link = findLinks[key]
         const currentStatus = resp?.status ?? null
+        const state = saveState[key]
 
         return (
           <div key={target.id} className="w-20 flex-shrink-0 flex flex-col items-center gap-1">
@@ -1191,6 +1346,11 @@ function ItemRow({
                 onChange={v => !isComplete && onSetResponse(item, target.id, v)}
                 disabled={isComplete}
               />
+            )}
+            {state === 'error' && (
+              <span className="text-[10px] text-red-600 font-semibold" title="This response did not save.">
+                Not saved
+              </span>
             )}
             {link && (
               <span className="text-[10px] text-amber-600 font-medium">Finding</span>
@@ -1266,12 +1426,15 @@ function PassFailInput({ value, onChange, disabled }: {
 // ── Measurement grid block ─────────────────────────────────────────────────
 
 function GridBlock({
-  grid, responseTargets, gridResps, onSetCell, isComplete,
+  grid, responseTargets, gridResps, gridDrafts, saveState, onCellChange, onCellBlur, isComplete,
 }: {
   grid: ChecklistInstanceGrid
   responseTargets: DetailTarget[]
   gridResps: Record<GridKey, ChecklistGridResponse>
-  onSetCell: (grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string, value: string) => void
+  gridDrafts: Record<string, string>
+  saveState: Record<string, 'saving' | 'error'>
+  onCellChange: (grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string, value: string) => void
+  onCellBlur: (grid: ChecklistInstanceGrid, targetId: string, rowKey: string, colKey: string) => void
   isComplete: boolean
 }) {
   const { columns, rows } = grid.definition
@@ -1305,15 +1468,24 @@ function GridBlock({
                 {responseTargets.map(target => (
                   columns.map(col => {
                     const key = gKey(grid.id, target.id, row.key)
-                    const cellValue = gridResps[key]?.data?.[col.key] ?? ''
+                    const cellKey = `${key}:${col.key}`
+                    // Draft wins over the persisted value so typing is instant.
+                    const cellValue = gridDrafts[cellKey] ?? gridResps[key]?.data?.[col.key] ?? ''
+                    const state = saveState[cellKey]
                     return (
                       <td key={`${target.id}:${col.key}`} className="px-1 py-1">
                         <input
                           type="text"
                           value={cellValue}
-                          onChange={e => !isComplete && onSetCell(grid, target.id, row.key, col.key, e.target.value)}
+                          onChange={e => !isComplete && onCellChange(grid, target.id, row.key, col.key, e.target.value)}
+                          onBlur={() => !isComplete && onCellBlur(grid, target.id, row.key, col.key)}
                           disabled={isComplete}
-                          className="w-full min-w-[60px] border border-gray-200 rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          title={state === 'error' ? 'This reading did not save.' : undefined}
+                          className={`w-full min-w-[60px] border rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400 ${
+                            state === 'error'  ? 'border-red-400 bg-red-50'
+                            : state === 'saving' ? 'border-amber-300'
+                            : 'border-gray-200'
+                          }`}
                         />
                       </td>
                     )
