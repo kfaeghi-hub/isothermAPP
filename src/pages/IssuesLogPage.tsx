@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../lib/projectTypes'
+import { uploadFindingPhoto } from '../lib/photos'
 import { Modal } from '../components/ui/Modal'
 import type { ProjectPhase, ContactWithCompany, FindingDiaryEntry, FindingPhoto } from '../types/database'
 
@@ -60,29 +61,7 @@ const ORIGIN_LABELS: Record<string, string> = {
   fpt: 'FPT',
 }
 
-// ── Image compression ───────────────────────────────────────────────────────
-
-async function compressImage(file: File): Promise<Blob | File> {
-  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
-  return new Promise(resolve => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const maxDim = 1400
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
-      const ctx = canvas.getContext('2d')
-      if (!ctx) { resolve(file); return }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      canvas.toBlob(b => resolve(b ?? file), 'image/jpeg', 0.82)
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
-    img.src = url
-  })
-}
+// Image compression + upload now live in src/lib/photos.ts (shared with checklist fill-out).
 
 // ── Date helpers ───────────────────────────────────────────────────────────
 
@@ -341,27 +320,10 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     if (!file || !selectedId) return
     e.target.value = ''
     setUploadingPhoto(true)
-    try {
-      const blob = await compressImage(file)
-      const storagePath = `findings/${selectedId}/${Date.now()}.jpg`
-      const { data: uploaded, error: uploadErr } = await supabase.storage
-        .from('finding-photos')
-        .upload(storagePath, blob, { contentType: 'image/jpeg' })
-      if (uploadErr) throw uploadErr
-      const { data: { publicUrl } } = supabase.storage
-        .from('finding-photos')
-        .getPublicUrl(uploaded.path)
-      await supabase.from('finding_photos').insert({
-        finding_id: selectedId,
-        storage_url: publicUrl,
-        caption: file.name,
-      })
-      fetchDetail(selectedId)
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Upload failed.')
-    } finally {
-      setUploadingPhoto(false)
-    }
+    const result = await uploadFindingPhoto(selectedId, file)
+    setUploadingPhoto(false)
+    if (!result.ok) { alert(result.error); return }
+    fetchDetail(selectedId)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
