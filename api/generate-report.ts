@@ -121,6 +121,16 @@ const CSS = `
 
 `
 
+// Contact email resolution: PRIMARY row from contact_emails, falling back to the
+// legacy contacts.email column during the dual-read transition. The backfill made
+// these identical, so regenerating an existing report must not change its content.
+function primaryEmail(c: any): string {
+  const rows = Array.isArray(c?.contact_emails) ? c.contact_emails
+             : c?.contact_emails ? [c.contact_emails] : []
+  const primary = rows.find((e: any) => e?.is_primary)
+  return primary?.email ?? c?.email ?? ''
+}
+
 // ── HTML builder ───────────────────────────────────────────────────────────────
 
 function buildHtml(
@@ -132,7 +142,7 @@ function buildHtml(
     // Supabase may return the joined contact as an object or single-element array
     const c  = Array.isArray(r.contacts)  ? r.contacts[0]  : r.contacts
     const co = Array.isArray(c?.companies) ? c?.companies[0] : c?.companies
-    return `<tr><td>${esc(c?.name)}</td><td>${esc(co?.name)}</td><td>${esc(co?.abbreviation)}</td><td>${esc(c?.email)}</td></tr>`
+    return `<tr><td>${esc(c?.name)}</td><td>${esc(co?.name)}</td><td>${esc(co?.abbreviation)}</td><td>${esc(primaryEmail(c))}</td></tr>`
   }).join('\n')
 
   const docItems: any[] = report.doc_register ?? []
@@ -312,7 +322,7 @@ function buildDocxHtml(
       <td ${td(i)}>${esc(c?.name)}</td>
       <td ${td(i)}>${esc(co?.name)}</td>
       <td ${td(i)}>${esc(co?.abbreviation)}</td>
-      <td ${td(i)}>${esc(c?.email)}</td>
+      <td ${td(i)}>${esc(primaryEmail(c))}</td>
     </tr>`
   }).join('\n')
 
@@ -506,7 +516,7 @@ export default async function handler(req: any, res: any) {
 
     const { data: distribution } = await supabase
       .from('project_distribution')
-      .select('id, contacts(id,name,trade,email,companies(name,abbreviation))')
+      .select('id, contacts(id,name,trade,email,contact_emails(email,is_primary),companies(name,abbreviation))')
       .eq('project_id', report.project_id)
 
     let fQ = supabase.from('findings')
