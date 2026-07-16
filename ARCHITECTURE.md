@@ -137,6 +137,31 @@ companies             → firms (clients, contractors, vendors)
 company_roles         → what roles a company plays (many per company)
 contacts              → people at companies
 
+── Project classification framework (replaces project_type; 2026-07) ─────────
+
+classification_dimensions  → firm-level, admin-editable: name, selection_mode
+                             (single|multi), required (RUNTIME flag — enforced by the
+                             creation modal, deliberately not a DB constraint),
+                             sort_order, active
+classification_options     → per dimension: label, group_label (optgroup band),
+                             description, sort_order, active
+                             UNIQUE (id, dimension_id) as composite-FK target
+project_classifications    → project ↔ option junction. Denormalized dimension_id with
+                             composite FK (option_id, dimension_id) → options, so a row
+                             can never claim an option under the wrong dimension.
+                             Single-mode enforced by trigger
+                             (enforce_single_mode_classification).
+deliverable_templates      → DOCUMENT pool (Cx Plan, OPR review, Systems Manual…).
+                             Deliberately separate from checklist_templates (equipment
+                             IVC/PFC/FPT) — never conflate the two pools.
+option_deliverable_defaults → option → deliverable_template mapping. Project creation
+                             composes the union of all selected options' defaults into
+                             project_deliverables (per-project editable copy).
+
+All five carry org_id (rule 17). RLS: firm-config pattern on the config tables,
+project-scoped on the junction. projects.project_type is deprecated (dual-written
+for rollback safety) pending the removal pass.
+
 ── Issues Log ─────────────────────────────────────────────────────────────────
 
 findings              → issues log entries per project

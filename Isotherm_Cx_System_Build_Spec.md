@@ -27,6 +27,14 @@
 - **Equipment Register** — type-specific editable fields in Spec / Shop Drawing / Installed sections (11 seeded equipment types), tag glossary with discipline-aware descriptors and tag/descriptor autocomplete, per-equipment file attachments.
 - **Site Reports** — list, create, PDF generation (Puppeteer + @sparticuz/chromium-min@133.0.0 via Vercel serverless function) + DOCX generation (html-to-docx@1.8.0 via same function). Both outputs from `api/generate-report.ts` (Node.js, `maxDuration: 60`). Report: letterhead, project header, distribution table, narrative, documentation register, issues log with photos. Footer rendered via Puppeteer `displayHeaderFooter` / `footerTemplate` (not `position:fixed`) to prevent row-clipping at page breaks.
 
+### Phase 1 change (2026-07) — project classification framework
+- Single `project_type` replaced by five admin-editable classification dimensions
+  (§5.1) with real deliverable composition from `option_deliverable_defaults` (§5.2).
+  Includes: dynamic New/Edit Project picker, badges + per-dimension list filters +
+  "classification incomplete" flag, admin Classifications screen, "Systems to be
+  Commissioned" rename (trade_types untouched), client inline-add, COM#/address/phase
+  convergence controls. Existing projects backfilled to New Construction.
+
 ### Phase 2 — IN PROGRESS (checklist engine)
 
 **Next:** Template library (IVC/PFC/FPT built from Isotherm's real forms) → checklist instances (multi-unit, confirmed auto-finding creation) → FPT module → LEED deliverables tracking.
@@ -85,7 +93,7 @@ CLIENT = a COMPANY with the Client/Owner role
   └─ has many PROJECT
 
 PROJECT (belongs to a CLIENT, or standalone)
-  ├─ project_type (Standard / LEED Fundamental / LEED Enhanced / LEED Enhanced+MBCx) → drives required deliverables
+  ├─ CLASSIFICATIONS (junction → classification_options; five seeded dimensions, §5.1) → drive deliverable composition
   ├─ has many PHASE (optional; e.g., PH-1, PH-2)
   ├─ DISTRIBUTION LIST (references CONTACTs)
   ├─ EQUIPMENT / SYSTEM list (the Cx Index rows)
@@ -116,7 +124,7 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 
 **Project**
 - id, name, comNumber, clientCompanyId (nullable for standalone), address
-- projectType (enum, drives required deliverables)
+- classifications[] (junction to classification options — five dimensions, §5.1; drives deliverable composition)
 - phases[] (optional)
 - distribution[] (contactId references)
 - createdAt, lastVisitedAt (for aging reminders)
@@ -254,40 +262,65 @@ The same editable-defaults principle applies to **deliverables** (§5.2) and **e
 
 ---
 
-## 5. Deliverables by project type (LEED-conditional)
+## 5. Project classification & deliverable composition (BUILT 2026-07 — replaces "project type")
 
-### 5.1 Required deliverable sets by project type
+### 5.1 The classification framework (admin-editable data, never migrations)
 
-When a project is created, the user selects **project type**, which determines the required deliverable set the system tracks and can flag as missing.
+The single `project_type` enum is replaced by a **generic classification framework**. A
+project is classified along **dimensions**; each dimension carries **options**; a
+junction (`project_classifications`) records the selections. All of it is firm-level
+runtime DATA managed on the admin Classifications screen — new dimensions, options,
+groups, and deliverable mappings are INSERTs, never schema changes.
 
-**Standard commissioning**
-- Cx Plan, IVC/PFC checklists, site reports, FPT, issues log, final Cx report.
+- `classification_dimensions` — name, `selection_mode` (single|multi), `required`
+  (runtime flag: the creation modal enforces whatever it currently says; deliberately
+  NOT a DB constraint so existing projects may live in a "classification incomplete"
+  state), sort_order, active.
+- `classification_options` — label, nullable `group_label` (optgroup band),
+  description, sort_order, active.
+- `project_classifications` — project ↔ option junction; denormalized `dimension_id`
+  with a composite FK so a row can never claim an option under the wrong dimension;
+  single-mode enforced by trigger.
 
-**LEED Fundamental** (adds)
-- OPR & BOD review, issues-and-benefits log maintained throughout, Current Facilities Requirements (CFR) plan, verify system test execution.
+**Seeded dimensions (2026-07):** Project Lifecycle (required, single; NCx/EBCx groups) ·
+Facility Type (required, single; 9 groups) · Phases Engaged (required, multi; ASHRAE
+Guideline 0 verbatim) · Sustainable Programs (optional, multi; includes the MBCx add-on
+option) · Services in Scope (optional, multi).
 
-**LEED Enhanced** (adds)
-- Contractor submittal review, Systems Manual (verify inclusion + delivery), operator/occupant training verification, seasonal/deferred testing, 10-month operations review, develop ongoing commissioning (OCx) plan. (All must be reflected in OPR & BOD.)
-- Independence + report-directly-to-owner constraints flagged.
+Deliberately NOT dimensions: building systems (modeled as "Systems to be Commissioned"
+= trade_types + the equipment register), performance-verification items (deliverables/
+checklists), energy/digital flavors (lifecycle options or roadmap).
 
-**LEED Enhanced + MBCx** (adds)
-- Monitoring-based commissioning plan: tracked points, acceptable-value limits, performance evaluation, ongoing monitoring.
+**Deprecated:** `projects.project_type` (column + Postgres enum) is dual-written from
+the selections for rollback safety only and is pending removal, along with
+`PROJECT_TYPES`/`projectTypes.ts` and the `ProjectType` TS type.
 
-This drives a **required-deliverables checklist** per project so nothing needed for the credit is missed.
+### 5.2 CORE PRINCIPLE: TWO template pools + composition from options
 
-### 5.2 CORE PRINCIPLE: a central template pool; project type pulls an editable default subset
+There are **two deliberately separate firm-level pools — never conflate them:**
 
-There is **one firm-level pool (library) of reusable document & checklist templates** — each template created and saved **once**, then reused across all projects by reference. This pool is the single source for every deliverable type: OPR, BOD, Cx Plan, IVC/PFC checklists (per equipment type), FPT scripts (per system type), Systems Manual, training sign-in, final Cx report, 10-month review, OCx plan, etc.
+1. **`deliverable_templates` — documents.** Cx Plan, Site Reports / Issues Log, FPT
+   Reports, Final Cx Report, OPR & BoD Review, Issues-and-Benefits Log, CFR Plan,
+   Systems Manual Verification, Training Verification, Seasonal/Deferred Testing,
+   10-Month Operations Review, OCx Plan, MBCx Plan, etc. These are what
+   `project_deliverables` instantiates and tracks per project.
+2. **`checklist_templates` — equipment checklists.** IVC/PFC/FPT per equipment type,
+   with sections/items/grids/signoffs, instantiated as snapshotted checklist instances
+   (§ Phase 2 checklist engine). They are NOT deliverable documents and never appear
+   in deliverable composition.
 
-How projects use the pool:
-- When a project is created and its type is selected (Standard / LEED Fundamental / Enhanced / MBCx), the app **auto-adds the default subset of templates** for that type, pulled from the pool.
-- The user can **remove** any default that doesn't apply to this project.
-- The user can **add any other template from the pool** if this project needs it.
-- A project deliverable = a **reference to a pool template, instantiated for that project** (its own captured data, status, signatures, findings). Statuses: not started / in progress / received / complete / N-A.
-- **Updating a template in the pool** improves it for future projects (existing instantiated copies are unaffected unless re-pulled).
-- The firm (admin) maintains the pool and the **default-subset maps per project type** centrally.
+**Composition:** any classification option may contribute deliverable defaults via
+`option_deliverable_defaults` (option → deliverable_template). At project creation the
+app composes the **union of all selected options' contributions**, deduped, into the
+project's own editable `project_deliverables` copy. Seeded mappings: New Construction →
+the base Cx set (4); LEED Fundamental → its set (4); LEED Enhanced → Fundamental's set
+plus its additions (10); MBCx → MBCx Plan. Facility Type / Phases / Services contribute
+nothing yet — the mechanism is ready when they should.
 
-This unifies the "checklist template library" (§3.2) and the deliverables map: **they are the same pool.** Defaults save setup time; the pool guarantees reuse-once; per-project add/remove means no project is forced into a structure that doesn't fit. Mirrors the contacts directory and Cx Index defaults — one source, referenced everywhere, never duplicated.
+Everything else about the pool principle is unchanged: templates are created once and
+referenced; per-project copies are editable (remove defaults that don't apply, add any
+pool template); updating a pool template never rewrites instantiated copies; admin
+maintains pools and mappings centrally.
 
 ---
 
