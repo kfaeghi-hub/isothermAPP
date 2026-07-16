@@ -163,6 +163,84 @@ export interface EquipmentAttachment {
   uploaded_at: string
 }
 
+// ── Project classification framework ───────────────────────────────────────
+// Replaces the single project_type enum. Dimensions/options are firm-level,
+// admin-editable DATA (new dimensions are INSERTs, never migrations). The old
+// projects.project_type column persists until the separate removal pass.
+
+export type SelectionMode = 'single' | 'multi'
+
+export interface ClassificationDimension {
+  id: string
+  org_id: string | null
+  name: string
+  selection_mode: SelectionMode
+  // Runtime flag — the creation modal enforces whatever this currently says.
+  // Deliberately NOT a DB constraint: existing projects may be incomplete.
+  required: boolean
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
+export interface ClassificationOption {
+  id: string
+  org_id: string | null
+  dimension_id: string
+  label: string
+  group_label: string | null   // optgroup band, e.g. 'New Building (NCx)'
+  description: string | null   // filled for lifecycle options only
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
+export interface ProjectClassification {
+  id: string
+  org_id: string | null
+  project_id: string
+  option_id: string
+  dimension_id: string
+  created_at: string
+}
+
+// Deliverable templates are DOCUMENTS (Cx Plan, OPR review, Systems Manual…),
+// not equipment checklists — those live in checklist_templates.
+export interface DeliverableTemplate {
+  id: string
+  org_id: string | null
+  name: string
+  description: string | null
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
+export interface OptionDeliverableDefault {
+  id: string
+  org_id: string | null
+  option_id: string
+  template_id: string
+  created_at: string
+}
+
+export interface ProjectDeliverable {
+  id: string
+  project_id: string
+  template_id: string
+  status: DeliverableStatus
+  due_date: string | null
+  assigned_to: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Joined shape used by the UI: option with its dimension name resolved
+export interface ProjectClassificationWithOption extends ProjectClassification {
+  classification_options: Pick<ClassificationOption, 'id' | 'label' | 'group_label' | 'dimension_id'> | null
+}
+
 // ── Trades ─────────────────────────────────────────────────────────────────
 
 export interface TradeType {
