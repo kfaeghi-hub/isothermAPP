@@ -32,6 +32,9 @@ export interface Company {
   name: string
   abbreviation: string | null
   notes: string | null
+  phone: string | null
+  website: string | null
+  email: string | null
   created_at: string
   updated_at: string
 }
@@ -39,18 +42,84 @@ export interface Company {
 export interface CompanyRole {
   id: string
   company_id: string
+  // Legacy free-text value — kept in sync during the dual-read transition,
+  // dropped in a later pass. role_type_id is the source of truth.
   role: string
+  role_type_id: string | null
+}
+
+// Managed reference for company roles (was free text). Admin-editable data.
+export interface CompanyRoleType {
+  id: string
+  org_id: string | null
+  name: string
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
+// One-to-many offices per company; at most one primary (partial unique index).
+export interface CompanyLocation {
+  id: string
+  org_id: string | null
+  company_id: string
+  label: string
+  address: string | null
+  phone: string | null
+  is_primary: boolean
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
+// Company ↔ trade_types junction — same vocabulary as Systems to be Commissioned.
+export interface CompanyTrade {
+  id: string
+  org_id: string | null
+  company_id: string
+  trade_type_id: string
+  created_at: string
 }
 
 export interface Contact {
   id: string
   company_id: string
   name: string
+  // Holds job titles ("Project Manager", "Senior CxA") — rendered as "Title" in the UI.
   trade: string | null
+  // Legacy single email/phone — mirrored from the primary rows during the
+  // dual-read transition, dropped in a later pass.
   email: string | null
   phone: string | null
+  // Which of the company's offices this contact sits at. Composite FK
+  // (location_id, company_id) guarantees it belongs to the contact's company;
+  // deleting the location nulls only location_id (PG15+ column-scoped SET NULL).
+  location_id: string | null
   created_at: string
   updated_at: string
+}
+
+export type PhoneType = 'mobile' | 'office' | 'landline' | 'site'
+
+export interface ContactPhone {
+  id: string
+  org_id: string | null
+  contact_id: string
+  phone_type: PhoneType
+  number: string
+  extension: string | null
+  is_primary: boolean
+  created_at: string
+}
+
+export interface ContactEmail {
+  id: string
+  org_id: string | null
+  contact_id: string
+  label: string | null
+  email: string
+  is_primary: boolean
+  created_at: string
 }
 
 export interface UserProfile {
