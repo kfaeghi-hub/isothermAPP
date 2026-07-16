@@ -5,9 +5,19 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { Modal } from '../components/ui/Modal'
 import type {
   ClassificationDimension, ClassificationOption, DeliverableTemplate, SelectionMode, TradeType,
 } from '../types/database'
+
+// Reference-aware delete: every delete names its impact before proceeding, and
+// referenced things offer "Deactivate instead" as the primary action.
+interface DeleteTarget {
+  kind: 'dimension' | 'option' | 'system' | 'template'
+  table: string
+  id: string
+  name: string
+}
 
 export function ClassificationsPage() {
   const [dimensions, setDimensions] = useState<ClassificationDimension[]>([])
@@ -28,6 +38,11 @@ export function ClassificationsPage() {
   const [newOptGroup, setNewOptGroup] = useState('')
   const [newTplName, setNewTplName] = useState('')
   const [newSysName, setNewSysName] = useState('')
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [impact, setImpact] = useState<string[] | null>(null)   // null = counting
+  const [deleting, setDeleting] = useState(false)
 
   const fetchAll = useCallback(async () => {
     const [dRes, oRes, tRes, mRes, sRes] = await Promise.all([
@@ -108,6 +123,72 @@ export function ClassificationsPage() {
     fetchAll()
   }
 
+  // ── Reference-aware delete ─────────────────────────────────────────────────
+
+  const distinct = (rows: { project_id: string }[] | null) =>
+    new Set((rows ?? []).map(r => r.project_id)).size
+
+  async function requestDelete(target: DeleteTarget) {
+    setDeleteTarget(target)
+    setImpact(null)
+
+    const lines: string[] = []
+    if (target.kind === 'option') {
+      const { data } = await supabase.from('project_classifications')
+        .select('project_id').eq('option_id', target.id)
+      const n = distinct(data as any)
+      if (n > 0) lines.push(`${n} project${n === 1 ? '' : 's'} currently use this — deleting removes it from their classification.`)
+      const nMap = (mappings[target.id] ?? []).length
+      if (nMap > 0) lines.push(`${nMap} deliverable-default mapping${nMap === 1 ? '' : 's'} will be deleted with it.`)
+    } else if (target.kind === 'dimension') {
+      const dimOpts = options.filter(o => o.dimension_id === target.id)
+      const { data } = await supabase.from('project_classifications')
+        .select('project_id').eq('dimension_id', target.id)
+      const n = distinct(data as any)
+      if (dimOpts.length > 0) lines.push(`Cascade: deletes its ${dimOpts.length} option${dimOpts.length === 1 ? '' : 's'} and their deliverable mappings.`)
+      if (n > 0) lines.push(`${n} project${n === 1 ? '' : 's'} have selections in this dimension — all of them will be removed.`)
+    } else if (target.kind === 'system') {
+      const { data } = await supabase.from('project_trades')
+        .select('project_id').eq('trade_type_id', target.id)
+      const n = distinct(data as any)
+      if (n > 0) lines.push(`${n} project${n === 1 ? '' : 's'} have this system selected — deleting removes it from them.`)
+      lines.push('Historical finding categories keep their text either way (rule 4).')
+    } else {
+      const nMap = Object.values(mappings).flat().filter(id => id === target.id).length
+      const { count } = await supabase.from('project_deliverables')
+        .select('id', { count: 'exact', head: true }).eq('template_id', target.id)
+      if (nMap > 0) lines.push(`${nMap} option mapping${nMap === 1 ? '' : 's'} will be deleted with it.`)
+      if ((count ?? 0) > 0) lines.push(`${count} project deliverable${count === 1 ? '' : 's'} reference it — they will be deleted from those projects.`)
+    }
+    setImpact(lines)
+  }
+
+  const isReferenced = (impact ?? []).some(l => /^\d/.test(l) || l.startsWith('Cascade'))
+
+  async function performDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    // project_deliverables.template_id is NO ACTION by design — clear it first.
+    if (deleteTarget.kind === 'template') {
+      const { error } = await supabase.from('project_deliverables')
+        .delete().eq('template_id', deleteTarget.id)
+      if (error) { alert(error.message); setDeleting(false); return }
+    }
+    // Everything else cascades (options → selections/mappings; dimensions → options;
+    // systems → project_trades).
+    const { error } = await supabase.from(deleteTarget.table).delete().eq('id', deleteTarget.id)
+    if (error) alert(error.message)
+    setDeleting(false)
+    setDeleteTarget(null)
+    fetchAll()
+  }
+
+  async function deactivateInstead() {
+    if (!deleteTarget) return
+    await updateRow(deleteTarget.table, deleteTarget.id, { active: false })
+    setDeleteTarget(null)
+  }
+
   async function toggleMapping(optionId: string, templateId: string) {
     const has = (mappings[optionId] ?? []).includes(templateId)
     if (has) {
@@ -179,10 +260,15 @@ export function ClassificationsPage() {
                     onChange={e => updateRow('classification_dimensions', d.id, { active: e.target.checked })} />
                 </td>
                 <td className="py-1.5">
-                  <button onClick={() => setSelectedDimId(selectedDimId === d.id ? null : d.id)}
-                    className="text-teal-700 hover:underline">
-                    {selectedDimId === d.id ? 'Hide options' : `Options (${options.filter(o => o.dimension_id === d.id).length})`}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setSelectedDimId(selectedDimId === d.id ? null : d.id)}
+                      className="text-teal-700 hover:underline">
+                      {selectedDimId === d.id ? 'Hide options' : `Options (${options.filter(o => o.dimension_id === d.id).length})`}
+                    </button>
+                    <button
+                      onClick={() => requestDelete({ kind: 'dimension', table: 'classification_dimensions', id: d.id, name: d.name })}
+                      className="text-red-400 hover:text-red-600">Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -240,10 +326,15 @@ export function ClassificationsPage() {
                         onChange={e => updateRow('classification_options', o.id, { active: e.target.checked })} />
                     </td>
                     <td className="py-1.5">
-                      <button onClick={() => setExpandedOptId(expandedOptId === o.id ? null : o.id)}
-                        className="text-teal-700 hover:underline">
-                        Deliverables ({(mappings[o.id] ?? []).length})
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setExpandedOptId(expandedOptId === o.id ? null : o.id)}
+                          className="text-teal-700 hover:underline">
+                          Deliverables ({(mappings[o.id] ?? []).length})
+                        </button>
+                        <button
+                          onClick={() => requestDelete({ kind: 'option', table: 'classification_options', id: o.id, name: o.label })}
+                          className="text-red-400 hover:text-red-600">Delete</button>
+                      </div>
                     </td>
                   </tr>
                   {expandedOptId === o.id && (
@@ -306,7 +397,8 @@ export function ClassificationsPage() {
                 <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                   <th className="py-1.5 pr-3">System</th>
                   <th className="py-1.5 pr-3 w-16">Order</th>
-                  <th className="py-1.5 w-16">Active</th>
+                  <th className="py-1.5 pr-3 w-16">Active</th>
+                  <th className="py-1.5 w-16" />
                 </tr>
               </thead>
               <tbody>
@@ -320,9 +412,14 @@ export function ClassificationsPage() {
                       <input type="number" defaultValue={s.sort_order} className={`${inputCls} w-14`}
                         onBlur={e => { const v = Number(e.target.value); if (v !== s.sort_order) updateRow('trade_types', s.id, { sort_order: v }) }} />
                     </td>
-                    <td className="py-1.5 text-center">
+                    <td className="py-1.5 pr-3 text-center">
                       <input type="checkbox" checked={s.active}
                         onChange={e => updateRow('trade_types', s.id, { active: e.target.checked })} />
+                    </td>
+                    <td className="py-1.5">
+                      <button
+                        onClick={() => requestDelete({ kind: 'system', table: 'trade_types', id: s.id, name: s.name })}
+                        className="text-red-400 hover:text-red-600">Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -355,7 +452,8 @@ export function ClassificationsPage() {
                   <th className="py-1.5 pr-3 w-64">Name</th>
                   <th className="py-1.5 pr-3">Description</th>
                   <th className="py-1.5 pr-3 w-16">Order</th>
-                  <th className="py-1.5 w-16">Active</th>
+                  <th className="py-1.5 pr-3 w-16">Active</th>
+                  <th className="py-1.5 w-16" />
                 </tr>
               </thead>
               <tbody>
@@ -373,9 +471,14 @@ export function ClassificationsPage() {
                       <input type="number" defaultValue={t.sort_order} className={`${inputCls} w-14`}
                         onBlur={e => { const v = Number(e.target.value); if (v !== t.sort_order) updateRow('deliverable_templates', t.id, { sort_order: v }) }} />
                     </td>
-                    <td className="py-1.5 text-center">
+                    <td className="py-1.5 pr-3 text-center">
                       <input type="checkbox" checked={t.active}
                         onChange={e => updateRow('deliverable_templates', t.id, { active: e.target.checked })} />
+                    </td>
+                    <td className="py-1.5">
+                      <button
+                        onClick={() => requestDelete({ kind: 'template', table: 'deliverable_templates', id: t.id, name: t.name })}
+                        className="text-red-400 hover:text-red-600">Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -390,6 +493,52 @@ export function ClassificationsPage() {
           </>
         )}
       </section>
+
+      {/* ── Reference-aware delete confirmation ──────────────────────────── */}
+      <Modal
+        title={`Delete "${deleteTarget?.name ?? ''}"?`}
+        open={!!deleteTarget}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          {impact === null ? (
+            <p className="text-sm text-gray-400">Checking references…</p>
+          ) : impact.length === 0 ? (
+            <p className="text-sm text-gray-700">
+              Not referenced by any project — safe to delete permanently.
+            </p>
+          ) : (
+            <ul className="text-sm text-gray-700 space-y-1.5 list-disc pl-5">
+              {impact.map((l, i) => <li key={i}>{l}</li>)}
+            </ul>
+          )}
+
+          {impact !== null && isReferenced && (
+            <p className="text-xs text-gray-400">
+              Deactivating hides it from pickers while preserving every existing
+              selection (shown as "(inactive)").
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={() => setDeleteTarget(null)} disabled={deleting}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50">
+              Cancel
+            </button>
+            {impact !== null && isReferenced && (
+              <button onClick={deactivateInstead} disabled={deleting}
+                className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 font-medium">
+                Deactivate instead
+              </button>
+            )}
+            <button onClick={performDelete} disabled={deleting || impact === null}
+              className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 font-medium">
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
