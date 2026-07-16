@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
+import { formatDate } from '../lib/projectTypes'
 import {
   fetchClassificationConfig, validateRequired, deriveLegacyProjectType,
   composeDeliverableTemplateIds, allSelectedOptionIds,
@@ -8,11 +8,12 @@ import {
 } from '../lib/classifications'
 import { Modal } from '../components/ui/Modal'
 import { ClassificationPicker } from '../components/ClassificationPicker'
+import { ClassificationBadges } from '../components/ClassificationBadges'
 import { ProjectDetailPage } from './ProjectDetailPage'
-import type { ProjectWithClient, Company, ProjectType, TradeType } from '../types/database'
+import type { ProjectWithClient, Company, TradeType } from '../types/database'
 
-// Legacy type filter/badge still read PROJECT_TYPES until step 3 replaces them.
-const TYPE_ENTRIES = Object.entries(PROJECT_TYPES) as [ProjectType, typeof PROJECT_TYPES[ProjectType]][]
+// Dimensions surfaced as list filters (by name, gracefully absent if renamed)
+const FILTER_DIMENSIONS = ['Project Lifecycle', 'Facility Type', 'Sustainable Programs']
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -68,8 +69,12 @@ export function ProjectsPage() {
   // Section + filters
   const [section, setSection] = useState<Section>('active')
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState<ProjectType | ''>('')
+  // Classification filters: dimension_id → selected option_id ('' = all)
+  const [classFilters, setClassFilters] = useState<Record<string, string>>({})
   const [clientFilter, setClientFilter] = useState('')
+
+  // project_id → its classification selections (drives badges + filters)
+  const [projClass, setProjClass] = useState<Record<string, ClassificationSelections>>({})
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; project: ProjectWithClient | null }>({
@@ -82,7 +87,7 @@ export function ProjectsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [pRes, cRes, tRes, ccRes] = await Promise.all([
+    const [pRes, cRes, tRes, ccRes, pcRes] = await Promise.all([
       supabase
         .from('projects')
         .select('*, companies(id, name, abbreviation)')
@@ -97,6 +102,9 @@ export function ProjectsPage() {
         .select('*')
         .order('sort_order'),
       fetchClassificationConfig(),
+      supabase
+        .from('project_classifications')
+        .select('project_id, option_id, dimension_id'),
     ])
     if (pRes.error) { setError(pRes.error.message); setLoading(false); return }
     if (cRes.error) { setError(cRes.error.message); setLoading(false); return }
@@ -104,6 +112,13 @@ export function ProjectsPage() {
     setCompanies(cRes.data as Company[])
     setAllTrades((tRes.data ?? []) as TradeType[])
     setClassConfig(ccRes)
+
+    const pcMap: Record<string, ClassificationSelections> = {}
+    for (const r of (pcRes.data ?? [])) {
+      const proj = (pcMap[r.project_id as string] ??= {});
+      (proj[r.dimension_id as string] ??= []).push(r.option_id as string)
+    }
+    setProjClass(pcMap)
     setLoading(false)
   }, [])
 
@@ -132,7 +147,11 @@ export function ProjectsPage() {
         (p.companies?.name.toLowerCase().includes(q) ?? false)
       )
     })
-    .filter(p => !typeFilter || p.project_type === typeFilter)
+    .filter(p => {
+      // Every active classification filter must match one of the project's selections
+      const selected = new Set(Object.values(projClass[p.id] ?? {}).flat())
+      return Object.values(classFilters).every(optId => !optId || selected.has(optId))
+    })
     .filter(p => !clientFilter || p.client_company_id === clientFilter)
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -272,7 +291,7 @@ export function ProjectsPage() {
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading projects…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">Error: {error}</div>
 
-  const hasFilters = !!search || !!typeFilter || !!clientFilter
+  const hasFilters = !!search || Object.values(classFilters).some(Boolean) || !!clientFilter
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -325,17 +344,25 @@ export function ProjectsPage() {
           />
         </div>
 
-        {/* Type filter */}
-        <select
-          value={typeFilter}
-          onChange={e => setTypeFilter(e.target.value as ProjectType | '')}
-          className="self-center text-xs border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-600 mr-2"
-        >
-          <option value="">All types</option>
-          {TYPE_ENTRIES.map(([v, info]) => (
-            <option key={v} value={v}>{info.label}</option>
-          ))}
-        </select>
+        {/* Classification filters — one dropdown per surfaced dimension */}
+        {FILTER_DIMENSIONS.map(dimName => {
+          const dim = classConfig.dimensions.find(d => d.name === dimName)
+          if (!dim) return null
+          const dimOptions = classConfig.options.filter(o => o.dimension_id === dim.id)
+          return (
+            <select
+              key={dim.id}
+              value={classFilters[dim.id] ?? ''}
+              onChange={e => setClassFilters(f => ({ ...f, [dim.id]: e.target.value }))}
+              className="self-center text-xs border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-600 mr-2"
+            >
+              <option value="">All — {dim.name}</option>
+              {dimOptions.map(o => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          )
+        })}
 
         {/* Client filter — only shown when there are clients to filter by */}
         {uniqueClients.length > 0 && (
@@ -353,7 +380,7 @@ export function ProjectsPage() {
 
         {hasFilters && (
           <button
-            onClick={() => { setSearch(''); setTypeFilter(''); setClientFilter('') }}
+            onClick={() => { setSearch(''); setClassFilters({}); setClientFilter('') }}
             className="self-center text-xs text-gray-400 hover:text-gray-600 mr-2"
           >
             Clear
@@ -398,7 +425,7 @@ export function ProjectsPage() {
                 <th className="text-left px-5 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Project</th>
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-32">COM #</th>
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Client</th>
-                <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Type</th>
+                <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Classification</th>
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">Created</th>
                 <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">Last Opened</th>
                 <th className="w-44" />
@@ -406,7 +433,6 @@ export function ProjectsPage() {
             </thead>
             <tbody>
               {filteredProjects.map(p => {
-                const type = PROJECT_TYPES[p.project_type]
                 return (
                   <tr
                     key={p.id}
@@ -421,9 +447,12 @@ export function ProjectsPage() {
                       {p.companies?.name ?? <span className="text-gray-400 text-xs italic">Standalone</span>}
                     </td>
                     <td className="px-4 py-2">
-                      <span className={`text-[11px] font-medium rounded px-2 py-0.5 ${type.badge}`}>
-                        {type.label}
-                      </span>
+                      <ClassificationBadges
+                        dimensions={classConfig.dimensions}
+                        options={classConfig.options}
+                        selections={projClass[p.id] ?? {}}
+                        compact
+                      />
                     </td>
                     <td className="px-4 py-2 font-mono text-xs text-gray-400">{formatDate(p.created_at)}</td>
                     <td className="px-4 py-2 font-mono text-xs text-gray-400">

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
+import { formatDate } from '../lib/projectTypes'
 import {
   fetchClassificationConfig, fetchProjectSelections, validateRequired,
   deriveLegacyProjectType, syncProjectClassifications,
   type ClassificationSelections, type ClassificationConfig,
 } from '../lib/classifications'
 import { ClassificationPicker } from '../components/ClassificationPicker'
+import { ClassificationBadges } from '../components/ClassificationBadges'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
@@ -270,8 +271,6 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading project…</div>
   if (error || !project) return <div className="p-8 text-sm text-red-600">{error ?? 'Project not found.'}</div>
 
-  const type = PROJECT_TYPES[project.project_type]
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
@@ -290,9 +289,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 leading-tight truncate">{project.name}</h2>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <span className={`text-[11px] font-semibold rounded px-2 py-0.5 ${type.badge}`}>
-                {type.label}
-              </span>
+              <ClassificationBadges
+                dimensions={classConfig.dimensions}
+                options={classConfig.options}
+                selections={projSelections}
+              />
               {project.status === 'completed' && (
                 <span className="text-[11px] font-semibold rounded px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Completed
@@ -532,7 +533,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             <div className="text-3xl mb-3 opacity-20">✅</div>
             <p className="text-sm font-medium text-gray-600 mb-1">Deliverables</p>
             <p className="text-sm text-gray-400 max-w-sm mx-auto">
-              Required deliverables for <span className="font-medium">{type.label}</span> projects — IVC/PFC checklists, FPT scripts, OPR, BOD, and more.
+              Deliverables composed from this project's classifications — Cx Plan, OPR/BoD review, Systems Manual, seasonal testing, and more.
             </p>
           </div>
         )}
