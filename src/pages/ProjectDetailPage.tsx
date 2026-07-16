@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
+import {
+  fetchClassificationConfig, fetchProjectSelections, validateRequired,
+  deriveLegacyProjectType, syncProjectClassifications,
+  type ClassificationSelections, type ClassificationConfig,
+} from '../lib/classifications'
+import { ClassificationPicker } from '../components/ClassificationPicker'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
@@ -8,7 +14,7 @@ import { EquipmentPage } from './EquipmentPage'
 import { SiteReportsPage } from './SiteReportsPage'
 import { ChecklistsPage } from './ChecklistsPage'
 import type {
-  ProjectWithClient, ProjectPhase, Company, ContactWithCompany, ProjectType, TradeType,
+  ProjectWithClient, ProjectPhase, Company, ContactWithCompany, TradeType,
 } from '../types/database'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -29,7 +35,6 @@ interface EditForm {
   com_number: string
   address: string
   client_company_id: string
-  project_type: ProjectType
   notes: string
 }
 
@@ -44,8 +49,6 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'checklists',   label: 'Checklists',   built: true  },
   { id: 'deliverables', label: 'Deliverables', built: false },
 ]
-
-const TYPE_ENTRIES = Object.entries(PROJECT_TYPES) as [ProjectType, typeof PROJECT_TYPES[ProjectType]][]
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -66,9 +69,15 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
   // Edit project modal
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState<EditForm>({ name: '', com_number: '', address: '', client_company_id: '', project_type: 'standard', notes: '' })
+  const [editForm, setEditForm] = useState<EditForm>({ name: '', com_number: '', address: '', client_company_id: '', notes: '' })
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Classifications
+  const [classConfig, setClassConfig] = useState<ClassificationConfig>({ dimensions: [], options: [] })
+  const [projSelections, setProjSelections] = useState<ClassificationSelections>({})
+  const [editSelections, setEditSelections] = useState<ClassificationSelections>({})
+  const [dimErrors, setDimErrors] = useState<Record<string, string>>({})
 
   // Trade management
   const [allTrades, setAllTrades]         = useState<TradeType[]>([])
@@ -110,6 +119,10 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       supabase.from('trade_types').select('*').order('sort_order'),
       supabase.from('project_trades').select('trade_type_id').eq('project_id', projectId),
     ])
+    const [ccRes, selRes] = await Promise.all([
+      fetchClassificationConfig(),
+      fetchProjectSelections(projectId),
+    ])
     if (pRes.error)  { setError(pRes.error.message);  setLoading(false); return }
     setProject(pRes.data as ProjectWithClient)
     setPhases((phRes.data ?? []) as ProjectPhase[])
@@ -117,6 +130,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     setAllContacts((ctRes.data ?? []) as ContactWithCompany[])
     setAllTrades((tRes.data ?? []) as TradeType[])
     setProjectTradeIds((ptRes.data ?? []).map(r => r.trade_type_id))
+    setClassConfig(ccRes)
+    setProjSelections(selRes)
     setLoading(false)
   }, [projectId])
 
@@ -131,9 +146,13 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       com_number: project.com_number ?? '',
       address: project.address ?? '',
       client_company_id: project.client_company_id ?? '',
-      project_type: project.project_type,
       notes: project.notes ?? '',
     })
+    // Deep-copy so cancelling the modal doesn't mutate the displayed selections
+    setEditSelections(Object.fromEntries(
+      Object.entries(projSelections).map(([k, v]) => [k, [...v]]),
+    ))
+    setDimErrors({})
     setEditTradeIds([...projectTradeIds])
     setAddingTrade(false)
     setNewTradeName('')
@@ -143,6 +162,12 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
   async function saveEdit() {
     if (!editForm.name.trim()) { setEditError('Project name is required.'); return }
+
+    // Required flags are runtime data; the modal enforces whatever they say now.
+    const errors = validateRequired(classConfig.dimensions, editSelections)
+    setDimErrors(errors)
+    if (Object.keys(errors).length > 0) { setEditError('Complete the required classifications.'); return }
+
     setSavingEdit(true)
     const { error } = await supabase
       .from('projects')
@@ -151,11 +176,16 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         com_number: editForm.com_number.trim() || null,
         address: editForm.address.trim() || null,
         client_company_id: editForm.client_company_id || null,
-        project_type: editForm.project_type,
+        // Transition dual-write (removed with the project_type removal pass)
+        project_type: deriveLegacyProjectType(editSelections, classConfig.dimensions, classConfig.options),
         notes: editForm.notes.trim() || null,
       })
       .eq('id', projectId)
     if (error) { setSavingEdit(false); setEditError(error.message); return }
+
+    // Sync junction (deletes first — the single-mode trigger rejects insert-before-delete)
+    const syncErr = await syncProjectClassifications(projectId, editSelections, classConfig.options)
+    if (syncErr) { setSavingEdit(false); setEditError(`Classifications: ${syncErr}`); return }
 
     // Sync project_trades: replace all with current selection
     await supabase.from('project_trades').delete().eq('project_id', projectId)
@@ -561,30 +591,17 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Project Type</label>
-            <div className="grid grid-cols-2 gap-2">
-              {TYPE_ENTRIES.map(([value, info]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setEditForm(f => ({ ...f, project_type: value }))}
-                  className={`text-left p-3 rounded border-2 transition-colors ${
-                    editForm.project_type === value
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  }`}
-                >
-                  <div className={`text-xs font-semibold mb-0.5 ${
-                    editForm.project_type === value ? 'text-teal-700' : 'text-gray-700'
-                  }`}>
-                    {info.label}
-                  </div>
-                  <div className="text-[11px] text-gray-400 leading-snug">{info.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Classification dimensions — rendered dynamically from runtime config */}
+          <ClassificationPicker
+            dimensions={classConfig.dimensions}
+            options={classConfig.options}
+            value={editSelections}
+            errors={dimErrors}
+            onChange={(dimensionId, optionIds) => {
+              setEditSelections(s => ({ ...s, [dimensionId]: optionIds }))
+              setDimErrors(e => { const { [dimensionId]: _gone, ...rest } = e; return rest })
+            }}
+          />
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>

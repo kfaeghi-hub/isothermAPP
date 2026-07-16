@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { PROJECT_TYPES, formatDate } from '../lib/projectTypes'
+import {
+  fetchClassificationConfig, validateRequired, deriveLegacyProjectType,
+  composeDeliverableTemplateIds, allSelectedOptionIds,
+  type ClassificationSelections, type ClassificationConfig,
+} from '../lib/classifications'
 import { Modal } from '../components/ui/Modal'
+import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ProjectDetailPage } from './ProjectDetailPage'
 import type { ProjectWithClient, Company, ProjectType, TradeType } from '../types/database'
+
+// Legacy type filter/badge still read PROJECT_TYPES until step 3 replaces them.
+const TYPE_ENTRIES = Object.entries(PROJECT_TYPES) as [ProjectType, typeof PROJECT_TYPES[ProjectType]][]
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -12,10 +21,10 @@ interface ProjectForm {
   com_number: string
   address: string
   client_company_id: string
-  project_type: ProjectType
   notes: string
   phases: string[]
   phaseInput: string
+  classifications: ClassificationSelections
 }
 
 const EMPTY_FORM: ProjectForm = {
@@ -23,13 +32,11 @@ const EMPTY_FORM: ProjectForm = {
   com_number: '',
   address: '',
   client_company_id: '',
-  project_type: 'standard',
   notes: '',
   phases: [],
   phaseInput: '',
+  classifications: {},
 }
-
-const TYPE_ENTRIES = Object.entries(PROJECT_TYPES) as [ProjectType, typeof PROJECT_TYPES[ProjectType]][]
 
 type Section = 'active' | 'completed'
 
@@ -46,7 +53,11 @@ export function ProjectsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<ProjectForm>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | null>(null)
+  const [dimErrors, setDimErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+
+  // Classification config (dimensions + options are firm-level runtime data)
+  const [classConfig, setClassConfig] = useState<ClassificationConfig>({ dimensions: [], options: [] })
 
   // Trade selection for new project
   const [allTrades, setAllTrades]           = useState<TradeType[]>([])
@@ -71,7 +82,7 @@ export function ProjectsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [pRes, cRes, tRes] = await Promise.all([
+    const [pRes, cRes, tRes, ccRes] = await Promise.all([
       supabase
         .from('projects')
         .select('*, companies(id, name, abbreviation)')
@@ -85,12 +96,14 @@ export function ProjectsPage() {
         .from('trade_types')
         .select('*')
         .order('sort_order'),
+      fetchClassificationConfig(),
     ])
     if (pRes.error) { setError(pRes.error.message); setLoading(false); return }
     if (cRes.error) { setError(cRes.error.message); setLoading(false); return }
     setProjects(pRes.data as ProjectWithClient[])
     setCompanies(cRes.data as Company[])
     setAllTrades((tRes.data ?? []) as TradeType[])
+    setClassConfig(ccRes)
     setLoading(false)
   }, [])
 
@@ -148,6 +161,12 @@ export function ProjectsPage() {
 
   async function saveProject() {
     if (!form.name.trim()) { setFormError('Project name is required.'); return }
+
+    // Required dimensions are enforced from the RUNTIME flags, never hardcoded.
+    const errors = validateRequired(classConfig.dimensions, form.classifications)
+    setDimErrors(errors)
+    if (Object.keys(errors).length > 0) { setFormError('Complete the required classifications.'); return }
+
     setSaving(true)
     setFormError(null)
 
@@ -158,13 +177,29 @@ export function ProjectsPage() {
         com_number: form.com_number.trim() || null,
         address: form.address.trim() || null,
         client_company_id: form.client_company_id || null,
-        project_type: form.project_type,
+        // Transition dual-write: derived legacy enum keeps a rolled-back app sane.
+        // Removed with the project_type removal pass.
+        project_type: deriveLegacyProjectType(form.classifications, classConfig.dimensions, classConfig.options),
         notes: form.notes.trim() || null,
       })
       .select('id')
       .single()
 
     if (pErr || !project) { setFormError(pErr?.message ?? 'Insert failed.'); setSaving(false); return }
+
+    // Classification junction rows
+    const optionById = new Map(classConfig.options.map(o => [o.id, o]))
+    const selectedIds = allSelectedOptionIds(form.classifications)
+    if (selectedIds.length > 0) {
+      const { error: clErr } = await supabase.from('project_classifications').insert(
+        selectedIds.map(option_id => ({
+          project_id: project.id,
+          option_id,
+          dimension_id: optionById.get(option_id)!.dimension_id,
+        })),
+      )
+      if (clErr) { setFormError(`Project created, but classifications failed: ${clErr.message}`); setSaving(false); return }
+    }
 
     if (form.phases.length > 0) {
       await supabase.from('project_phases').insert(
@@ -178,73 +213,23 @@ export function ProjectsPage() {
       )
     }
 
-    const { data: cxDefault } = await supabase
-      .from('cx_index_defaults')
-      .select('id')
-      .limit(1)
-      .single()
-
-    if (cxDefault) {
-      const [{ data: groups }, { data: allCols }] = await Promise.all([
-        supabase
-          .from('cx_index_default_groups')
-          .select('id, name, discipline, sort_order')
-          .eq('default_id', cxDefault.id)
-          .order('sort_order'),
-        supabase
-          .from('cx_index_default_columns')
-          .select('id, group_id, name, sort_order')
-          .order('sort_order'),
-      ])
-
-      if (groups && groups.length > 0) {
-        const { data: newGroups } = await supabase
-          .from('project_cx_groups')
-          .insert(groups.map(g => ({
-            project_id: project.id,
-            source_group_id: g.id,
-            name: g.name,
-            discipline: g.discipline,
-            sort_order: g.sort_order,
-          })))
-          .select('id, source_group_id')
-
-        if (newGroups && allCols && allCols.length > 0) {
-          const groupMap: Record<string, string> = {}
-          for (const ng of newGroups) groupMap[ng.source_group_id] = ng.id
-          const colsToInsert = allCols
-            .filter(c => groupMap[c.group_id])
-            .map(c => ({
-              group_id: groupMap[c.group_id],
-              source_column_id: c.id,
-              name: c.name,
-              sort_order: c.sort_order,
-            }))
-          if (colsToInsert.length > 0) {
-            await supabase.from('project_cx_columns').insert(colsToInsert)
-          }
-        }
-      }
-    }
-
-    const { data: templateDefaults } = await supabase
-      .from('project_type_template_defaults')
-      .select('template_id')
-      .eq('project_type', form.project_type)
-
-    if (templateDefaults && templateDefaults.length > 0) {
+    // Deliverable composition: union of every selected option's default templates
+    // into the per-project editable copy (§5.2 behaviour otherwise unchanged).
+    const templateIds = await composeDeliverableTemplateIds(selectedIds)
+    if (templateIds.length > 0) {
       await supabase.from('project_deliverables').insert(
-        templateDefaults.map(d => ({
+        templateIds.map(template_id => ({
           project_id: project.id,
-          template_id: d.template_id,
+          template_id,
           status: 'not_started',
-        }))
+        })),
       )
     }
 
     setSaving(false)
     setModalOpen(false)
     setForm(EMPTY_FORM)
+    setDimErrors({})
     fetchData()
   }
 
@@ -538,30 +523,17 @@ export function ProjectsPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Project Type</label>
-            <div className="grid grid-cols-2 gap-2">
-              {TYPE_ENTRIES.map(([value, info]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, project_type: value }))}
-                  className={`text-left p-3 rounded border-2 transition-colors ${
-                    form.project_type === value
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  }`}
-                >
-                  <div className={`text-xs font-semibold mb-0.5 ${
-                    form.project_type === value ? 'text-teal-700' : 'text-gray-700'
-                  }`}>
-                    {info.label}
-                  </div>
-                  <div className="text-[11px] text-gray-400 leading-snug">{info.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Classification dimensions — rendered dynamically from runtime config */}
+          <ClassificationPicker
+            dimensions={classConfig.dimensions}
+            options={classConfig.options}
+            value={form.classifications}
+            errors={dimErrors}
+            onChange={(dimensionId, optionIds) => {
+              setForm(f => ({ ...f, classifications: { ...f.classifications, [dimensionId]: optionIds } }))
+              setDimErrors(e => { const { [dimensionId]: _gone, ...rest } = e; return rest })
+            }}
+          />
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
