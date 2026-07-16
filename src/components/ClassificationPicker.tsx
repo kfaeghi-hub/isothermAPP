@@ -27,9 +27,12 @@ function grouped(options: ClassificationOption[]): [string | null, Classificatio
 export function ClassificationPicker({ dimensions, options, value, onChange, errors = {} }: Props) {
   return (
     <div className="space-y-5">
-      {dimensions.map(dim => {
-        const dimOptions = options.filter(o => o.dimension_id === dim.id)
+      {dimensions.filter(d => d.active).map(dim => {
         const selected = value[dim.id] ?? []
+        // Active options, plus any inactive option the project already has selected —
+        // deactivation soft-hides from NEW picks but never erases existing selections.
+        const dimOptions = options.filter(o =>
+          o.dimension_id === dim.id && (o.active || selected.includes(o.id)))
         const error = errors[dim.id]
 
         return (
@@ -67,7 +70,7 @@ export function ClassificationPicker({ dimensions, options, value, onChange, err
                           : 'bg-white text-gray-600 border-gray-200 hover:border-teal-400 hover:text-teal-700'
                       }`}
                     >
-                      {o.label}
+                      {o.label}{!o.active && ' (inactive)'}
                     </button>
                   )
                 })}
@@ -103,10 +106,10 @@ function SingleSelect({ dimOptions, selectedId, hasError, onChange }: {
         <option value="">— Select —</option>
         {groups.map(([group, opts]) =>
           group === null
-            ? opts.map(o => <option key={o.id} value={o.id}>{o.label}</option>)
+            ? opts.map(o => <option key={o.id} value={o.id}>{o.label}{!o.active ? ' (inactive)' : ''}</option>)
             : (
               <optgroup key={group} label={group}>
-                {opts.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                {opts.map(o => <option key={o.id} value={o.id}>{o.label}{!o.active ? ' (inactive)' : ''}</option>)}
               </optgroup>
             ),
         )}

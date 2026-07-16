@@ -365,9 +365,9 @@ export function ProjectsPage() {
 
         {/* Classification filters — one dropdown per surfaced dimension */}
         {FILTER_DIMENSIONS.map(dimName => {
-          const dim = classConfig.dimensions.find(d => d.name === dimName)
+          const dim = classConfig.dimensions.find(d => d.name === dimName && d.active)
           if (!dim) return null
-          const dimOptions = classConfig.options.filter(o => o.dimension_id === dim.id)
+          const dimOptions = classConfig.options.filter(o => o.dimension_id === dim.id && o.active)
           return (
             <select
               key={dim.id}
@@ -635,7 +635,7 @@ export function ProjectsPage() {
               <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {allTrades.map(t => (
+              {allTrades.filter(t => t.active || selectedTradeIds.includes(t.id)).map(t => (
                 <button
                   key={t.id}
                   type="button"
@@ -648,7 +648,7 @@ export function ProjectsPage() {
                       : 'bg-white text-gray-600 border-gray-200 hover:border-teal-400 hover:text-teal-700'
                   }`}
                 >
-                  {t.name}
+                  {t.name}{!t.active && ' (inactive)'}
                 </button>
               ))}
               {addingTrade ? (

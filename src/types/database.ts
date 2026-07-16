@@ -245,6 +245,9 @@ export interface TradeType {
   id: string
   name: string
   sort_order: number
+  // Soft-hide from pickers, matching classification options. Existing
+  // project_trades rows and historical finding categories are unaffected.
+  active: boolean
   created_at: string
 }
 

@@ -13,12 +13,13 @@ export interface ClassificationConfig {
   options: ClassificationOption[]
 }
 
+// Fetches ALL dimensions/options including inactive ones. Display points decide:
+// pickers show active (plus currently-selected inactive, labeled "(inactive)");
+// filters and validation consider active only.
 export async function fetchClassificationConfig(): Promise<ClassificationConfig> {
   const [dRes, oRes] = await Promise.all([
-    supabase.from('classification_dimensions').select('*')
-      .eq('active', true).order('sort_order'),
-    supabase.from('classification_options').select('*')
-      .eq('active', true).order('sort_order'),
+    supabase.from('classification_dimensions').select('*').order('sort_order'),
+    supabase.from('classification_options').select('*').order('sort_order'),
   ])
   return {
     dimensions: (dRes.data ?? []) as ClassificationDimension[],
@@ -33,7 +34,8 @@ export function validateRequired(
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   for (const d of dimensions) {
-    if (d.required && (selections[d.id]?.length ?? 0) === 0) {
+    // Inactive dimensions are hidden from the picker, so they must not block saves.
+    if (d.active && d.required && (selections[d.id]?.length ?? 0) === 0) {
       errors[d.id] = `${d.name} is required.`
     }
   }

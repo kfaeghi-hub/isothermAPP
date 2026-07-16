@@ -18,7 +18,7 @@ export function missingRequiredDimensions(
   dimensions: ClassificationDimension[],
   selections: ClassificationSelections,
 ): ClassificationDimension[] {
-  return dimensions.filter(d => d.required && (selections[d.id]?.length ?? 0) === 0)
+  return dimensions.filter(d => d.active && d.required && (selections[d.id]?.length ?? 0) === 0)
 }
 
 export function ClassificationBadges({ dimensions, options, selections, compact = false }: {
@@ -33,7 +33,10 @@ export function ClassificationBadges({ dimensions, options, selections, compact 
     if (!dim) continue
     const selected = new Set(selections[dim.id] ?? [])
     for (const o of options.filter(o => o.dimension_id === dim.id && selected.has(o.id))) {
-      badges.push({ label: o.label, cls: DIMENSION_BADGE[dimName] ?? FALLBACK_BADGE })
+      badges.push({
+        label: o.active ? o.label : `${o.label} (inactive)`,
+        cls: DIMENSION_BADGE[dimName] ?? FALLBACK_BADGE,
+      })
     }
   }
 

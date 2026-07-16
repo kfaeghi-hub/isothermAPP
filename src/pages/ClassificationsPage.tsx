@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type {
-  ClassificationDimension, ClassificationOption, DeliverableTemplate, SelectionMode,
+  ClassificationDimension, ClassificationOption, DeliverableTemplate, SelectionMode, TradeType,
 } from '../types/database'
 
 export function ClassificationsPage() {
@@ -14,30 +14,35 @@ export function ClassificationsPage() {
   const [options, setOptions]       = useState<ClassificationOption[]>([])
   const [templates, setTemplates]   = useState<DeliverableTemplate[]>([])
   const [mappings, setMappings]     = useState<Record<string, string[]>>({})  // option_id → template_ids
+  const [systems, setSystems]       = useState<TradeType[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
 
   const [selectedDimId, setSelectedDimId] = useState<string | null>(null)
   const [expandedOptId, setExpandedOptId] = useState<string | null>(null)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [showSystems, setShowSystems]     = useState(false)
 
   const [newDimName, setNewDimName] = useState('')
   const [newOptLabel, setNewOptLabel] = useState('')
   const [newOptGroup, setNewOptGroup] = useState('')
   const [newTplName, setNewTplName] = useState('')
+  const [newSysName, setNewSysName] = useState('')
 
   const fetchAll = useCallback(async () => {
-    const [dRes, oRes, tRes, mRes] = await Promise.all([
+    const [dRes, oRes, tRes, mRes, sRes] = await Promise.all([
       supabase.from('classification_dimensions').select('*').order('sort_order'),
       supabase.from('classification_options').select('*').order('sort_order'),
       supabase.from('deliverable_templates').select('*').order('sort_order'),
       supabase.from('option_deliverable_defaults').select('option_id, template_id'),
+      supabase.from('trade_types').select('*').order('sort_order'),
     ])
-    const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error
+    const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error ?? sRes.error
     if (firstErr) { setError(firstErr.message); setLoading(false); return }
     setDimensions((dRes.data ?? []) as ClassificationDimension[])
     setOptions((oRes.data ?? []) as ClassificationOption[])
     setTemplates((tRes.data ?? []) as DeliverableTemplate[])
+    setSystems((sRes.data ?? []) as TradeType[])
     const m: Record<string, string[]> = {}
     for (const r of (mRes.data ?? [])) (m[r.option_id as string] ??= []).push(r.template_id as string)
     setMappings(m)
@@ -90,6 +95,16 @@ export function ClassificationsPage() {
       .insert({ name, sort_order: maxOrder + 1 })
     if (error) { alert(error.message); return }
     setNewTplName('')
+    fetchAll()
+  }
+
+  async function addSystem() {
+    const name = newSysName.trim()
+    if (!name) return
+    const maxOrder = systems.reduce((m, s) => Math.max(m, s.sort_order), 0)
+    const { error } = await supabase.from('trade_types').insert({ name, sort_order: maxOrder + 1 })
+    if (error) { alert(error.message); return }
+    setNewSysName('')
     fetchAll()
   }
 
@@ -270,6 +285,58 @@ export function ClassificationsPage() {
           </div>
         </section>
       )}
+
+      {/* ── Systems to be Commissioned ───────────────────────────────────── */}
+      {/* Managed here so classification feels like one system to the user, but the
+          backbone is untouched: rows live in trade_types, selections in project_trades,
+          and finding categories keep reading them exactly as before. */}
+      <section>
+        <button onClick={() => setShowSystems(s => !s)} className="text-sm font-semibold text-gray-800 hover:text-teal-700">
+          Systems to be Commissioned ({systems.length}) {showSystems ? '▾' : '▸'}
+        </button>
+        {showSystems && (
+          <>
+            <p className="text-xs text-gray-400 mt-1 mb-3">
+              Stored as the firm's systems list (trade_types) and selected per project. Renaming a
+              system does <span className="font-medium">not</span> rewrite historical finding
+              categories — issued records keep the text they were created with (rule 4).
+            </p>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <th className="py-1.5 pr-3">System</th>
+                  <th className="py-1.5 pr-3 w-16">Order</th>
+                  <th className="py-1.5 w-16">Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {systems.map(s => (
+                  <tr key={s.id} className="border-b border-gray-100">
+                    <td className="py-1.5 pr-3">
+                      <input defaultValue={s.name} className={`${inputCls} w-full`}
+                        onBlur={e => { const v = e.target.value.trim(); if (v && v !== s.name) updateRow('trade_types', s.id, { name: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      <input type="number" defaultValue={s.sort_order} className={`${inputCls} w-14`}
+                        onBlur={e => { const v = Number(e.target.value); if (v !== s.sort_order) updateRow('trade_types', s.id, { sort_order: v }) }} />
+                    </td>
+                    <td className="py-1.5 text-center">
+                      <input type="checkbox" checked={s.active}
+                        onChange={e => updateRow('trade_types', s.id, { active: e.target.checked })} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex gap-2 mt-2">
+              <input value={newSysName} onChange={e => setNewSysName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addSystem()}
+                placeholder="New system…" className={`${inputCls} w-64`} />
+              <button onClick={addSystem} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* ── Deliverable templates ────────────────────────────────────────── */}
       <section>

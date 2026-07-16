@@ -650,23 +650,15 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             }}
           />
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
-            <textarea
-              value={editForm.notes}
-              onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
-              rows={3}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
-            />
-          </div>
-
-          {/* Systems to be Commissioned (label rename only; trades table untouched) */}
+          {/* Systems to be Commissioned — peer section of the classification block.
+              Presentation only: storage stays trade_types/project_trades, and the
+              finding-category wiring is untouched. */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Systems to be Commissioned
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {allTrades.map(t => (
+              {allTrades.filter(t => t.active || editTradeIds.includes(t.id)).map(t => (
                 <button
                   key={t.id}
                   type="button"
@@ -679,7 +671,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                       : 'bg-white text-gray-600 border-gray-200 hover:border-teal-400 hover:text-teal-700'
                   }`}
                 >
-                  {t.name}
+                  {t.name}{!t.active && ' (inactive)'}
                 </button>
               ))}
               {addingTrade ? (
@@ -692,7 +684,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                       if (e.key === 'Enter') { e.preventDefault(); addNewTradeEdit() }
                       if (e.key === 'Escape') { setAddingTrade(false); setNewTradeName('') }
                     }}
-                    placeholder="Trade name…"
+                    placeholder="System name…"
                     className="text-xs border border-teal-300 rounded-full px-3 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-teal-500"
                     autoFocus
                   />
@@ -714,6 +706,16 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                 No systems selected — finding categories will be limited to INFO.
               </p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
+            <textarea
+              value={editForm.notes}
+              onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+              rows={3}
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+            />
           </div>
 
           {editError && <p className="text-sm text-red-600">{editError}</p>}
