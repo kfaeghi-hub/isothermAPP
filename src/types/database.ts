@@ -444,6 +444,19 @@ export interface ContactWithCompany extends Contact {
   companies: Pick<Company, 'id' | 'name' | 'abbreviation'> | null
 }
 
+// Full directory shapes (DirectoryPage)
+export interface CompanyWithDetail extends Company {
+  company_roles: CompanyRole[]
+  company_locations: CompanyLocation[]
+  company_trades: CompanyTrade[]
+}
+
+export interface ContactWithDetail extends Contact {
+  companies: Pick<Company, 'id' | 'name' | 'abbreviation'> | null
+  contact_phones: ContactPhone[]
+  contact_emails: ContactEmail[]
+}
+
 export interface ProjectWithClient extends Project {
   companies: Pick<Company, 'id' | 'name' | 'abbreviation'> | null
 }
