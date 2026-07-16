@@ -80,6 +80,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const [editSelections, setEditSelections] = useState<ClassificationSelections>({})
   const [dimErrors, setDimErrors] = useState<Record<string, string>>({})
 
+  // Inline "add new company" in the edit modal (never a loose string)
+  const [extraCompanies, setExtraCompanies] = useState<Company[]>([])
+  const [addingCompany, setAddingCompany]   = useState(false)
+  const [newCompanyName, setNewCompanyName] = useState('')
+
   // Trade management
   const [allTrades, setAllTrades]         = useState<TradeType[]>([])
   const [projectTradeIds, setProjectTradeIds] = useState<string[]>([])
@@ -199,6 +204,18 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     setSavingEdit(false)
     setEditOpen(false)
     fetchAll()
+  }
+
+  async function addNewCompanyEdit() {
+    const name = newCompanyName.trim()
+    if (!name) return
+    const { data, error } = await supabase
+      .from('companies').insert({ name }).select('id, name, abbreviation').single()
+    if (error || !data) { alert(error?.message ?? 'Could not create company.'); return }
+    setExtraCompanies(cs => [...cs, data as Company])
+    setEditForm(f => ({ ...f, client_company_id: data.id }))
+    setAddingCompany(false)
+    setNewCompanyName('')
   }
 
   async function addNewTradeEdit() {
@@ -579,16 +596,47 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Client</label>
-              <select
-                value={editForm.client_company_id}
-                onChange={e => setEditForm(f => ({ ...f, client_company_id: e.target.value }))}
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              >
-                <option value="">Standalone / No Client</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              {addingCompany ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newCompanyName}
+                    onChange={e => setNewCompanyName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); addNewCompanyEdit() }
+                      if (e.key === 'Escape') { setAddingCompany(false); setNewCompanyName('') }
+                    }}
+                    placeholder="New company name…"
+                    className="flex-1 border border-teal-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    autoFocus
+                  />
+                  <button onClick={addNewCompanyEdit} className="text-teal-700 text-lg font-medium leading-none px-1">✓</button>
+                  <button onClick={() => { setAddingCompany(false); setNewCompanyName('') }} className="text-gray-400 text-lg leading-none px-1">✕</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={editForm.client_company_id}
+                    onChange={e => setEditForm(f => ({ ...f, client_company_id: e.target.value }))}
+                    className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  >
+                    <option value="">Standalone / No Client</option>
+                    {[...companies, ...extraCompanies]
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setAddingCompany(true)}
+                    title="Add a new company to the directory"
+                    className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-2.5 py-2 whitespace-nowrap transition-colors"
+                  >
+                    + New
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -614,10 +662,10 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             />
           </div>
 
-          {/* Trades in Scope */}
+          {/* Systems to be Commissioned (label rename only; trades table untouched) */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Trades in Scope
+              Systems to be Commissioned
             </label>
             <div className="flex flex-wrap gap-1.5">
               {allTrades.map(t => (
@@ -659,10 +707,15 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                   onClick={() => setAddingTrade(true)}
                   className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded-full px-3 py-1 transition-colors"
                 >
-                  + Add trade
+                  + Add system
                 </button>
               )}
             </div>
+            {editTradeIds.length === 0 && (
+              <p className="text-[11px] text-amber-600 mt-1.5">
+                No systems selected — finding categories will be limited to INFO.
+              </p>
+            )}
           </div>
 
           {editError && <p className="text-sm text-red-600">{editError}</p>}

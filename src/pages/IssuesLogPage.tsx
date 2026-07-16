@@ -729,7 +729,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             </select>
             {projectTrades.length === 0 && (
               <p className="text-[11px] text-amber-600 mt-1.5">
-                No trades in scope — add them via <strong>Edit Project</strong> to use specific categories.
+                No systems to be commissioned — add them via <strong>Edit Project</strong> to use specific categories.
               </p>
             )}
           </div>

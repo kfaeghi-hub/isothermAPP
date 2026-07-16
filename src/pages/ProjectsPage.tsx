@@ -60,11 +60,18 @@ export function ProjectsPage() {
   // Classification config (dimensions + options are firm-level runtime data)
   const [classConfig, setClassConfig] = useState<ClassificationConfig>({ dimensions: [], options: [] })
 
-  // Trade selection for new project
+  // Systems-to-be-commissioned selection for new project (trade_types under the hood)
   const [allTrades, setAllTrades]           = useState<TradeType[]>([])
   const [selectedTradeIds, setSelectedTradeIds] = useState<string[]>([])
   const [addingTrade, setAddingTrade]       = useState(false)
   const [newTradeName, setNewTradeName]     = useState('')
+
+  // Inline "add new company" (kill free-text clients: always a directory record)
+  const [addingCompany, setAddingCompany]   = useState(false)
+  const [newCompanyName, setNewCompanyName] = useState('')
+
+  // Autocomplete sources (converge repeat values instead of free-text drift)
+  const [phaseNames, setPhaseNames] = useState<string[]>([])
 
   // Section + filters
   const [section, setSection] = useState<Section>('active')
@@ -87,7 +94,7 @@ export function ProjectsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [pRes, cRes, tRes, ccRes, pcRes] = await Promise.all([
+    const [pRes, cRes, tRes, ccRes, pcRes, phRes] = await Promise.all([
       supabase
         .from('projects')
         .select('*, companies(id, name, abbreviation)')
@@ -105,6 +112,7 @@ export function ProjectsPage() {
       supabase
         .from('project_classifications')
         .select('project_id, option_id, dimension_id'),
+      supabase.from('project_phases').select('name'),
     ])
     if (pRes.error) { setError(pRes.error.message); setLoading(false); return }
     if (cRes.error) { setError(cRes.error.message); setLoading(false); return }
@@ -119,6 +127,7 @@ export function ProjectsPage() {
       (proj[r.dimension_id as string] ??= []).push(r.option_id as string)
     }
     setProjClass(pcMap)
+    setPhaseNames([...new Set(((phRes.data ?? []) as { name: string }[]).map(r => r.name))].sort())
     setLoading(false)
   }, [])
 
@@ -250,6 +259,19 @@ export function ProjectsPage() {
     setForm(EMPTY_FORM)
     setDimErrors({})
     fetchData()
+  }
+
+  async function addNewCompany() {
+    const name = newCompanyName.trim()
+    if (!name) return
+    // Never a loose string: the inline add creates a real directory record.
+    const { data, error } = await supabase
+      .from('companies').insert({ name }).select('id, name, abbreviation').single()
+    if (error || !data) { alert(error?.message ?? 'Could not create company.'); return }
+    setCompanies(cs => [...cs, data as Company].sort((a, b) => a.name.localeCompare(b.name)))
+    setForm(f => ({ ...f, client_company_id: data.id }))
+    setAddingCompany(false)
+    setNewCompanyName('')
   }
 
   function addPhase() {
@@ -523,6 +545,15 @@ export function ProjectsPage() {
                 className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                 placeholder="e.g. COM-2024-001"
               />
+              {(() => {
+                const q = form.com_number.trim().toLowerCase()
+                const dup = q ? projects.find(p => p.com_number?.toLowerCase() === q) : undefined
+                return dup ? (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    Already used by <span className="font-medium">{dup.name}</span>.
+                  </p>
+                ) : null
+              })()}
             </div>
           </div>
 
@@ -533,22 +564,57 @@ export function ProjectsPage() {
                 type="text"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                list="project-address-suggestions"
                 className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                 placeholder="e.g. 1750 Finch Ave E, Toronto ON"
               />
+              <datalist id="project-address-suggestions">
+                {[...new Set(projects.map(p => p.address).filter(Boolean))].map(a => (
+                  <option key={a as string} value={a as string} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Client</label>
-              <select
-                value={form.client_company_id}
-                onChange={e => setForm(f => ({ ...f, client_company_id: e.target.value }))}
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              >
-                <option value="">Standalone / No Client</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              {addingCompany ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newCompanyName}
+                    onChange={e => setNewCompanyName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); addNewCompany() }
+                      if (e.key === 'Escape') { setAddingCompany(false); setNewCompanyName('') }
+                    }}
+                    placeholder="New company name…"
+                    className="flex-1 border border-teal-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    autoFocus
+                  />
+                  <button onClick={addNewCompany} className="text-teal-700 text-lg font-medium leading-none px-1">✓</button>
+                  <button onClick={() => { setAddingCompany(false); setNewCompanyName('') }} className="text-gray-400 text-lg leading-none px-1">✕</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={form.client_company_id}
+                    onChange={e => setForm(f => ({ ...f, client_company_id: e.target.value }))}
+                    className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  >
+                    <option value="">Standalone / No Client</option>
+                    {companies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setAddingCompany(true)}
+                    title="Add a new company to the directory"
+                    className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-2.5 py-2 whitespace-nowrap transition-colors"
+                  >
+                    + New
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -564,46 +630,11 @@ export function ProjectsPage() {
             }}
           />
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Phases
-              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
-            </label>
-            {form.phases.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {form.phases.map((ph, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs rounded px-2 py-0.5">
-                    {ph}
-                    <button
-                      onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))}
-                      className="text-slate-400 hover:text-red-500 leading-none font-bold ml-0.5"
-                    >×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={form.phaseInput}
-                onChange={e => setForm(f => ({ ...f, phaseInput: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPhase() } }}
-                placeholder="e.g. Phase 1 — Mechanical"
-                className="flex-1 border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              />
-              <button
-                onClick={addPhase}
-                className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Trades in Scope */}
+          {/* Systems to be Commissioned — prominent beside the dimensions (label rename
+              only; trade_types and finding-category wiring untouched) */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Trades in Scope
+              Systems to be Commissioned
               <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -633,7 +664,7 @@ export function ProjectsPage() {
                       if (e.key === 'Enter') { e.preventDefault(); addNewTrade() }
                       if (e.key === 'Escape') { setAddingTrade(false); setNewTradeName('') }
                     }}
-                    placeholder="Trade name…"
+                    placeholder="System name…"
                     className="text-xs border border-teal-300 rounded-full px-3 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-teal-500"
                     autoFocus
                   />
@@ -646,9 +677,54 @@ export function ProjectsPage() {
                   onClick={() => setAddingTrade(true)}
                   className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded-full px-3 py-1 transition-colors"
                 >
-                  + Add trade
+                  + Add system
                 </button>
               )}
+            </div>
+            {selectedTradeIds.length === 0 && (
+              <p className="text-[11px] text-amber-600 mt-1.5">
+                No systems selected — finding categories will be limited to INFO.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Phases
+              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+            </label>
+            {form.phases.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {form.phases.map((ph, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs rounded px-2 py-0.5">
+                    {ph}
+                    <button
+                      onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))}
+                      className="text-slate-400 hover:text-red-500 leading-none font-bold ml-0.5"
+                    >×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.phaseInput}
+                onChange={e => setForm(f => ({ ...f, phaseInput: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPhase() } }}
+                list="project-phase-suggestions"
+                placeholder="e.g. Phase 1 — Mechanical"
+                className="flex-1 border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+              <datalist id="project-phase-suggestions">
+                {phaseNames.map(n => <option key={n} value={n} />)}
+              </datalist>
+              <button
+                onClick={addPhase}
+                className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
+              >
+                Add
+              </button>
             </div>
           </div>
 
