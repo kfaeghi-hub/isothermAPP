@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatDate } from '../lib/projectTypes'
+import { formatDate } from '../lib/format'
 import {
-  fetchClassificationConfig, validateRequired, deriveLegacyProjectType,
+  fetchClassificationConfig, validateRequired,
   composeDeliverableTemplateIds, allSelectedOptionIds,
   type ClassificationSelections, type ClassificationConfig,
 } from '../lib/classifications'
@@ -205,9 +205,6 @@ export function ProjectsPage() {
         com_number: form.com_number.trim() || null,
         address: form.address.trim() || null,
         client_company_id: form.client_company_id || null,
-        // Transition dual-write: derived legacy enum keeps a rolled-back app sane.
-        // Removed with the project_type removal pass.
-        project_type: deriveLegacyProjectType(form.classifications, classConfig.dimensions, classConfig.options),
         notes: form.notes.trim() || null,
       })
       .select('id')

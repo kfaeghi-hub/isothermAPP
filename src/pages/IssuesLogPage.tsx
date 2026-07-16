@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatDate } from '../lib/projectTypes'
+import { formatDate } from '../lib/format'
 import { uploadFindingPhoto } from '../lib/photos'
 import { Modal } from '../components/ui/Modal'
 import type { ProjectPhase, ContactWithCompany, FindingDiaryEntry, FindingPhoto } from '../types/database'

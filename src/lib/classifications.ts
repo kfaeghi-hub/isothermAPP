@@ -3,7 +3,7 @@
 // src/lib per ARCHITECTURE §9B; the picker component itself is purely presentational.
 
 import { supabase } from './supabase'
-import type { ClassificationDimension, ClassificationOption, ProjectType } from '../types/database'
+import type { ClassificationDimension, ClassificationOption } from '../types/database'
 
 /** dimension_id → selected option_ids (single-mode dims hold 0..1 entries) */
 export type ClassificationSelections = Record<string, string[]>
@@ -38,25 +38,6 @@ export function validateRequired(
     }
   }
   return errors
-}
-
-/** Transition dual-write: derive the legacy enum from the selections so a rollback
- *  of the app still reads sane data. Deleted with the project_type removal pass. */
-export function deriveLegacyProjectType(
-  selections: ClassificationSelections,
-  dimensions: ClassificationDimension[],
-  options: ClassificationOption[],
-): ProjectType {
-  const progDim = dimensions.find(d => d.name === 'Sustainable Programs')
-  if (!progDim) return 'standard'
-  const selected = new Set(selections[progDim.id] ?? [])
-  const labels = new Set(
-    options.filter(o => o.dimension_id === progDim.id && selected.has(o.id)).map(o => o.label),
-  )
-  if (labels.has('LEED Enhanced') && labels.has('MBCx')) return 'leed_enhanced_mbcx'
-  if (labels.has('LEED Enhanced'))    return 'leed_enhanced'
-  if (labels.has('LEED Fundamental')) return 'leed_fundamental'
-  return 'standard'
 }
 
 /** Deliverable composition: union of every selected option's default templates,

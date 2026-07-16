@@ -159,8 +159,8 @@ option_deliverable_defaults → option → deliverable_template mapping. Project
                              project_deliverables (per-project editable copy).
 
 All five carry org_id (rule 17). RLS: firm-config pattern on the config tables,
-project-scoped on the junction. projects.project_type is deprecated (dual-written
-for rollback safety) pending the removal pass.
+project-scoped on the junction. projects.project_type (column + enum type) was
+REMOVED 2026-07-17 — classifications are the only source of truth.
 
 ── Issues Log ─────────────────────────────────────────────────────────────────
 

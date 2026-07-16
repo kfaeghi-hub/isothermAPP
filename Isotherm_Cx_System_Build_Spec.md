@@ -291,9 +291,9 @@ Deliberately NOT dimensions: building systems (modeled as "Systems to be Commiss
 = trade_types + the equipment register), performance-verification items (deliverables/
 checklists), energy/digital flavors (lifecycle options or roadmap).
 
-**Deprecated:** `projects.project_type` (column + Postgres enum) is dual-written from
-the selections for rollback safety only and is pending removal, along with
-`PROJECT_TYPES`/`projectTypes.ts` and the `ProjectType` TS type.
+**Removed (2026-07-17):** `projects.project_type` (column + `project_type_enum`
+Postgres type), `PROJECT_TYPES`/`projectTypes.ts`, the `ProjectType` TS type, and the
+transition dual-write. Classifications are the only source of truth.
 
 ### 5.2 CORE PRINCIPLE: TWO template pools + composition from options
 

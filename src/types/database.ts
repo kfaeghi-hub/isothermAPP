@@ -1,6 +1,5 @@
 // Database types — mirror the Supabase schema exactly
 
-export type ProjectType = 'standard' | 'leed_fundamental' | 'leed_enhanced' | 'leed_enhanced_mbcx'
 export type UserRole = 'admin' | 'developer' | 'user' | 'client'
 export type FindingStatus = 'open' | 'closed'
 export type FindingOrigin = 'site_visit' | 'ivc' | 'pfc' | 'fpt'
@@ -71,7 +70,6 @@ export interface Project {
   com_number: string | null
   client_company_id: string | null
   address: string | null
-  project_type: ProjectType
   status: 'active' | 'completed'
   notes: string | null
   created_at: string
@@ -164,9 +162,9 @@ export interface EquipmentAttachment {
 }
 
 // ── Project classification framework ───────────────────────────────────────
-// Replaces the single project_type enum. Dimensions/options are firm-level,
-// admin-editable DATA (new dimensions are INSERTs, never migrations). The old
-// projects.project_type column persists until the separate removal pass.
+// Replaced the single project_type enum (column + Postgres type removed
+// 2026-07-17). Dimensions/options are firm-level, admin-editable DATA —
+// new dimensions are INSERTs, never migrations.
 
 export type SelectionMode = 'single' | 'multi'
 

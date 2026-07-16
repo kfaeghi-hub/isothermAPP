@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatDate } from '../lib/projectTypes'
+import { formatDate } from '../lib/format'
 import {
   fetchClassificationConfig, fetchProjectSelections, validateRequired,
-  deriveLegacyProjectType, syncProjectClassifications,
+  syncProjectClassifications,
   type ClassificationSelections, type ClassificationConfig,
 } from '../lib/classifications'
 import { ClassificationPicker } from '../components/ClassificationPicker'
@@ -182,8 +182,6 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         com_number: editForm.com_number.trim() || null,
         address: editForm.address.trim() || null,
         client_company_id: editForm.client_company_id || null,
-        // Transition dual-write (removed with the project_type removal pass)
-        project_type: deriveLegacyProjectType(editSelections, classConfig.dimensions, classConfig.options),
         notes: editForm.notes.trim() || null,
       })
       .eq('id', projectId)
