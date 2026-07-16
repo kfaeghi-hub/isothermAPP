@@ -9,7 +9,9 @@
 import { chromium } from 'playwright'
 import { login } from './pw-config.mjs'
 
-const PROJECT_NAME = 'ZZ-TEST-LEED — Do Not Use'
+// Unique per run so re-runs never collide with earlier proof projects; still in
+// the ZZ-TEST family per the test-isolation rule. Delete after inspection.
+const PROJECT_NAME = `ZZ-TEST-LEED ${Date.now().toString(36)} — Do Not Use`
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
 
