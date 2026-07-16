@@ -5,12 +5,14 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { DirectoryPage } from './pages/DirectoryPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { ClassificationsPage } from './pages/ClassificationsPage'
 
 const NAV_ITEMS = [
-  { label: 'Projects',       icon: '📋', phase: 1 },
-  { label: 'Directory',      icon: '👥', phase: 1 },
-  { label: 'Templates',      icon: '🗂️', phase: 2 },
-  { label: 'Action Summary', icon: '📌', phase: 3 },
+  { label: 'Projects',        icon: '📋', phase: 1 },
+  { label: 'Directory',       icon: '👥', phase: 1 },
+  { label: 'Templates',       icon: '🗂️', phase: 2 },
+  { label: 'Classifications', icon: '🏷️', phase: 2, adminOnly: true },
+  { label: 'Action Summary',  icon: '📌', phase: 3 },
 ]
 
 export default function App() {
@@ -47,9 +49,11 @@ export default function App() {
     )
   }
 
-  const phase1 = NAV_ITEMS.filter(i => i.phase === 1)
-  const phase2 = NAV_ITEMS.filter(i => i.phase === 2)
-  const phase3 = NAV_ITEMS.filter(i => i.phase === 3)
+  // adminOnly items are hidden from user/client roles (RLS still enforces writes)
+  const visible = NAV_ITEMS.filter(i => !i.adminOnly || ['admin', 'developer'].includes(profile.role))
+  const phase1 = visible.filter(i => i.phase === 1)
+  const phase2 = visible.filter(i => i.phase === 2)
+  const phase3 = visible.filter(i => i.phase === 3)
 
   return (
     <div className="flex h-screen bg-slate-50 text-gray-900">
@@ -101,6 +105,8 @@ export default function App() {
             <DirectoryPage />
           ) : activeItem === 'Templates' ? (
             <TemplatesPage />
+          ) : activeItem === 'Classifications' ? (
+            <ClassificationsPage />
           ) : (
             <div className="p-8">
               <Placeholder name={activeItem} />
