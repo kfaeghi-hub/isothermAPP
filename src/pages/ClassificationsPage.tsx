@@ -8,12 +8,13 @@ import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
 import type {
   ClassificationDimension, ClassificationOption, DeliverableTemplate, SelectionMode, TradeType,
+  CompanyRoleType,
 } from '../types/database'
 
 // Reference-aware delete: every delete names its impact before proceeding, and
 // referenced things offer "Deactivate instead" as the primary action.
 interface DeleteTarget {
-  kind: 'dimension' | 'option' | 'system' | 'template'
+  kind: 'dimension' | 'option' | 'system' | 'template' | 'company_role'
   table: string
   id: string
   name: string
@@ -25,6 +26,7 @@ export function ClassificationsPage() {
   const [templates, setTemplates]   = useState<DeliverableTemplate[]>([])
   const [mappings, setMappings]     = useState<Record<string, string[]>>({})  // option_id → template_ids
   const [systems, setSystems]       = useState<TradeType[]>([])
+  const [companyRoles, setCompanyRoles] = useState<CompanyRoleType[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
 
@@ -32,12 +34,15 @@ export function ClassificationsPage() {
   const [expandedOptId, setExpandedOptId] = useState<string | null>(null)
   const [showTemplates, setShowTemplates] = useState(false)
   const [showSystems, setShowSystems]     = useState(false)
+  const [showCompanyRoles, setShowCompanyRoles] = useState(false)
 
   const [newDimName, setNewDimName] = useState('')
   const [newOptLabel, setNewOptLabel] = useState('')
   const [newOptGroup, setNewOptGroup] = useState('')
   const [newTplName, setNewTplName] = useState('')
   const [newSysName, setNewSysName] = useState('')
+  const [newRoleName, setNewRoleName] = useState('')
+  const [newRoleAbbr, setNewRoleAbbr] = useState('')
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
@@ -45,19 +50,21 @@ export function ClassificationsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    const [dRes, oRes, tRes, mRes, sRes] = await Promise.all([
+    const [dRes, oRes, tRes, mRes, sRes, crRes] = await Promise.all([
       supabase.from('classification_dimensions').select('*').order('sort_order'),
       supabase.from('classification_options').select('*').order('sort_order'),
       supabase.from('deliverable_templates').select('*').order('sort_order'),
       supabase.from('option_deliverable_defaults').select('option_id, template_id'),
       supabase.from('trade_types').select('*').order('sort_order'),
+      supabase.from('company_role_types').select('*').order('sort_order'),
     ])
-    const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error ?? sRes.error
+    const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error ?? sRes.error ?? crRes.error
     if (firstErr) { setError(firstErr.message); setLoading(false); return }
     setDimensions((dRes.data ?? []) as ClassificationDimension[])
     setOptions((oRes.data ?? []) as ClassificationOption[])
     setTemplates((tRes.data ?? []) as DeliverableTemplate[])
     setSystems((sRes.data ?? []) as TradeType[])
+    setCompanyRoles((crRes.data ?? []) as CompanyRoleType[])
     const m: Record<string, string[]> = {}
     for (const r of (mRes.data ?? [])) (m[r.option_id as string] ??= []).push(r.template_id as string)
     setMappings(m)
@@ -153,6 +160,16 @@ export function ClassificationsPage() {
       const n = distinct(data as any)
       if (n > 0) lines.push(`${n} project${n === 1 ? '' : 's'} have this system selected — deleting removes it from them.`)
       lines.push('Historical finding categories keep their text either way (rule 4).')
+    } else if (target.kind === 'company_role') {
+      // Dual count: directory usages + project team assignments
+      const [dirRes, teamRes] = await Promise.all([
+        supabase.from('company_roles').select('company_id').eq('role_type_id', target.id),
+        supabase.from('project_team_assignments').select('project_id').eq('role_type_id', target.id),
+      ])
+      const nDir = new Set((dirRes.data ?? []).map((r: any) => r.company_id)).size
+      const nTeam = distinct(teamRes.data as any)
+      if (nDir > 0)  lines.push(`${nDir} compan${nDir === 1 ? 'y holds' : 'ies hold'} this role in the directory — the tag will be removed from them.`)
+      if (nTeam > 0) lines.push(`${nTeam} project team${nTeam === 1 ? '' : 's'} have this role assigned — those seats will be deleted.`)
     } else {
       const nMap = Object.values(mappings).flat().filter(id => id === target.id).length
       const { count } = await supabase.from('project_deliverables')
@@ -174,6 +191,13 @@ export function ClassificationsPage() {
         .delete().eq('template_id', deleteTarget.id)
       if (error) { alert(error.message); setDeleting(false); return }
     }
+    // company_roles.role_type_id is NO ACTION — clear the directory tags first
+    // (team assignments cascade from their own FK).
+    if (deleteTarget.kind === 'company_role') {
+      const { error } = await supabase.from('company_roles')
+        .delete().eq('role_type_id', deleteTarget.id)
+      if (error) { alert(error.message); setDeleting(false); return }
+    }
     // Everything else cascades (options → selections/mappings; dimensions → options;
     // systems → project_trades).
     const { error } = await supabase.from(deleteTarget.table).delete().eq('id', deleteTarget.id)
@@ -187,6 +211,17 @@ export function ClassificationsPage() {
     if (!deleteTarget) return
     await updateRow(deleteTarget.table, deleteTarget.id, { active: false })
     setDeleteTarget(null)
+  }
+
+  async function addCompanyRole() {
+    const name = newRoleName.trim()
+    if (!name) return
+    const maxOrder = companyRoles.reduce((m, r) => Math.max(m, r.sort_order), 0)
+    const { error } = await supabase.from('company_role_types')
+      .insert({ name, abbreviation: newRoleAbbr.trim() || null, sort_order: maxOrder + 1 })
+    if (error) { alert(error.message); return }
+    setNewRoleName(''); setNewRoleAbbr('')
+    fetchAll()
   }
 
   async function toggleMapping(optionId: string, templateId: string) {
@@ -430,6 +465,70 @@ export function ClassificationsPage() {
                 onKeyDown={e => e.key === 'Enter' && addSystem()}
                 placeholder="New system…" className={`${inputCls} w-64`} />
               <button onClick={addSystem} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* ── Company Roles ────────────────────────────────────────────────── */}
+      {/* One vocabulary for "what a company does" (directory) and "role on this
+          project" (team matrix). Deleting counts BOTH usages. */}
+      <section>
+        <button onClick={() => setShowCompanyRoles(s => !s)} className="text-sm font-semibold text-gray-800 hover:text-teal-700">
+          Company Roles ({companyRoles.length}) {showCompanyRoles ? '▾' : '▸'}
+        </button>
+        {showCompanyRoles && (
+          <>
+            <p className="text-xs text-gray-400 mt-1 mb-3">
+              Used as directory tags and as project team seats. Abbreviations render as the
+              matrix chips (CxA, GC, BECx…).
+            </p>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <th className="py-1.5 pr-3">Role</th>
+                  <th className="py-1.5 pr-3 w-24">Abbr.</th>
+                  <th className="py-1.5 pr-3 w-16">Order</th>
+                  <th className="py-1.5 pr-3 w-16">Active</th>
+                  <th className="py-1.5 w-16" />
+                </tr>
+              </thead>
+              <tbody>
+                {companyRoles.map(r => (
+                  <tr key={r.id} className="border-b border-gray-100">
+                    <td className="py-1.5 pr-3">
+                      <input defaultValue={r.name} className={`${inputCls} w-full`}
+                        onBlur={e => { const v = e.target.value.trim(); if (v && v !== r.name) updateRow('company_role_types', r.id, { name: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      <input defaultValue={r.abbreviation ?? ''} className={`${inputCls} w-20 font-mono`}
+                        onBlur={e => { const v = e.target.value.trim() || null; if (v !== r.abbreviation) updateRow('company_role_types', r.id, { abbreviation: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      <input type="number" defaultValue={r.sort_order} className={`${inputCls} w-14`}
+                        onBlur={e => { const v = Number(e.target.value); if (v !== r.sort_order) updateRow('company_role_types', r.id, { sort_order: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3 text-center">
+                      <input type="checkbox" checked={r.active}
+                        onChange={e => updateRow('company_role_types', r.id, { active: e.target.checked })} />
+                    </td>
+                    <td className="py-1.5">
+                      <button
+                        onClick={() => requestDelete({ kind: 'company_role', table: 'company_role_types', id: r.id, name: r.name })}
+                        className="text-red-400 hover:text-red-600">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex gap-2 mt-2">
+              <input value={newRoleName} onChange={e => setNewRoleName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addCompanyRole()}
+                placeholder="New role…" className={`${inputCls} w-56`} />
+              <input value={newRoleAbbr} onChange={e => setNewRoleAbbr(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addCompanyRole()}
+                placeholder="Abbr." className={`${inputCls} w-20 font-mono`} />
+              <button onClick={addCompanyRole} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
             </div>
           </>
         )}
