@@ -63,6 +63,19 @@ function colgroup(widths: number[]): string {
   return `<colgroup>${widths.map(w => `<col style="width:${w}%">`).join('')}</colgroup>`
 }
 
+// Empty-cell semantics (standardized in both PDF and DOCX paths):
+//   completed mode — field defined for the section but empty  → "—"
+//   blank mode     — fillable cells stay clean white for handwriting
+//   (not-defined cells are the shaded .np-blocked / tdBlocked cells, no text, either mode)
+function dashOr(mode: 'completed' | 'blank', value: string): string {
+  if (value) return esc(value)
+  return mode === 'completed' ? '<span class="empty-dash">—</span>' : ''
+}
+function dashOrInline(mode: 'completed' | 'blank', value: string): string {
+  if (value) return esc(value)
+  return mode === 'completed' ? '<span style="color:#9AA3AE;">—</span>' : ''
+}
+
 // ── Nameplate ──────────────────────────────────────────────────────────────────
 // The three field-def "sections" (spec / shop_drawing / installed) are the three VALUE
 // COLUMNS, and each carries a DIFFERENT field list: "Serial Number" exists only under
@@ -234,7 +247,15 @@ const CSS = `
   .th-sub  { background: #3D6A9F !important; font-size: 7pt; }
   .np-label { text-align: left !important; font-size: 7.5pt; }
   .np-val  { text-align: center; font-size: 8pt; }
-  .np-blocked { background: #E5E9EF !important; color: #B0B8C4; text-align: center; }
+  /* Not-applicable cell (field not defined for this section): shaded, NO text —
+     on the blank hand-out the contractor instantly sees which cells to skip. */
+  .np-blocked { background: #E8EBEF !important; }
+  .empty-dash { color: #9AA3AE; }
+  /* Blank mode: fillable cells must be CLEAN WHITE for handwriting — zebra striping
+     would read as almost the same grey as the not-applicable shade on paper. */
+  body.mode-blank tbody tr:nth-child(even) td { background: #fff; }
+  body.mode-blank tbody tr:nth-child(even) td.np-blocked,
+  body.mode-blank .np-blocked { background: #E8EBEF !important; }
 
   .sec-row td { background: #DDE3EA !important; font-weight: 700; font-size: 7.5pt; color: #1F3A5F; text-transform: uppercase; padding: 4px 8px; border-color: #C9D2DD; }
 
@@ -302,7 +323,7 @@ function buildChecklistHtml(d: DocData): string {
   const idFields = ['tag', 'descriptor', 'location', 'area_served'] as const
   const idLabels = ['UNIT TAG', 'DESCRIPTOR', 'LOCATION', 'AREA SERVED']
   const unitIdRows = idFields.map((field, i) => {
-    const cells = responseTargets.map(t => `<td class="np-val">${esc(t.equipment?.[field] ?? '')}</td>`).join('')
+    const cells = responseTargets.map(t => `<td class="np-val">${dashOr(mode, t.equipment?.[field] ?? '')}</td>`).join('')
     return `<tr><td class="np-label">${esc(idLabels[i])}</td>${cells}</tr>`
   }).join('\n')
   const idWidths = [28, ...responseTargets.map(() => 72 / nUnits)]
@@ -315,7 +336,7 @@ function buildChecklistHtml(d: DocData): string {
   // class="np-row" is the counting marker for the no-dropped-rows guard.
   const npBodyRows = npRows.map(row =>
     `<tr class="np-row"><td class="np-label">${esc(row.label)}</td>${row.cells.map(c =>
-      c.blocked ? `<td class="np-blocked">—</td>` : `<td class="np-val">${esc(c.value)}</td>`
+      c.blocked ? `<td class="np-blocked"></td>` : `<td class="np-val">${dashOr(mode, c.value)}</td>`
     ).join('')}</tr>`
   ).join('\n')
   // Field 28%, then an equal third of the remaining 72% per unit's Spec/Shop/Installed.
@@ -341,7 +362,8 @@ function buildChecklistHtml(d: DocData): string {
         const stCells = responseTargets.map(t => {
           const st = mode === 'blank' ? null : (responseMap[rKey(item.id, t.id)]?.status ?? null)
           const fnd = mode === 'blank' ? null : findingMap[rKey(item.id, t.id)]
-          return `<td class="st-cell"><span class="${stClass(st)}">${esc(stLabel(st))}</span>` +
+          const label = st ? `<span class="${stClass(st)}">${esc(stLabel(st))}</span>` : dashOr(mode, '')
+          return `<td class="st-cell">${label}` +
                  `${fnd ? `<span class="fnd">→ #${esc(fnd.number ?? '?')}</span>` : ''}</td>`
         }).join('')
         const comment = mode === 'blank' ? '' : responseTargets
@@ -349,7 +371,7 @@ function buildChecklistHtml(d: DocData): string {
         checksBody += `<tr>
           <td>${esc(item.label)}${item.hint ? `<div class="hint">${esc(item.hint)}</div>` : ''}</td>
           ${stCells}
-          <td>${esc(comment)}</td>
+          <td>${dashOr(mode, comment)}</td>
         </tr>\n`
       }
     }
@@ -368,7 +390,7 @@ function buildChecklistHtml(d: DocData): string {
         const cells = responseTargets.map(t =>
           cols.map(col => {
             const val = mode === 'blank' ? '' : (gridRespMap[gKey(grid.id, t.id, row.key)]?.data?.[col.key] ?? '')
-            return `<td class="np-val">${esc(val)}</td>`
+            return `<td class="np-val">${dashOr(mode, val)}</td>`
           }).join('')
         ).join('')
         return `<tr><td class="np-label">${esc(row.label)}</td>${cells}</tr>`
@@ -410,9 +432,9 @@ function buildChecklistHtml(d: DocData): string {
     const date = mode === 'blank' ? '' : isoShort(s.signed_at)
     return `<tr>
       <td class="so-role">${esc(s.role_label_snapshot)}</td>
-      <td>${esc(nameCompany)}</td>
+      <td>${dashOr(mode, nameCompany)}</td>
       <td></td>
-      <td style="font-family:monospace;font-size:8pt;">${esc(date)}</td>
+      <td style="font-family:monospace;font-size:8pt;">${dashOr(mode, date)}</td>
     </tr>`
   }).join('\n')
 
@@ -443,7 +465,7 @@ function buildChecklistHtml(d: DocData): string {
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>${CSS}</style></head>
-<body>
+<body class="mode-${mode}">
 <div class="page">
 
   <div class="firm">
@@ -530,9 +552,12 @@ function buildChecklistDocxHtml(d: DocData): string {
   const THL  = 'style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;text-align:left;padding:5px 6px;border:1px solid #1F3A5F;font-size:8pt;"'
   const THUN = 'style="background-color:#2C5282;color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid #2C5282;font-size:8pt;"'
   const THSB = 'style="background-color:#3D6A9F;color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid #3D6A9F;font-size:7pt;"'
+  // Blank mode drops zebra striping: fillable cells must be clean white so the
+  // only grey on the page is the not-applicable shade.
+  const zebra = mode === 'completed'
   const td   = (i: number, extra = '') =>
-    `style="padding:5px 6px;border:1px solid #DDE3EA;vertical-align:top;font-size:8pt;${i % 2 === 1 ? 'background-color:#F6F8FB;' : ''}${extra}"`
-  const tdBlocked = 'style="padding:5px 6px;border:1px solid #DDE3EA;background-color:#E5E9EF;color:#B0B8C4;text-align:center;font-size:8pt;"'
+    `style="padding:5px 6px;border:1px solid #DDE3EA;vertical-align:top;font-size:8pt;${zebra && i % 2 === 1 ? 'background-color:#F6F8FB;' : ''}${extra}"`
+  const tdBlocked = 'style="padding:5px 6px;border:1px solid #DDE3EA;background-color:#E8EBEF;font-size:8pt;"'
   const tdSec = 'style="background-color:#DDE3EA;font-weight:bold;font-size:7.5pt;color:#1F3A5F;text-transform:uppercase;padding:4px 8px;border:1px solid #C9D2DD;"'
 
   const unitTag = (t: any) => esc(t.equipment?.tag ?? t.equipment?.descriptor ?? '?')
@@ -542,7 +567,7 @@ function buildChecklistDocxHtml(d: DocData): string {
   const idLabels = ['UNIT TAG', 'DESCRIPTOR', 'LOCATION', 'AREA SERVED']
   const unitIdRows = idFields.map((field, i) => {
     const cells = responseTargets.map(t =>
-      `<td ${td(i, 'text-align:center;')}>${esc(t.equipment?.[field] ?? '')}</td>`).join('')
+      `<td ${td(i, 'text-align:center;')}>${dashOrInline(mode, t.equipment?.[field] ?? '')}</td>`).join('')
     return `<tr><td ${td(i, 'font-size:7.5pt;')}>${esc(idLabels[i])}</td>${cells}</tr>`
   }).join('\n')
 
@@ -555,7 +580,7 @@ function buildChecklistDocxHtml(d: DocData): string {
     `<tr class="np-row">
       <td ${td(ri, 'font-size:7.5pt;')}>${esc(row.label)}</td>
       ${row.cells.map(c =>
-        c.blocked ? `<td ${tdBlocked}>—</td>` : `<td ${td(ri, 'text-align:center;')}>${esc(c.value)}</td>`
+        c.blocked ? `<td ${tdBlocked}></td>` : `<td ${td(ri, 'text-align:center;')}>${dashOrInline(mode, c.value)}</td>`
       ).join('')}
     </tr>`
   ).join('\n')
@@ -580,14 +605,15 @@ function buildChecklistDocxHtml(d: DocData): string {
           const fndHtml = fnd
             ? `<br><span style="font-size:6.5pt;color:#C0392B;font-weight:bold;">&rarr; #${esc(fnd.number ?? '?')}</span>`
             : ''
-          return `<td ${td(rowIdx, 'text-align:center;font-weight:bold;' + stInline(st))}>${esc(stLabel(st))}${fndHtml}</td>`
+          const label = st ? esc(stLabel(st)) : dashOrInline(mode, '')
+          return `<td ${td(rowIdx, 'text-align:center;font-weight:bold;' + stInline(st))}>${label}${fndHtml}</td>`
         }).join('')
         const comment = mode === 'blank' ? '' : responseTargets
           .map(t => responseMap[rKey(item.id, t.id)]?.comment).filter(Boolean).join(' / ')
         checksBody += `<tr>
           <td ${td(rowIdx)}>${esc(item.label)}${item.hint ? `<br><em style="font-size:7.5pt;color:#888;">${esc(item.hint)}</em>` : ''}</td>
           ${stCells}
-          <td ${td(rowIdx)}>${esc(comment)}</td>
+          <td ${td(rowIdx)}>${dashOrInline(mode, comment)}</td>
         </tr>\n`
         rowIdx++
       }
@@ -606,7 +632,7 @@ function buildChecklistDocxHtml(d: DocData): string {
         const cells = responseTargets.map(t =>
           cols.map(col => {
             const val = mode === 'blank' ? '' : (gridRespMap[gKey(grid.id, t.id, row.key)]?.data?.[col.key] ?? '')
-            return `<td ${td(rowIdx, 'text-align:center;')}>${esc(val)}</td>`
+            return `<td ${td(rowIdx, 'text-align:center;')}>${dashOrInline(mode, val)}</td>`
           }).join('')
         ).join('')
         gRows += `<tr><td ${td(rowIdx)}>${esc(row.label)}</td>${cells}</tr>\n`
@@ -643,9 +669,9 @@ function buildChecklistDocxHtml(d: DocData): string {
     const date = mode === 'blank' ? '' : isoShort(s.signed_at)
     return `<tr>
       <td ${td(i, 'font-weight:bold;')}>${esc(s.role_label_snapshot)}</td>
-      <td ${td(i)}>${esc(nameCompany)}</td>
+      <td ${td(i)}>${dashOrInline(mode, nameCompany)}</td>
       <td ${td(i)}></td>
-      <td ${td(i, 'font-size:8pt;')}>${esc(date)}</td>
+      <td ${td(i, 'font-size:8pt;')}>${dashOrInline(mode, date)}</td>
     </tr>`
   }).join('\n')
 
