@@ -378,31 +378,36 @@ function buildChecklistHtml(d: DocData): string {
 
     // Grids get their OWN tables — a measurement grid has a different column count from
     // the checks table, and cramming both into one table is what broke the widths.
+    //
+    // WIDE-GRID RULE (generic, all templates): grids with ≥5 columns render PER TARGET
+    // (one stacked table per unit) — a two-unit combined layout would need 10+ measurement
+    // columns and become unreadable on Letter. ≤4-column grids keep the combined two-unit
+    // layout (endorsed as the standard: compact, directly comparative).
     for (const grid of sGrids) {
       const cols = grid.definition.columns as any[]
       const rows = grid.definition.rows   as any[]
       const nc = cols.length
-      const gUnitThs = responseTargets.map(t => `<th class="th-unit" colspan="${nc}">${unitTag(t)}</th>`).join('')
-      const gColThs  = responseTargets.map(() =>
-        cols.map(c => `<th class="th-sub">${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')
-      ).join('')
-      const gridRows = rows.map(row => {
-        const cells = responseTargets.map(t =>
-          cols.map(col => {
-            const val = mode === 'blank' ? '' : (gridRespMap[gKey(grid.id, t.id, row.key)]?.data?.[col.key] ?? '')
-            return `<td class="np-val">${dashOr(mode, val)}</td>`
-          }).join('')
+      const stacked = nUnits > 1 && nc >= 5
+
+      const renderGrid = (targets: any[], titleSuffix: string) => {
+        const gUnitThs = targets.map(t => `<th class="th-unit" colspan="${nc}">${unitTag(t)}</th>`).join('')
+        const gColThs  = targets.map(() =>
+          cols.map(c => `<th class="th-sub">${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')
         ).join('')
-        return `<tr><td class="np-label">${esc(row.label)}</td>${cells}</tr>`
-      }).join('\n')
+        const gridRows = rows.map(row => {
+          const cells = targets.map(t =>
+            cols.map(col => {
+              const val = mode === 'blank' ? '' : (gridRespMap[gKey(grid.id, t.id, row.key)]?.data?.[col.key] ?? '')
+              return `<td class="np-val">${dashOr(mode, val)}</td>`
+            }).join('')
+          ).join('')
+          return `<tr><td class="np-label">${esc(row.label)}</td>${cells}</tr>`
+        }).join('\n')
 
-      // Blank corner 22%, measurement columns share the rest equally.
-      const gW = 78 / (nUnits * nc)
-      const gWidths = [22, ...Array(nUnits * nc).fill(gW)]
-      const tags = responseTargets.map(t => t.equipment?.tag ?? '?').join(' / ')
-
-      gridsHtml += `
-      <h2 class="sec">${esc(grid.title)}${nUnits > 1 ? ` — ${esc(tags)}` : ''}</h2>
+        const gW = 78 / (targets.length * nc)
+        const gWidths = [22, ...Array(targets.length * nc).fill(gW)]
+        return `
+      <h2 class="sec">${esc(grid.title)}${titleSuffix}</h2>
       <table>
         ${colgroup(gWidths)}
         <thead>
@@ -411,6 +416,16 @@ function buildChecklistHtml(d: DocData): string {
         </thead>
         <tbody>${gridRows}</tbody>
       </table>`
+      }
+
+      if (stacked) {
+        for (const t of responseTargets) {
+          gridsHtml += renderGrid([t], ` — ${esc(t.equipment?.tag ?? '?')}`)
+        }
+      } else {
+        const tags = responseTargets.map(t => t.equipment?.tag ?? '?').join(' / ')
+        gridsHtml += renderGrid(responseTargets, nUnits > 1 ? ` — ${esc(tags)}` : '')
+      }
     }
   }
 
@@ -619,29 +634,33 @@ function buildChecklistDocxHtml(d: DocData): string {
       }
     }
 
+    // WIDE-GRID RULE (mirror of the PDF builder): ≥5-column grids render per target
+    // (one stacked table per unit); ≤4-column grids keep the combined two-unit layout.
     for (const grid of sGrids) {
       const cols = grid.definition.columns as any[]
       const rows = grid.definition.rows   as any[]
       const nc   = cols.length
-      const gUnitThs = responseTargets.map(t => `<th ${THUN} colspan="${nc}">${unitTag(t)}</th>`).join('')
-      const gColThs  = responseTargets.map(() =>
-        cols.map(c => `<th ${THSB}>${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')).join('')
+      const stacked = nUnits > 1 && nc >= 5
 
-      let gRows = ''
-      for (const row of rows) {
-        const cells = responseTargets.map(t =>
-          cols.map(col => {
-            const val = mode === 'blank' ? '' : (gridRespMap[gKey(grid.id, t.id, row.key)]?.data?.[col.key] ?? '')
-            return `<td ${td(rowIdx, 'text-align:center;')}>${dashOrInline(mode, val)}</td>`
-          }).join('')
-        ).join('')
-        gRows += `<tr><td ${td(rowIdx)}>${esc(row.label)}</td>${cells}</tr>\n`
-        rowIdx++
-      }
+      const renderGrid = (targets: any[], titleSuffix: string) => {
+        const gUnitThs = targets.map(t => `<th ${THUN} colspan="${nc}">${unitTag(t)}</th>`).join('')
+        const gColThs  = targets.map(() =>
+          cols.map(c => `<th ${THSB}>${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')).join('')
 
-      const tags = responseTargets.map(t => t.equipment?.tag ?? '?').join(' / ')
-      gridsHtml += `
-      <h2>${esc(grid.title)}${nUnits > 1 ? ` — ${esc(tags)}` : ''}</h2>
+        let gRows = ''
+        for (const row of rows) {
+          const cells = targets.map(t =>
+            cols.map(col => {
+              const val = mode === 'blank' ? '' : (gridRespMap[gKey(grid.id, t.id, row.key)]?.data?.[col.key] ?? '')
+              return `<td ${td(rowIdx, 'text-align:center;')}>${dashOrInline(mode, val)}</td>`
+            }).join('')
+          ).join('')
+          gRows += `<tr><td ${td(rowIdx)}>${esc(row.label)}</td>${cells}</tr>\n`
+          rowIdx++
+        }
+
+        return `
+      <h2>${esc(grid.title)}${titleSuffix}</h2>
       <table ${T}>
         <thead>
           <tr><th ${THL} rowspan="2"></th>${gUnitThs}</tr>
@@ -649,6 +668,16 @@ function buildChecklistDocxHtml(d: DocData): string {
         </thead>
         <tbody>${gRows}</tbody>
       </table>`
+      }
+
+      if (stacked) {
+        for (const t of responseTargets) {
+          gridsHtml += renderGrid([t], ` — ${esc(t.equipment?.tag ?? '?')}`)
+        }
+      } else {
+        const tags = responseTargets.map(t => t.equipment?.tag ?? '?').join(' / ')
+        gridsHtml += renderGrid(responseTargets, nUnits > 1 ? ` — ${esc(tags)}` : '')
+      }
     }
   }
 
