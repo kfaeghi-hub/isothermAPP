@@ -132,17 +132,31 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       supabase.from('trade_types').select('*').order('sort_order'),
       supabase.from('project_trades').select('trade_type_id').eq('project_id', projectId),
     ])
-    const [ccRes, selRes, teamRes] = await Promise.all([
+    const [ccRes, selRes] = await Promise.all([
       fetchClassificationConfig(),
       fetchProjectSelections(projectId),
-      supabase.from('project_team_assignments')
-        .select('role_type_id, company_id, company_role_types(name, abbreviation, sort_order), companies(name)')
-        .eq('project_id', projectId),
     ])
+    await fetchTeamSummary()
+    if (pRes.error)  { setError(pRes.error.message);  setLoading(false); return }
+    setProject(pRes.data as ProjectWithClient)
+    setPhases((phRes.data ?? []) as ProjectPhase[])
+    setDistribution((dRes.data ?? []) as unknown as DistributionRow[])
+    setAllContacts((ctRes.data ?? []) as ContactWithCompany[])
+    setAllTrades((tRes.data ?? []) as TradeType[])
+    setProjectTradeIds((ptRes.data ?? []).map(r => r.trade_type_id))
+    setClassConfig(ccRes)
+    setProjSelections(selRes)
+    setLoading(false)
+  }, [projectId])
+
+  const fetchTeamSummary = useCallback(async () => {
+    const { data } = await supabase.from('project_team_assignments')
+      .select('role_type_id, company_id, company_role_types(name, abbreviation, sort_order), companies(name)')
+      .eq('project_id', projectId)
 
     // Compact per-role summary: abbreviation chip + distinct company names
     const roleMap = new Map<string, { abbr: string; role: string; sort: number; companies: Set<string> }>()
-    for (const r of (teamRes.data ?? []) as any[]) {
+    for (const r of (data ?? []) as any[]) {
       const rt = Array.isArray(r.company_role_types) ? r.company_role_types[0] : r.company_role_types
       const co = Array.isArray(r.companies) ? r.companies[0] : r.companies
       if (!rt) continue
@@ -156,19 +170,15 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     setTeamSummary([...roleMap.values()]
       .sort((a, b) => a.sort - b.sort)
       .map(e => ({ abbr: e.abbr, role: e.role, companies: [...e.companies].join(', ') })))
-    if (pRes.error)  { setError(pRes.error.message);  setLoading(false); return }
-    setProject(pRes.data as ProjectWithClient)
-    setPhases((phRes.data ?? []) as ProjectPhase[])
-    setDistribution((dRes.data ?? []) as unknown as DistributionRow[])
-    setAllContacts((ctRes.data ?? []) as ContactWithCompany[])
-    setAllTrades((tRes.data ?? []) as TradeType[])
-    setProjectTradeIds((ptRes.data ?? []).map(r => r.trade_type_id))
-    setClassConfig(ccRes)
-    setProjSelections(selRes)
-    setLoading(false)
   }, [projectId])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  // The Team tab writes assignments; refresh the Overview summary on return so it
+  // never shows a stale matrix.
+  useEffect(() => {
+    if (activeTab === 'overview') fetchTeamSummary()
+  }, [activeTab, fetchTeamSummary])
 
   // ── Edit project ────────────────────────────────────────────────────────
 
