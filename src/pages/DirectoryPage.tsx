@@ -6,21 +6,7 @@ import type {
   CompanyRoleType, TradeType, PhoneType,
 } from '../types/database'
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
-const PHONE_TYPES: { value: PhoneType; label: string }[] = [
-  { value: 'mobile',   label: 'Cell' },
-  { value: 'office',   label: 'Work' },
-  { value: 'landline', label: 'Landline' },
-  { value: 'site',     label: 'Site' },
-]
-const phoneLabel = (t: string) => PHONE_TYPES.find(p => p.value === t)?.label ?? t
-
-/** Primary row of a phones/emails list, with sensible fallback. */
-function primaryOf<T extends { is_primary: boolean }>(rows: T[] | undefined): T | undefined {
-  if (!rows || rows.length === 0) return undefined
-  return rows.find(r => r.is_primary) ?? rows[0]
-}
+import { PHONE_TYPES, phoneLabel, primaryOf } from '../lib/contactInfo'
 
 // ── Form state types ───────────────────────────────────────────────────────
 
@@ -406,6 +392,23 @@ export function DirectoryPage() {
 
     setSavingContact(true)
     setContactError(null)
+
+    // Moving a contact to a different company is blocked while they hold project
+    // team seats — the assignments' composite FK would reject it anyway; this
+    // check turns that into an honest message instead of a constraint error.
+    if (contactModal.editing && contactModal.editing.company_id !== contactForm.company_id) {
+      const { count } = await supabase.from('project_team_assignments')
+        .select('id', { count: 'exact', head: true })
+        .eq('contact_id', contactModal.editing.id)
+      if ((count ?? 0) > 0) {
+        setContactError(
+          `${contactModal.editing.name} is assigned on ${count} project team${count === 1 ? '' : 's'}. ` +
+          `Remove those team assignments first, then change the company.`,
+        )
+        setSavingContact(false)
+        return
+      }
+    }
 
     const primaryPhone = phones.find(p => p.is_primary)
     const primaryEmail = emails.find(em => em.is_primary)

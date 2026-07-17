@@ -14,6 +14,7 @@ import { CxIndexPage } from './CxIndexPage'
 import { EquipmentPage } from './EquipmentPage'
 import { SiteReportsPage } from './SiteReportsPage'
 import { ChecklistsPage } from './ChecklistsPage'
+import { TeamPage } from './TeamPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, TradeType,
 } from '../types/database'
@@ -41,10 +42,11 @@ interface EditForm {
   notes: string
 }
 
-type Tab = 'overview' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'checklists' | 'deliverables'
+type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'checklists' | 'deliverables'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
+  { id: 'team',         label: 'Team',         built: true  },
   { id: 'issues',       label: 'Issues Log',   built: true  },
   { id: 'cx_index',     label: 'Cx Index',     built: true  },
   { id: 'equipment',    label: 'Equipment',    built: true  },
@@ -75,6 +77,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const [editForm, setEditForm] = useState<EditForm>({ name: '', com_number: '', address: '', client_company_id: '', start_date: '', finish_date: '', notes: '' })
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Team summary (Overview block; the Team tab owns the full matrix)
+  const [teamSummary, setTeamSummary] = useState<{ abbr: string; role: string; companies: string }[]>([])
 
   // Classifications
   const [classConfig, setClassConfig] = useState<ClassificationConfig>({ dimensions: [], options: [] })
@@ -127,10 +132,30 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       supabase.from('trade_types').select('*').order('sort_order'),
       supabase.from('project_trades').select('trade_type_id').eq('project_id', projectId),
     ])
-    const [ccRes, selRes] = await Promise.all([
+    const [ccRes, selRes, teamRes] = await Promise.all([
       fetchClassificationConfig(),
       fetchProjectSelections(projectId),
+      supabase.from('project_team_assignments')
+        .select('role_type_id, company_id, company_role_types(name, abbreviation, sort_order), companies(name)')
+        .eq('project_id', projectId),
     ])
+
+    // Compact per-role summary: abbreviation chip + distinct company names
+    const roleMap = new Map<string, { abbr: string; role: string; sort: number; companies: Set<string> }>()
+    for (const r of (teamRes.data ?? []) as any[]) {
+      const rt = Array.isArray(r.company_role_types) ? r.company_role_types[0] : r.company_role_types
+      const co = Array.isArray(r.companies) ? r.companies[0] : r.companies
+      if (!rt) continue
+      const entry = roleMap.get(r.role_type_id) ?? {
+        abbr: rt.abbreviation ?? rt.name.slice(0, 4).toUpperCase(),
+        role: rt.name, sort: rt.sort_order, companies: new Set<string>(),
+      }
+      if (co?.name) entry.companies.add(co.name)
+      roleMap.set(r.role_type_id, entry)
+    }
+    setTeamSummary([...roleMap.values()]
+      .sort((a, b) => a.sort - b.sort)
+      .map(e => ({ abbr: e.abbr, role: e.role, companies: [...e.companies].join(', ') })))
     if (pRes.error)  { setError(pRes.error.message);  setLoading(false); return }
     setProject(pRes.data as ProjectWithClient)
     setPhases((phRes.data ?? []) as ProjectPhase[])
@@ -393,6 +418,32 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           <div className="p-6 max-w-4xl">
             <div className="grid grid-cols-3 gap-5">
 
+              {/* Team summary — the Team tab owns the full matrix */}
+              <div className="bg-white rounded-lg border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Project Team</h3>
+                  <button onClick={() => setActiveTab('team')}
+                    className="text-xs text-teal-700 hover:underline">View Team →</button>
+                </div>
+                {teamSummary.length === 0 ? (
+                  <p className="text-sm text-gray-400">
+                    No team assigned yet — the communication matrix lives in the Team tab.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {teamSummary.map(t => (
+                      <div key={t.abbr + t.role} className="flex items-center gap-2.5 text-sm">
+                        <span className="text-[10px] font-semibold font-mono rounded px-1.5 py-0.5 bg-[#1F3A5F] text-white w-12 text-center flex-shrink-0">
+                          {t.abbr}
+                        </span>
+                        <span className="text-gray-700">{t.companies || '—'}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{t.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Phases */}
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Phases</h3>
@@ -529,6 +580,10 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         )}
 
         {/* Issues Log */}
+        {activeTab === 'team' && (
+          <TeamPage projectId={projectId} />
+        )}
+
         {activeTab === 'issues' && (
           <IssuesLogPage projectId={projectId} phases={phases} />
         )}
