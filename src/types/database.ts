@@ -49,13 +49,39 @@ export interface CompanyRole {
 }
 
 // Managed reference for company roles (was free text). Admin-editable data.
+// One vocabulary for "what a company does" (directory) and "role on this
+// project" (team matrix). Abbreviations render as chips (CxA, GC, BECx…).
 export interface CompanyRoleType {
   id: string
   org_id: string | null
   name: string
+  abbreviation: string | null
   sort_order: number
   active: boolean
   created_at: string
+}
+
+// One seat-holder on a project's team/communication matrix. contact_id nullable:
+// company-only rows ("Controls/BAS → Honeywell") are valid. Phone/email are NEVER
+// stored here — rendering resolves the contact's primary from the directory at
+// render time. Duplicates (incl. company-only) blocked by UNIQUE NULLS NOT DISTINCT.
+export interface ProjectTeamAssignment {
+  id: string
+  org_id: string | null
+  project_id: string
+  role_type_id: string
+  company_id: string
+  contact_id: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface TeamAssignmentWithDetail extends ProjectTeamAssignment {
+  companies: Pick<Company, 'id' | 'name' | 'abbreviation'> | null
+  contacts: (Pick<Contact, 'id' | 'name' | 'trade' | 'email' | 'phone'> & {
+    contact_emails: ContactEmail[]
+    contact_phones: ContactPhone[]
+  }) | null
 }
 
 // One-to-many offices per company; at most one primary (partial unique index).
