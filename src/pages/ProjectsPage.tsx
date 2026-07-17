@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatDate } from '../lib/format'
+import { formatDate, formatDateRange } from '../lib/format'
 import {
   fetchClassificationConfig, validateRequired,
   composeDeliverableTemplateIds, allSelectedOptionIds,
@@ -22,6 +22,8 @@ interface ProjectForm {
   com_number: string
   address: string
   client_company_id: string
+  start_date: string
+  finish_date: string
   notes: string
   phases: string[]
   phaseInput: string
@@ -33,6 +35,8 @@ const EMPTY_FORM: ProjectForm = {
   com_number: '',
   address: '',
   client_company_id: '',
+  start_date: '',
+  finish_date: '',
   notes: '',
   phases: [],
   phaseInput: '',
@@ -79,6 +83,7 @@ export function ProjectsPage() {
   // Classification filters: dimension_id → selected option_id ('' = all)
   const [classFilters, setClassFilters] = useState<Record<string, string>>({})
   const [clientFilter, setClientFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'recent' | 'start_date'>('recent')
 
   // project_id → its classification selections (drives badges + filters)
   const [projClass, setProjClass] = useState<Record<string, ClassificationSelections>>({})
@@ -162,6 +167,10 @@ export function ProjectsPage() {
       return Object.values(classFilters).every(optId => !optId || selected.has(optId))
     })
     .filter(p => !clientFilter || p.client_company_id === clientFilter)
+    // 'recent' keeps the fetch order (last visited, then created); dated projects
+    // first when sorting by start date, undated sink to the bottom.
+    .sort((a, b) => sortBy === 'recent' ? 0 :
+      (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999'))
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -205,6 +214,8 @@ export function ProjectsPage() {
         com_number: form.com_number.trim() || null,
         address: form.address.trim() || null,
         client_company_id: form.client_company_id || null,
+        start_date: form.start_date || null,
+        finish_date: form.finish_date || null,
         notes: form.notes.trim() || null,
       })
       .select('id')
@@ -383,6 +394,16 @@ export function ProjectsPage() {
           )
         })}
 
+        {/* Sort */}
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as 'recent' | 'start_date')}
+          className="self-center text-xs border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-600 mr-2"
+        >
+          <option value="recent">Sort: Recent</option>
+          <option value="start_date">Sort: Start date</option>
+        </select>
+
         {/* Client filter — only shown when there are clients to filter by */}
         {uniqueClients.length > 0 && (
           <select
@@ -458,7 +479,14 @@ export function ProjectsPage() {
                     onClick={() => openProject(p.id)}
                     className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer group"
                   >
-                    <td className="px-5 py-2 font-medium text-gray-900">{p.name}</td>
+                    <td className="px-5 py-2 font-medium text-gray-900">
+                      {p.name}
+                      {formatDateRange(p.start_date, p.finish_date) && (
+                        <span className="block text-[11px] font-normal text-gray-400 mt-0.5">
+                          {formatDateRange(p.start_date, p.finish_date)}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs text-gray-500">
                       {p.com_number ?? <span className="text-gray-300">—</span>}
                     </td>
@@ -612,6 +640,33 @@ export function ProjectsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Start Date
+                <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              </label>
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Finish Date
+                <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              </label>
+              <input
+                type="date"
+                value={form.finish_date}
+                onChange={e => setForm(f => ({ ...f, finish_date: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
             </div>
           </div>
 

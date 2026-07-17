@@ -139,6 +139,8 @@ export interface Project {
   com_number: string | null
   client_company_id: string | null
   address: string | null
+  start_date: string | null
+  finish_date: string | null
   status: 'active' | 'completed'
   notes: string | null
   created_at: string

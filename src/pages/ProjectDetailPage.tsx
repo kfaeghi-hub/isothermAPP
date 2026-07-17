@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatDate } from '../lib/format'
+import { formatDate, formatDateRange } from '../lib/format'
 import {
   fetchClassificationConfig, fetchProjectSelections, validateRequired,
   syncProjectClassifications,
@@ -36,6 +36,8 @@ interface EditForm {
   com_number: string
   address: string
   client_company_id: string
+  start_date: string
+  finish_date: string
   notes: string
 }
 
@@ -70,7 +72,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
   // Edit project modal
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState<EditForm>({ name: '', com_number: '', address: '', client_company_id: '', notes: '' })
+  const [editForm, setEditForm] = useState<EditForm>({ name: '', com_number: '', address: '', client_company_id: '', start_date: '', finish_date: '', notes: '' })
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
 
@@ -152,6 +154,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
       com_number: project.com_number ?? '',
       address: project.address ?? '',
       client_company_id: project.client_company_id ?? '',
+      start_date: project.start_date ?? '',
+      finish_date: project.finish_date ?? '',
       notes: project.notes ?? '',
     })
     // Deep-copy so cancelling the modal doesn't mutate the displayed selections
@@ -182,6 +186,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         com_number: editForm.com_number.trim() || null,
         address: editForm.address.trim() || null,
         client_company_id: editForm.client_company_id || null,
+        start_date: editForm.start_date || null,
+        finish_date: editForm.finish_date || null,
         notes: editForm.notes.trim() || null,
       })
       .eq('id', projectId)
@@ -325,6 +331,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               )}
               {project.address && (
                 <span className="text-xs text-gray-400">{project.address}</span>
+              )}
+              {formatDateRange(project.start_date, project.finish_date) && (
+                <span className="text-xs font-mono text-gray-500">
+                  {formatDateRange(project.start_date, project.finish_date)}
+                </span>
               )}
             </div>
           </div>
@@ -635,6 +646,33 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Start Date
+                <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              </label>
+              <input
+                type="date"
+                value={editForm.start_date}
+                onChange={e => setEditForm(f => ({ ...f, start_date: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Finish Date
+                <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              </label>
+              <input
+                type="date"
+                value={editForm.finish_date}
+                onChange={e => setEditForm(f => ({ ...f, finish_date: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
             </div>
           </div>
 
