@@ -27,6 +27,7 @@
     "@types/react-dom": "^19.1.5",
     "@vitejs/plugin-react": "^4.5.2",
     "happy-dom": "^20.10.6",
+    "pdfjs-dist": "^6.1.200",
     "playwright": "^1.61.0",
     "tailwindcss": "^4.1.10",
     "typescript": "~5.8.3",
