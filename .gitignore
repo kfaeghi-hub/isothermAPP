@@ -30,6 +30,13 @@ ss-*.png
 # Temporary DOCX/PDF inspection folders
 docx-inspect*/
 
+# ShareSync-sourced working copies — CLIENT CONFIDENTIAL, never committed.
+# Copies from the firm document store land here and only here.
+samples/
+
+# Generated verification artifacts (pw-* script outputs)
+out/
+
 # Generated report files at repo root (dev artifacts)
 site-report-*.docx
 site-report-*.pdf
