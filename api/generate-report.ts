@@ -106,6 +106,12 @@ const CSS = `
   .dentry { margin-bottom: 7px; }
   .ddate  { font-style: italic; color: #8A93A0; font-size: 8.5pt; }
   .dtext  { margin-top: 1px; }
+  /* register lines — rendered only when the field is present */
+  .floc   { font-size: 8pt; color: #8A93A0; margin: -2px 0 4px 0; }
+  .fdesc  { margin: 2px 0 6px 0; }
+  .fcorr  { font-size: 8.5pt; margin: 4px 0 2px 0; }
+  .fcorr .lbl { font-weight: 700; color: #1F3A5F; }
+  tr.closed .fcorr .lbl { color: #777; }
   .photo-grid { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px 0; }
   .photo-grid-item { display: flex; flex-direction: column; align-items: flex-start; }
   .photo-grid-item img { width: 140px; height: 105px; object-fit: cover; border-radius: 3px; display: block; }
@@ -194,12 +200,21 @@ function buildHtml(
     const closedDateHtml = closed && f.date_closed
       ? `<div class="closeddate">Closed: ${esc(isoShort(f.date_closed))}</div>` : ''
 
+    // Register lines render ONLY when present — historical findings with all
+    // register columns null must produce identical bytes on regeneration.
+    const locationHtml = f.building_area
+      ? `<div class="floc">Location: ${esc(f.building_area)}</div>` : ''
+    const descHtml = f.description
+      ? `<div class="fdesc">${esc(f.description)}</div>` : ''
+    const corrHtml = f.corrective_action
+      ? `<div class="fcorr"><span class="lbl">Corrective action:</span> ${esc(f.corrective_action)}</div>` : ''
+
     return `<tr${closed ? ' class="closed"' : ''}>
       <td class="num">${esc(f.number)}${closed ? '<span class="closedtag">CLOSED</span>' : ''}</td>
       <td>
         <span class="cat">${esc(headingText)}</span>
         ${hasTitle ? `<span class="cattag">${esc(f.category)}</span>` : ''}
-        ${diaryHtml}${photosHtml}${closedDateHtml}
+        ${locationHtml}${descHtml}${diaryHtml}${photosHtml}${corrHtml}${closedDateHtml}
       </td>
       <td class="act">${esc(responsible)}</td>
     </tr>`
@@ -387,12 +402,20 @@ function buildDocxHtml(
     const closedTag = closed && f.date_closed
       ? `<br><span style="font-size:8pt;font-weight:bold;color:#888;">CLOSED: ${esc(isoShort(f.date_closed))}</span>` : ''
 
+    // Register lines render ONLY when present (byte-clean regen for historical findings).
+    const locationHtml = f.building_area
+      ? `<p style="margin:2px 0 4px 0;font-size:8pt;color:#8A93A0;">Location: ${esc(f.building_area)}</p>` : ''
+    const descHtml = f.description
+      ? `<p style="margin:2px 0 6px 0;">${esc(f.description)}</p>` : ''
+    const corrHtml = f.corrective_action
+      ? `<p style="margin:4px 0 2px 0;font-size:8.5pt;"><strong style="color:${closed ? '#777' : '#1F3A5F'};">Corrective action:</strong> ${esc(f.corrective_action)}</p>` : ''
+
     return `<tr>
       <td ${tdNum}>${esc(f.number)}${closedTag}</td>
       <td ${tdBase}>
         <strong style="color:${closed ? '#777' : '#1F3A5F'};font-size:9.5pt;">${esc(headingText)}</strong>
         ${hasTitle ? `<br><span style="font-size:8pt;color:#999;">${esc(f.category)}</span>` : ''}
-        ${diaryHtml}${photosHtml}
+        ${locationHtml}${descHtml}${diaryHtml}${photosHtml}${corrHtml}
       </td>
       <td ${tdAct}>${esc(responsible)}</td>
     </tr>`
@@ -520,7 +543,7 @@ export default async function handler(req: any, res: any) {
       .eq('project_id', report.project_id)
 
     let fQ = supabase.from('findings')
-      .select('id,number,title,category,status,date_raised,date_closed,contacts(name,trade,companies(name,abbreviation)),finding_diary_entries(id,entry_date,body,created_at),finding_photos(id,storage_url,caption,uploaded_at)')
+      .select('id,number,title,category,status,date_raised,date_closed,building_area,description,corrective_action,contacts(name,trade,companies(name,abbreviation)),finding_diary_entries(id,entry_date,body,created_at),finding_photos(id,storage_url,caption,uploaded_at)')
       .eq('project_id', report.project_id)
       .order('number')
     if (!report.show_closed) fQ = fQ.eq('status', 'open')
