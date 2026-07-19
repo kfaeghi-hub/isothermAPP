@@ -32,7 +32,7 @@ try {
   const modal = page.locator('div.fixed.inset-0')
   await page.getByRole('button', { name: '+ New Checklist' }).click()
   await page.waitForTimeout(800)
-  await modal.getByRole('button').filter({ hasText: 'AHU Installation Verification Checklist' }).first().click()
+  await modal.getByRole('button').filter({ hasText: 'AHU Prefunctional Checklist' }).first().click()
   await page.waitForTimeout(800)
   await modal.getByRole('button').filter({ hasText: 'TEST-AHU-1' }).first().click()
   await page.waitForTimeout(400)
