@@ -27,15 +27,18 @@ try {
   await page.waitForTimeout(1500)
 
   // ── Create a throwaway two-target instance from the AHU template ─────────
+  // Scope every click to the modal overlay — the instance list behind it can
+  // contain buttons with the same text.
+  const modal = page.locator('div.fixed.inset-0')
   await page.getByRole('button', { name: '+ New Checklist' }).click()
   await page.waitForTimeout(800)
-  await page.getByRole('button').filter({ hasText: 'AHU Installation Verification Checklist' }).first().click()
+  await modal.getByRole('button').filter({ hasText: 'AHU Installation Verification Checklist' }).first().click()
   await page.waitForTimeout(800)
-  await page.getByRole('button').filter({ hasText: 'TEST-AHU-1' }).first().click()
+  await modal.getByRole('button').filter({ hasText: 'TEST-AHU-1' }).first().click()
   await page.waitForTimeout(400)
-  await page.getByRole('button').filter({ hasText: 'TEST-AHU-2' }).first().click()
+  await modal.getByRole('button').filter({ hasText: 'TEST-AHU-2' }).first().click()
   await page.waitForTimeout(400)
-  await page.getByRole('button', { name: 'Create Checklist' }).click()
+  await modal.getByRole('button', { name: 'Create Checklist' }).click()
   await page.waitForTimeout(3000)
   check(await page.locator('[data-testid^="copy-into-"]').count() === 2,
     'detail open: per-unit Copy from… controls present (2 columns)')
@@ -116,6 +119,24 @@ try {
 }
 
 await browser.close()
+
+// ── Tidy ZZ-TEST: the two findings created above outlive the deleted instance by
+// design (Issues Log keeps them) — remove them so the fixture stays a regression
+// baseline, not a scratchpad.
+try {
+  const { createClient } = await import('@supabase/supabase-js')
+  const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await sb.auth.signInWithPassword({ email: process.env.email, password: process.env.password })
+  const { data } = await sb.from('findings')
+    .delete()
+    .eq('project_id', 'e0c427d8-2029-4382-b054-6a84248ad8fe')
+    .eq('title', 'Cabinet and general installation')
+    .select('id')
+  console.log(`\ncleanup: removed ${data?.length ?? 0} test finding(s) from ZZ-TEST`)
+} catch (e) {
+  console.log(`\ncleanup: could not remove test findings — ${e.message}`)
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(fails.length === 0 ? 'PASS — copy mechanisms verified.' : `FAIL — ${fails.length}: ${fails.join(' | ')}`)
 process.exit(fails.length === 0 ? 0 : 1)
