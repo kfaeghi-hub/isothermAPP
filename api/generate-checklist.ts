@@ -236,6 +236,9 @@ const CSS = `
   tbody td { padding: 5px 6px; border: 1px solid #DDE3EA; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
   tbody tr:nth-child(even) td { background: #F6F8FB; }
   tr { page-break-inside: avoid; break-inside: avoid; }
+  /* PAGINATION RULE: a section band and its first item row live in tbody.keep —
+     unbreakable, so a band can never strand as the last element on a page. */
+  tbody.keep { page-break-inside: avoid; break-inside: avoid; }
 
   /* Header block — bordered, two columns, matching the real form */
   .hdr-tbl td { padding: 7px 10px; border: 1px solid #C9D2DD; vertical-align: top; font-size: 8.5pt; background: #fff !important; }
@@ -357,8 +360,7 @@ function buildChecklistHtml(d: DocData): string {
     if (sItems.length === 0 && sGrids.length === 0) continue
 
     if (sItems.length > 0) {
-      checksBody += `<tr class="sec-row"><td colspan="${2 + nUnits}">${esc(section.title)}</td></tr>\n`
-      for (const item of sItems) {
+      const rowsHtml = sItems.map(item => {
         const stCells = responseTargets.map(t => {
           const st = mode === 'blank' ? null : (responseMap[rKey(item.id, t.id)]?.status ?? null)
           const fnd = mode === 'blank' ? null : findingMap[rKey(item.id, t.id)]
@@ -368,12 +370,18 @@ function buildChecklistHtml(d: DocData): string {
         }).join('')
         const comment = mode === 'blank' ? '' : responseTargets
           .map(t => responseMap[rKey(item.id, t.id)]?.comment).filter(Boolean).join(' / ')
-        checksBody += `<tr>
+        return `<tr>
           <td>${esc(item.label)}${item.hint ? `<div class="hint">${esc(item.hint)}</div>` : ''}</td>
           ${stCells}
           <td>${dashOr(mode, comment)}</td>
-        </tr>\n`
-      }
+        </tr>`
+      })
+      // PAGINATION RULE: a section band must never be the last element on a page.
+      // The band and its first item row share an unbreakable tbody, so if the pair
+      // doesn't fit before the footer reserve, both move to the next page together.
+      const band = `<tr class="sec-row"><td colspan="${2 + nUnits}">${esc(section.title)}</td></tr>`
+      checksBody += `<tbody class="keep">${band}\n${rowsHtml[0]}</tbody>\n`
+      if (rowsHtml.length > 1) checksBody += `<tbody>${rowsHtml.slice(1).join('\n')}</tbody>\n`
     }
 
     // Grids get their OWN tables — a measurement grid has a different column count from
@@ -531,7 +539,7 @@ function buildChecklistHtml(d: DocData): string {
     <thead>
       <tr><th class="lh">Item</th>${unitThs}<th class="lh">Comments</th></tr>
     </thead>
-    <tbody>${checksBody}</tbody>
+    ${checksBody}
   </table>` : ''}
 
   ${gridsHtml}
