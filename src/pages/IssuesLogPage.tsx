@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import { formatDate } from '../lib/format'
 import { uploadFindingPhoto } from '../lib/photos'
 import { Modal } from '../components/ui/Modal'
+import { EquipmentPicker, type PickerEquipment } from '../components/EquipmentPicker'
+import { useAuth } from '../contexts/AuthContext'
 import type { ProjectPhase, ContactWithCompany, FindingDiaryEntry, FindingPhoto } from '../types/database'
 
 interface ProjectTradeOption { id: string; name: string; sort_order: number }
@@ -20,6 +22,11 @@ interface FindingRow {
   date_raised: string
   date_closed: string | null
   phase_id: string | null
+  linked_equipment_id: string | null
+  identified_by: string | null
+  building_area: string | null
+  description: string | null
+  corrective_action: string | null
   contacts: {
     id: string
     name: string
@@ -28,30 +35,35 @@ interface FindingRow {
   } | null
 }
 
-interface CreateForm {
+// Shared by create + edit — the full issues-log register (ASHRAE 202 shape).
+interface FindingForm {
   title: string
+  description: string
   category: string
+  linked_equipment_id: string
+  building_area: string
+  phase_id: string
   responsible_party_id: string
   origin: string
-  phase_id: string
-  initialEntry: string
+  date_raised: string
+  identified_by: string
+  corrective_action: string
+  date_closed: string    // edit-only, shown when the finding is closed
 }
 
-interface EditForm {
-  title: string
-  category: string
-  responsible_party_id: string
-  origin: string
-  phase_id: string
-}
-
-const EMPTY_CREATE: CreateForm = {
+const EMPTY_FORM: FindingForm = {
   title: '',
+  description: '',
   category: 'INFO',
+  linked_equipment_id: '',
+  building_area: '',
+  phase_id: '',
   responsible_party_id: '',
   origin: 'site_visit',
-  phase_id: '',
-  initialEntry: '',
+  date_raised: '',
+  identified_by: '',
+  corrective_action: '',
+  date_closed: '',
 }
 
 const ORIGIN_LABELS: Record<string, string> = {
@@ -84,8 +96,10 @@ interface Props {
 }
 
 export function IssuesLogPage({ projectId, phases }: Props) {
+  const { profile } = useAuth()
   const [findings, setFindings]       = useState<FindingRow[]>([])
   const [allContacts, setAllContacts] = useState<ContactWithCompany[]>([])
+  const [equipment, setEquipment]     = useState<PickerEquipment[]>([])
   const [loading, setLoading]         = useState(true)
   const [filter, setFilter]           = useState<'open' | 'closed' | 'all'>('open')
   const [selectedId, setSelectedId]   = useState<string | null>(null)
@@ -102,13 +116,13 @@ export function IssuesLogPage({ projectId, phases }: Props) {
 
   // Create modal
   const [createOpen, setCreateOpen]     = useState(false)
-  const [createForm, setCreateForm]     = useState<CreateForm>(EMPTY_CREATE)
+  const [createForm, setCreateForm]     = useState<FindingForm>(EMPTY_FORM)
   const [createError, setCreateError]   = useState<string | null>(null)
   const [creating, setCreating]         = useState(false)
 
   // Edit modal
   const [editOpen, setEditOpen]         = useState(false)
-  const [editForm, setEditForm]         = useState<EditForm>({ title: '', category: '', responsible_party_id: '', origin: 'site_visit', phase_id: '' })
+  const [editForm, setEditForm]         = useState<FindingForm>(EMPTY_FORM)
   const [savingEdit, setSavingEdit]     = useState(false)
 
   // Delete finding
@@ -124,11 +138,23 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from('findings')
-      .select('id, number, title, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, contacts(id, name, trade, companies(name, abbreviation))')
+      .select('id, number, title, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, linked_equipment_id, identified_by, building_area, description, corrective_action, contacts(id, name, trade, companies(name, abbreviation))')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true })
     setFindings((data ?? []) as unknown as FindingRow[])
     setLoading(false)
+  }, [projectId])
+
+  // Same ordering as the Equipment tab (category, then sort_order) so the picker
+  // groups read identically.
+  const fetchEquipment = useCallback(async () => {
+    const { data } = await supabase
+      .from('equipment')
+      .select('id, tag, descriptor, kind, category, sort_order')
+      .eq('project_id', projectId)
+      .order('category')
+      .order('sort_order')
+    setEquipment((data ?? []) as PickerEquipment[])
   }, [projectId])
 
   const fetchContacts = useCallback(async () => {
@@ -166,7 +192,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     setPhotos((pRes.data ?? []) as FindingPhoto[])
   }, [])
 
-  useEffect(() => { fetchFindings(); fetchContacts(); fetchProjectTrades() }, [fetchFindings, fetchContacts, fetchProjectTrades])
+  useEffect(() => { fetchFindings(); fetchContacts(); fetchProjectTrades(); fetchEquipment() }, [fetchFindings, fetchContacts, fetchProjectTrades, fetchEquipment])
 
   useEffect(() => {
     if (selectedId) fetchDetail(selectedId)
@@ -183,20 +209,35 @@ export function IssuesLogPage({ projectId, phases }: Props) {
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
+  /** Fresh form with the client-side editable defaults: today + current user. */
+  function newCreateForm(): FindingForm {
+    return { ...EMPTY_FORM, date_raised: todayISO(), identified_by: profile?.name ?? '' }
+  }
+
   async function createFinding() {
-    if (!createForm.initialEntry.trim()) { setCreateError('An initial description is required.'); return }
+    // Hard requirements: Title + Description only — everything else is knowledge
+    // the CxA may not have mid-walkthrough.
+    if (!createForm.title.trim())       { setCreateError('A title is required.'); return }
+    if (!createForm.description.trim()) { setCreateError('An issue description is required.'); return }
     setCreating(true); setCreateError(null)
 
     const { data: finding, error } = await supabase
       .from('findings')
       .insert({
         project_id: projectId,
-        title: createForm.title.trim() || null,
+        title: createForm.title.trim(),
+        description: createForm.description.trim(),
         category: createForm.category.trim() || 'INFO',
+        linked_equipment_id: createForm.linked_equipment_id || null,
+        building_area: createForm.building_area.trim() || null,
         responsible_party_id: createForm.responsible_party_id || null,
         origin: createForm.origin,
         phase_id: createForm.phase_id || null,
-        // number auto-set by DB trigger; date_raised auto-set by column default
+        date_raised: createForm.date_raised || todayISO(),
+        identified_by: createForm.identified_by.trim() || null,
+        corrective_action: createForm.corrective_action.trim() || null,
+        // number auto-set by DB trigger. The diary starts EMPTY — it is the dated
+        // resolution record; the description column holds the issue itself.
       })
       .select('id, number')
       .single()
@@ -206,13 +247,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       setCreating(false); return
     }
 
-    await supabase.from('finding_diary_entries').insert({
-      finding_id: finding.id,
-      entry_date: todayISO(),
-      body: createForm.initialEntry.trim(),
-    })
-
-    setCreating(false); setCreateOpen(false); setCreateForm(EMPTY_CREATE)
+    setCreating(false); setCreateOpen(false); setCreateForm(EMPTY_FORM)
     await fetchFindings()
     setSelectedId(finding.id)
     setFilter('open')
@@ -263,25 +298,43 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     if (!selectedFinding) return
     setEditForm({
       title: selectedFinding.title ?? '',
+      description: selectedFinding.description ?? '',
       category: selectedFinding.category,
+      linked_equipment_id: selectedFinding.linked_equipment_id ?? '',
+      building_area: selectedFinding.building_area ?? '',
+      phase_id: selectedFinding.phase_id ?? '',
       responsible_party_id: selectedFinding.responsible_party_id ?? '',
       origin: selectedFinding.origin,
-      phase_id: selectedFinding.phase_id ?? '',
+      date_raised: selectedFinding.date_raised,
+      identified_by: selectedFinding.identified_by ?? '',
+      corrective_action: selectedFinding.corrective_action ?? '',
+      date_closed: selectedFinding.date_closed ?? '',
     })
     setEditOpen(true)
   }
 
   async function saveEdit() {
-    if (!selectedId) return
+    if (!selectedId || !selectedFinding) return
     setSavingEdit(true)
     await supabase
       .from('findings')
       .update({
         title: editForm.title.trim() || null,
+        description: editForm.description.trim() || null,
         category: editForm.category.trim() || 'INFO',
+        linked_equipment_id: editForm.linked_equipment_id || null,
+        building_area: editForm.building_area.trim() || null,
+        phase_id: editForm.phase_id || null,
         responsible_party_id: editForm.responsible_party_id || null,
         origin: editForm.origin,
-        phase_id: editForm.phase_id || null,
+        date_raised: editForm.date_raised || selectedFinding.date_raised,
+        identified_by: editForm.identified_by.trim() || null,
+        corrective_action: editForm.corrective_action.trim() || null,
+        // Date Resolved is editable only while closed; open findings keep it null
+        // (toggleStatus owns the open/closed transitions).
+        ...(selectedFinding.status === 'closed'
+          ? { date_closed: editForm.date_closed || selectedFinding.date_closed }
+          : {}),
       })
       .eq('id', selectedId)
     setSavingEdit(false); setEditOpen(false)
@@ -358,7 +411,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             ))}
           </div>
           <button
-            onClick={() => { setCreateForm(EMPTY_CREATE); setCreateError(null); setCreateOpen(true) }}
+            onClick={() => { setCreateForm(newCreateForm()); setCreateError(null); setCreateOpen(true) }}
             className="ml-auto text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium whitespace-nowrap flex-shrink-0"
           >
             + New Finding
@@ -377,7 +430,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                     Log issues as they're discovered on site, during IVC/PFC, or in FPT.
                   </p>
                   <button
-                    onClick={() => { setCreateForm(EMPTY_CREATE); setCreateError(null); setCreateOpen(true) }}
+                    onClick={() => { setCreateForm(newCreateForm()); setCreateError(null); setCreateOpen(true) }}
                     className="text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium"
                   >
                     + New Finding
@@ -417,6 +470,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                   <div className={`text-[11px] flex items-center justify-between gap-2 ${isClosed ? 'text-gray-300' : 'text-gray-400'}`}>
                     <span className="truncate">
                       {f.contacts?.name ?? <em className="not-italic">Unassigned</em>}
+                      {f.building_area && <span className="ml-1.5 text-gray-300">· {f.building_area}</span>}
                     </span>
                     <span className="font-mono text-[10px] flex-shrink-0">
                       {formatDate(f.date_raised)}
@@ -532,16 +586,57 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                 </dd>
               </div>
               <div>
-                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date Raised</dt>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date Identified</dt>
                 <dd className="text-sm font-mono text-gray-700">{formatDate(selectedFinding.date_raised)}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Identified By</dt>
+                <dd className="text-sm text-gray-700">
+                  {selectedFinding.identified_by ?? <span className="text-gray-400">—</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Building / Area</dt>
+                <dd className="text-sm text-gray-700">
+                  {selectedFinding.building_area ?? <span className="text-gray-400">—</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Equipment</dt>
+                <dd className="text-sm text-gray-700">
+                  {(() => {
+                    const eq = equipment.find(e => e.id === selectedFinding.linked_equipment_id)
+                    return eq
+                      ? <>{eq.tag}{eq.descriptor && <span className="text-gray-400 ml-1.5 text-xs">{eq.descriptor}</span>}</>
+                      : <span className="text-gray-400">—</span>
+                  })()}
+                </dd>
               </div>
               {selectedFinding.status === 'closed' && selectedFinding.date_closed && (
                 <div>
-                  <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date Closed</dt>
+                  <dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date Resolved</dt>
                   <dd className="text-sm font-mono text-gray-700">{formatDate(selectedFinding.date_closed)}</dd>
                 </div>
               )}
             </dl>
+
+            {/* Issue description + corrective action — register text, above the diary */}
+            {selectedFinding.description && (
+              <div>
+                <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Issue Description</h4>
+                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                  selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
+                }`}>{selectedFinding.description}</p>
+              </div>
+            )}
+            {selectedFinding.corrective_action && (
+              <div>
+                <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Corrective Action</h4>
+                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                  selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
+                }`}>{selectedFinding.corrective_action}</p>
+              </div>
+            )}
 
             {/* Diary */}
             <div>
@@ -692,15 +787,14 @@ export function IssuesLogPage({ projectId, phases }: Props) {
         null
       )}
 
-      {/* ── Create Finding modal ──────────────────────────────────── */}
+      {/* ── Create Finding modal — the issues-log register (ASHRAE 202) ── */}
       <Modal title="New Finding" open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md">
         <div className="space-y-4">
 
-          {/* Title */}
+          {/* Title — required */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Title
-              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              Title <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -712,26 +806,87 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             />
           </div>
 
-          {/* Category */}
+          {/* Issue Description — required */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Category
+              Issue Description <span className="text-red-400">*</span>
             </label>
-            <select
-              value={createForm.category}
-              onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-            >
-              <option value="INFO">INFO</option>
-              {projectTrades.map(t => (
-                <option key={t.id} value={t.name}>{t.name}</option>
-              ))}
-            </select>
-            {projectTrades.length === 0 && (
-              <p className="text-[11px] text-amber-600 mt-1.5">
-                No systems to be commissioned — add them via <strong>Edit Project</strong> to use specific categories.
-              </p>
-            )}
+            <textarea
+              value={createForm.description}
+              onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
+              rows={4}
+              placeholder="Describe the deficiency or observation found…"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              The diary below the finding stays the dated resolution record — add updates there as work progresses.
+            </p>
+          </div>
+
+          {/* System (category) + Equipment */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                System
+              </label>
+              <select
+                value={createForm.category}
+                onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="INFO">INFO</option>
+                {projectTrades.map(t => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+              {projectTrades.length === 0 && (
+                <p className="text-[11px] text-amber-600 mt-1.5">
+                  No systems to be commissioned — add them via <strong>Edit Project</strong>.
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Equipment / System
+              </label>
+              <EquipmentPicker
+                equipment={equipment}
+                value={createForm.linked_equipment_id}
+                onChange={id => setCreateForm(f => ({ ...f, linked_equipment_id: id }))}
+              />
+            </div>
+          </div>
+
+          {/* Building/Area + Phase */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Building / Area
+              </label>
+              <input
+                type="text"
+                value={createForm.building_area}
+                onChange={e => setCreateForm(f => ({ ...f, building_area: e.target.value }))}
+                placeholder="e.g. Level 3 — Mech Rm 301"
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Phase
+              </label>
+              <select
+                value={createForm.phase_id}
+                onChange={e => setCreateForm(f => ({ ...f, phase_id: e.target.value }))}
+                disabled={phases.length === 0}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                <option value="">No phase</option>
+                {phases.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Responsible Party + Origin */}
@@ -769,41 +924,44 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             </div>
           </div>
 
-          {/* Phase */}
-          {phases.length > 0 && (
+          {/* Date Identified + Identified By — auto-defaulted, editable */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                Phase
-                <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+                Date Identified
               </label>
-              <select
-                value={createForm.phase_id}
-                onChange={e => setCreateForm(f => ({ ...f, phase_id: e.target.value }))}
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-              >
-                <option value="">No phase</option>
-                {phases.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              <input
+                type="date"
+                value={createForm.date_raised}
+                onChange={e => setCreateForm(f => ({ ...f, date_raised: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
             </div>
-          )}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Identified By
+              </label>
+              <input
+                type="text"
+                value={createForm.identified_by}
+                onChange={e => setCreateForm(f => ({ ...f, identified_by: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+          </div>
 
-          {/* Initial diary entry */}
+          {/* Corrective Action */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Description <span className="text-red-400">*</span>
+              Corrective Action
             </label>
             <textarea
-              value={createForm.initialEntry}
-              onChange={e => setCreateForm(f => ({ ...f, initialEntry: e.target.value }))}
-              rows={4}
-              placeholder="Describe the deficiency or observation found…"
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+              value={createForm.corrective_action}
+              onChange={e => setCreateForm(f => ({ ...f, corrective_action: e.target.value }))}
+              rows={2}
+              placeholder="Required measure — fill when known"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             />
-            <p className="text-[11px] text-gray-400 mt-1">
-              Becomes the first diary entry — add further updates as the finding progresses.
-            </p>
           </div>
 
           {createError && <p className="text-sm text-red-600">{createError}</p>}
@@ -888,8 +1046,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Title
-              <span className="ml-1.5 text-gray-400 font-normal normal-case tracking-normal text-[11px]">optional</span>
+              Title <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -902,21 +1059,71 @@ export function IssuesLogPage({ projectId, phases }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
-            <select
-              value={editForm.category}
-              onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-            >
-              <option value="INFO">INFO</option>
-              {/* Preserve old value if it's no longer in the trade list */}
-              {editForm.category !== 'INFO' && !projectTrades.some(t => t.name === editForm.category) && (
-                <option value={editForm.category}>{editForm.category}</option>
-              )}
-              {projectTrades.map(t => (
-                <option key={t.id} value={t.name}>{t.name}</option>
-              ))}
-            </select>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Issue Description
+            </label>
+            <textarea
+              value={editForm.description}
+              onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+              rows={4}
+              placeholder="Describe the deficiency or observation found…"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">System</label>
+              <select
+                value={editForm.category}
+                onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="INFO">INFO</option>
+                {/* Preserve old value if it's no longer in the trade list */}
+                {editForm.category !== 'INFO' && !projectTrades.some(t => t.name === editForm.category) && (
+                  <option value={editForm.category}>{editForm.category}</option>
+                )}
+                {projectTrades.map(t => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Equipment / System</label>
+              <EquipmentPicker
+                equipment={equipment}
+                value={editForm.linked_equipment_id}
+                onChange={id => setEditForm(f => ({ ...f, linked_equipment_id: id }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Building / Area</label>
+              <input
+                type="text"
+                value={editForm.building_area}
+                onChange={e => setEditForm(f => ({ ...f, building_area: e.target.value }))}
+                placeholder="e.g. Level 3 — Mech Rm 301"
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phase</label>
+              <select
+                value={editForm.phase_id}
+                onChange={e => setEditForm(f => ({ ...f, phase_id: e.target.value }))}
+                disabled={phases.length === 0}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                <option value="">No phase</option>
+                {phases.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -949,19 +1156,50 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             </div>
           </div>
 
-          {phases.length > 0 && (
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phase</label>
-              <select
-                value={editForm.phase_id}
-                onChange={e => setEditForm(f => ({ ...f, phase_id: e.target.value }))}
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-              >
-                <option value="">No phase</option>
-                {phases.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Date Identified</label>
+              <input
+                type="date"
+                value={editForm.date_raised}
+                onChange={e => setEditForm(f => ({ ...f, date_raised: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Identified By</label>
+              <input
+                type="text"
+                value={editForm.identified_by}
+                onChange={e => setEditForm(f => ({ ...f, identified_by: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Corrective Action</label>
+            <textarea
+              value={editForm.corrective_action}
+              onChange={e => setEditForm(f => ({ ...f, corrective_action: e.target.value }))}
+              rows={2}
+              placeholder="Required measure — fill when known"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            />
+          </div>
+
+          {/* Date Resolved — the existing date_closed column; editable only while closed */}
+          {selectedFinding?.status === 'closed' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Date Resolved</label>
+                <input
+                  type="date"
+                  value={editForm.date_closed}
+                  onChange={e => setEditForm(f => ({ ...f, date_closed: e.target.value }))}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
             </div>
           )}
 
