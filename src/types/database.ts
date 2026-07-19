@@ -498,6 +498,84 @@ export interface FindingWithParty extends Finding {
   equipment: Pick<Equipment, 'id' | 'tag' | 'descriptor'> | null
 }
 
+// ── Meeting Minutes ────────────────────────────────────────────────────────
+
+export interface MeetingType {
+  id: string
+  org_id: string
+  name: string
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
+export interface MeetingTypeDefaultTopic {
+  id: string
+  org_id: string
+  meeting_type_id: string
+  title: string
+  sort_order: number
+  created_at: string
+}
+
+export interface Meeting {
+  id: string
+  org_id: string
+  project_id: string
+  meeting_type_id: string
+  meeting_number: number
+  meeting_date: string
+  start_time: string | null
+  location: string | null
+  prepared_by: string | null
+  next_meeting_date: string | null
+  status: 'draft' | 'issued'
+  issued_at: string | null
+  storage_url: string | null
+  pdf_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MeetingTopic {
+  id: string
+  org_id: string
+  meeting_id: string
+  title: string
+  sort_order: number
+  created_at: string
+}
+
+export interface MeetingAttendee {
+  id: string
+  org_id: string
+  meeting_id: string
+  contact_id: string | null
+  name_snapshot: string | null
+  company_snapshot: string | null
+  role_label: string | null
+  attendance: 'present' | 'regrets' | 'distribution'
+  sort_order: number
+  created_at: string
+}
+
+export interface MeetingItem {
+  id: string
+  org_id: string
+  meeting_id: string
+  topic_id: string
+  item_number: string
+  carried_from_item_id: string | null
+  discussion: string
+  responsible_assignment_id: string | null
+  responsible_text: string | null
+  due_date: string | null
+  status: 'open' | 'closed' | 'info'
+  linked_finding_id: string | null
+  sort_order: number
+  created_at: string
+}
+
 // ── Checklist Engine (Phase 2) ─────────────────────────────────────────────
 
 // Template pool — firm-level, admin/developer managed
