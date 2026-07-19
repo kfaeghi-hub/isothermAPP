@@ -62,9 +62,12 @@ type SaveState = 'saving' | 'pending'
 
 interface FindingForm {
   title: string
+  description: string
   category: string
   responsible_party_id: string
   phase_id: string
+  building_area: string
+  corrective_action: string
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -119,7 +122,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     prefillEquipmentId: string
     prefillOrigin: ChecklistType
   } | null>(null)
-  const [findingForm, setFindingForm] = useState<FindingForm>({ title: '', category: '', responsible_party_id: '', phase_id: '' })
+  const [findingForm, setFindingForm] = useState<FindingForm>({ title: '', description: '', category: '', responsible_party_id: '', phase_id: '', building_area: '', corrective_action: '' })
   const [projectTrades, setProjectTrades] = useState<Array<{ id: string; name: string }>>([])
   const [contacts, setContacts]           = useState<Array<{ id: string; name: string }>>([])
   const [savingFinding, setSavingFinding] = useState(false)
@@ -570,11 +573,18 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       prefillEquipmentId: target?.equipment_id ?? '',
       prefillOrigin: instance.type,
     })
+    // Description prefill keeps the on-site N-flow at two taps: item label +
+    // unit tag, plus the response comment when one was entered.
+    const unitTag = target?.equipment?.tag ?? target?.equipment?.descriptor ?? ''
+    const comment = responses[key]?.comment ?? ''
     setFindingForm({
       title: next.item.label,
+      description: `${next.item.label}${unitTag ? ` — ${unitTag}` : ''}${comment ? `\n${comment}` : ''}`,
       category: next.item.suggested_category ?? (projectTrades[0]?.name ?? ''),
       responsible_party_id: '',
       phase_id: '',
+      building_area: '',
+      corrective_action: '',
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [findingModal, findingQueue, findLinks])
@@ -837,11 +847,15 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       id: findingId,
       project_id: projectId,
       title: findingForm.title.trim() || null,
+      description: findingForm.description.trim() || null,
       category: findingForm.category || 'INFO',
       responsible_party_id: findingForm.responsible_party_id || null,
       origin: findingModal.prefillOrigin,
       linked_equipment_id: findingModal.prefillEquipmentId || null,
       phase_id: findingForm.phase_id || null,
+      building_area: findingForm.building_area.trim() || null,
+      corrective_action: findingForm.corrective_action.trim() || null,
+      identified_by: profile?.name ?? null,   // auto — the engineer holding the phone
     }
     const linkPayload = {
       instance_id: instance.id,
@@ -1556,6 +1570,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 onChange={e => setFindingForm(f => ({ ...f, title: e.target.value }))}
                 className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
+            {/* Prefilled from item label + unit tag + response comment — edit only if needed */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Issue Description</label>
+              <textarea value={findingForm.description} rows={3}
+                onChange={e => setFindingForm(f => ({ ...f, description: e.target.value }))}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Category <span className="text-red-400">*</span></label>
@@ -1587,6 +1608,23 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 </select>
               </div>
             )}
+            {/* Optional register fields — available on site, never required */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Building / Area</label>
+                <input type="text" value={findingForm.building_area}
+                  onChange={e => setFindingForm(f => ({ ...f, building_area: e.target.value }))}
+                  placeholder="e.g. Level 3 — Mech Rm 301"
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Corrective Action</label>
+                <input type="text" value={findingForm.corrective_action}
+                  onChange={e => setFindingForm(f => ({ ...f, corrective_action: e.target.value }))}
+                  placeholder="Fill when known"
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+            </div>
             {/* Photo capture — `capture="environment"` opens the rear camera straight from
                 the phone, which is the whole point: photograph the defect where you find it. */}
             <div>
