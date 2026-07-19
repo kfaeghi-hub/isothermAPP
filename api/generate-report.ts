@@ -1,17 +1,8 @@
-import chromium from '@sparticuz/chromium-min'
-import puppeteer from 'puppeteer-core'
 import { createClient } from '@supabase/supabase-js'
-
-// html-to-docx is a UMD module; Vercel's esbuild handles CJS→ESM interop.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import HTMLtoDOCX from 'html-to-docx'
-
-// Chromium pack hosted on GitHub Releases — downloaded to /tmp on cold start,
-// cached for the lifetime of the Lambda instance (subsequent calls are fast).
-// Update this URL when upgrading @sparticuz/chromium-min.
-const CHROMIUM_PACK_URL =
-  'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
+import {
+  esc, isoShort, isoLong, isFilenameCaption, toBase64, primaryEmail,
+  BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
+} from './_shared/doc-common'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -21,20 +12,6 @@ const DISCLAIMER =
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function isoShort(iso: string | null | undefined): string {
-  return iso ? iso.slice(0, 10) : '—'
-}
-
-function isoLong(iso: string): string {
-  return new Date(iso + (iso.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('en-CA', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  })
-}
-
 function statusHtml(status: string): string {
   const t = (status ?? '').toUpperCase().replace('_', ' ')
   if (status === 'received')    return `<span class="st-rec">${t}</span>`
@@ -42,49 +19,9 @@ function statusHtml(status: string): string {
   return `<span class="st-na">${t || 'N/A'}</span>`
 }
 
-function isFilenameCaption(c: string | null | undefined): boolean {
-  return !!c && /\.(jpe?g|png|gif|webp|heic|avif|bmp|tiff?)$/i.test(c.trim())
-}
+// ── CSS (matches site_report_mockup.html exactly; base rules shared) ──────────
 
-function toBase64(data: Buffer): string {
-  return data.toString('base64')
-}
-
-// ── CSS (matches site_report_mockup.html exactly) ─────────────────────────────
-
-const CSS = `
-  @page { size: letter; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, 'Segoe UI', sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
-  .page { padding: 0 46px 0 46px; }
-
-  /* letterhead */
-  .firm { text-align: center; }
-  .firm h1 { color: #1F3A5F; font-size: 19pt; letter-spacing: 0.5px; font-weight: 700; }
-  .firm .addr { font-size: 8.5pt; color: #555; margin-top: 2px; }
-  .brandrule { height: 3px; background: #1F3A5F; margin: 9px 0 0 0; border-radius: 2px; }
-
-  /* project header */
-  .phead { display: table; width: 100%; margin-top: 14px; border: 1px solid #C9D2DD; border-radius: 4px; overflow: hidden; }
-  .phead .cell { display: table-cell; padding: 9px 13px; vertical-align: middle; font-size: 9.5pt; }
-  .phead .left  { width: 40%; }
-  .phead .mid   { width: 28%; text-align: center; background: #F4F7FB; border-left: 1px solid #C9D2DD; border-right: 1px solid #C9D2DD; }
-  .phead .right { width: 32%; }
-  .phead .label { color: #777; font-size: 8.5pt; }
-  .phead .val   { font-weight: 600; }
-  .phead .note  { color: #1F3A5F; font-weight: 700; font-size: 11pt; }
-
-  /* section headings */
-  h2.sec { color: #1F3A5F; font-size: 12pt; font-weight: 700; margin: 20px 0 7px 0; padding-bottom: 3px; border-bottom: 2px solid #1F3A5F; page-break-after: avoid; break-after: avoid; }
-
-  /* tables */
-  table { width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 9.5pt; }
-  thead { display: table-header-group; }
-  thead th { background: #1F3A5F; color: #fff; font-weight: 600; text-align: left; padding: 6px 10px; font-size: 9pt; border: 1px solid #1F3A5F; }
-  tbody td { padding: 6px 10px; border: 1px solid #DDE3EA; vertical-align: top; }
-  tbody tr:nth-child(even) td { background: #F6F8FB; }
-  tr { page-break-inside: avoid; break-inside: avoid; }
-
+const CSS = `${BASE_CSS}
   .intro     { margin: 12px 0 2px 0; font-style: italic; color: #333; }
   .narrative { padding: 2px 0; margin: 4px 0; }
   .none      { font-style: italic; color: #888; font-size: 9.5pt; margin-top: 4px; }
@@ -126,16 +63,6 @@ const CSS = `
   .closedtag           { display: block; font-size: 8pt; font-weight: 700; color: #888; }
 
 `
-
-// Contact email resolution: PRIMARY row from contact_emails, falling back to the
-// legacy contacts.email column during the dual-read transition. The backfill made
-// these identical, so regenerating an existing report must not change its content.
-function primaryEmail(c: any): string {
-  const rows = Array.isArray(c?.contact_emails) ? c.contact_emails
-             : c?.contact_emails ? [c.contact_emails] : []
-  const primary = rows.find((e: any) => e?.is_primary)
-  return primary?.email ?? c?.email ?? ''
-}
 
 // ── HTML builder ───────────────────────────────────────────────────────────────
 
@@ -239,12 +166,7 @@ function buildHtml(
 <body>
 <div class="page">
 
-  <div class="firm">
-    <h1>ISOTHERM ENGINEERING LTD.</h1>
-    <div class="addr">95 Mural Street, Suite 600, Richmond Hill, ON, L4B 3G2<br>
-    Ph 905-822-2430 &nbsp;&bull;&nbsp; e-mail: info@isothermengineering.com</div>
-  </div>
-  <div class="brandrule"></div>
+  ${FIRM_HEADER_PDF}
 
   <div class="phead">
     <div class="cell left">
@@ -284,37 +206,8 @@ function buildHtml(
 </html>`
 }
 
-// ── PDF via Puppeteer + @sparticuz/chromium-min ────────────────────────────────
-
-async function toPdf(html: string): Promise<Buffer> {
-  const execPath = await chromium.executablePath(CHROMIUM_PACK_URL)
-
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    executablePath: execPath,
-    headless: 'shell',
-    defaultViewport: null,
-  })
-
-  try {
-    const page = await browser.newPage()
-    // All images are base64 data URIs — no external network requests needed.
-    await page.setContent(html, { waitUntil: 'domcontentloaded' })
-    const pdf = await page.pdf({
-      format: 'letter',
-      printBackground: true,
-      // top/bottom margins managed here so Puppeteer owns the footer zone;
-      // position:fixed footer removed from HTML to prevent overlay clipping rows.
-      margin: { top: '0.5in', right: '0', bottom: '0.55in', left: '0' },
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate: `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;font-style:italic;color:#888888;border-top:1px solid #e5e5e5;box-sizing:border-box;line-height:1.3;">${DISCLAIMER}</div>`,
-    })
-    return Buffer.from(pdf)
-  } finally {
-    await browser.close()
-  }
-}
+// PDF footer: the disclaimer rides in Puppeteer's footer zone on every page.
+const PDF_FOOTER = `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;font-style:italic;color:#888888;border-top:1px solid #e5e5e5;box-sizing:border-box;line-height:1.3;">${DISCLAIMER}</div>`
 
 // ── DOCX-specific HTML builder ────────────────────────────────────────────────
 // Generates a Word-friendly HTML using real <table> elements and inline styles
@@ -437,8 +330,7 @@ function buildDocxHtml(
 </head>
 <body>
 
-<h1 style="color:#1F3A5F;font-size:19pt;font-weight:bold;text-align:center;margin:0;">ISOTHERM ENGINEERING LTD.</h1>
-<p style="text-align:center;font-size:8.5pt;color:#555;margin:2px 0;">95 Mural Street, Suite 600, Richmond Hill, ON, L4B 3G2 &nbsp;&bull;&nbsp; Ph 905-822-2430 &nbsp;&bull;&nbsp; info@isothermengineering.com</p>
+${FIRM_HEADER_DOCX}
 
 <table style="width:100%;border:1px solid #C9D2DD;border-collapse:collapse;margin-top:14px;font-size:9.5pt;">
   <tr>
@@ -486,31 +378,6 @@ ${docSection}
 
 </body>
 </html>`
-}
-
-// ── docx via html-to-docx (pure JS, no native binary) ─────────────────────────
-
-async function toDocx(html: string): Promise<Buffer> {
-  // Only strip width: from th/td style attrs — html-to-docx crashes on those.
-  // Other inline styles (background-color, color, border, padding) are kept
-  // so the DOCX-specific HTML formatting carries through to Word.
-  const safeHtml = html.replace(/(<t[hd][^>]*?) style="([^"]*)"/gi, (_: string, tag: string, styles: string) => {
-    const filtered = styles.split(';').map((s: string) => s.trim())
-      .filter((s: string) => s && !s.toLowerCase().startsWith('width'))
-      .join('; ')
-    return filtered ? `${tag} style="${filtered}"` : tag
-  })
-  const result = await HTMLtoDOCX(safeHtml, null, {
-    table:    { row: { cantSplit: true } },
-    // header/footer/gutter must be explicit integers — html-to-docx writes
-    // the string "undefined" for omitted margin fields, which Word rejects.
-    margins:  { top: 720, right: 1080, bottom: 900, left: 1080, header: 708, footer: 708, gutter: 0 },
-    font:     'Arial',
-    fontSize: 20,   // half-points (= 10pt)
-    footer:   false,
-    header:   false,
-  })
-  return Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
 }
 
 // ── Vercel serverless handler ──────────────────────────────────────────────────
@@ -565,32 +432,19 @@ export default async function handler(req: any, res: any) {
 
     // Run PDF (Chromium) and docx (html-to-docx) in parallel.
     const [pdfBuffer, docxBuffer] = await Promise.all([
-      toPdf(pdfHtml),
+      toPdf(pdfHtml, PDF_FOOTER),
       toDocx(docxHtml),
     ])
 
     // Upload both to Supabase Storage.
-    const store = supabase.storage.from('site-reports')
-    const base  = `${report.project_id}/${report.report_number}`
-    const [docxUp, pdfUp] = await Promise.all([
-      store.upload(`${base}.docx`, docxBuffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        upsert: true,
-      }),
-      store.upload(`${base}.pdf`, pdfBuffer, {
-        contentType: 'application/pdf',
-        upsert: true,
-      }),
-    ])
-    if (docxUp.error ?? pdfUp.error)
-      return res.status(500).json({ error: (docxUp.error ?? pdfUp.error)?.message })
-
-    // Cache-bust so browsers always serve the freshly generated file.
-    const ts = Date.now()
-    const { data: { publicUrl: rawDocxUrl } } = store.getPublicUrl(`${base}.docx`)
-    const { data: { publicUrl: rawPdfUrl  } } = store.getPublicUrl(`${base}.pdf`)
-    const storage_url = `${rawDocxUrl}?t=${ts}`
-    const pdf_url     = `${rawPdfUrl}?t=${ts}`
+    const uploaded = await uploadDocPair(
+      supabase.storage.from('site-reports'),
+      `${report.project_id}/${report.report_number}`,
+      docxBuffer, pdfBuffer,
+    )
+    if ('error' in uploaded)
+      return res.status(500).json({ error: uploaded.error })
+    const { storage_url, pdf_url } = uploaded
     await supabase.from('site_reports').update({ storage_url, pdf_url }).eq('id', report_id)
 
     return res.status(200).json({ storage_url, pdf_url })
