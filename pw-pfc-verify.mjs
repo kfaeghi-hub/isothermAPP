@@ -2,7 +2,7 @@
 //   - template picker shows the AHU template as PFC
 //   - a NEW instance created through the real UI flow inherits the denormalized pfc type
 //   - the type filter and badges show PFC
-// Replaces the stale ivc-snapshot regression instance with a fresh pfc one.
+// Replaces the stale-snapshot regression instance with a fresh pfc one.
 //
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-pfc-verify.mjs
 import { chromium } from 'playwright'
@@ -11,11 +11,12 @@ import { login, openTestProject } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 const AHU_TMPL = 'da98cd4a-6132-4017-8763-0aba21303b56'
+const TMPL_NAME = 'AHU Prefunctional Checklist'
 
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
 
-// Replace the stale instance (created before the type fix froze ivc into its snapshot).
+// Replace the stale instance (its snapshot predates the type/name correction).
 const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 await sb.auth.signInWithPassword({ email: process.env.email, password: process.env.password })
 const { data: old } = await sb.from('checklist_instances')
@@ -36,7 +37,7 @@ try {
   await page.getByRole('button', { name: '+ New Checklist' }).click()
   await page.waitForTimeout(800)
 
-  const tmplRow = modal.getByRole('button').filter({ hasText: 'AHU Installation Verification Checklist' }).first()
+  const tmplRow = modal.getByRole('button').filter({ hasText: TMPL_NAME }).first()
   check(await tmplRow.getByText('PFC', { exact: true }).count() === 1,
     'template picker: AHU template carries the PFC badge')
   await tmplRow.click()
@@ -50,35 +51,36 @@ try {
   await modal.getByRole('button', { name: 'Create Checklist' }).click()
   await page.waitForTimeout(3000)
 
-  // Detail header badge
+  // Detail header: badge + corrected name in the snapshot
   check(await page.getByText('PFC', { exact: true }).count() > 0, 'instance detail shows PFC badge')
+  check(await page.getByText(TMPL_NAME).count() > 0, 'instance carries the "Prefunctional Checklist" name')
   await page.locator('button', { hasText: '×' }).first().click()
   await page.waitForTimeout(1000)
 
   // Type filter: PFC shows it, IVC hides it
   await page.getByRole('button', { name: 'PFC', exact: true }).click()
   await page.waitForTimeout(600)
-  check(await page.getByText('AHU Installation Verification Checklist').count() > 0,
-    'PFC filter lists the new instance')
+  check(await page.getByText(TMPL_NAME).count() > 0, 'PFC filter lists the new instance')
   await page.getByRole('button', { name: 'IVC', exact: true }).click()
   await page.waitForTimeout(600)
-  check(await page.getByText('AHU Installation Verification Checklist').count() === 0,
-    'IVC filter does NOT list it')
+  check(await page.getByText(TMPL_NAME).count() === 0, 'IVC filter does NOT list it')
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
   await page.screenshot({ path: 'out/pw-pfc-fail.png', fullPage: true }).catch(() => {})
 }
 await browser.close()
 
-// DB truth: the new instance's denormalized type + snapshot
+// DB truth: the new instance's denormalized type + name snapshot
 const { data: fresh } = await sb.from('checklist_instances')
-  .select('id, type, source_template_type_snapshot, status')
+  .select('id, type, source_template_type_snapshot, source_template_name_snapshot, status')
   .eq('project_id', ZZ).eq('source_template_id', AHU_TMPL)
 const inst = fresh?.[0]
 check(inst?.type === 'pfc' && inst?.source_template_type_snapshot === 'pfc',
   `new instance denormalized type = pfc (got type=${inst?.type}, snapshot=${inst?.source_template_type_snapshot})`)
-console.log(`new regression instance: ${inst?.id}`)
+check(inst?.source_template_name_snapshot === TMPL_NAME,
+  `new instance name snapshot = "${TMPL_NAME}" (got "${inst?.source_template_name_snapshot}")`)
+console.log(`regression instance: ${inst?.id}`)
 
 console.log('\n' + '='.repeat(60))
-console.log(fails.length === 0 ? 'PASS — pfc flows to new instances end-to-end.' : `FAIL — ${fails.length}: ${fails.join(' | ')}`)
+console.log(fails.length === 0 ? 'PASS — pfc type + name flow to new instances end-to-end.' : `FAIL — ${fails.length}: ${fails.join(' | ')}`)
 process.exit(fails.length === 0 ? 0 : 1)
