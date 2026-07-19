@@ -367,8 +367,12 @@ export interface Finding {
   status: FindingStatus
   origin: FindingOrigin
   date_raised: string
-  date_closed: string | null
+  date_closed: string | null   // "Date Resolved" in the UI — auto-set on close, cleared on reopen
   linked_equipment_id: string | null
+  identified_by: string | null
+  building_area: string | null
+  description: string | null
+  corrective_action: string | null
   created_at: string
   updated_at: string
 }
