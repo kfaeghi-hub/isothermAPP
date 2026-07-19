@@ -13,6 +13,7 @@ import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
 import { EquipmentPage } from './EquipmentPage'
 import { SiteReportsPage } from './SiteReportsPage'
+import { MeetingsPage } from './MeetingsPage'
 import { ChecklistsPage } from './ChecklistsPage'
 import { TeamPage } from './TeamPage'
 import type {
@@ -42,7 +43,7 @@ interface EditForm {
   notes: string
 }
 
-type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'checklists' | 'deliverables'
+type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'meetings' | 'checklists' | 'deliverables'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
@@ -51,6 +52,7 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'cx_index',     label: 'Cx Index',     built: true  },
   { id: 'equipment',    label: 'Equipment',    built: true  },
   { id: 'site_reports', label: 'Site Reports', built: true  },
+  { id: 'meetings',     label: 'Meetings',     built: true  },
   { id: 'checklists',   label: 'Checklists',   built: true  },
   { id: 'deliverables', label: 'Deliverables', built: false },
 ]
@@ -611,6 +613,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         {/* Site Reports */}
         {activeTab === 'site_reports' && (
           <SiteReportsPage projectId={projectId} />
+        )}
+
+        {/* Meetings */}
+        {activeTab === 'meetings' && (
+          <MeetingsPage projectId={projectId} />
         )}
 
         {/* Checklists */}
