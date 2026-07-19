@@ -127,6 +127,21 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   // Photos captured in the modal, uploaded once the finding row exists.
   const [findingPhotos, setFindingPhotos] = useState<File[]>([])
 
+  // ── Multi-unit fill efficiency ────────────────────────────────────────────
+  // Bulk copies can trip several N/fail items at once and the finding modal is
+  // singular, so hits wait their turn here — one finding per item per target.
+  const [findingQueue, setFindingQueue] = useState<Array<{ item: ChecklistInstanceItem; targetId: string }>>([])
+  const [copyMenu, setCopyMenu]         = useState<string | null>(null)
+  const [copyConfirm, setCopyConfirm]   = useState<{
+    source: DetailTarget
+    target: DetailTarget
+    respCount: number
+    gridCount: number
+    keptCount: number
+  } | null>(null)
+  const [copying, setCopying]           = useState(false)
+  const [copyResult, setCopyResult]     = useState<string | null>(null)
+
   // ── Complete state ────────────────────────────────────────────────────────
   const [confirmComplete, setConfirmComplete] = useState(false)
   const [completing, setCompleting]           = useState(false)
@@ -472,19 +487,25 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
   // ── Response upsert ────────────────────────────────────────────────────
 
-  async function setResponse(item: ChecklistInstanceItem, targetId: string, status: ResponseStatus | null) {
+  async function setResponse(
+    item: ChecklistInstanceItem, targetId: string, status: ResponseStatus | null,
+    opts?: { comment?: string },
+  ) {
     if (!instance) return
     const key = rKey(item.id, targetId)
     mark(key, 'saving')
 
     // Upsert on the natural key. No insert-vs-update branch, so two fast changes
     // can't both take the insert path and collide on the unique constraint.
+    // The comment column is only included when a copy carries one — an absent key
+    // leaves the target's existing comment untouched on conflict-update.
     const payload = {
       instance_id: instance.id,
       item_id: item.id,
       target_id: targetId,
       status_type: item.status_type,
       status,
+      ...(opts?.comment !== undefined ? { comment: opts.comment } : {}),
     }
 
     const { data, error } = await supabase
@@ -520,26 +541,152 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       }
     }
 
-    // Trigger finding modal on N/fail if creates_finding and no existing link
+    // Trigger the finding flow on N/fail if creates_finding and no existing link.
+    // Routed through the queue so a bulk copy that trips several N items walks the
+    // engineer through one finding modal per hit — never dropping any.
     const isFail = (item.status_type === 'yn_nr_na' && status === 'n') || (item.status_type === 'pass_yn' && status === 'fail')
     if (isFail && item.creates_finding && !findLinks[key]) {
-      const target = targets.find(t => t.id === targetId)
-      setFindingModal({
-        open: true,
-        itemId: item.id,
-        targetId,
-        prefillTitle: item.label,
-        prefillCategory: item.suggested_category ?? '',
-        prefillEquipmentId: target?.equipment_id ?? '',
-        prefillOrigin: instance.type,
-      })
-      setFindingForm({
-        title: item.label,
-        category: item.suggested_category ?? (projectTrades[0]?.name ?? ''),
-        responsible_party_id: '',
-        phase_id: '',
+      setFindingQueue(q => q.some(e => e.item.id === item.id && e.targetId === targetId)
+        ? q : [...q, { item, targetId }])
+    }
+  }
+
+  // Drain the finding queue: whenever no modal is open and a hit is waiting, open
+  // the normal finding modal for it. Integrity: one finding per item per target —
+  // a link created while the hit waited its turn dismisses it.
+  useEffect(() => {
+    if (findingModal || findingQueue.length === 0 || !instance) return
+    const [next, ...rest] = findingQueue
+    setFindingQueue(rest)
+    const key = rKey(next.item.id, next.targetId)
+    if (findLinks[key]) return
+    const target = targets.find(t => t.id === next.targetId)
+    setFindingModal({
+      open: true,
+      itemId: next.item.id,
+      targetId: next.targetId,
+      prefillTitle: next.item.label,
+      prefillCategory: next.item.suggested_category ?? '',
+      prefillEquipmentId: target?.equipment_id ?? '',
+      prefillOrigin: instance.type,
+    })
+    setFindingForm({
+      title: next.item.label,
+      category: next.item.suggested_category ?? (projectTrades[0]?.name ?? ''),
+      responsible_party_id: '',
+      phase_id: '',
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [findingModal, findingQueue, findLinks])
+
+  // ── Multi-unit copy mechanisms ─────────────────────────────────────────
+  // Field reality: 3–4 identical units, most answers match. Both mechanisms run
+  // through the normal save path (upserts → outbox on failure), so offline bulk
+  // copies queue like any entries and Mark Complete stays blocked while queued.
+  // Findings are NEVER copied — a copied N/fail goes through the queue above.
+  // Signoffs are never touched.
+
+  /** Row-level: copy one unit's status + comment to every other unit on the row. */
+  async function applyRowToAll(item: ChecklistInstanceItem, fromTargetId: string) {
+    const src = responses[rKey(item.id, fromTargetId)]
+    if (!src?.status) return
+    for (const t of responseTargets) {
+      if (t.id === fromTargetId) continue
+      await setResponse(item, t.id, src.status,
+        src.comment ? { comment: src.comment } : undefined)
+    }
+  }
+
+  /** Column-level dry run: what would copying source→target fill, what stays? */
+  function computeColumnCopy(source: DetailTarget, target: DetailTarget) {
+    const respOps: Array<{ item: ChecklistInstanceItem; status: ResponseStatus; comment?: string }> = []
+    let kept = 0
+    for (const item of items) {
+      const s = responses[rKey(item.id, source.id)]
+      if (!s?.status) continue
+      const t = responses[rKey(item.id, target.id)]
+      if (t?.status) { kept++; continue }   // never overwrite an existing entry
+      respOps.push({
+        item, status: s.status,
+        ...(s.comment && !t?.comment ? { comment: s.comment } : {}),
       })
     }
+
+    const gridOps: Array<{ grid: ChecklistInstanceGrid; rowKey: string; merged: Record<string, string> }> = []
+    let gridCount = 0
+    for (const grid of grids) {
+      for (const row of grid.definition.rows) {
+        const sData = gridResps[gKey(grid.id, source.id, row.key)]?.data ?? {}
+        const tKey = gKey(grid.id, target.id, row.key)
+        const tData = gridResps[tKey]?.data ?? {}
+        const merged: Record<string, string> = { ...tData }
+        let changed = false
+        for (const col of grid.definition.columns) {
+          // A draft the user is mid-typing counts as an existing entry too.
+          const tv = gridDrafts[`${tKey}:${col.key}`] ?? tData[col.key]
+          const sv = sData[col.key]
+          if (tv != null && String(tv).trim() !== '') { if (sv) kept++; continue }
+          if (sv != null && String(sv).trim() !== '') { merged[col.key] = String(sv); gridCount++; changed = true }
+        }
+        if (changed) gridOps.push({ grid, rowKey: row.key, merged })
+      }
+    }
+    return { respOps, gridOps, respCount: respOps.length, gridCount, keptCount: kept }
+  }
+
+  /** Persist a copied grid row — same natural-key upsert + outbox fallback as manual fill. */
+  async function persistCopiedGridRow(
+    grid: ChecklistInstanceGrid, targetId: string, rowKey: string, merged: Record<string, string>,
+  ) {
+    if (!instance) return
+    const key = gKey(grid.id, targetId, rowKey)
+    const payload = {
+      instance_id: instance.id, grid_id: grid.id, target_id: targetId,
+      row_key: rowKey, data: merged,
+    }
+    const { data, error } = await supabase
+      .from('checklist_grid_responses')
+      .upsert(payload, { onConflict: 'instance_id,grid_id,target_id,row_key' })
+      .select()
+      .single()
+    if (error || !data) {
+      outbox.enqueue({
+        key: `grid:${key}`,
+        label: `${grid.title} · ${rowKey}`,
+        kind: 'upsert',
+        table: 'checklist_grid_responses',
+        onConflict: 'instance_id,grid_id,target_id,row_key',
+        payload,
+      })
+      setGridResps(r => ({ ...r, [key]: { ...(r[key] ?? {}), ...payload } as ChecklistGridResponse }))
+    } else {
+      setGridResps(r => ({ ...r, [key]: data as ChecklistGridResponse }))
+    }
+  }
+
+  /** Apply a confirmed column copy. Reports copied vs kept when done. */
+  async function applyColumnCopy() {
+    if (!copyConfirm) return
+    const { source, target } = copyConfirm
+    setCopying(true)
+    // Recompute at apply time — entries made since the confirm opened stay untouched.
+    const { respOps, gridOps, respCount, gridCount, keptCount } = computeColumnCopy(source, target)
+    for (const op of respOps) {
+      await setResponse(op.item, target.id, op.status,
+        op.comment !== undefined ? { comment: op.comment } : undefined)
+    }
+    for (const op of gridOps) {
+      await persistCopiedGridRow(op.grid, target.id, op.rowKey, op.merged)
+    }
+    setCopying(false)
+    setCopyConfirm(null)
+    const tag = target.equipment?.tag ?? '?'
+    setCopyResult(
+      `Copied ${respCount} response${respCount === 1 ? '' : 's'}` +
+      (gridCount > 0 ? ` and ${gridCount} grid cell${gridCount === 1 ? '' : 's'}` : '') +
+      ` into ${tag} · ${keptCount} existing ${keptCount === 1 ? 'entry' : 'entries'} kept`,
+    )
+    window.setTimeout(() => setCopyResult(null), 8000)
   }
 
   // ── Grid response upsert ───────────────────────────────────────────────
@@ -1083,11 +1230,47 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 <div className="sticky top-0 z-10 flex items-center border-b border-gray-200 bg-white px-5 py-2">
                   <div className="flex-1 min-w-0" />
                   {responseTargets.map(t => (
-                    <div key={t.id} className="w-20 text-center text-[11px] font-semibold text-gray-600 flex-shrink-0 px-1">
-                      {t.equipment?.tag ?? t.equipment?.descriptor ?? '?'}
+                    <div key={t.id} className="w-20 text-center flex-shrink-0 px-1 relative">
+                      <span className="text-[11px] font-semibold text-gray-600 block">
+                        {t.equipment?.tag ?? t.equipment?.descriptor ?? '?'}
+                      </span>
+                      {instance.status !== 'complete' && (
+                        <button
+                          data-testid={`copy-into-${t.id}`}
+                          onClick={() => setCopyMenu(m => m === t.id ? null : t.id)}
+                          className="text-[10px] text-teal-600 hover:text-teal-800 hover:underline"
+                          title="Fill this unit's empty cells from another unit">
+                          Copy from…
+                        </button>
+                      )}
+                      {copyMenu === t.id && (
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[10rem]">
+                          {responseTargets.filter(s => s.id !== t.id).map(s => (
+                            <button
+                              key={s.id}
+                              data-testid={`copy-from-${s.id}-into-${t.id}`}
+                              onClick={() => {
+                                setCopyMenu(null)
+                                const dry = computeColumnCopy(s, t)
+                                setCopyConfirm({ source: s, target: t, respCount: dry.respCount, gridCount: dry.gridCount, keptCount: dry.keptCount })
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-teal-50">
+                              from <span className="font-semibold">{s.equipment?.tag ?? '?'}</span> →
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div className="w-24 flex-shrink-0" />
+                </div>
+              )}
+
+              {/* Copy outcome — copied vs kept, honest about what happened */}
+              {copyResult && (
+                <div data-testid="copy-result"
+                  className="px-5 py-1.5 text-xs bg-teal-50 border-b border-teal-100 text-teal-700">
+                  {copyResult}
                 </div>
               )}
 
@@ -1111,6 +1294,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                         findLinks={findLinks}
                         saveState={saveState}
                         onSetResponse={setResponse}
+                        onApplyRowToAll={applyRowToAll}
                         isComplete={instance.status === 'complete'}
                       />
                     ))}
@@ -1298,6 +1482,34 @@ export function ChecklistsPage({ projectId, phases }: Props) {
           </div>
         )}
       </Modal>
+
+      {/* ── Copy-from-unit confirm ──────────────────────────────────── */}
+      {copyConfirm && (
+        <Modal title="Copy from unit" open onClose={() => !copying && setCopyConfirm(null)} maxWidth="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              Copy <strong>{copyConfirm.respCount}</strong> response{copyConfirm.respCount === 1 ? '' : 's'}
+              {copyConfirm.gridCount > 0 && <> and <strong>{copyConfirm.gridCount}</strong> grid cell{copyConfirm.gridCount === 1 ? '' : 's'}</>}
+              {' '}from <strong>{copyConfirm.source.equipment?.tag ?? '?'}</strong> into{' '}
+              <strong>{copyConfirm.target.equipment?.tag ?? '?'}</strong>&rsquo;s empty cells?
+            </p>
+            <ul className="text-xs text-gray-500 space-y-1 list-disc pl-4">
+              <li>{copyConfirm.keptCount} existing {copyConfirm.keptCount === 1 ? 'entry' : 'entries'} in {copyConfirm.target.equipment?.tag ?? '?'} will be kept — nothing is overwritten.</li>
+              <li>Findings are not copied. A copied N/Fail opens the normal finding flow for this unit.</li>
+              <li>Sign-offs are not touched.</li>
+            </ul>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setCopyConfirm(null)} disabled={copying}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+              <button onClick={applyColumnCopy} disabled={copying || (copyConfirm.respCount + copyConfirm.gridCount) === 0}
+                data-testid="copy-confirm-apply"
+                className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium">
+                {copying ? 'Copying…' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ── Edit header modal ───────────────────────────────────────── */}
       <Modal title="Edit Checklist Details" open={editingHeader} onClose={() => setEditingHeader(false)} maxWidth="sm">
@@ -1495,7 +1707,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 // ── Line item row ──────────────────────────────────────────────────────────
 
 function ItemRow({
-  item, responseTargets, responses, findLinks, saveState, onSetResponse, isComplete,
+  item, responseTargets, responses, findLinks, saveState, onSetResponse, onApplyRowToAll, isComplete,
 }: {
   item: ChecklistInstanceItem
   responseTargets: DetailTarget[]
@@ -1503,6 +1715,7 @@ function ItemRow({
   findLinks: Record<string, ChecklistFindingLink>
   saveState: Record<string, SaveState>
   onSetResponse: (item: ChecklistInstanceItem, targetId: string, status: ResponseStatus | null) => void
+  onApplyRowToAll: (item: ChecklistInstanceItem, fromTargetId: string) => void
   isComplete: boolean
 }) {
   return (
@@ -1548,6 +1761,16 @@ function ItemRow({
             )}
             {link && (
               <span className="text-[10px] text-amber-600 font-medium">Finding</span>
+            )}
+            {/* Row-level apply-to-all: instant, no confirm — the row is visible and re-tappable */}
+            {!isComplete && responseTargets.length > 1 && currentStatus && (
+              <button
+                data-testid={`apply-all-${item.id}-${target.id}`}
+                onClick={() => onApplyRowToAll(item, target.id)}
+                className="text-[10px] text-gray-300 hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Apply this response to all units on this row">
+                ⇉ all
+              </button>
             )}
           </div>
         )
