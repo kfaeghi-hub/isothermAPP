@@ -110,6 +110,26 @@ capture. If on-site use is flakier than paper, adoption dies; this is an accepta
 test, not a nice-to-have.
 Equipment/nameplate data displayed on a completed checklist is snapshotted at completion.
 
+**(new) Multi-unit strategy.** Parallel-column instances (one response column per unit)
+are intended for **2–4 units**. The binding constraint is nameplate width on Letter:
+1 + 3N columns (Specified / Shop Drawing / Installed per unit) — which also matches the
+paper masters' two-unit design. Larger fleets are chunked into multiple instances grouped
+by floor, riser, or mechanical room. This is guidance, not UI enforcement — no hard cap.
+For high-count equipment (VAV boxes and kin), the planned generic solution is a
+**transposed check-table render mode** — units as rows, items as columns, per the firm's
+2.6.11.7 VAV Check-Table master — to be built when the VAV family is seeded.
+Document rendering: measurement grids with ≥5 columns render per target (stacked, one
+grid per unit); ≤4-column grids render combined (one table, both units' column groups).
+**Multi-unit copy mechanisms** (field reality: 3–4 identical units, most answers match):
+row-level "apply to all" copies one unit's status + comment across the row instantly;
+column-level "Copy from [unit]" fills the target unit's *empty* cells only (item statuses
++ comments, grid values row-by-row) — it never overwrites an existing entry, so filling
+the exception first is safe; the confirm states the count, the result reports copied vs
+kept. **Finding integrity:** findings are never copied — a copied N/fail routes through
+the normal finding-modal flow once per target (one finding per item per target). Sign-offs
+are never touched. Both mechanisms run through the normal save path (upserts + outbox),
+so offline bulk copies queue like any entries and Mark Complete stays blocked while queued.
+
 **Phase 3 — Report and Closeout Automation.** Checklist/FPT PDF-DOCX generation, issue
 summary and open/closed deficiency reports, closeout sections, LEED deliverable
 tracking. Reports pull from the database, never from retyped documents.
