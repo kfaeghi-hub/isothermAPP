@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   esc, isoShort, isoLong, isFilenameCaption, toBase64, primaryEmail,
   BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
-} from './_shared/doc-common'
+} from './_shared/doc-common.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
