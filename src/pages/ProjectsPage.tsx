@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
@@ -48,6 +49,10 @@ type Section = 'active' | 'completed'
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function ProjectsPage() {
+  const { profile } = useAuth()
+  // Owners (admin/dev) create/complete/delete projects; employees see member
+  // projects only (RLS-scoped) and never these buttons.
+  const isOwner = ['admin', 'developer'].includes(profile?.role ?? '')
   const [projects, setProjects] = useState<ProjectWithClient[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
@@ -174,11 +179,9 @@ export function ProjectsPage() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  async function openProject(id: string) {
-    await supabase
-      .from('projects')
-      .update({ last_visited_at: new Date().toISOString() })
-      .eq('id', id)
+  // last_visited_at write removed (proposal §6.2): the dashboard derives visits
+  // from site-report dates, and the write forced projects UPDATE wide open.
+  function openProject(id: string) {
     navigate(`/projects/${id}`)
   }
 
@@ -417,12 +420,14 @@ export function ProjectsPage() {
           </button>
         )}
 
-        <button
-          onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
-          className="ml-auto self-center text-sm bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium whitespace-nowrap"
-        >
-          + New Project
-        </button>
+        {isOwner && (
+          <button
+            onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
+            className="ml-auto self-center text-sm bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium whitespace-nowrap"
+          >
+            + New Project
+          </button>
+        )}
       </div>
 
       {/* ── List ─────────────────────────────────────────────────────────── */}
@@ -432,15 +437,21 @@ export function ProjectsPage() {
             <div className="text-3xl mb-3 opacity-20">📋</div>
             {hasFilters ? (
               <p className="text-sm text-gray-400">No {section} projects match your filters.</p>
+            ) : !isOwner && projects.length === 0 ? (
+              <p className="text-sm text-gray-400" data-testid="no-membership">
+                No projects assigned yet — ask an owner.
+              </p>
             ) : section === 'active' ? (
               <>
                 <p className="text-sm text-gray-400 mb-5">No active projects yet.</p>
-                <button
-                  onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
-                  className="text-sm bg-teal-700 text-white rounded px-4 py-2 hover:bg-teal-800 transition-colors font-medium"
-                >
-                  Create your first project
-                </button>
+                {isOwner && (
+                  <button
+                    onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
+                    className="text-sm bg-teal-700 text-white rounded px-4 py-2 hover:bg-teal-800 transition-colors font-medium"
+                  >
+                    Create your first project
+                  </button>
+                )}
               </>
             ) : (
               <p className="text-sm text-gray-400 max-w-xs mx-auto">
@@ -496,34 +507,36 @@ export function ProjectsPage() {
                       {p.last_visited_at ? formatDate(p.last_visited_at) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-2">
-                      {/* Row actions — visible on row hover, clicks don't open the project */}
-                      <div
-                        className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {p.status === 'active' ? (
-                          <button
-                            onClick={() => setProjectStatus(p.id, 'completed')}
-                            className="text-xs text-gray-400 hover:text-teal-700 whitespace-nowrap"
-                          >
-                            Mark complete
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setProjectStatus(p.id, 'active')}
-                            className="text-xs text-gray-400 hover:text-teal-700 whitespace-nowrap"
-                          >
-                            Reopen
-                          </button>
-                        )}
-                        <span className="text-gray-200 text-xs select-none">|</span>
-                        <button
-                          onClick={() => setDeleteConfirm({ open: true, project: p })}
-                          className="text-xs text-gray-400 hover:text-red-600 whitespace-nowrap"
+                      {/* Row actions — owner-only (complete/reopen/delete are concentrated) */}
+                      {isOwner && (
+                        <div
+                          className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={e => e.stopPropagation()}
                         >
-                          Delete
-                        </button>
-                      </div>
+                          {p.status === 'active' ? (
+                            <button
+                              onClick={() => setProjectStatus(p.id, 'completed')}
+                              className="text-xs text-gray-400 hover:text-teal-700 whitespace-nowrap"
+                            >
+                              Mark complete
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setProjectStatus(p.id, 'active')}
+                              className="text-xs text-gray-400 hover:text-teal-700 whitespace-nowrap"
+                            >
+                              Reopen
+                            </button>
+                          )}
+                          <span className="text-gray-200 text-xs select-none">|</span>
+                          <button
+                            onClick={() => setDeleteConfirm({ open: true, project: p })}
+                            className="text-xs text-gray-400 hover:text-red-600 whitespace-nowrap"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )

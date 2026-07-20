@@ -534,13 +534,16 @@ export function IssuesLogPage({ projectId, phases }: Props) {
               >
                 Edit
               </button>
-              <button
-                onClick={() => setConfirmDeleteId(selectedFinding.id)}
-                className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 hover:border-red-400 transition-colors"
-                title="Delete this finding permanently"
-              >
-                Delete
-              </button>
+              {/* Hard-delete is owner-only (C3) — the register is the record */}
+              {['admin', 'developer'].includes(profile?.role ?? '') && (
+                <button
+                  onClick={() => setConfirmDeleteId(selectedFinding.id)}
+                  className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 hover:border-red-400 transition-colors"
+                  title="Delete this finding permanently"
+                >
+                  Delete
+                </button>
+              )}
               <button
                 onClick={() => setSelectedId(null)}
                 className="text-gray-400 hover:text-gray-700 text-lg leading-none ml-1"

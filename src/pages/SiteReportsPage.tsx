@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
+import { useAuth } from '../contexts/AuthContext'
 import type { SiteReport, DocRegisterItem } from '../types/database'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,6 +44,11 @@ const STATUS_LABELS: Record<DocRegisterItem['status'], string> = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function SiteReportsPage({ projectId }: Props) {
+  const { profile } = useAuth()
+  // Owners delete any report; employees delete their OWN UNGENERATED drafts only.
+  const canDelete = (r: SiteReport) =>
+    ['admin', 'developer'].includes(profile?.role ?? '')
+    || (!r.storage_url && r.authored_by === profile?.name)
   const [reports, setReports]         = useState<SiteReport[]>([])
   const [loading, setLoading]         = useState(true)
   const [modalOpen, setModalOpen]     = useState(false)
@@ -313,12 +319,14 @@ export function SiteReportsPage({ projectId }: Props) {
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={() => deleteReport(r)}
-                            className="text-xs text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded px-2 py-1 transition-colors"
-                          >
-                            ×
-                          </button>
+                          {canDelete(r) && (
+                            <button
+                              onClick={() => deleteReport(r)}
+                              className="text-xs text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded px-2 py-1 transition-colors"
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

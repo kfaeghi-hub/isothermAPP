@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
   fetchClassificationConfig, fetchProjectSelections, validateRequired,
@@ -10,6 +11,7 @@ import {
 import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ClassificationBadges } from '../components/ClassificationBadges'
 import { ProjectStatHeader } from '../components/ProjectStatHeader'
+import { AccessCard } from '../components/AccessCard'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
@@ -82,6 +84,20 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const setActiveTab = (tab: Tab) => {
     setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true })
   }
+
+  // Access control: employees see project settings only as leads. RLS lets each
+  // user read their OWN membership row; admins see all (and are implicit leads).
+  const { profile } = useAuth()
+  const isOwner = ['admin', 'developer'].includes(profile?.role ?? '')
+  const [isLead, setIsLead] = useState(false)
+  useEffect(() => {
+    if (isOwner || !profile) { setIsLead(isOwner); return }
+    let alive = true
+    supabase.from('project_members').select('is_lead')
+      .eq('project_id', projectId).eq('profile_id', profile.id).maybeSingle()
+      .then(({ data }) => { if (alive) setIsLead(!!data?.is_lead) })
+    return () => { alive = false }
+  }, [projectId, profile, isOwner])
 
   // Edit project modal
   const [editOpen, setEditOpen] = useState(false)
@@ -386,7 +402,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {project.status === 'active' ? (
+            {/* Complete/reopen is owner-only (C2, DB status-guard trigger backs it) */}
+            {isOwner && (project.status === 'active' ? (
               <button
                 onClick={() => changeStatus('completed')}
                 className="text-xs text-gray-500 hover:text-emerald-700 border border-gray-200 hover:border-emerald-400 rounded px-3 py-1.5 transition-colors"
@@ -400,13 +417,16 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               >
                 Reopen
               </button>
+            ))}
+            {/* Settings (dates/classifications/systems) are lead-or-owner */}
+            {(isOwner || isLead) && (
+              <button
+                onClick={openEdit}
+                className="text-xs text-gray-500 hover:text-teal-700 border border-gray-200 hover:border-teal-400 rounded px-3 py-1.5 transition-colors"
+              >
+                Edit Project
+              </button>
             )}
-            <button
-              onClick={openEdit}
-              className="text-xs text-gray-500 hover:text-teal-700 border border-gray-200 hover:border-teal-400 rounded px-3 py-1.5 transition-colors"
-            >
-              Edit Project
-            </button>
           </div>
         </div>
 
@@ -465,6 +485,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Access — beside Project Team, owner-only (§9.4a) */}
+              {isOwner && <AccessCard projectId={projectId} />}
 
               {/* Phases */}
               <div className="bg-white rounded-lg border border-gray-200 p-4">

@@ -8,6 +8,7 @@ import { ProjectDetailRoute } from './routes/ProjectDetailRoute'
 import { DirectoryPage } from './pages/DirectoryPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { ClassificationsPage } from './pages/ClassificationsPage'
+import { UsersPage } from './pages/UsersPage'
 
 // Sidebar navigation. `to` routes are real URLs — the dashboard is home, the
 // Projects list lives at /projects, and project detail deep-links as
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { label: 'Directory',       icon: '👥', to: '/directory',       phase: 1 },
   { label: 'Templates',       icon: '🗂️', to: '/templates',       phase: 2 },
   { label: 'Classifications', icon: '🏷️', to: '/classifications', phase: 2, adminOnly: true },
+  { label: 'Users',           icon: '🔐', to: '/users',           phase: 2, adminOnly: true },
   { label: 'Action Summary',  icon: '📌', to: null,               phase: 3 },
 ]
 
@@ -27,6 +29,7 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/directory/, 'Directory'],
   [/^\/templates/, 'Templates'],
   [/^\/classifications/, 'Classifications'],
+  [/^\/users/, 'Users'],
 ]
 
 export default function App() {
@@ -76,6 +79,7 @@ export default function App() {
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/classifications" element={isAdmin ? <ClassificationsPage /> : <Navigate to="/" replace />} />
+          <Route path="/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Shell>

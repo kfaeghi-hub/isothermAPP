@@ -1198,10 +1198,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 className="text-xs border border-gray-200 rounded px-3 py-1.5 text-gray-500 hover:text-teal-700 hover:border-teal-400 transition-colors">
                 Edit
               </button>
-              <button onClick={() => setConfirmDelete(instance.id)}
-                className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 transition-colors">
-                Delete
-              </button>
+              {/* A1: members delete non-completed instances; completed = frozen record (owner-only) */}
+              {(['admin', 'developer'].includes(profile?.role ?? '') || instance.status !== 'complete') && (
+                <button onClick={() => setConfirmDelete(instance.id)}
+                  className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 transition-colors">
+                  Delete
+                </button>
+              )}
               <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-700 text-lg leading-none ml-1">×</button>
             </div>
           </div>

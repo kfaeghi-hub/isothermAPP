@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
   EquipmentAttachment, NameplateExtra,
@@ -57,6 +58,7 @@ interface Props {
 }
 
 export function EquipmentPage({ projectId }: Props) {
+  const { profile } = useAuth()
   const [equipment, setEquipment]     = useState<Equipment[]>([])
   const [glossary, setGlossary]       = useState<EquipmentTagGlossary[]>([])
   const [fieldDefs, setFieldDefs]     = useState<ProjectEquipmentFieldDef[]>([])
@@ -509,10 +511,13 @@ export function EquipmentPage({ projectId }: Props) {
                         onClick={() => startEdit(selected)}
                         className="px-3 py-1.5 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-300"
                       >Edit</button>
-                      <button
-                        onClick={() => deleteEquipment(selected.id)}
-                        className="px-3 py-1.5 text-xs border border-red-100 rounded text-red-500 hover:border-red-300 hover:bg-red-50"
-                      >Delete</button>
+                      {/* Equipment hard-delete is owner-only (C3) */}
+                      {['admin', 'developer'].includes(profile?.role ?? '') && (
+                        <button
+                          onClick={() => deleteEquipment(selected.id)}
+                          className="px-3 py-1.5 text-xs border border-red-100 rounded text-red-500 hover:border-red-300 hover:bg-red-50"
+                        >Delete</button>
+                      )}
                     </>
                   )}
                 </div>
