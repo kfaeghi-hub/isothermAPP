@@ -3,18 +3,18 @@
 // Everything here is firm-level runtime DATA — new dimensions/options are rows,
 // never migrations. RLS: admin/developer write; the page is also nav-gated.
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
 import type {
   ClassificationDimension, ClassificationOption, DeliverableTemplate, SelectionMode, TradeType,
-  CompanyRoleType,
+  CompanyRoleType, MeetingType, MeetingTypeDefaultTopic,
 } from '../types/database'
 
 // Reference-aware delete: every delete names its impact before proceeding, and
 // referenced things offer "Deactivate instead" as the primary action.
 interface DeleteTarget {
-  kind: 'dimension' | 'option' | 'system' | 'template' | 'company_role'
+  kind: 'dimension' | 'option' | 'system' | 'template' | 'company_role' | 'meeting_type' | 'default_topic'
   table: string
   id: string
   name: string
@@ -27,6 +27,8 @@ export function ClassificationsPage() {
   const [mappings, setMappings]     = useState<Record<string, string[]>>({})  // option_id → template_ids
   const [systems, setSystems]       = useState<TradeType[]>([])
   const [companyRoles, setCompanyRoles] = useState<CompanyRoleType[]>([])
+  const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>([])
+  const [defaultTopics, setDefaultTopics] = useState<MeetingTypeDefaultTopic[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
 
@@ -35,6 +37,8 @@ export function ClassificationsPage() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [showSystems, setShowSystems]     = useState(false)
   const [showCompanyRoles, setShowCompanyRoles] = useState(false)
+  const [showMeetingTypes, setShowMeetingTypes] = useState(false)
+  const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null)
 
   const [newDimName, setNewDimName] = useState('')
   const [newOptLabel, setNewOptLabel] = useState('')
@@ -43,6 +47,8 @@ export function ClassificationsPage() {
   const [newSysName, setNewSysName] = useState('')
   const [newRoleName, setNewRoleName] = useState('')
   const [newRoleAbbr, setNewRoleAbbr] = useState('')
+  const [newTypeName, setNewTypeName] = useState('')
+  const [newTopicTitle, setNewTopicTitle] = useState('')
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
@@ -50,21 +56,25 @@ export function ClassificationsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    const [dRes, oRes, tRes, mRes, sRes, crRes] = await Promise.all([
+    const [dRes, oRes, tRes, mRes, sRes, crRes, mtRes, dtRes] = await Promise.all([
       supabase.from('classification_dimensions').select('*').order('sort_order'),
       supabase.from('classification_options').select('*').order('sort_order'),
       supabase.from('deliverable_templates').select('*').order('sort_order'),
       supabase.from('option_deliverable_defaults').select('option_id, template_id'),
       supabase.from('trade_types').select('*').order('sort_order'),
       supabase.from('company_role_types').select('*').order('sort_order'),
+      supabase.from('meeting_types').select('*').order('sort_order'),
+      supabase.from('meeting_type_default_topics').select('*').order('sort_order'),
     ])
-    const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error ?? sRes.error ?? crRes.error
+    const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error ?? sRes.error ?? crRes.error ?? mtRes.error ?? dtRes.error
     if (firstErr) { setError(firstErr.message); setLoading(false); return }
     setDimensions((dRes.data ?? []) as ClassificationDimension[])
     setOptions((oRes.data ?? []) as ClassificationOption[])
     setTemplates((tRes.data ?? []) as DeliverableTemplate[])
     setSystems((sRes.data ?? []) as TradeType[])
     setCompanyRoles((crRes.data ?? []) as CompanyRoleType[])
+    setMeetingTypes((mtRes.data ?? []) as MeetingType[])
+    setDefaultTopics((dtRes.data ?? []) as MeetingTypeDefaultTopic[])
     const m: Record<string, string[]> = {}
     for (const r of (mRes.data ?? [])) (m[r.option_id as string] ??= []).push(r.template_id as string)
     setMappings(m)
@@ -130,6 +140,28 @@ export function ClassificationsPage() {
     fetchAll()
   }
 
+  async function addMeetingType() {
+    const name = newTypeName.trim()
+    if (!name) return
+    const maxOrder = meetingTypes.reduce((m, t) => Math.max(m, t.sort_order), 0)
+    const { error } = await supabase.from('meeting_types').insert({ name, sort_order: maxOrder + 1 })
+    if (error) { alert(error.message); return }
+    setNewTypeName('')
+    fetchAll()
+  }
+
+  async function addDefaultTopic(typeId: string) {
+    const title = newTopicTitle.trim()
+    if (!title) return
+    const typeTopics = defaultTopics.filter(t => t.meeting_type_id === typeId)
+    const maxOrder = typeTopics.reduce((m, t) => Math.max(m, t.sort_order), -1)
+    const { error } = await supabase.from('meeting_type_default_topics')
+      .insert({ meeting_type_id: typeId, title, sort_order: maxOrder + 1 })
+    if (error) { alert(error.message); return }
+    setNewTopicTitle('')
+    fetchAll()
+  }
+
   // ── Reference-aware delete ─────────────────────────────────────────────────
 
   const distinct = (rows: { project_id: string }[] | null) =>
@@ -160,6 +192,16 @@ export function ClassificationsPage() {
       const n = distinct(data as any)
       if (n > 0) lines.push(`${n} project${n === 1 ? '' : 's'} have this system selected — deleting removes it from them.`)
       lines.push('Historical finding categories keep their text either way (rule 4).')
+    } else if (target.kind === 'meeting_type') {
+      const { data } = await supabase.from('meetings')
+        .select('project_id').eq('meeting_type_id', target.id)
+      const n = (data ?? []).length
+      const nProj = distinct(data as any)
+      const nTopics = defaultTopics.filter(t => t.meeting_type_id === target.id).length
+      if (n > 0) lines.push(`${n} meeting${n === 1 ? '' : 's'} across ${nProj} project${nProj === 1 ? '' : 's'} use this type — it cannot be hard-deleted while they exist; deactivate instead.`)
+      if (nTopics > 0) lines.push(`Its ${nTopics} default topic${nTopics === 1 ? '' : 's'} are deleted with it. Existing meetings keep their copied agendas (each meeting owns its topics).`)
+    } else if (target.kind === 'default_topic') {
+      lines.push('Default topics are only a skeleton for NEW meetings — every existing meeting keeps its copied agenda unchanged.')
     } else if (target.kind === 'company_role') {
       // Dual count: directory usages + project team assignments
       const [dirRes, teamRes] = await Promise.all([
@@ -529,6 +571,104 @@ export function ClassificationsPage() {
                 onKeyDown={e => e.key === 'Enter' && addCompanyRole()}
                 placeholder="Abbr." className={`${inputCls} w-20 font-mono`} />
               <button onClick={addCompanyRole} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* ── Meeting Types + per-type default agenda topics ───────────────── */}
+      {/* Types name the meeting; each type's ordered default topics are the agenda
+          skeleton COPIED into new meetings. Existing meetings own their agendas —
+          edits here never touch them (rule 4). */}
+      <section>
+        <button onClick={() => setShowMeetingTypes(s => !s)} className="text-sm font-semibold text-gray-800 hover:text-teal-700">
+          Meeting Types ({meetingTypes.length}) {showMeetingTypes ? '▾' : '▸'}
+        </button>
+        {showMeetingTypes && (
+          <>
+            <p className="text-xs text-gray-400 mt-1 mb-3">
+              Each type's default topics seed the agenda of every <span className="font-medium">new</span> meeting
+              of that type. Meetings already created keep their copied agendas unchanged.
+            </p>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <th className="py-1.5 pr-3">Type</th>
+                  <th className="py-1.5 pr-3 w-16">Order</th>
+                  <th className="py-1.5 pr-3 w-16">Active</th>
+                  <th className="py-1.5 w-40" />
+                </tr>
+              </thead>
+              <tbody>
+                {meetingTypes.map(mt => {
+                  const typeTopics = defaultTopics.filter(t => t.meeting_type_id === mt.id)
+                  const expanded = expandedTypeId === mt.id
+                  return (
+                    <React.Fragment key={mt.id}>
+                      <tr className={`border-b border-gray-100 ${expanded ? 'bg-teal-50/40' : ''}`}>
+                        <td className="py-1.5 pr-3">
+                          <input defaultValue={mt.name} className={`${inputCls} w-full`}
+                            onBlur={e => { const v = e.target.value.trim(); if (v && v !== mt.name) updateRow('meeting_types', mt.id, { name: v }) }} />
+                        </td>
+                        <td className="py-1.5 pr-3">
+                          <input type="number" defaultValue={mt.sort_order} className={`${inputCls} w-14`}
+                            onBlur={e => { const v = Number(e.target.value); if (v !== mt.sort_order) updateRow('meeting_types', mt.id, { sort_order: v }) }} />
+                        </td>
+                        <td className="py-1.5 pr-3 text-center">
+                          <input type="checkbox" checked={mt.active}
+                            onChange={e => updateRow('meeting_types', mt.id, { active: e.target.checked })} />
+                        </td>
+                        <td className="py-1.5">
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => setExpandedTypeId(expanded ? null : mt.id)}
+                              className="text-teal-700 hover:underline">
+                              {expanded ? 'Hide topics' : `Topics (${typeTopics.length})`}
+                            </button>
+                            <button
+                              onClick={() => requestDelete({ kind: 'meeting_type', table: 'meeting_types', id: mt.id, name: mt.name })}
+                              className="text-red-400 hover:text-red-600">Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="border-b border-gray-100 bg-gray-50/60">
+                          <td colSpan={4} className="py-2 pl-6 pr-3">
+                            {typeTopics.length === 0 && (
+                              <p className="text-[11px] text-gray-400 italic mb-1.5">
+                                No default topics — meetings of this type start with an empty agenda.
+                              </p>
+                            )}
+                            {typeTopics.map(t => (
+                              <div key={t.id} className="flex items-center gap-2 mb-1">
+                                <input defaultValue={t.title} className={`${inputCls} flex-1`}
+                                  onBlur={e => { const v = e.target.value.trim(); if (v && v !== t.title) updateRow('meeting_type_default_topics', t.id, { title: v }) }} />
+                                <input type="number" defaultValue={t.sort_order} className={`${inputCls} w-14`}
+                                  onBlur={e => { const v = Number(e.target.value); if (v !== t.sort_order) updateRow('meeting_type_default_topics', t.id, { sort_order: v }) }} />
+                                <button
+                                  onClick={() => requestDelete({ kind: 'default_topic', table: 'meeting_type_default_topics', id: t.id, name: t.title })}
+                                  className="text-red-400 hover:text-red-600">Delete</button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2 mt-1.5">
+                              <input value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && addDefaultTopic(mt.id)}
+                                placeholder="New default topic…" className={`${inputCls} w-72`} />
+                              <button onClick={() => addDefaultTopic(mt.id)}
+                                className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+            <div className="flex gap-2 mt-2">
+              <input value={newTypeName} onChange={e => setNewTypeName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addMeetingType()}
+                placeholder="New meeting type…" className={`${inputCls} w-64`} />
+              <button onClick={addMeetingType} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
             </div>
           </>
         )}

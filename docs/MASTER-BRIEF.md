@@ -274,3 +274,14 @@ Create project → import equipment → build Cx Index → create IVC/PFC/FPT �
 → candidate findings → CxA accepts → reports update → post-handover read-only BAS
 connection → continuous monitoring → AI operator assistant. Category: Commissioning
 Operating System + AI BAS Intelligence Layer.
+
+## 12. Open items (pre-client-rollout register)
+
+**Storage privacy hardening (REQUIRED before real client rollout / client portal).**
+All document buckets (site-reports, meeting-minutes, finding-photos, checklists,
+equipment-files) are public with unguessable URLs, mirroring the original pattern —
+tolerable for an internal tool with no client eyes, not the posture for client-facing
+use. The fix is one batched hardening pass: convert all document storage to private
+buckets + signed URLs across every download link (site report links, minutes links,
+finding photo renders, checklist document links, equipment attachments) in a single
+change, not bucket-by-bucket drift.
