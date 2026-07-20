@@ -26,6 +26,8 @@ dist-ssr
 verify-ss-*.png
 verify-directory.mjs
 ss-*.png
+# pw-pdf-shot page renders land in the root as out-<stem>-pN.png
+out-*.png
 
 # Temporary DOCX/PDF inspection folders
 docx-inspect*/
