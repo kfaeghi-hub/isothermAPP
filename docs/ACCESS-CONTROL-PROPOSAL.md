@@ -1,7 +1,12 @@
 # ACCESS-CONTROL-PROPOSAL.md — Project-level access control (RLS rewrite)
 
-**Status: PENDING APPROVAL — no code exists for this. Do not build from this document
-until every item in §9 (Decisions Required) carries an explicit verdict from Tony.**
+**Status: APPROVED AND BUILT (2026-07-20).** All §9 verdicts landed: 9.1(a) creation
+admin/dev-only · 9.2(a) A1 as recommended · 9.3 dev.admin created · 9.4(a) Overview
+card · 9.5(a) photos member-deletable. Built across migrations
+`access_control_schema` / `access_control_policies` / `access_control_backfill` and
+commits ddc613b → 115374f. Gates: pw-access 33/33, full battery green under the
+§6.1 credential split, dashboard trim + restore verified. This document is now the
+as-built record of the policy model.
 
 - Date proposed: 2026-07-20
 - Proposed by: Claude Code session (inventory taken from live pg_policies + storage.objects)

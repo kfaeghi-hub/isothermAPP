@@ -543,7 +543,17 @@ deployment state. A gate run against a stale bundle is void — re-run and say s
 - **Template typing:** type from the source master's identity (Prefunctional →
   pfc, Installation Verification → ivc, Functional Testing → fpt); names follow
   type; ask when ambiguous — never guess.
-- **ZZ-TEST only** for automated tests (see Testing above).
+- **ZZ-TEST only** for automated tests (see Testing above). Suites verify CONTENT as
+  dev.test (employee); privileged seed/cleanup (project create/delete, issued-meeting
+  and finding deletes) runs as dev.admin — the §6.1 credential split.
+- **Access control (2026-07-20, as-built record: docs/ACCESS-CONTROL-PROPOSAL.md):**
+  global role × project membership. Employees see member projects only
+  (`project_members` + `is_project_member()` helpers on every project-scoped policy);
+  leads additionally edit project settings; owners (admin/dev) create/complete/delete
+  projects, manage membership, and hold all hard-deletes (findings, equipment, issued
+  documents, completed instances). Creator auto-membership and the project
+  status-guard are DB triggers. The boundary is visibility and destruction — never
+  workflow (inline-adds and all content work stay member-open).
 - **Commit and push are one action.** Never leave local-only commits; report push
   failures immediately.
 - **Rule 4 (records):** completed/issued artifacts are frozen point-in-time
