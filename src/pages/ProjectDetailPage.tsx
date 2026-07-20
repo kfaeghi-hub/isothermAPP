@@ -9,6 +9,7 @@ import {
 } from '../lib/classifications'
 import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ClassificationBadges } from '../components/ClassificationBadges'
+import { ProjectStatHeader } from '../components/ProjectStatHeader'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
@@ -436,6 +437,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         {/* Overview */}
         {activeTab === 'overview' && (
           <div className="p-6 max-w-4xl">
+            <ProjectStatHeader projectId={projectId} onTab={setActiveTab} />
             <div className="grid grid-cols-3 gap-5">
 
               {/* Team summary — the Team tab owns the full matrix */}
