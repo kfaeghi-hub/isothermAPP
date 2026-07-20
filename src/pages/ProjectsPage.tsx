@@ -211,9 +211,14 @@ export function ProjectsPage() {
     setSaving(true)
     setFormError(null)
 
-    const { data: project, error: pErr } = await supabase
+    // Client-generated id, NO .select() on the insert: INSERT..RETURNING evaluates
+    // the SELECT policy BEFORE the auto-membership trigger runs, so an OWNER's
+    // returning-insert is rejected even though the plain insert succeeds.
+    const projectId = crypto.randomUUID()
+    const { error: pErr } = await supabase
       .from('projects')
       .insert({
+        id: projectId,
         name: form.name.trim(),
         com_number: form.com_number.trim() || null,
         address: form.address.trim() || null,
@@ -222,10 +227,9 @@ export function ProjectsPage() {
         finish_date: form.finish_date || null,
         notes: form.notes.trim() || null,
       })
-      .select('id')
-      .single()
 
-    if (pErr || !project) { setFormError(pErr?.message ?? 'Insert failed.'); setSaving(false); return }
+    if (pErr) { setFormError(pErr.message); setSaving(false); return }
+    const project = { id: projectId }
 
     // Classification junction rows
     const optionById = new Map(classConfig.options.map(o => [o.id, o]))

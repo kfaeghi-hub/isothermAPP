@@ -184,6 +184,8 @@ try {
     const { data } = await emp.from('projects').update({ start_date: '2026-02-01' }).eq('id', P).select('id')
     check((data ?? []).length === 1, 'after lead flip: settings write on probe succeeds')
   }
+  // Leave the probe roster clean for the owner leg's membership-management block
+  await adm.from('project_members').delete().eq('project_id', P).eq('profile_id', empUser.id)
 
   // ── Subcontractor scenario (API layer — the exact writes the UI issues) ──
   {
@@ -237,12 +239,151 @@ try {
     const { data } = await emp.from('projects').select('id').eq('id', ZZ)
     check((data ?? []).length === 1, 'RESTORE: dev.test sees ZZ-TEST again (lead restored)')
   }
+  // ═══ OWNER LEG (OWNER-TIER-PROPOSAL §6) ══════════════════════════════════
+  const own = mk()
+  {
+    const o = await own.auth.signInWithPassword({ email: process.env.owner_email, password: process.env.owner_password })
+    if (o.error) throw new Error(`dev.owner login failed: ${o.error.message}`)
+  }
+  const { data: ownRole } = await own.rpc('get_my_role')
+  check(ownRole === 'owner', `dev.owner role is 'owner' (got '${ownRole}' — flip via dashboard before this leg)`)
+  if (ownRole !== 'owner') throw new Error('owner leg aborted: role not flipped yet')
+  const { data: { user: ownUser } } = await own.auth.getUser()
+
+  // Negative: dev.owner is NOT a member of the probe — the tier's entire point
+  for (const t of ['findings', 'meetings', 'checklist_instances', 'equipment']) {
+    const { data } = await own.from(t).select('id').eq('project_id', P)
+    check((data ?? []).length === 0, `OWNER negative: non-member read of ${t} → zero rows`)
+  }
+  {
+    const { data } = await own.from('projects').select('id').eq('id', P)
+    check((data ?? []).length === 0, 'OWNER negative: cannot see the non-member probe project')
+  }
+  {
+    const { error } = await own.from('project_members')
+      .insert({ project_id: P, profile_id: ownUser.id })
+    check(!!error, 'WALL: owner self-add into a foreign project rejected')
+  }
+  {
+    const { data } = await own.from('user_profiles').update({ role: 'admin' }).eq('id', ownUser.id).select('id')
+    check((data ?? []).length === 0, 'OWNER negative: role self-promotion affects zero rows (admin-only)')
+  }
+  {
+    const { error } = await own.from('orgs').insert({ name: 'x' })
+    check(!!error, 'OWNER negative: orgs write rejected')
+  }
+
+  // Admin stocks the probe with frozen records, then adds dev.owner as MEMBER
+  const { data: probeFnd2 } = await adm.from('findings')
+    .insert({ project_id: P, title: 'owner-leg finding', category: 'INFO' }).select('id').single()
+  const { data: probeInst } = await adm.from('checklist_instances').insert({
+    project_id: P, source_template_name_snapshot: 'owner-leg completed instance',
+    source_template_type_snapshot: 'pfc', type: 'pfc', status: 'complete',
+  }).select('id').single()
+  await adm.from('meetings').update({ status: 'issued' }).eq('id', probeMtg.id)
+  await adm.from('project_members').insert({ project_id: P, profile_id: ownUser.id, is_lead: false })
+
+  // Positive: full destructive rights within the member portfolio
+  {
+    const { data } = await own.from('findings').delete().eq('id', probeFnd2.id).select('id')
+    check((data ?? []).length === 1, 'OWNER: finding hard-delete succeeds on member project')
+  }
+  {
+    const { data } = await own.from('checklist_instances').delete().eq('id', probeInst.id).select('id')
+    check((data ?? []).length === 1, 'OWNER: COMPLETED instance delete succeeds (A1 extension)')
+  }
+  {
+    const { data } = await own.from('meetings').delete().eq('id', probeMtg.id).select('id')
+    check((data ?? []).length === 1, 'OWNER: ISSUED meeting delete succeeds on member project')
+  }
+  {
+    const { error } = await own.from('projects').update({ status: 'completed' }).eq('id', P)
+    check(!error, 'OWNER: status trigger admits owner-member (complete)')
+    await own.from('projects').update({ status: 'active' }).eq('id', P)
+  }
+  // Membership management on own project
+  {
+    const { error: a1 } = await own.from('project_members').insert({ project_id: P, profile_id: empUser.id, added_by: ownUser.id })
+    const { data: u1 } = await own.from('project_members').update({ is_lead: true })
+      .eq('project_id', P).eq('profile_id', empUser.id).select('id')
+    const { data: d1 } = await own.from('project_members').delete()
+      .eq('project_id', P).eq('profile_id', empUser.id).select('id')
+    check(!a1 && (u1 ?? []).length === 1 && (d1 ?? []).length === 1,
+      'OWNER: membership management (add employee, flip lead, remove) on own project')
+  }
+
+  // Firm-level rights
+  {
+    const { data: tpl, error } = await own.from('checklist_templates')
+      .insert({ name: 'ZZ-OWNER template probe', type: 'pfc', active: false }).select('id').single()
+    const { data: del } = tpl ? await own.from('checklist_templates').delete().eq('id', tpl.id).select('id') : { data: [] }
+    check(!error && (del ?? []).length === 1, 'OWNER: firm-config write (template create + delete)')
+  }
+  {
+    const { data: co, error } = await own.from('companies')
+      .insert({ name: 'ZZ-OWNER Directory Probe Ltd' }).select('id').single()
+    const { data: del } = co ? await own.from('companies').delete().eq('id', co.id).select('id') : { data: [] }
+    check(!error && (del ?? []).length === 1, 'OWNER: directory delete right (create + delete company)')
+  }
+  {
+    // Client-generated id + plain insert — INSERT..RETURNING evaluates the SELECT
+    // policy BEFORE the auto-membership trigger, so returning-inserts fail for
+    // owners (the app creates projects the same way for the same reason).
+    const projId = crypto.randomUUID()
+    const { error } = await own.from('projects')
+      .insert({ id: projId, name: 'ZZ-TEST-OWNER Created', status: 'active' })
+    const { data: mem } = await own.from('project_members').select('is_lead')
+      .eq('project_id', projId).eq('profile_id', ownUser.id)
+    check(!error && mem?.[0]?.is_lead === true, 'OWNER: project creation + creator auto-LEAD membership')
+    const { data: del } = await own.from('projects').delete().eq('id', projId).select('id')
+    check((del ?? []).length === 1, 'OWNER: deletes own created project')
+  }
+  // Picker: internal profiles RPC — rows for owner, ZERO for employee
+  {
+    const { data: forOwner } = await own.rpc('list_internal_profiles')
+    const { data: forEmp } = await emp.rpc('list_internal_profiles')
+    check((forOwner ?? []).length > 0 && (forEmp ?? []).length === 0,
+      `PICKER: list_internal_profiles → owner ${forOwner?.length ?? 0} rows, employee ${forEmp?.length ?? 0}`)
+  }
+
+  // Dashboard scoping as dev.owner (browser): member of ZZ-TEST only
+  await adm.from('project_members').upsert(
+    { project_id: ZZ, profile_id: ownUser.id, is_lead: false },
+    { onConflict: 'project_id,profile_id' })
+  {
+    const { data: visible } = await own.from('projects').select('name')
+    const names = (visible ?? []).map(p => p.name)
+    const allowed = names.every(n => n.startsWith('ZZ-TEST'))
+    check(names.includes('ZZ-TEST — Do Not Use') && allowed,
+      `OWNER scoping: sees ZZ-TEST + test artifacts only (got: ${names.join(', ')})`)
+  }
+  const b2 = await chromium.launch()
+  const pg2 = await b2.newPage()
+  await pg2.setViewportSize({ width: 1500, height: 950 })
+  await pg2.goto(BASE_URL)
+  await pg2.locator('input[type="email"]').fill(process.env.owner_email)
+  await pg2.locator('input[type="password"]').fill(process.env.owner_password)
+  await pg2.getByRole('button', { name: 'Sign In' }).click()
+  await pg2.waitForTimeout(3500)
+  const dashText = await pg2.locator('body').innerText()
+  check(dashText.includes('ZZ-TEST — Do Not Use'), 'OWNER dashboard: member project visible')
+  await b2.close()
+  // restore: dev.owner back to zero memberships (pre-test state)
+  await adm.from('project_members').delete().eq('profile_id', ownUser.id)
+
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
 } finally {
-  // guaranteed cleanup: membership restored, probe deleted (cascades all content)
+  // guaranteed cleanup: membership restored, probe deleted (cascades all content),
+  // dev.owner memberships cleared, stray owner-leg artifacts removed
   await restoreZZMembership()
   await deleteProbe()
+  const { data: strayProj } = await adm.from('projects').select('id').eq('name', 'ZZ-TEST-OWNER Created')
+  for (const p of strayProj ?? []) await adm.from('projects').delete().eq('id', p.id)
+  await adm.from('checklist_templates').delete().eq('name', 'ZZ-OWNER template probe')
+  await adm.from('companies').delete().eq('name', 'ZZ-OWNER Directory Probe Ltd')
+  const { data: ownProfile } = await adm.from('user_profiles').select('id').eq('email', process.env.owner_email).single()
+  if (ownProfile) await adm.from('project_members').delete().eq('profile_id', ownProfile.id)
   const { data: leftover } = await adm.from('projects').select('id').eq('name', PROBE_NAME)
   check((leftover ?? []).length === 0, 'self-clean: probe project removed')
 }
