@@ -35,9 +35,57 @@
   Commissioned" rename (trade_types untouched), client inline-add, COM#/address/phase
   convergence controls. Existing projects backfilled to New Construction.
 
-### Phase 2 — IN PROGRESS (checklist engine)
+### Phase 1 additions shipped after the classification framework (2026-07, all live)
+- **Directory enhancement** — contact_phones/contact_emails (typed, partial-unique
+  primaries), company_locations, company phone/website/email, dual-read transition
+  from the legacy columns.
+- **Project Team matrix** — company_role_types with abbreviations,
+  project_team_assignments (composite FK to contacts, column-scoped SET NULL,
+  UNIQUE NULLS NOT DISTINCT), Team tab communication matrix, Company Roles admin
+  section with dual-count reference-aware delete.
+- **Project dates** — start_date/finish_date, header range, list sort.
+- **Findings full register (ASHRAE 202)** — identified_by, building_area, description
+  (replaces initial-diary seeding; the diary is the dated resolution record),
+  corrective_action; date_closed serves as Date Resolved (label only, auto-set on
+  close / cleared on reopen); grouped searchable EquipmentPicker (Systems first,
+  Equipment-tab category order); register renders in site-report issue cells
+  only-when-present so historical findings regenerate byte-clean.
+- **Meeting Minutes** — meeting_types + per-type default agenda topics (admin
+  sections on Classifications), meetings/topics/attendees/items (6 tables), topics
+  copied per meeting (each meeting owns its agenda), carry-forward retaining
+  original item numbers until closed, matrix-attributed responsible parties +
+  free-text fallback, FindingPicker display-only links, draft→issued with
+  issued_at, generate-minutes on the doc-common stack (role-grouped attendees,
+  navy topic bands, Action Summary by Responsible Party, 7-day disclaimer).
+- **Internal Dashboard + router** (§6B internal half) — react-router-dom landed
+  (`/` dashboard home, `/projects`, `/projects/:id?tab=…`, admin-gated
+  `/classifications`, client-role redirect); stat chips, Attention Queue,
+  portfolio cards, Follow-up Radar, Portfolio Timeline, findings trend +
+  by-system charts, Open Items by Responsible Party (company-id reconciliation,
+  never string-matching), My Items (name-matched), Recent Activity (derived, no
+  events table); per-project Overview stat header on the SAME derivation as the
+  cards; thresholds in one module; dashboard_checklist_coverage view
+  (security_invoker).
+- **doc-common extraction** — shared letterhead/CSS/toPdf/toDocx/upload layer under
+  api/_shared, proven byte-clean by regeneration diff before any new consumer.
 
-**Next:** Template library (IVC/PFC/FPT built from Isotherm's real forms) → checklist instances (multi-unit, confirmed auto-finding creation) → FPT module → LEED deliverables tracking.
+### Phase 2 — checklist engine (BUILT; template seeding in progress)
+
+**Built and verified on production:** 14-table template/instance/response schema,
+Template Library, instance snapshots, multi-unit parallel columns, fill-out with
+offline outbox (localStorage, natural-key upserts), failed-item finding modal with
+duplicate prevention and a finding QUEUE (bulk copies walk one modal per hit),
+signoffs, completion with nameplate snapshot, reopen audit trail, PDF+DOCX
+generation (completed + blank hand-out modes, standardized empty-cell semantics,
+wide-grid ≥5-column per-target rule, section-band keep-with-next pagination),
+multi-unit copy feature (row apply-to-all; column copy-from-unit that never
+overwrites), PFC/IVC source-identity typing rule (Prefunctional folder → pfc;
+names follow type: "⟨Equipment⟩ Prefunctional Checklist").
+
+**Seeding state:** AHU Prefunctional Checklist seeded from the firm master (Batch 1
+of the real-form seeding). **Next: Batch 1 resumes at Boiler → Pump → BAS**, then
+Batch 2 (chillers, cooling tower, exhaust fan, heat exchanger) and Batch 3 (VFD +
+electrical set). FPT module and LEED deliverable tracking remain.
 
 **Then:** Phase 3 — reminders/aging, Status & Action Summary (§6A), data import (contacts, equipment), long-form documents (Cx Plan, OPR, BOD, Systems Manual, Final Report), client portal, MBCx/OCx.
 
@@ -105,7 +153,11 @@ PROJECT (belongs to a CLIENT, or standalone)
   │    ├─ OPR, BOD, Cx Plan, Systems Manual, Training, Final Report, 10-month review, OCx Plan
   ├─ DOCUMENTATION REGISTER (status of received docs)
   ├─ FILE ATTACHMENTS (shop drawings, TAB, pressure tests, O&M …)
-  └─ MEETINGS (minutes, attendees, agenda)
+  ├─ TEAM MATRIX (project_team_assignments → company_role_types; communication matrix)
+  └─ MEETINGS (BUILT — meetings → topics → items, attendees; carry-forward; minutes doc)
+
+DASHBOARD (BUILT — pure READ layer over everything above; no tables of its own except
+  the dashboard_checklist_coverage view. Zero writes by design.)
 
 TEMPLATE LIBRARY (firm-level, reusable across all projects)
   └─ CHECKLIST TEMPLATE per equipment type (Heat Pump IVC, Boiler IVC, ATS, Pump, AHU …)
@@ -137,12 +189,22 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 - **progress matrix**: per-column status cells against the project's copy of the 12-group stage structure (§4.2) — values: done / in_progress / na / blank
 - Systems (geothermal, refrigeration, PV, lighting controls) carry their own sub-item checklist with % complete + comments.
 
-**Finding** (issues log — the backbone)
+**Finding** (issues log — the backbone; FULL ASHRAE 202 register as of 2026-07)
 - id, projectId, number (auto-managed), phase tag
-- **title** (optional free text — displayed prominently above category; distinguishes a specific issue description from its trade/category classification)
-- category (INFO or a role/trade from project trades), responsibleParty (contactId — ANY role incl. owner)
-- status (Open / Closed), origin (Site Visit / IVC / PFC / FPT — auto-set when generated from a checklist)
-- dateRaised (auto), dateClosed (auto)
+- **title** (required at creation via UI; DB-nullable for historical rows)
+- **description** (the issue itself — distinct from title; REPLACES the old
+  initial-diary seeding: the diary starts empty as the dated resolution record)
+- **identified_by** (text, defaults to the current user, editable)
+- **building_area** (where in the building), **corrective_action** (planned measure)
+- category/System (INFO or a project trade), responsibleParty (contactId — ANY role)
+- status (Open / Closed), origin (Site Visit / IVC / PFC / FPT — auto-set from checklists)
+- dateRaised ("Date Identified" — defaults today, editable),
+  dateClosed ("Date Resolved" — same column, label only; auto-set on close, cleared
+  on reopen, editable while closed)
+- Creation hard-requires Title + Description ONLY — everything else optional with
+  visible empty states (never block on knowledge the CxA lacks mid-walkthrough)
+- Equipment link picked via the grouped searchable EquipmentPicker (Systems group
+  first, then Equipment-tab category order, "TAG — descriptor", explicit None)
 - **diary[]**: ordered list of { date, text }, OLDEST FIRST, append-only (supports paragraphs, sub-numbering, bullets)
 - photos[] (compressed; before/after accumulate over time)
 - linkedEquipmentId (optional — ties finding to a specific unit in the equipment register)
@@ -179,8 +241,34 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 - id, projectId, equipmentId(optional), filename, type, uploadedBy, uploadedAt, storageUrl
 - Upload + download. Types: shop drawings, balancing/TAB, pressure test, startup, O&M, factory test.
 
-**Meeting**
-- id, projectId, date, venue, attendees[], agenda, minutes
+**Meeting** (BUILT 2026-07 — six tables; replaces the original stub)
+- Reference (admin-editable, Classifications screen): **meeting_types** (8 seeded:
+  Cx Kickoff, Recurring Cx, Design Phase Cx, OPR Workshop, FPT Coordination,
+  Closeout, Site, Other) and **meeting_type_default_topics** (per-type ordered
+  agenda skeleton; Recurring 11 topics, Kickoff 8; edits never touch existing
+  meetings).
+- **meetings**: project, type, meeting_number (per-project per-type, auto-suggested
+  and editable, COM#-style soft duplicate warning), date/time/location,
+  prepared_by, next_meeting_date, status draft|issued, issued_at (stamped on FIRST
+  issue — the disclaimer's 7-day clock), storage/pdf URLs.
+- **meeting_topics**: COPIED from the type's defaults at creation — each meeting
+  OWNS its agenda (rule 4); add/rename/reorder per meeting.
+- **meeting_attendees**: directory picks (contact FK + snapshots stamped at pick
+  time so attendance survives directory churn; role auto-attributed from the team
+  matrix) or ad-hoc guests; present|regrets|distribution.
+- **meeting_items**: item_number text "{meeting#}.{seq}" stamped once and NEVER
+  renumbered; carried_from self-reference; discussion; responsible =
+  project_team_assignments FK ("GC — Bird Construction") OR free-text fallback —
+  never string-matched; due_date; open|closed|info; display-only linked finding.
+- **Carry-forward**: new meeting of a type offers "Carry forward N open items" from
+  the most recent prior meeting of that type — original numbers retained until
+  closed (construction convention), topics matched by title, unmatched → auto
+  "Old Business". Closing a carried item touches the current meeting only; prior
+  meetings and their issued documents are frozen records (rule 4).
+- Minutes document: generate-minutes on doc-common — attendees grouped by matrix
+  role order, navy topic bands (band+first-row keep), empty topics render "No
+  items — reviewed, nothing arising.", Action Summary by Responsible Party,
+  seven-day disclaimer on every PDF page.
 
 **User** (team + future client)
 - id, name, email, role (Admin / Developer / User / Client)
@@ -331,10 +419,19 @@ maintains pools and mappings centrally.
 
 All generated documents share Isotherm's letterhead/format (kept uniform for simple generation). Engine renders from structured data to **.docx** (and PDF export), matching current templates exactly.
 
-- **Site Report** — letterhead, project header, distribution, progress observations, documentation table, issues table (open with full diary; closed grey + CLOSED in place), embedded per-finding photos. *(Already prototyped and proven.)*
-- **IVC / PFC** — letterhead, equipment nameplate block (Specified/Shop Dwg/Installed), check sections with Y/N/NR/NA + comments, measurement grids, sign-off.
-- **FPT** — front matter + revision control, submittal/participants/approval blocks, requested-documentation table, functional testing record grouped by system (test step / expected & actual / Pass Y/N / note#).
-- **Cx Plan, OPR, BOD, Systems Manual, Final Report** — templated long-form documents.
+**Shared stack (BUILT):** `api/_shared/doc-common.ts` holds the letterhead, base CSS,
+`toPdf` (Puppeteer + chromium-min, displayHeaderFooter footer), `toDocx`
+(html-to-docx — inline styles only, `width:` stripped from th/td), and the
+storage-upload/cache-bust helper. Every generator imports it; the extraction was
+proven byte-clean by regeneration diff. Standing rendering rules, all generators:
+section/topic **bands never strand at a page bottom** (band + first row share an
+unbreakable tbody); DOCX package-integrity checks; row-count integrity logged.
+
+- **Site Report** — letterhead, project header, distribution, progress observations, documentation table, issues table (open with full diary; closed grey + CLOSED in place; register fields — Location line, description body, corrective-action line — render only-when-present so historical findings regenerate byte-clean), embedded per-finding photos. *(BUILT.)*
+- **IVC / PFC** — *(BUILT — api/generate-checklist.ts.)* Letterhead, unit identity + nameplate block (Specified/Shop Dwg/Installed; multi-unit side-by-side column groups), check sections with Y/N/NR/NA + parallel unit columns, measurement grids (**wide-grid rule:** ≥5-column grids render per-target stacked; ≤4 combined), sign-offs. Two modes: **completed** (frozen snapshot; defined-but-empty → em-dash, not-defined → shaded) and **blank hand-out** (§6D Capability A — Spec/Shop pre-filled, Installed clean white, not-applicable shaded, no zebra). **Typing rule:** template type comes from the SOURCE master's identity — Prefunctional folder → `pfc`, Installation Verification → `ivc`, Functional Testing → `fpt`; names follow type ("⟨Equipment⟩ Prefunctional Checklist"); ask when ambiguous, never guess.
+- **Meeting Minutes** — *(BUILT — api/generate-minutes.ts, §3.2 Meeting.)*
+- **FPT** — front matter + revision control, submittal/participants/approval blocks, requested-documentation table, functional testing record grouped by system (test step / expected & actual / Pass Y/N / note#). *(Planned.)*
+- **Cx Plan, OPR, BOD, Systems Manual, Final Report** — templated long-form documents. *(Planned.)*
 
 ---
 
@@ -359,11 +456,26 @@ Build note: this is a Phase 2/3 module (needs the issues log, Cx Index, and deli
 
 ---
 
-## 6B. Project dashboards (visual summaries — planned, build after real-world use)
+## 6B. Project dashboards (internal half BUILT 2026-07; client portal later)
 
-A visual summary view for a project — charts and graphs over data the system already holds (no new data, no new integrations; high-value, low-risk). Extends the Status & Action Summary (§6A) as its visual form. **Build after the team has used the core app on real projects**, so the dashboard is built around the metrics they actually find useful, against real data — not guessed against test data.
+**BUILT — the internal Dashboard is the app's home (`/`):** four sections — A·Now
+(stat chips: active projects, open findings, overdue action items, avg
+days-to-close 90d; full-width Attention Queue: overdue meeting items, findings
+open >30d with 30/60/90+ age chips, drafts stale >7d, checklists idle >14d — every
+row deep-links to its project tab); B·Projects (portfolio cards with classification
+badges, open-findings +14d delta, checklist coverage bar, last-visit chip
+green<14 / amber 14–30 / red>30 / grey never, next meeting, finish countdown;
+Follow-up Radar; Portfolio Timeline with today line); C·Findings (opened-vs-closed
+6-month trend, open-by-system, Open Items by Responsible Party — meeting items +
+findings unioned on company-id keys via the team matrix, free-text labels surfaced
+separately, never string-matched); D·Mine (My Items name-matched; Recent Activity
+derived from existing timestamps — no events table). Per-project Overview stat
+header shares the same derivation as the cards. Recharts only; thresholds in
+`src/lib/dashboardThresholds.ts`; per-project coverage from the
+`dashboard_checklist_coverage` view (**security_invoker** — views otherwise run as
+owner and bypass RLS). Zero writes. Client role never reaches the route.
 
-**Internal/user project dashboard** (build first):
+**Original planning notes (kept for the client-portal half):**
 - **Cx Index progress** — overall % complete + per-discipline breakdown (mech/elec/BAS/plumbing/IST), donut or bar.
 - **Issues summary** — open vs. closed counts; findings by category/trade; findings by responsible party (who owes most); aging (how long open).
 - **Deliverables status** — complete vs. outstanding (esp. valuable on LEED projects).
@@ -601,11 +713,25 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
   in a quiet maintenance window well before any SaaS work.
 
 **Still open (decide during build, low risk):**
-- ~~Exact PDF generation approach~~ — RESOLVED: Puppeteer + @sparticuz/chromium-min on Vercel serverless; DOCX via html-to-docx same function.
+- ~~Exact PDF generation approach~~ — RESOLVED: Puppeteer + @sparticuz/chromium-min on Vercel serverless; DOCX via html-to-docx same function (shared via api/_shared/doc-common.ts).
 - Whether phases get their own deliverable sets or just tag findings/notes.
-- Photo/file storage limits and reminder thresholds (tunable later).
+- Photo/file storage limits and reminder thresholds (tunable later; dashboard thresholds live in src/lib/dashboardThresholds.ts).
 - Client portal scope (status only, or issue-level visibility) — phase 3.
 - Data-import specifics for the TDSB Excel and Outlook contacts.
+
+**Open items register (canonical list: MASTER-BRIEF §12):**
+- **Storage privacy hardening** — REQUIRED pre-client-rollout: all document buckets
+  are public with unguessable URLs; one batched pass to private buckets + signed
+  URLs across every download link. (Recorded 2026-07-19.)
+- **site_reports.issued_at** — future addition; until then the dashboard's Recent
+  Activity approximates with updated_at of generated reports, honestly labeled
+  "report generated".
+- **projects.last_visited_at** — written on project open but unused by the
+  dashboard (last visit derives from site-report dates by design); cleanup
+  candidate for a later pass.
+- **My Items user-id normalization** — identified_by / prepared_by / authored_by
+  are name-text conventions matched against profile.name; normalize to user-id
+  columns when multi-user pressure warrants.
 
 ---
 

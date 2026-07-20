@@ -74,15 +74,32 @@ no renumbering), equipment/system register with tag glossary and spec/shop-drawi
 nameplate sections, Cx Index (12 groups / 88 columns, per-project copies), site report
 generation (PDF/DOCX via serverless), Supabase Auth + roles + explicit RLS.
 
-Phase 2 (Checklist Engine) is substantially built and committed (through `815e03a`):
-the 14-table checklist migration is applied and live; Template Library UI; project
-instance creation with full snapshots (template name/type/revision/provenance, sections,
-items, grids, signoffs); checklist fill-out view; failed-item Create Finding modal with
-duplicate prevention (`checklist_finding_links`); signoffs; completion with equipment
-nameplate snapshot; and reopen-with-audit-trail. One real template is seeded (A/C / Fan
-Coil / Heat Pump IVC). Remaining on the checklist track: field-resilience acceptance
-tests (§5 Phase 2) and seeding the real IVC/PFC/FPT forms at scale; then checklist/FPT
-document generation and LEED deliverable tracking, which are Phase 3 (§5).
+Phase 1 has since grown five shipped additions (2026-07, all live and
+Playwright-verified on production): the project classification framework + team
+matrix + directory enhancement + project dates; the findings FULL ASHRAE 202
+register (identified_by/building_area/description/corrective_action,
+date_closed-as-Date-Resolved, grouped equipment picker, only-when-present report
+rendering proven byte-clean on historical regeneration); Meeting Minutes end-to-end
+(6 tables, per-type agenda skeletons, carry-forward with original-number retention,
+matrix-attributed items, generate-minutes on the shared doc-common stack, admin
+sections); the internal Dashboard as the routed app's home (react-router-dom landed:
+`/`, `/projects`, `/projects/:id?tab=…`; Attention Queue, portfolio cards, radar,
+timeline, trend/system charts, company-keyed responsible rollup, My Items, Recent
+Activity; security_invoker coverage view); and the doc-common extraction (gated
+byte-clean before any consumer).
+
+Phase 2 (Checklist Engine) is built through document generation: the 14-table
+schema, Template Library, snapshot instances, multi-unit parallel columns, offline
+outbox fill-out, failed-item finding modal with duplicate prevention + finding
+queue, signoffs, completion snapshots, reopen audit trail, PDF+DOCX generation
+(completed + blank hand-out modes, standardized empty-cell semantics, wide-grid
+per-target rule, band pagination), and the multi-unit copy feature (row
+apply-to-all; never-overwrite column copy; copied N/fail routes through the normal
+finding flow per target). Templates are typed by SOURCE identity (Prefunctional
+folder → pfc; names follow type). Seeded so far: A/C / Fan Coil / Heat Pump (ivc),
+AHU Prefunctional Checklist (pfc, from the firm master). Remaining: Batch 1
+seeding resumes at Boiler → Pump → BAS, then Batches 2–3; FPT module; LEED
+deliverable tracking (Phase 3, §5).
 
 Phase 6 is fully specified in `docs/BAS-SPEC.md`, validated against real TDSB Delta
 enteliWEB exports and approved submittals, with parsers designed around observed
@@ -255,14 +272,21 @@ linked-finding badges, signoffs, completion with nameplate snapshot, and
 reopen-with-audit-trail — all built and committed through `815e03a`, with one minimal
 real template seeded (A/C / Fan Coil / Heat Pump IVC).
 
+Also DONE since (do not re-run): field-resilience acceptance (outbox + offline
+tests), checklist PDF-DOCX generation with blank hand-out mode, the multi-unit copy
+feature, the findings register, Meeting Minutes, the router + internal Dashboard,
+doc-common extraction, PFC type/name corrections, meeting-types admin sections.
+
 Next, in order:
-1. Field-resilience acceptance tests on the fill-out UI — autosave per response (not per
-   form), graceful offline/reconnect with no silent data loss, phone photo capture. This
-   is an acceptance test, not a nice-to-have (§5 Phase 2).
-2. Seed the real Isotherm IVC/PFC/FPT forms at scale, now that the flow works end-to-end.
-3. Checklist/FPT PDF-DOCX generation (Phase 3) — reuse the `api/generate-report.ts`
-   serverless pattern; render from the snapshotted instance data, never retyped.
-4. LEED deliverable tracking (Phase 3).
+1. **Batch 1 template seeding resumes at Boiler** (2.6.2.1 → `boiler`, type pfc,
+   "Boiler Prefunctional Checklist"), then Pump (2.6.8.1), then BAS (basic
+   nameplate fallback — no field-def key). Standing loop: extract → show JSON →
+   STOP for approval → seed → ZZ-TEST instance → one blank hand-out PDF → commit.
+2. Batch 2 (chillers ×2, cooling tower, exhaust fan, heat exchanger) and Batch 3
+   (VFD + six Elec-IEL electrical) on Tony's signal, fresh session per batch.
+3. Round-3 tail items: transposed check-table render mode when the VAV family
+   seeds; directory legacy-column removal pass; §12 open items as scheduled.
+4. FPT module, then LEED deliverable tracking (Phase 3).
 
 Only after the checklist track lands do the low-risk AI phases begin (Phase 4 onward;
 Phase 6 build order is BAS-SPEC §11).
@@ -285,3 +309,18 @@ use. The fix is one batched hardening pass: convert all document storage to priv
 buckets + signed URLs across every download link (site report links, minutes links,
 finding photo renders, checklist document links, equipment attachments) in a single
 change, not bucket-by-bucket drift.
+
+**site_reports.issued_at (future addition).** Site reports have no issued
+timestamp; the dashboard's Recent Activity approximates with `updated_at` of
+generated reports, honestly labeled "report generated". Add the column (stamped on
+first generation, like meetings.issued_at) in a later write-touching pass.
+
+**projects.last_visited_at (cleanup candidate).** Written on project open but
+unused: the dashboard derives last visit from site-report dates by design. Either
+repurpose or drop in a cleanup pass.
+
+**My Items user-id normalization.** `findings.identified_by`,
+`meetings.prepared_by`, `site_reports.authored_by`, `checklist_instances.authored_by`
+are free-text names matched against `profile.name` (the existing convention, stated
+on the widget). Normalize to user-id FKs when the team grows past
+everyone-knows-everyone scale.

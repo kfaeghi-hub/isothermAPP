@@ -6,7 +6,7 @@
 
 ## Overview
 
-A React SPA for managing building commissioning (Cx) projects. Used daily by field engineers at Isotherm Engineering. **Phase 1 is complete and deployed** (https://isotherm-app.vercel.app): auth & roles, directory, projects, issues log (findings diary + photos + delete), Cx Index (12-group/88-col), equipment register (type-specific field templates, tag glossary, file attachments), and site reports (PDF + DOCX generation via Vercel serverless). Phase 2 (checklist engine — IVC/PFC/FPT templates and instances with auto-findings) is next. External integrations (construction PM tools, BAS systems) are seamed but not yet built.
+A React SPA for managing building commissioning (Cx) projects. Used daily by field engineers at Isotherm Engineering. **Deployed** (https://isotherm-app.vercel.app). Live modules: auth & roles; routed app (react-router-dom — the internal Dashboard is home); directory (companies/contacts + typed phones/emails, locations, role vocabulary); projects (classification framework, dates, team matrix); issues log (full ASHRAE 202 findings register with diary + photos); Cx Index (12-group/88-col); equipment register (11 type templates, tag glossary, attachments); site reports (PDF+DOCX); **checklist engine** (14-table template/instance/response schema, multi-unit fill with offline outbox, auto-findings with duplicate prevention, completed + blank hand-out document generation, multi-unit copy feature); **meeting minutes** (typed meetings, agenda skeletons, carry-forward, generated minutes); **internal dashboard** (Attention Queue, portfolio, charts, responsible rollup). Document generation shares `api/_shared/doc-common.ts`. External integrations (construction PM tools, BAS systems) are seamed but not yet built.
 
 ---
 
@@ -29,47 +29,54 @@ A React SPA for managing building commissioning (Cx) projects. Used daily by fie
 ```
 src/
 ├── lib/
-│   ├── supabase.ts        # Supabase client singleton — the only place @supabase/supabase-js is imported
-│   ├── auth.ts            # Auth helpers: signIn, signOut, sendPasswordReset, updatePassword
-│   └── projectTypes.ts    # Project-type labels/badges + shared formatDate()
+│   ├── supabase.ts             # Supabase client singleton — the only place @supabase/supabase-js is imported
+│   ├── auth.ts                 # Auth helpers: signIn, signOut, sendPasswordReset, updatePassword
+│   ├── format.ts               # formatDate / formatDateRange
+│   ├── classifications.ts      # Classification config fetch, selections, validation, deliverable composition
+│   ├── photos.ts               # Finding-photo compression + upload (shared: Issues Log + checklist fill)
+│   ├── checklistOutbox.ts      # Durable offline write queue (localStorage, natural-key upserts) + tests
+│   ├── dashboardThresholds.ts  # THE thresholds (visit 14/30, finding 30d, draft 7d, checklist 14d) + band helpers
+│   └── dashboardData.ts        # Dashboard reads + fetchProjectStatsMap (ONE derivation for cards AND
+│                               # the project Overview stat header) + useProjectStats hook. Zero writes.
 │
-├── types/
-│   └── database.ts        # TypeScript interfaces mirroring DB schema exactly.
-│                          # Rule: update here first whenever the DB schema changes.
-│                          # Includes joined types used in UI queries (e.g. ProjectWithClient, FindingWithParty)
-│
-├── contexts/
-│   └── AuthContext.tsx    # Provides session, profile (id/name/email/role), loading, signOut.
-│                          # Wraps app via <AuthProvider> in main.tsx.
-│                          # Loads user_profiles row after auth state change; bubbles "no profile" state.
+├── types/database.ts           # Schema mirror. Rule: update FIRST whenever the DB schema changes.
+├── contexts/AuthContext.tsx    # session + profile (id/name/email/role) via useAuth()
 │
 ├── components/
-│   └── ui/
-│       └── Modal.tsx      # Reusable overlay modal (title, onClose, maxWidth prop)
+│   ├── ui/Modal.tsx            # Reusable overlay modal
+│   ├── ClassificationPicker.tsx / ClassificationBadges.tsx
+│   ├── EquipmentPicker.tsx     # Grouped searchable register picker (Systems first, category order)
+│   ├── FindingPicker.tsx       # "#12 — title" searchable select; display-only linkage
+│   ├── VisitChip.tsx           # THE last-visit chip (bands from dashboardThresholds) — one component everywhere
+│   └── ProjectStatHeader.tsx   # Project Overview stat header (same derivation as dashboard cards)
+│
+├── routes/ProjectDetailRoute.tsx  # /projects/:id wrapper — supplies companies to ProjectDetailPage
 │
 ├── pages/
-│   ├── LoginPage.tsx          # Branded login card (navy #1F3A5F, teal accent) + inline forgot-password flow
-│   ├── ResetPasswordPage.tsx  # Password reset — listens for PASSWORD_RECOVERY auth event; signs out + redirects on success
-│   ├── ProjectsPage.tsx       # Project list (active/completed tabs, search, filters, create, delete)
-│   ├── ProjectDetailPage.tsx  # Single-project shell with tab nav: Overview · Cx Index · Issues Log · Equipment · Site Reports
-│   ├── DirectoryPage.tsx      # Company + contact management (two-panel layout)
-│   ├── IssuesLogPage.tsx      # Findings log (two-panel list/detail, diary, photos, delete with confirmation)
-│   ├── CxIndexPage.tsx        # Cx Index matrix (12-group/88-col progress, stage structure editor)
-│   ├── EquipmentPage.tsx      # Equipment/Systems Register (type-specific field sections, tag autocomplete, attachments)
-│   └── SiteReportsPage.tsx    # Site reports list + create + trigger PDF/DOCX generation
+│   ├── LoginPage.tsx / ResetPasswordPage.tsx
+│   ├── DashboardPage.tsx       # HOME (/) — sections A·Now, B·Projects, C·Findings, D·Mine (Recharts)
+│   ├── ProjectsPage.tsx        # /projects — list, filters, create; navigates to /projects/:id
+│   ├── ProjectDetailPage.tsx   # Tabs: Overview · Team · Issues Log · Cx Index · Equipment ·
+│   │                           #       Site Reports · Meetings · Checklists (tab lives in ?tab=)
+│   ├── DirectoryPage.tsx / IssuesLogPage.tsx / CxIndexPage.tsx / EquipmentPage.tsx
+│   ├── SiteReportsPage.tsx / MeetingsPage.tsx / ChecklistsPage.tsx / TeamPage.tsx
+│   ├── TemplatesPage.tsx       # Firm checklist template library (IVC/PFC/FPT)
+│   └── ClassificationsPage.tsx # Admin: dimensions/options, Systems, Company Roles,
+│                               #        Meeting Types + Default Topics, Deliverable Templates
 │
-├── main.tsx               # Entry point: wraps app in <AuthProvider> from AuthContext
-└── App.tsx                # Root: auth gate (reset-password bypass → loading → login → no-profile fallback → app shell)
-                           # Sidebar: Isotherm branding, nav sections by phase, user name/role + logout button
+├── main.tsx                    # <AuthProvider> wrap
+└── App.tsx                     # Auth gate → <BrowserRouter> shell (sidebar NavLinks, route table)
 
 api/
-└── generate-report.ts     # Vercel serverless function (Node.js runtime, maxDuration: 60)
-                           # POST handler: fetches project + report data from Supabase, fetches finding photos,
-                           # builds two separate HTML strings (PDF path and DOCX path), generates both outputs.
-                           # PDF: Puppeteer + @sparticuz/chromium-min@133.0.0 (chromium-pack downloaded to /tmp on cold start)
-                           #      displayHeaderFooter/footerTemplate for disclaimer (not position:fixed, which clips rows)
-                           # DOCX: html-to-docx@1.8.0 (inline styles only; width: stripped from th/td to prevent crash)
-                           # Uploads both to Supabase Storage 'site-reports' bucket; stores public URLs in site_reports row
+├── _shared/doc-common.ts       # SHARED doc layer (not an endpoint — underscore path):
+│                               # esc/iso helpers, letterhead (PDF + DOCX variants), BASE_CSS,
+│                               # toPdf(html, footer) via Puppeteer + @sparticuz/chromium-min@133,
+│                               # toDocx via html-to-docx (width: stripped from th/td),
+│                               # uploadDocPair (storage + cache-busted URLs).
+│                               # NOTE: import with explicit .js extension (Vercel ESM runtime).
+├── generate-report.ts          # Site Notes (maxDuration 60)
+├── generate-checklist.ts       # IVC/PFC documents — completed + blank hand-out modes (maxDuration 60)
+└── generate-minutes.ts         # Meeting minutes (maxDuration 60)
 ```
 
 ---
@@ -162,19 +169,92 @@ All five carry org_id (rule 17). RLS: firm-config pattern on the config tables,
 project-scoped on the junction. projects.project_type (column + enum type) was
 REMOVED 2026-07-17 — classifications are the only source of truth.
 
-── Issues Log ─────────────────────────────────────────────────────────────────
+── Directory child tables (2026-07 enhancement) ───────────────────────────────
+
+company_role_types    → managed role vocabulary (name, abbreviation, sort, active);
+                        directory tags AND team-matrix seats share it
+company_locations     → one-to-many offices; at-most-one primary (partial unique)
+company_trades        → junction to trade_types
+contact_phones        → typed (mobile|office|landline|site) + extension; partial-unique primary
+contact_emails        → label + is_primary; partial-unique primary
+                        Render rule everywhere: primary row ?? legacy contacts.email/phone (dual-read)
+
+── Team matrix ────────────────────────────────────────────────────────────────
+
+project_team_assignments → project seat: role_type_id + company_id (NOT NULL) +
+                        contact_id (nullable; composite FK (contact_id, company_id) →
+                        contacts(id, company_id), column-scoped ON DELETE SET NULL so
+                        contact deletion degrades the seat to company-only).
+                        UNIQUE NULLS NOT DISTINCT (project, role, company, contact).
+                        Referenced by meeting_items.responsible_assignment_id and the
+                        dashboard's responsible rollup (company-id keys).
+
+── Issues Log (FULL ASHRAE 202 register as of 2026-07) ────────────────────────
 
 findings              → issues log entries per project
                         number (text, auto-managed, NOT renumbered on delete — gaps are intentional)
-                        title (text nullable — optional specific description above the category)
+                        title (UI-required at creation; DB-nullable for history)
+                        description (the issue itself — replaces initial-diary seeding;
+                          the diary is the dated RESOLUTION record and starts empty)
+                        identified_by (text, defaults current user) · building_area ·
+                        corrective_action — all additive nullable (rule 4, no backfill)
                         category (from project trades or 'INFO'), responsible_party_id (FK → contacts)
                         origin: site_visit | ivc | pfc | fpt
-                        linked_equipment_id (FK → equipment, nullable)
-                        Deletable: CASCADE on diary entries + photos; storage files deleted best-effort
+                        date_raised = "Date Identified" (editable); date_closed = "Date
+                        Resolved" (label only — auto-set on close via trigger, cleared on
+                        reopen, editable while closed)
+                        linked_equipment_id (FK → equipment; picked via EquipmentPicker)
+                        Report rendering: register fields emit ONLY when present →
+                        historical findings regenerate byte-clean (pw-report-regen gate)
 finding_diary_entries → append-only dated diary per finding (oldest-first); CASCADE on finding_id
 finding_photos        → photo records per finding; storage_url = Supabase Storage full public URL
                         path convention: findings/{finding_id}/{timestamp}.jpg
                         CASCADE on finding_id
+
+── Checklist engine (Phase 2 — 14 tables) ─────────────────────────────────────
+
+checklist_templates / _template_sections / _template_items / _template_grids /
+_template_signoffs  → firm pool. Template TYPE comes from the SOURCE master's
+                      identity (Prefunctional folder → pfc; Installation
+                      Verification → ivc; Functional Testing → fpt) and the name
+                      follows the type ("⟨Equipment⟩ Prefunctional Checklist").
+                      Series codes live in revision_label only (branding rule).
+checklist_instances / _instance_sections / _instance_items / _instance_grids /
+_instance_signoffs / _instance_targets → FULL SNAPSHOT copies at creation (name/
+                      type/revision + structure); instances never read the template
+                      after creation (rule 4). Multi-unit via targets (2–4 units,
+                      parallel columns; nameplate_snapshot frozen at completion).
+checklist_responses / checklist_grid_responses / checklist_finding_links
+                    → natural-key upserts (the outbox's idempotency foundation);
+                      one finding per item per target (link uniqueness).
+
+── Meeting minutes (2026-07 — 6 tables) ───────────────────────────────────────
+
+meeting_types / meeting_type_default_topics → admin reference (Classifications
+                      screen). Default topics are the agenda SKELETON —
+                      copied into new meetings, never referenced.
+meetings              → per-project per-type integer numbering (auto-suggested,
+                      editable, soft duplicate warning); draft|issued; issued_at
+                      stamped on FIRST issue (7-day disclaimer clock)
+meeting_topics        → the meeting's OWN agenda copy (rule 4)
+meeting_attendees     → contact FK + snapshots stamped at pick time (survives
+                      directory churn); role auto-attributed from the team matrix;
+                      present|regrets|distribution
+meeting_items         → item_number text "{meeting#}.{seq}" stamped once, NEVER
+                      renumbered; carried_from_item_id; responsible = team-matrix
+                      FK or free-text fallback (never string-matched); display-only
+                      linked_finding_id. Carry-forward copies OPEN items from the
+                      most recent prior meeting of the type, retaining numbers;
+                      unmatched topics → auto "Old Business"; closing a carried
+                      item never touches the prior meeting.
+
+── Dashboard read layer ───────────────────────────────────────────────────────
+
+dashboard_checklist_coverage → VIEW (security_invoker = true — REQUIRED: a plain
+                      Postgres view runs as owner and silently bypasses RLS; the
+                      invoker flag is asserted inside the migration). Per-project
+                      responses-recorded vs items×targets expected. The dashboard
+                      is otherwise plain authenticated reads — zero writes.
 
 ── Cx Index ───────────────────────────────────────────────────────────────────
 
@@ -241,7 +321,7 @@ cx_cell_values          → sparse progress cells: one row per (equipment × col
 9. FPT BAS/Mech (5) · 10. IST — Integrated Systems Testing (7, CAN/ULC-S1001)
 11. Turnover (8) · 12. Post-Construction (5)
 
-All project-referencing FKs use `ON DELETE CASCADE`. Phase 1 uses dev-permissive RLS (`USING (true) WITH CHECK (true)`) — replaced with real auth policies in Phase 7.
+All project-referencing FKs use `ON DELETE CASCADE`. *(Corrected 2026-07-20: an older line here claimed Phase 1 ran dev-permissive RLS "until Phase 7" — real per-role RLS via `get_my_role()` has been live since Phase 1 completion; the dev allow-all policies were fully replaced.)*
 
 ### Conventions (MASTER-BRIEF rules 16–17)
 - Every new table carries `org_id uuid` (nullable, defaulted to the Isotherm org,
@@ -285,8 +365,19 @@ Links to existing tables: `bas_point_mappings.equipment_id → equipment`,
 
 **`site-reports`** bucket (public, no size limit effectively).
 - Generated by `api/generate-report.ts` serverless function on Vercel
-- `.docx` stored at `site-reports/{report_id}/report.docx`; URL in `site_reports.storage_url`
-- `.pdf` stored at `site-reports/{report_id}/report.pdf`; URL in `site_reports.pdf_url`
+- Stored at `{project_id}/{report_number}.docx|.pdf`; cache-busted URLs in
+  `site_reports.storage_url` / `pdf_url` *(corrected 2026-07-20 — an older line
+  documented a `{report_id}/report.docx` path that was never the deployed layout)*
+
+**`checklists`** bucket (public) — generated IVC/PFC documents (completed + blank modes), from `api/generate-checklist.ts`.
+
+**`meeting-minutes`** bucket (public) — generated minutes at `{project_id}/{type-slug}-{n}.pdf|docx`, from `api/generate-minutes.ts`.
+
+> **§12 OPEN ITEM — storage privacy hardening (pre-client-rollout).** Every document
+> bucket above is public with unguessable URLs, mirroring the original pattern.
+> Required before client rollout / portal: ONE batched pass converting all document
+> storage to private buckets + signed URLs across every download link. Canonical
+> register: MASTER-BRIEF §12.
 
 **Rule for new buckets:** no new public buckets without review. Access-controlled storage uses signed URLs or service-role upload only.
 
@@ -296,9 +387,24 @@ Links to existing tables: `bas_point_mappings.equipment_id → equipment`,
 
 ---
 
-## Routing
+## Routing (react-router-dom — landed 2026-07-19)
 
-No router library. `App.tsx` applies auth gating in order: (1) `window.location.pathname === '/reset-password'` bypasses everything → `<ResetPasswordPage>`; (2) `loading` → `<LoadingScreen>`; (3) no session → `<LoginPage>`; (4) session but no `profile` row → "Account setup incomplete" fallback; (5) authenticated → app shell. Within the app shell, `activeItem` string drives which page renders. `ProjectsPage` manages its own `selectedProjectId` state, rendering `<ProjectDetailPage projectId=...>` in place (replaces list, not a new route). A URL router (e.g. TanStack Router) is the natural Phase 3 addition for deep-linking into projects and checklist instances.
+Auth gating precedes the router: `/reset-password` bypass → loading → login →
+no-profile fallback → `<BrowserRouter>` shell. Route map:
+
+| Route | Renders | Notes |
+|---|---|---|
+| `/` | DashboardPage | HOME. `client` role → `<Navigate to="/projects">` — never reaches the dashboard |
+| `/projects` | ProjectsPage | list; row click navigates |
+| `/projects/:projectId` | ProjectDetailRoute → ProjectDetailPage | active tab lives in `?tab=` (`issues`, `meetings`, `checklists`, `site_reports`, …) so dashboard rows and external links deep-link straight to a tab |
+| `/directory` `/templates` | pages | |
+| `/classifications` | ClassificationsPage | admin/developer only (route guard + nav gating; RLS is the real enforcement) |
+| `/reset-password` | ResetPasswordPage | pre-router bypass, unchanged |
+| `*` | redirect `/` | |
+
+Sidebar items are `<NavLink>`s. `vercel.json` rewrites all non-`api/` paths to
+`index.html` (SPA). Historical note: before the router the app had exactly one URL —
+nothing could break when it landed; the full Playwright battery re-ran green as the gate.
 
 ---
 
@@ -362,12 +468,32 @@ This tracks IST progress at the equipment/system level within the same matrix. N
 
 ## Testing
 
-Playwright scripts in the repo root (`pw-*.mjs`) cover key flows:
-- Finding creation → diary entry → photo upload
-- Trade selection in project setup → category propagation to Issues Log
-- Project status lifecycle (active → completed → reopen)
+**HARD RULE: automated tests run ONLY against the "ZZ-TEST — Do Not Use" project**
+(guarded by `pw-config.mjs` — `openTestProject` throws on anything else).
+Test-created projects use ZZ-TEST-prefixed unique names. Credentials come from
+`.env` (`node --env-file=.env <script>`) — never hardcoded.
 
-Future: move to a `tests/` directory with named spec files as coverage grows.
+The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
+- `pw-report-regen.mjs` — regeneration byte-clean diff (the gate for any change
+  near the report path; before/after capture, normalized-text compare)
+- `pw-checklist-docs.mjs` — four-deliverable checklist content audit (known
+  limitation: the ASCII PDF probe can't read glyph-encoded text — PDFs are
+  verified via `pw-pdf-shot.mjs` PNG rendering instead)
+- `pw-copy.mjs` — multi-unit copy: never-overwrite, copied-N-opens-finding-modal
+- `pw-finding-register.mjs` — full ASHRAE register: create → detail → report
+  lines → delete → byte-clean restore
+- `pw-pfc-verify.mjs` — template typing/naming flows to new instances
+- `pw-meetings.mjs` — topic seeding, matrix attribution, minutes content,
+  carry-forward number retention, close-carried-item isolation
+- `pw-dashboard.mjs` — seeds one state per widget (INSERT-TIME timestamps — only
+  updates get trigger-stamped), asserts chips/queue/deep-links/rollup, self-cleans
+- plus earlier-era flow scripts (`pw-team`, `pw-dates`, `pw-directory`, …)
+
+**Deploy-verification pattern (learned the hard way):** Vercel queues builds; a
+"READY" older deploy can still be serving when a test starts. Before any
+production-gated test run, poll until the SERVED JS bundle contains a marker of
+the change (fetch index.html → asset URL → grep the bundle), not just the
+deployment state. A gate run against a stale bundle is void — re-run and say so.
 
 - BAS parsers: Vitest unit tests against real-file fixtures in `fixtures/bas/`
   (sanitized TDSB exports — TL/MT variants, Excel-damaged file, sentinel values).
@@ -404,4 +530,26 @@ Future: move to a `tests/` directory with named spec files as coverage grows.
 
 ---
 
-*Last updated: 2026-07-05 — Phase 1 complete. All modules built and deployed: auth (login/reset/RLS), directory, projects, trades, issues log (findings + diary + photos + delete), Cx Index (12-group/88-col editable), equipment register (11 type templates, tag glossary, attachments), site reports (PDF + DOCX via Vercel serverless api/generate-report.ts). Phase 2 (checklist engine) in progress.*
+## Standing rules (permanent — apply to every session)
+
+- **ShareSync is READ-ONLY, absolutely** (`C:\Users\TonyF\My ShareSync`). List/read
+  only. Working copies land ONLY in gitignored `samples/`. Client-confidential
+  content never reaches the repo, GitHub, commits, code, or test fixtures. Check
+  `git status` before every commit while ShareSync-sourced files exist locally.
+- **Branding rule:** source masters carry legacy branding — extract CONTENT only.
+  All generated output renders Isotherm identity; source series codes live in
+  `revision_label`/description, never in rendered titles; source signoff company
+  names become generic roles.
+- **Template typing:** type from the source master's identity (Prefunctional →
+  pfc, Installation Verification → ivc, Functional Testing → fpt); names follow
+  type; ask when ambiguous — never guess.
+- **ZZ-TEST only** for automated tests (see Testing above).
+- **Commit and push are one action.** Never leave local-only commits; report push
+  failures immediately.
+- **Rule 4 (records):** completed/issued artifacts are frozen point-in-time
+  records — corrections change templates/live rows only; snapshots and issued
+  documents are never rewritten.
+
+---
+
+*Last updated: 2026-07-20 — routed app with the internal Dashboard as home; checklist engine built through document generation (blank + completed modes, multi-unit copy feature) with real-form seeding in progress (AHU pfc seeded; Boiler next); Meeting Minutes end-to-end; findings full ASHRAE 202 register; doc-common shared generation layer; meeting-types admin sections. See Build Spec §1A for the authoritative module list.*
