@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { signOut as authSignOut } from '../lib/auth'
 
-export type UserRole = 'admin' | 'developer' | 'user' | 'client'
+export type UserRole = 'admin' | 'developer' | 'owner' | 'user' | 'client'
 
 export interface UserProfile {
   id: string

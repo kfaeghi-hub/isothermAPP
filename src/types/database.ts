@@ -1,6 +1,6 @@
 // Database types — mirror the Supabase schema exactly
 
-export type UserRole = 'admin' | 'developer' | 'user' | 'client'
+export type UserRole = 'admin' | 'developer' | 'owner' | 'user' | 'client'
 export type FindingStatus = 'open' | 'closed'
 export type FindingOrigin = 'site_visit' | 'ivc' | 'pfc' | 'fpt'
 export type CxProgress = 'done' | 'in_progress' | 'na' | 'blank'

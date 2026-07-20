@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 interface ProfileRow { id: string; name: string; email: string; role: string }
 
 const ROLE_LABEL: Record<string, string> = {
-  admin: 'Admin', developer: 'Developer', user: 'Employee', client: 'Client',
+  admin: 'Admin', developer: 'Developer', owner: 'Owner', user: 'Employee', client: 'Client',
 }
 
 export function UsersPage() {
@@ -57,6 +57,7 @@ export function UsersPage() {
               <td className="py-2 pr-4">
                 <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${
                   p.role === 'admin' ? 'bg-[#1F3A5F] text-white'
+                  : p.role === 'owner' ? 'bg-amber-50 text-amber-800'
                   : p.role === 'developer' ? 'bg-violet-50 text-violet-700'
                   : p.role === 'user' ? 'bg-teal-50 text-teal-700'
                   : 'bg-gray-100 text-gray-500'

@@ -511,8 +511,8 @@ export function EquipmentPage({ projectId }: Props) {
                         onClick={() => startEdit(selected)}
                         className="px-3 py-1.5 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-300"
                       >Edit</button>
-                      {/* Equipment hard-delete is owner-only (C3) */}
-                      {['admin', 'developer'].includes(profile?.role ?? '') && (
+                      {/* Equipment hard-delete: admin/dev + owner (C3) */}
+                      {['admin', 'developer', 'owner'].includes(profile?.role ?? '') && (
                         <button
                           onClick={() => deleteEquipment(selected.id)}
                           className="px-3 py-1.5 text-xs border border-red-100 rounded text-red-500 hover:border-red-300 hover:bg-red-50"

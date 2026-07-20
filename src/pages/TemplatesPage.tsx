@@ -190,7 +190,7 @@ type DeleteTarget =
 
 export function TemplatesPage() {
   const { profile } = useAuth()
-  const canEdit = profile?.role === 'admin' || profile?.role === 'developer'
+  const canEdit = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
 
   // List state
   const [templates, setTemplates]     = useState<ChecklistTemplate[]>([])

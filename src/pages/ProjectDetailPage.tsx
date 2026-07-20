@@ -88,7 +88,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   // Access control: employees see project settings only as leads. RLS lets each
   // user read their OWN membership row; admins see all (and are implicit leads).
   const { profile } = useAuth()
-  const isOwner = ['admin', 'developer'].includes(profile?.role ?? '')
+  // Governors: admin/dev see all; the owner role only ever reaches member
+  // projects (RLS), so granting it these buttons is portfolio-scoped by construction.
+  const isOwner = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
   const [isLead, setIsLead] = useState(false)
   useEffect(() => {
     if (isOwner || !profile) { setIsLead(isOwner); return }

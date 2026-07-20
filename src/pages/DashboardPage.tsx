@@ -45,8 +45,8 @@ export function DashboardPage() {
 
   if (!data) return <div className="p-8 text-sm text-gray-400">Loading dashboard…</div>
 
-  // Employee with zero memberships: RLS returns no projects at all.
-  if (data.projects.length === 0 && profile?.role === 'user') {
+  // Employee OR owner with zero memberships: RLS returns no projects at all.
+  if (data.projects.length === 0 && ['user', 'owner'].includes(profile?.role ?? '')) {
     return (
       <div className="p-16 text-center" data-testid="no-membership">
         <p className="text-3xl mb-4 opacity-30">🔐</p>

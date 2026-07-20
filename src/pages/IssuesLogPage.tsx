@@ -534,8 +534,8 @@ export function IssuesLogPage({ projectId, phases }: Props) {
               >
                 Edit
               </button>
-              {/* Hard-delete is owner-only (C3) — the register is the record */}
-              {['admin', 'developer'].includes(profile?.role ?? '') && (
+              {/* Hard-delete: admin/dev + owner (portfolio-scoped by RLS) — C3 */}
+              {['admin', 'developer', 'owner'].includes(profile?.role ?? '') && (
                 <button
                   onClick={() => setConfirmDeleteId(selectedFinding.id)}
                   className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 hover:border-red-400 transition-colors"

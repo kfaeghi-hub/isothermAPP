@@ -21,18 +21,23 @@ export function AccessCard({ projectId }: { projectId: string }) {
   const [confirmRemove, setConfirmRemove] = useState<MemberRow | null>(null)
 
   const fetchAll = useCallback(async () => {
+    // Profiles via the DEFINER RPC: owners can list internal profiles for the
+    // picker without widening user_profiles RLS; employees/clients get zero rows.
+    // Member names are mapped FROM the RPC result — a direct user_profiles embed
+    // would show an owner only their own row under RLS.
     const [mRes, pRes] = await Promise.all([
       supabase.from('project_members')
-        .select('id, profile_id, is_lead, user_profiles!project_members_profile_id_fkey(id, name, role)')
+        .select('id, profile_id, is_lead')
         .eq('project_id', projectId),
-      supabase.from('user_profiles').select('id, name, role')
-        .in('role', ['admin', 'developer', 'user']).order('name'),
+      supabase.rpc('list_internal_profiles'),
     ])
+    const profs = (pRes.data ?? []) as ProfileRow[]
+    const byId = new Map(profs.map(p => [p.id, p]))
     setMembers(((mRes.data ?? []) as any[]).map(m => ({
       ...m,
-      user_profiles: Array.isArray(m.user_profiles) ? m.user_profiles[0] : m.user_profiles,
+      user_profiles: byId.get(m.profile_id) ?? null,
     })))
-    setProfiles((pRes.data ?? []) as ProfileRow[])
+    setProfiles(profs)
   }, [projectId])
 
   useEffect(() => { fetchAll() }, [fetchAll])

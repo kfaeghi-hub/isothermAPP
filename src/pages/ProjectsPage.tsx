@@ -50,9 +50,10 @@ type Section = 'active' | 'completed'
 
 export function ProjectsPage() {
   const { profile } = useAuth()
-  // Owners (admin/dev) create/complete/delete projects; employees see member
-  // projects only (RLS-scoped) and never these buttons.
-  const isOwner = ['admin', 'developer'].includes(profile?.role ?? '')
+  // Governors (admin/dev/owner) create/complete/delete projects. Safe for the
+  // owner role: their list is already RLS-scoped to member projects, so the row
+  // buttons only ever appear on their own portfolio.
+  const isOwner = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
   const [projects, setProjects] = useState<ProjectWithClient[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)

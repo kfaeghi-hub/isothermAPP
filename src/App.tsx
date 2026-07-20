@@ -18,8 +18,9 @@ const NAV_ITEMS = [
   { label: 'Projects',        icon: '📋', to: '/projects',        phase: 1 },
   { label: 'Directory',       icon: '👥', to: '/directory',       phase: 1 },
   { label: 'Templates',       icon: '🗂️', to: '/templates',       phase: 2 },
-  { label: 'Classifications', icon: '🏷️', to: '/classifications', phase: 2, adminOnly: true },
-  { label: 'Users',           icon: '🔐', to: '/users',           phase: 2, adminOnly: true },
+  // configOnly = firm-config surfaces (admin/dev/OWNER); superOnly = admin only (E6)
+  { label: 'Classifications', icon: '🏷️', to: '/classifications', phase: 2, configOnly: true },
+  { label: 'Users',           icon: '🔐', to: '/users',           phase: 2, superOnly: true },
   { label: 'Action Summary',  icon: '📌', to: null,               phase: 3 },
 ]
 
@@ -65,12 +66,15 @@ export default function App() {
     )
   }
 
-  const isAdmin  = ['admin', 'developer'].includes(profile.role)
-  const isClient = profile.role === 'client'
+  // Firm-config surfaces: admin/dev + owner. Super surfaces (user management): admin only (E6).
+  const canConfig = ['admin', 'developer', 'owner'].includes(profile.role)
+  const isSuper   = profile.role === 'admin'
+  const isClient  = profile.role === 'client'
 
   return (
     <BrowserRouter>
-      <Shell profileName={profile.name} profileRole={profile.role} isAdmin={isAdmin} signOut={signOut}>
+      <Shell profileName={profile.name} profileRole={profile.role}
+        canConfig={canConfig} isSuper={isSuper} signOut={signOut}>
         <Routes>
           {/* The dashboard is the firm's home; the client role never reaches it. */}
           <Route path="/" element={isClient ? <Navigate to="/projects" replace /> : <DashboardPage />} />
@@ -78,8 +82,8 @@ export default function App() {
           <Route path="/projects/:projectId" element={<ProjectDetailRoute />} />
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
-          <Route path="/classifications" element={isAdmin ? <ClassificationsPage /> : <Navigate to="/" replace />} />
-          <Route path="/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
+          <Route path="/classifications" element={canConfig ? <ClassificationsPage /> : <Navigate to="/" replace />} />
+          <Route path="/users" element={isSuper ? <UsersPage /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Shell>
@@ -87,17 +91,19 @@ export default function App() {
   )
 }
 
-function Shell({ profileName, profileRole, isAdmin, signOut, children }: {
+function Shell({ profileName, profileRole, canConfig, isSuper, signOut, children }: {
   profileName: string
   profileRole: string
-  isAdmin: boolean
+  canConfig: boolean
+  isSuper: boolean
   signOut: () => void
   children: React.ReactNode
 }) {
   const location = useLocation()
   const title = TITLES.find(([re]) => re.test(location.pathname))?.[1] ?? 'Dashboard'
 
-  const visible = NAV_ITEMS.filter(i => !i.adminOnly || isAdmin)
+  const visible = NAV_ITEMS.filter(i =>
+    (!(i as any).configOnly || canConfig) && (!(i as any).superOnly || isSuper))
   const phase1 = visible.filter(i => i.phase === 1)
   const phase2 = visible.filter(i => i.phase === 2)
   const phase3 = visible.filter(i => i.phase === 3)

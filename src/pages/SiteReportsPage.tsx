@@ -45,9 +45,9 @@ const STATUS_LABELS: Record<DocRegisterItem['status'], string> = {
 
 export function SiteReportsPage({ projectId }: Props) {
   const { profile } = useAuth()
-  // Owners delete any report; employees delete their OWN UNGENERATED drafts only.
+  // Governors (admin/dev/owner) delete any report; employees their OWN UNGENERATED drafts.
   const canDelete = (r: SiteReport) =>
-    ['admin', 'developer'].includes(profile?.role ?? '')
+    ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
     || (!r.storage_url && r.authored_by === profile?.name)
   const [reports, setReports]         = useState<SiteReport[]>([])
   const [loading, setLoading]         = useState(true)

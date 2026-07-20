@@ -338,9 +338,9 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const filteredInstances = instances.filter(i => filter === 'all' || i.type === filter)
   // Targets that get response columns (primary + tested_unit; not related)
   const responseTargets = targets.filter(t => t.role !== 'related')
-  // Reopen allowed for admin always, or the person who completed it
+  // Reopen: governors (admin/dev/owner — E7 alignment) or the person who completed it
   const canReopen = instance?.status === 'complete' && (
-    profile?.role === 'admin' ||
+    ['admin', 'developer', 'owner'].includes(profile?.role ?? '') ||
     (profile?.name != null && profile.name === instance.completed_by)
   )
 
@@ -1198,8 +1198,8 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 className="text-xs border border-gray-200 rounded px-3 py-1.5 text-gray-500 hover:text-teal-700 hover:border-teal-400 transition-colors">
                 Edit
               </button>
-              {/* A1: members delete non-completed instances; completed = frozen record (owner-only) */}
-              {(['admin', 'developer'].includes(profile?.role ?? '') || instance.status !== 'complete') && (
+              {/* A1: members delete non-completed; completed = governors only (admin/dev/owner) */}
+              {(['admin', 'developer', 'owner'].includes(profile?.role ?? '') || instance.status !== 'complete') && (
                 <button onClick={() => setConfirmDelete(instance.id)}
                   className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 transition-colors">
                   Delete
