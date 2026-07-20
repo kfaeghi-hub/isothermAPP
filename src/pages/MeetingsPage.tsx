@@ -56,6 +56,8 @@ export function MeetingsPage({ projectId }: Props) {
   const [attendees, setAttendees] = useState<AttendeeRow[]>([])
   const [items, setItems]         = useState<MeetingItem[]>([])
   const [itemDrafts, setItemDrafts] = useState<Record<string, Partial<MeetingItem>>>({})
+  // Items whose Responsible is in free-text mode ("Other…") before any text exists.
+  const [textModeItems, setTextModeItems] = useState<Set<string>>(new Set())
 
   // Create modal
   const [createOpen, setCreateOpen] = useState(false)
@@ -642,7 +644,8 @@ export function MeetingsPage({ projectId }: Props) {
                       <tbody>
                         {topicItems.map(it => {
                           const d = draftFor(it.id)
-                          const respValue = it.responsible_assignment_id ?? (it.responsible_text ? '__text' : '')
+                          const respValue = it.responsible_assignment_id
+                            ?? ((it.responsible_text || textModeItems.has(it.id)) ? '__text' : '')
                           return (
                             <tr key={it.id} className="border-b border-gray-50 group align-top">
                               <td className="pl-5 pr-2 py-1.5 w-14 font-mono text-[11px] text-gray-500 whitespace-nowrap">
@@ -664,8 +667,13 @@ export function MeetingsPage({ projectId }: Props) {
                                   value={respValue}
                                   onChange={e => {
                                     const v = e.target.value
-                                    if (v === '__text') updateItem(it.id, { responsible_assignment_id: null })
-                                    else updateItem(it.id, { responsible_assignment_id: v || null, responsible_text: null })
+                                    if (v === '__text') {
+                                      setTextModeItems(s => new Set(s).add(it.id))
+                                      updateItem(it.id, { responsible_assignment_id: null })
+                                    } else {
+                                      setTextModeItems(s => { const n = new Set(s); n.delete(it.id); return n })
+                                      updateItem(it.id, { responsible_assignment_id: v || null, responsible_text: null })
+                                    }
                                   }}
                                   className="w-full text-[11px] border border-gray-200 rounded px-1 py-1 bg-white text-gray-600">
                                   <option value="">—</option>
