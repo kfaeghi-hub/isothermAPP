@@ -8,6 +8,9 @@
     },
     "api/generate-checklist.ts": {
       "maxDuration": 60
+    },
+    "api/generate-minutes.ts": {
+      "maxDuration": 60
     }
   }
 }
