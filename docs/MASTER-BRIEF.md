@@ -319,6 +319,12 @@ first generation, like meetings.issued_at) in a later write-touching pass.
 unused: the dashboard derives last visit from site-report dates by design. Either
 repurpose or drop in a cleanup pass.
 
+**Break-glass vs test admin split.** Split break-glass admin (human-held, vaulted
+credentials, used rarely) from test admin (scriptable, .env) before the firm scales
+beyond the three owners or real client data lands — today dev.admin serves both
+purposes; that dual role is accepted at current scale only. (Recorded 2026-07-20
+with the owner-tier build.)
+
 **My Items user-id normalization.** `findings.identified_by`,
 `meetings.prepared_by`, `site_reports.authored_by`, `checklist_instances.authored_by`
 are free-text names matched against `profile.name` (the existing convention, stated

@@ -1,7 +1,16 @@
 # OWNER-TIER-PROPOSAL.md — Symmetric owner role (membership-scoped owners)
 
-**Status: PENDING APPROVAL — no code exists for this. Do not build from this document
-until every item in §9 (Decisions Required) carries an explicit verdict from Tony.**
+**Status: APPROVED AND BUILT (2026-07-20).** All §9 verdicts landed: 9.1 role value
+`owner` confirmed (user_profiles.role turned out to be `user_role_enum` — ADD VALUE
+used, not text+CHECK) · 9.2(a) self-eviction accepted · 9.3(a) Users admin-only ·
+9.4(a) E7 reopen alignment · 9.5 dev.owner in .env. All E-flags accepted as written.
+Built across commits d9cebe3 → ea42c08 (DB via Supabase Management API). Gates:
+pw-access 54/54 including the full owner leg (negatives, wall check, destructive +
+membership positives, firm-level, picker, dashboard scoping); employee/admin legs
+unchanged; battery green. One real bug caught and fixed by the owner leg: project
+creation used INSERT..RETURNING, which evaluates the SELECT policy BEFORE the
+auto-membership trigger — owners' creates failed until the app switched to a
+client-generated id with a plain INSERT. This document is now the as-built record.
 
 - Date proposed: 2026-07-20
 - Builds on: `docs/ACCESS-CONTROL-PROPOSAL.md` (as-built 2026-07-20) — the M-pattern
