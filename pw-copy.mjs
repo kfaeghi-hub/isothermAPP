@@ -121,18 +121,18 @@ try {
 await browser.close()
 
 // ── Tidy ZZ-TEST: the two findings created above outlive the deleted instance by
-// design (Issues Log keeps them) — remove them so the fixture stays a regression
-// baseline, not a scratchpad.
+// design (Issues Log keeps them). Finding hard-delete is owner-only under access
+// control, so cleanup runs as dev.admin (proposal §6.1 credential split).
 try {
   const { createClient } = await import('@supabase/supabase-js')
-  const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
-  await sb.auth.signInWithPassword({ email: process.env.email, password: process.env.password })
-  const { data } = await sb.from('findings')
+  const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+  const { data } = await adm.from('findings')
     .delete()
     .eq('project_id', 'e0c427d8-2029-4382-b054-6a84248ad8fe')
     .eq('title', 'Cabinet and general installation')
     .select('id')
-  console.log(`\ncleanup: removed ${data?.length ?? 0} test finding(s) from ZZ-TEST`)
+  console.log(`\ncleanup: removed ${data?.length ?? 0} test finding(s) from ZZ-TEST (as admin)`)
 } catch (e) {
   console.log(`\ncleanup: could not remove test findings — ${e.message}`)
 }

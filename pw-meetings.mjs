@@ -32,10 +32,13 @@ function docxXml(buf) {
 
 const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 await sb.auth.signInWithPassword({ email: process.env.email, password: process.env.password })
+// Admin client for privileged cleanup only (issued meetings are frozen for employees).
+const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
 
-// Pre-clean any leftovers from a failed prior run
+// Pre-clean any leftovers from a failed prior run (admin — may include issued meetings)
 {
-  const { data } = await sb.from('meetings').delete().eq('project_id', ZZ).select('id')
+  const { data } = await adm.from('meetings').delete().eq('project_id', ZZ).select('id')
   if (data?.length) console.log(`pre-clean: removed ${data.length} leftover meeting(s)`)
 }
 
@@ -148,24 +151,16 @@ try {
   const orig11 = (m1items ?? []).find(i => i.item_number === '1.1')
   check(orig11?.status === 'open', 'ISOLATION: closing carried 1.1 in #2 leaves #1 frozen (still open)')
 
-  // ── Self-clean: delete both meetings via UI ──────────────────────────────
-  for (let k = 0; k < 2; k++) {
-    await page.getByRole('button', { name: 'Delete', exact: true }).first().click()
-    await page.waitForTimeout(500)
-    await modal.getByRole('button', { name: 'Delete', exact: true }).click()
-    await page.waitForTimeout(1500)
-    if (k === 0) {
-      await page.locator('button').filter({ hasText: /^Recurring Cx Meeting/ }).first().click().catch(() => {})
-      await page.waitForTimeout(1000)
-    }
-  }
-  const { data: left } = await sb.from('meetings').select('id').eq('project_id', ZZ)
+  // ── Self-clean via ADMIN (issued meeting #1 is a frozen record for employees —
+  // its delete correctly requires owner rights under access control) ─────────
+  await adm.from('meetings').delete().eq('project_id', ZZ)
+  const { data: left } = await adm.from('meetings').select('id').eq('project_id', ZZ)
   check((left ?? []).length === 0, 'self-clean: no meetings left on ZZ-TEST')
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
   await page.screenshot({ path: 'out/pw-meetings-fail.png', fullPage: true }).catch(() => {})
   // best-effort DB clean
-  await sb.from('meetings').delete().eq('project_id', ZZ)
+  await adm.from('meetings').delete().eq('project_id', ZZ)
 }
 
 await browser.close()

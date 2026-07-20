@@ -103,11 +103,14 @@ try {
   check(withFinding.includes(DESC), 'report: description body renders')
   check(withFinding.includes(`Corrective action: ${CORR}`), 'report: corrective-action line renders')
 
-  // ── Self-clean: delete via UI, report returns to baseline ────────────────
-  await page.getByRole('button', { name: 'Delete', exact: true }).first().click()
+  // ── Self-clean via ADMIN API: finding hard-delete is owner-only under access
+  // control (C3) — the UI button is correctly hidden from the employee account.
+  const { createClient } = await import('@supabase/supabase-js')
+  const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+  const { data: deleted } = await adm.from('findings').delete().eq('title', TITLE).select('id')
+  check((deleted ?? []).length === 1, 'finding removed by admin (employee delete is correctly forbidden)')
   await page.waitForTimeout(500)
-  await page.getByRole('button', { name: 'Delete Permanently' }).click()
-  await page.waitForTimeout(2000)
 
   const restored = await generateReportText()
   check(restored === baseline, 'self-clean: report regenerates byte-clean to the pre-test baseline')

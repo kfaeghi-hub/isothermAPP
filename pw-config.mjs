@@ -24,14 +24,30 @@ export function credentials() {
   return { email, password }
 }
 
-/** Log in and land on the Projects list. */
-export async function login(page) {
-  const { email, password } = credentials()
+/** Admin credentials (dev.admin) — used ONLY for privileged seed/cleanup steps
+ *  that access control now correctly forbids employees (proposal §6.1). */
+export function adminCredentials() {
+  const email = process.env.admin_email
+  const password = process.env.admin_password
+  if (!email || !password) {
+    console.error('Missing `admin_email` / `admin_password` in .env.')
+    process.exit(1)
+  }
+  return { email, password }
+}
+
+/** Log in with explicit credentials and land on the home route. */
+export async function loginAs(page, { email, password }) {
   await page.goto(BASE_URL)
   await page.locator('input[type="email"]').fill(email)
   await page.locator('input[type="password"]').fill(password)
   await page.getByRole('button', { name: 'Sign In' }).click()
   await page.waitForTimeout(3000)
+}
+
+/** Log in as dev.test (the employee account — verification content runs as this). */
+export async function login(page) {
+  await loginAs(page, credentials())
 }
 
 /**

@@ -23,15 +23,20 @@ const isoDate = (daysAgo) => iso(daysAgo).slice(0, 10)
 
 const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 await sb.auth.signInWithPassword({ email: process.env.email, password: process.env.password })
+// Admin client for privileged seed/cleanup (project create/delete, issued-meeting +
+// finding deletes are owner-only under access control — §6.1 credential split).
+const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+const { data: { user: empUser } } = await sb.auth.getUser()
 
-// ── Pre-clean leftovers from a failed prior run ─────────────────────────────
+// ── Pre-clean leftovers from a failed prior run (admin) ─────────────────────
 async function cleanup() {
-  await sb.from('findings').delete().eq('project_id', ZZ).like('title', `${MARK}%`)
-  const { data: mtgs } = await sb.from('meetings').select('id').eq('project_id', ZZ).gte('meeting_number', 900)
-  for (const m of mtgs ?? []) await sb.from('meetings').delete().eq('id', m.id)
-  await sb.from('checklist_instances').delete().eq('project_id', ZZ).like('source_template_name_snapshot', `${MARK}%`)
-  const { data: projs } = await sb.from('projects').select('id').like('name', 'ZZ-TEST-DASH%')
-  for (const p of projs ?? []) await sb.from('projects').delete().eq('id', p.id)
+  await adm.from('findings').delete().eq('project_id', ZZ).like('title', `${MARK}%`)
+  const { data: mtgs } = await adm.from('meetings').select('id').eq('project_id', ZZ).gte('meeting_number', 900)
+  for (const m of mtgs ?? []) await adm.from('meetings').delete().eq('id', m.id)
+  await adm.from('checklist_instances').delete().eq('project_id', ZZ).like('source_template_name_snapshot', `${MARK}%`)
+  const { data: projs } = await adm.from('projects').select('id').like('name', 'ZZ-TEST-DASH%')
+  for (const p of projs ?? []) await adm.from('projects').delete().eq('id', p.id)
 }
 await cleanup()
 
@@ -40,8 +45,9 @@ const { data: recurType } = await sb.from('meeting_types').select('id').eq('name
 const { data: basSeat } = await sb.from('project_team_assignments')
   .select('id, contact_id, company_id').eq('project_id', ZZ).limit(1).single()
 
-// 1 · meeting with an overdue open item, matrix-attributed
-const { data: mtg1 } = await sb.from('meetings').insert({
+// 1 · meeting with an overdue open item, matrix-attributed (issued → seeded as admin;
+//     dev.test still SEES it as a ZZ-TEST member)
+const { data: mtg1 } = await adm.from('meetings').insert({
   project_id: ZZ, meeting_type_id: recurType.id, meeting_number: 900,
   meeting_date: isoDate(30), status: 'issued', issued_at: iso(30),
 }).select('id').single()
@@ -74,10 +80,12 @@ await sb.from('checklist_instances').insert({
   created_at: iso(25), updated_at: iso(20),
 })
 
-// 5 · never-visited active project
-const { data: neverProj } = await sb.from('projects').insert({
+// 5 · never-visited active project — created by ADMIN (C1: employees cannot create
+//     projects), then dev.test added as member so the employee dashboard shows it
+const { data: neverProj } = await adm.from('projects').insert({
   name: 'ZZ-TEST-DASH Never Visited', status: 'active',
 }).select('id').single()
+await adm.from('project_members').insert({ project_id: neverProj.id, profile_id: empUser.id })
 
 console.log('seeded: overdue item, 40d finding, 10d draft, 20d checklist, never-visited project')
 
@@ -147,9 +155,9 @@ try {
 
 await browser.close()
 
-// ── Self-clean ──────────────────────────────────────────────────────────────
+// ── Self-clean (admin) ──────────────────────────────────────────────────────
 await cleanup()
-const { data: leftover } = await sb.from('findings').select('id').eq('project_id', ZZ).like('title', `${MARK}%`)
+const { data: leftover } = await adm.from('findings').select('id').eq('project_id', ZZ).like('title', `${MARK}%`)
 check((leftover ?? []).length === 0, 'self-clean: seeded rows removed')
 
 console.log('\n' + '='.repeat(60))

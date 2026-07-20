@@ -1,17 +1,19 @@
-// Proof for the classification framework (approved plan step 6):
+﻿// Proof for the classification framework (approved plan step 6):
 // create a LEED Enhanced project through the real UI and verify that
 // required-dimension validation fires, badges render, and deliverables compose.
 //
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-classification.mjs
 //
-// Creates "ZZ-TEST-LEED — Do Not Use" (clearly-marked test entity, ZZ-TEST family).
+// Creates "ZZ-TEST-LEED â€” Do Not Use" (clearly-marked test entity, ZZ-TEST family).
 
 import { chromium } from 'playwright'
-import { login } from './pw-config.mjs'
+import { loginAs, adminCredentials } from './pw-config.mjs'
+// Project creation is owner-only under access control (C1) - this suite drives
+// the New Project modal, so it logs in as dev.admin.
 
 // Unique per run so re-runs never collide with earlier proof projects; still in
 // the ZZ-TEST family per the test-isolation rule. Delete after inspection.
-const PROJECT_NAME = `ZZ-TEST-LEED ${Date.now().toString(36)} — Do Not Use`
+const PROJECT_NAME = `ZZ-TEST-LEED ${Date.now().toString(36)} â€” Do Not Use`
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
 
@@ -20,15 +22,15 @@ const context = await browser.newContext()
 const page = await context.newPage()
 await page.setViewportSize({ width: 1500, height: 1000 })
 
-await login(page)
+await loginAs(page, adminCredentials())
 check(await page.locator('input[type="password"]').count() === 0, 'logged in')
 
-// ── Open New Project ─────────────────────────────────────────────────────────
+// â”€â”€ Open New Project â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 await page.getByRole('button', { name: '+ New Project' }).click()
 await page.waitForTimeout(800)
 const modal = page.locator('.fixed')
 
-// ── 1. Required-dimension validation fires from the runtime flags ───────────
+// â”€â”€ 1. Required-dimension validation fires from the runtime flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 await modal.locator('input').first().fill(PROJECT_NAME)
 await modal.getByRole('button', { name: 'Create Project' }).click()
 await page.waitForTimeout(600)
@@ -38,7 +40,7 @@ check(await page.getByText(PROJECT_NAME).count() <= 1,
   'validation: project NOT created while required dimensions missing')
 await page.screenshot({ path: 'ss-class-1-validation.png' })
 
-// ── 2. Fill the classifications ──────────────────────────────────────────────
+// â”€â”€ 2. Fill the classifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Selects inside the modal: [0]=Client, then the single-mode dimensions in order.
 const selects = modal.locator('select')
 await selects.nth(1).selectOption({ label: 'New Construction' })   // Project Lifecycle
@@ -63,13 +65,13 @@ check(await modal.getByText('finding categories will be limited to INFO').count(
 
 await page.screenshot({ path: 'ss-class-2-filled.png' })
 
-// ── 3. Create ────────────────────────────────────────────────────────────────
+// â”€â”€ 3. Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 await modal.getByRole('button', { name: 'Create Project' }).click()
 await page.waitForTimeout(3500)
 check(await page.locator('.fixed').getByRole('button', { name: 'Create Project' }).count() === 0,
   'modal closed after create')
 
-// ── 4. List row: badges + no incomplete flag ────────────────────────────────
+// â”€â”€ 4. List row: badges + no incomplete flag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const row = page.locator('tr', { hasText: PROJECT_NAME })
 check(await row.count() === 1, 'project appears in list')
 check(await row.getByText('New Construction').count() > 0, 'badge: New Construction')
@@ -77,9 +79,9 @@ check(await row.getByText('LEED Enhanced').count() > 0,    'badge: LEED Enhanced
 check(await row.getByText(/Incomplete/i).count() === 0,    'no "Incomplete" badge (all required dims set)')
 await page.screenshot({ path: 'ss-class-3-list.png' })
 
-// ── 5. Filters actually filter ───────────────────────────────────────────────
+// â”€â”€ 5. Filters actually filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const filterSelects = page.locator('select')
-// First page-level select is the Lifecycle filter ("All — Project Lifecycle")
+// First page-level select is the Lifecycle filter ("All â€” Project Lifecycle")
 await filterSelects.first().selectOption({ label: 'New Construction' })
 await page.waitForTimeout(400)
 check(await page.locator('tr', { hasText: PROJECT_NAME }).count() === 1,
@@ -87,8 +89,8 @@ check(await page.locator('tr', { hasText: PROJECT_NAME }).count() === 1,
 
 console.log('\n' + '='.repeat(60))
 console.log(fails.length === 0
-  ? 'UI PASS — verify composition counts via SQL next.'
-  : `FAIL — ${fails.length}: ${fails.join('; ')}`)
+  ? 'UI PASS â€” verify composition counts via SQL next.'
+  : `FAIL â€” ${fails.length}: ${fails.join('; ')}`)
 console.log('='.repeat(60))
 
 await browser.close()
