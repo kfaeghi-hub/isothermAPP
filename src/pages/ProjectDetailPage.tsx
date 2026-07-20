@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
@@ -72,7 +73,14 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const [allContacts, setAllContacts] = useState<ContactWithCompany[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('overview')
+  // Tab state lives in the URL (?tab=…) so dashboard rows and external links can
+  // deep-link straight to a project's Meetings/Issues/Checklists.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const activeTab: Tab = TABS.some(t => t.id === tabParam) ? (tabParam as Tab) : 'overview'
+  const setActiveTab = (tab: Tab) => {
+    setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true })
+  }
 
   // Edit project modal
   const [editOpen, setEditOpen] = useState(false)

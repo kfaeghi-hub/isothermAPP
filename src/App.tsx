@@ -1,23 +1,36 @@
-import { useState } from 'react'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { DashboardPage } from './pages/DashboardPage'
 import { ProjectsPage } from './pages/ProjectsPage'
+import { ProjectDetailRoute } from './routes/ProjectDetailRoute'
 import { DirectoryPage } from './pages/DirectoryPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { ClassificationsPage } from './pages/ClassificationsPage'
 
+// Sidebar navigation. `to` routes are real URLs — the dashboard is home, the
+// Projects list lives at /projects, and project detail deep-links as
+// /projects/:id?tab=…  Muted items are not yet built.
 const NAV_ITEMS = [
-  { label: 'Projects',        icon: '📋', phase: 1 },
-  { label: 'Directory',       icon: '👥', phase: 1 },
-  { label: 'Templates',       icon: '🗂️', phase: 2 },
-  { label: 'Classifications', icon: '🏷️', phase: 2, adminOnly: true },
-  { label: 'Action Summary',  icon: '📌', phase: 3 },
+  { label: 'Dashboard',       icon: '📊', to: '/',                phase: 1 },
+  { label: 'Projects',        icon: '📋', to: '/projects',        phase: 1 },
+  { label: 'Directory',       icon: '👥', to: '/directory',       phase: 1 },
+  { label: 'Templates',       icon: '🗂️', to: '/templates',       phase: 2 },
+  { label: 'Classifications', icon: '🏷️', to: '/classifications', phase: 2, adminOnly: true },
+  { label: 'Action Summary',  icon: '📌', to: null,               phase: 3 },
+]
+
+const TITLES: Array<[RegExp, string]> = [
+  [/^\/$/, 'Dashboard'],
+  [/^\/projects/, 'Projects'],
+  [/^\/directory/, 'Directory'],
+  [/^\/templates/, 'Templates'],
+  [/^\/classifications/, 'Classifications'],
 ]
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth()
-  const [activeItem, setActiveItem] = useState('Projects')
 
   // Password-reset link always resolves here regardless of auth state
   if (window.location.pathname === '/reset-password') {
@@ -49,8 +62,38 @@ export default function App() {
     )
   }
 
-  // adminOnly items are hidden from user/client roles (RLS still enforces writes)
-  const visible = NAV_ITEMS.filter(i => !i.adminOnly || ['admin', 'developer'].includes(profile.role))
+  const isAdmin  = ['admin', 'developer'].includes(profile.role)
+  const isClient = profile.role === 'client'
+
+  return (
+    <BrowserRouter>
+      <Shell profileName={profile.name} profileRole={profile.role} isAdmin={isAdmin} signOut={signOut}>
+        <Routes>
+          {/* The dashboard is the firm's home; the client role never reaches it. */}
+          <Route path="/" element={isClient ? <Navigate to="/projects" replace /> : <DashboardPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectDetailRoute />} />
+          <Route path="/directory" element={<DirectoryPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/classifications" element={isAdmin ? <ClassificationsPage /> : <Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Shell>
+    </BrowserRouter>
+  )
+}
+
+function Shell({ profileName, profileRole, isAdmin, signOut, children }: {
+  profileName: string
+  profileRole: string
+  isAdmin: boolean
+  signOut: () => void
+  children: React.ReactNode
+}) {
+  const location = useLocation()
+  const title = TITLES.find(([re]) => re.test(location.pathname))?.[1] ?? 'Dashboard'
+
+  const visible = NAV_ITEMS.filter(i => !i.adminOnly || isAdmin)
   const phase1 = visible.filter(i => i.phase === 1)
   const phase2 = visible.filter(i => i.phase === 2)
   const phase3 = visible.filter(i => i.phase === 3)
@@ -59,7 +102,6 @@ export default function App() {
     <div className="flex h-screen bg-slate-50 text-gray-900">
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col">
-        {/* Logo */}
         <div className="px-5 py-4 border-b border-slate-800">
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-slate-500 mb-1">
             Isotherm Engineering
@@ -69,18 +111,16 @@ export default function App() {
           </h1>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
-          <NavSection label="Phase 1" items={phase1} active={activeItem} onSelect={setActiveItem} />
-          <NavSection label="Phase 2" items={phase2} active={activeItem} onSelect={setActiveItem} />
-          <NavSection label="Phase 3" items={phase3} active={activeItem} onSelect={setActiveItem} muted />
+          <NavSection label="Phase 1" items={phase1} />
+          <NavSection label="Phase 2" items={phase2} />
+          <NavSection label="Phase 3" items={phase3} muted />
         </nav>
 
-        {/* User footer with logout */}
         <div className="border-t border-slate-800 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{profile.name}</p>
-            <p className="text-[10px] text-slate-400 capitalize">{profile.role}</p>
+            <p className="text-sm font-medium text-white truncate">{profileName}</p>
+            <p className="text-[10px] text-slate-400 capitalize">{profileRole}</p>
           </div>
           <button
             onClick={signOut}
@@ -95,23 +135,10 @@ export default function App() {
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-12 border-b border-gray-200 bg-white flex items-center px-5 flex-shrink-0">
-          <h2 className="text-sm font-semibold text-gray-800">{activeItem}</h2>
+          <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
         </header>
-
         <div className="flex-1 overflow-hidden">
-          {activeItem === 'Projects' ? (
-            <ProjectsPage />
-          ) : activeItem === 'Directory' ? (
-            <DirectoryPage />
-          ) : activeItem === 'Templates' ? (
-            <TemplatesPage />
-          ) : activeItem === 'Classifications' ? (
-            <ClassificationsPage />
-          ) : (
-            <div className="p-8">
-              <Placeholder name={activeItem} />
-            </div>
-          )}
+          {children}
         </div>
       </main>
     </div>
@@ -140,58 +167,44 @@ function LogoutIcon() {
   )
 }
 
-function NavSection({
-  label,
-  items,
-  active,
-  onSelect,
-  muted = false,
-}: {
+function NavSection({ label, items, muted = false }: {
   label: string
   items: typeof NAV_ITEMS
-  active: string
-  onSelect: (s: string) => void
   muted?: boolean
 }) {
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 px-3 mb-1">{label}</p>
-      {items.map(item => {
-        const isActive = active === item.label && !muted
-        return (
-          <div key={item.label} className="relative">
-            {isActive && (
-              <div className="absolute left-0 inset-y-0 w-0.5 bg-teal-400 rounded-r" />
-            )}
+      {items.map(item => (
+        <div key={item.label} className="relative">
+          {muted || !item.to ? (
             <button
-              onClick={() => !muted && onSelect(item.label)}
-              className={`w-full text-left flex items-center gap-2.5 pl-3 pr-2 py-1.5 text-sm transition-colors
-                ${isActive ? 'text-white bg-white/[0.07]' : ''}
-                ${muted ? 'text-slate-600 cursor-default' : 'hover:bg-white/[0.05] text-slate-400'}`}
+              className="w-full text-left flex items-center gap-2.5 pl-3 pr-2 py-1.5 text-sm text-slate-600 cursor-default"
             >
-              <span className={muted ? 'opacity-40' : ''}>{item.icon}</span>
+              <span className="opacity-40">{item.icon}</span>
               <span>{item.label}</span>
-              {muted && (
-                <span className="ml-auto text-[10px] text-slate-600 font-medium">soon</span>
-              )}
+              <span className="ml-auto text-[10px] text-slate-600 font-medium">soon</span>
             </button>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <div className="max-w-2xl">
-      <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
-        <p className="text-3xl mb-4">🚧</p>
-        <h3 className="text-base font-semibold text-gray-700 mb-2">{name}</h3>
-        <p className="text-sm text-gray-400">
-          This module will be built in an upcoming session.
-        </p>
-      </div>
+          ) : (
+            <NavLink
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) =>
+                `w-full text-left flex items-center gap-2.5 pl-3 pr-2 py-1.5 text-sm transition-colors relative
+                ${isActive ? 'text-white bg-white/[0.07]' : 'hover:bg-white/[0.05] text-slate-400'}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <div className="absolute left-0 inset-y-0 w-0.5 bg-teal-400 rounded-r" />}
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </>
+              )}
+            </NavLink>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

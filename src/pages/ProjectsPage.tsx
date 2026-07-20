@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
@@ -9,7 +10,6 @@ import {
 import { Modal } from '../components/ui/Modal'
 import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ClassificationBadges } from '../components/ClassificationBadges'
-import { ProjectDetailPage } from './ProjectDetailPage'
 import type { ProjectWithClient, Company, TradeType } from '../types/database'
 
 // Dimensions surfaced as list filters (by name, gracefully absent if renamed)
@@ -53,7 +53,7 @@ export function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<ProjectForm>(EMPTY_FORM)
@@ -179,7 +179,7 @@ export function ProjectsPage() {
       .from('projects')
       .update({ last_visited_at: new Date().toISOString() })
       .eq('id', id)
-    setSelectedProjectId(id)
+    navigate(`/projects/${id}`)
   }
 
   async function setProjectStatus(id: string, status: 'active' | 'completed') {
@@ -307,16 +307,6 @@ export function ProjectsPage() {
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-
-  if (selectedProjectId) {
-    return (
-      <ProjectDetailPage
-        projectId={selectedProjectId}
-        companies={companies}
-        onBack={() => { setSelectedProjectId(null); fetchData() }}
-      />
-    )
-  }
 
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading projects…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">Error: {error}</div>
