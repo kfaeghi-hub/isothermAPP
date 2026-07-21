@@ -143,3 +143,10 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 | 78 | Three Phase Dry Type Transformer Installation Verification Checklist | ivc/- (fallback) | 8beb1be7 | 4 | 7 | 3 | 2 | PASS |
 | 79 | Three Phase Liquid Filled Transformer Installation Verification Checklist | ivc/- (fallback) | 491bf2ac | 4 | 11 | 3 | 2 | PASS |
 
+| 80 | Switchgear and Switchboard Assembly Installation Verification Checklist | ivc/- (fallback) | c0e257bb | 3 | 18 | 2 | 2 | PASS |
+| 81 | Medium/High Voltage Open Air Switch Installation Verification Checklist | ivc/- (fallback) | 23dac612 | 4 | 17 | 7 | 2 | PASS |
+| 82 | Synchronous Motor Installation Verification Checklist | ivc/- (fallback) | 31845ea6 | 4 | 0 | 8 | 2 | PASS (zero-item motor test form; dielectric-absorption tables as 17-row grids; CSA-as-certification-mark kept out of labels to honour the branding sweep; residual project data excluded) |
+
+**Elec directory (1.2) COMPLETE:** 33 files = 31 seeded (forms 51-82 incl. the
+Batch-8 LVCB) + 2 intentionally-blank exclusions (Clamp_On_Grounding_Resistance,
+Motor_Stator).
