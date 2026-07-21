@@ -42,6 +42,23 @@ forms are skipped and logged below, never force-fit.
 | 26 | Steam Boiler Installation Verification Checklist | ivc/boiler | f315ef98 | 3 | 41 | 1 | 2 | PASS (Start-Up re-checks kept per ratified precedent) |
 | 27 | Fluid Cooler Installation Verification Checklist | ivc/cooling_tower | bfe9ce9d | 2 | 36 | 2 | 2 | PASS (assembled system package: cooler data + expansion tank evaluation, extracted faithfully) |
 | 28 | Sump Pump Installation Verification Checklist | ivc/pump | 3f326561 | 3 | 20 | 1 | 2 | PASS |
+| 29 | Rooftop Unit Installation Verification Checklist | ivc/ahu | 7f47a1b2 | 10 | 106 | 10 | 2 | PASS (deviant sheet "RTU_Final ST" ruled static-verification by content; three per-fan V/A grids; Roof Curb flashing → Building Envelope) |
+
+## Duplication rulings — consistency note (Tony, 2026-07-20)
+
+Two source-duplication cases, two rulings, one principle: **duplicates are kept when
+something real distinguishes them, deduped when nothing does.** The RTU's Supply
+Fan(s) and Return/Exhaust Fan sections are verbatim-identical item lists but check
+different fans — kept. The Exhaust Fan workbook's second damper bank repeated the
+same checks against the same NO. 1–3 columns with no distinguisher — deduped (logged
+skip). Apply this test to future duplicate blocks.
+
+## Source defects pending upstream answers
+
+- **VFD footnotes (form 25):** items reference "footnote 1" / "footnote 2 & 3" but the
+  FOOTNOTES block is empty in the master — logged as a source defect. Tony is asking
+  Peiman whether the original footnote text survives; if it does, that template gets a
+  hint-enrichment pass, otherwise it stands as seeded.
 
 ## Quarantine list
 
