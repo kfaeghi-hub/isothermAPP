@@ -132,3 +132,5 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 | 70 | SF6 Circuit Breaker Installation Verification Checklist | ivc/- (fallback) | 25cbd80d | 3 | 15 | 2 | 2 | PASS |
 | 71 | Outdoor Bus Structure Installation Verification Checklist | ivc/- (fallback) | 8c257202 | 4 | 5 | 5 | 2 | PASS |
 
+| 72 | Medium Voltage SF6 Switch Installation Verification Checklist | ivc/- (fallback) | 5f9cde17 | 4 | 15 | 7 | 2 | PASS |
+| 73 | Medium Voltage Vacuum Switch Installation Verification Checklist | ivc/- (fallback) | ad9a62e0 | 4 | 14 | 7 | 2 | PASS |
