@@ -868,7 +868,7 @@ export function EquipmentPage({ projectId }: Props) {
                     list="known-types"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-teal-400" />
                   <datalist id="known-types">
-                    {['heat_pump','boiler','pump','ahu','erv','fan','ats','generator','chiller','cooling_tower','fcu'].map(t => <option key={t} value={t} />)}
+                    {['heat_pump','boiler','pump','ahu','erv','fan','ats','generator','chiller','cooling_tower','fcu','vav'].map(t => <option key={t} value={t} />)}
                   </datalist>
                 </div>
               </div>

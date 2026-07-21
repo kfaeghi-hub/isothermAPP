@@ -25,8 +25,8 @@ import { inflateRawSync } from 'node:zlib'
 const TRADE_TYPES = ['Mechanical', 'Electrical', 'Controls/BAS', 'Plumbing', 'Structural', 'TAB',
   'Fire Protection', 'Geothermal', 'Refrigeration', 'HVAC', 'Life Safety', 'Security',
   'Vertical Transportation', 'Building Envelope']
-const RULED_KEYS = ['ahu', 'pump', 'fan', 'fcu', 'heat_pump', 'chiller', 'cooling_tower', 'boiler', 'erv', 'generator']
-const FIELD_DEF_KEYS = ['ahu', 'ats', 'boiler', 'chiller', 'cooling_tower', 'erv', 'fan', 'fcu', 'generator', 'heat_pump', 'pump']
+const RULED_KEYS = ['ahu', 'pump', 'fan', 'fcu', 'heat_pump', 'chiller', 'cooling_tower', 'boiler', 'erv', 'generator', 'vav']
+const FIELD_DEF_KEYS = ['ahu', 'ats', 'boiler', 'chiller', 'cooling_tower', 'erv', 'fan', 'fcu', 'generator', 'heat_pump', 'pump', 'vav']
 const BRAND_RE = /\b(CSA|Z320|Z318|BCA|BCxA|IEL)\b/i
 const BASE = process.env.PW_BASE_URL ?? 'https://isotherm-app.vercel.app'
 const API = 'https://api.supabase.com/v1/projects/isztyeczqndploybdtcn/database/query'

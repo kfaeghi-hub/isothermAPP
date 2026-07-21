@@ -1,11 +1,11 @@
-# CSA Extraction Playbook
+# Extraction Playbook (CSA IVC + PFC long-tail campaigns)
 
-The single canonical rulebook for the CSA IVC seeding campaign. **Every session
+The single canonical rulebook for template-seeding campaigns. **Every session
 starts by reading this file. Every batch ends by updating it** (new patterns, new
 edge cases, resolution + the general rule) **and appending a retrospective.**
 Rulings here are ratified by Tony and enforced by `audit-template.mjs` where
-codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
-*how to extract*.
+codified. `docs/CSA-SEEDING-LOG.md` / `docs/PFC-SEEDING-LOG.md` record *what*
+was seeded; this file records *how to extract*.
 
 ## 1 · Ratified rulings (binding)
 
@@ -28,7 +28,7 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 | R15 | **Paginated sources merge** — repeated NAMEPLATE page-header blocks are logged skips; same-titled continuation sections/blocks merge into one section (FD Boiler, Chiller, ET, VFD, Steam Boiler, Fluid Cooler; VAV's second "Reheat Coils"). | Batch 3 |
 | R16 | **Quarantine, never guess** — deviant/ambiguous structure that no rule resolves → skip the form, log the reason, continue the campaign. Rulings then convert quarantines into rules (Pump → R8, EF → R13). | Campaign charter |
 | R17 | **Branding** — CSA/Z320/Z318/BCA/BCxA/IEL and firm/client names appear ONLY in revision_label/description. Isotherm identity on all output; generic signoff roles (IVC convention: "Commissioning Authority (CxA)" + "Contractor"). | Standing rule |
-| R18 | **Equipment keys are ruled, never invented** — ahu (incl. RTU, Direct-Fired MAU), pump (incl. sump), fan (incl. fume exhausters), fcu (incl. split-system AC), heat_pump, chiller, cooling_tower (incl. fluid cooler), boiler (FD/ND/steam), erv (heat recovery wheel). Everything else → null → basic fallback nameplate (works; verified). | Step-1 rulings |
+| R18 | **Equipment keys are ruled, never invented** — ahu (incl. RTU, Direct-Fired MAU), pump (incl. sump, DHW circulation), fan (incl. fume exhausters), fcu (incl. split-system AC, packaged A/C variants), heat_pump, chiller, cooling_tower (incl. fluid cooler), boiler (FD/ND/steam), erv (heat recovery wheel), generator (Word sweep), vav (VAV terminal units incl. fan-powered variants — minted 2026-07-21; CAV stays null). Everything else → null → basic fallback nameplate (works; verified). | Step-1 + Word sweep + PFC rulings |
 | R19 | **Duplicate masters** — seed the ruled master only (Heat_Exchanger-new, not Heat_Exchanger; Fan_Coils, not the startup_contractors variant). | Step-1 rulings |
 | R20 | **Schedule tables → numbered-row grids** — blank fill-in schedule tables (Equipment No./Fixture Location/Spec/Shop/Installed) become a grid with the schedule columns and numbered blank rows; a pure-schedule form may have zero items. Pagination repeats of the same schedule merge into one grid. | Batch 7 |
 | R21 | **Contaminated masters: flag-and-proceed** — used/filled source files keep extracting, structure-only: identity/residual skips exclude ALL filled data (client, project, technician, live values); nothing reaches the seed; one summary line per residual for Tony's later ShareSync cleanup. Contamination alone is never a skip/quarantine reason. Files containing a person's name get an explicit privacy flag — still proceed. | Tony ruling 2026-07-21 |
@@ -36,6 +36,7 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 | R23 | **Signoffs render as the source prints them, generic roles always** — six-role block for S01-VP Word masters (Owner's/Architect's/Mechanical Consultant/GC/Mechanical Contractor/Commissioning Representatives), CxA+Contractor pair for the Excel sheets. Faithful both times; company names never. | Calibration #2, 2026-07-21 |
 | R25 | **Retroactive rulings get full-stack backfill** — a ruling that changes already-seeded templates applies everywhere at once: JSON (+ ruling note), seeded template row in the DB, affected ZZ-TEST fixtures, and a full re-audit of every touched template under the new expectation. Never JSON-only. | fcu backfill, endorsed 2026-07-21 |
 | R24 | **Word-family grammar** (calibration #2): legacy .doc → .docx via Word COM into samples/word-converted/; page headers + floating column-label paragraphs auto-skipped by harness Word-mode; label/response association by block geometry (field label + 3 form-field paragraphs; check label + 2); Subject prefill = template identity (description only); Word naming/typing same as Excel (ivc, ruled keys, lineage in revision_label/description). **Calibration proof:** the duplication test ran both directions inside one form — unlabelled duplicate damper bank deduped, numbered fire-damper banks kept. | Calibration #2, 2026-07-21 |
+| R26 | **Master-precedence between overlapping canons applies between FINISHED masters only** — IEL-wins (Elec) holds when both masters are finished; a WIP master never beats a finished one (IEL solar_pv_WIP excluded, BCA 2.9.2 Photovoltaic seeds). Log the exception per file. | PFC Step-1, Tony ruling 2026-07-21 |
 
 ## 2 · Structural patterns catalog
 
@@ -68,6 +69,16 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 5. Full audit: `... audit-template.mjs <json> --template <id> --instance <id>` — must PASS (leaves Field Copy PDF in out/)
 6. Log row in CSA-SEEDING-LOG.md → commit+push
 7. Batch end: playbook update + retrospective + retroactive audit (if harness changed) + metrics line
+
+## 4b · PFC long-tail campaign conventions (opened 2026-07-21)
+
+- **Scope:** exactly two folders — `6. Prefunctional Checksheets\BCA_Construction_Check_List` (42 to extract) and `...\Elec-IEL` (15 distinct masters; .pdf files are render twins of the .doc masters, logged as R19 duplicates). 57 forms, batches A→F ratified.
+- **Type `pfc` throughout**; names "⟨Equipment⟩ Prefunctional Checklist"; BCA/BCxA/IEL lineage + series codes (2.6.x.x…) in revision_label/description only. JSONs → `samples/seed-json/pfc/`. Log → `docs/PFC-SEEDING-LOG.md`.
+- **Spot-check PDF is the Contractor Hand-out variant** (PFC blank default audience per the audience rule), not the Field Copy.
+- **Boiler trio precedent (R9 applied to whole masters):** same series code 2.6.2.1, three real distinguishers → three templates: "Boiler Prefunctional Checklist", "Boiler (Temporary Start) Prefunctional Checklist", "Electric Boiler (Temporary Start) Prefunctional Checklist". Temporary Start = distinct activity; Electric = distinct equipment.
+- **Overlap rulings:** BCA 2.10.1 Fire Alarm + 2.11.2 Security CCTV ceded to IEL (IEL-wins); Solar PV: BCA 2.9.2 seeds per R26 (IEL copy is WIP). IEL Lighting (luminaires) does not collide with BCA 2.8.x (controls) — all kept.
+- **vav key minted** (Tony 2026-07-21): field-def set proposed and live (spec 8 / shop_drawing 10 / installed 8 — terminal-unit fields; cooling-only leaves reheat blank, fan-powered uses FLA; Tony to confirm in passing). Six PFC VAV forms keyed vav; CSA VAV Box IVC backfilled full-stack per R25 (template 9fe6dd96, JSON, TEST-VAV-1/2 fixtures typed, re-audit PASS). RULED_KEYS/FIELD_DEF_KEYS additions are additive-only — no retro pass required (cannot change a prior verdict; no prior template carries the key).
+- **Gates:** one calibration-class stop — 2.6.11.7 VAV Air Terminal Unit Check-Table.xlsx (transposed units-as-rows; expected to need a generic check-table render mode; JSON + contractor-variant PDF to Tony pre-seed). Light pilots: first BCA-docx form and first IEL .doc (anatomies may differ from S01-VP).
 
 ## 5 · Retrospectives
 
