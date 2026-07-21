@@ -75,6 +75,19 @@ Start-Up campaign inherits the mode for fleet forms. PDFs: out/vavct-fleet-blank
 | 36 | Daylight Dimming Prefunctional Checklist (2.8.3) | c324d415 | 3/21/0 | 4 | PASS — gen [matrix] |
 | 37 | Photovoltaic System Prefunctional Checklist (2.9.2) | 06a35e4f | 11/45/0 | 4 | PASS — gen; seeds under R26 (IEL WIP excluded) |
 
+| 38 | Nurse Call & Paging System Prefunctional Checklist (2.11.1) | df5f14b7 | 8/36/0 | 4 | PASS — gen |
+| 39 | Laboratory Air Compressor & Drier Prefunctional Checklist (2.12.1) | 34b567b6 | 4/24/0 | 6 | PASS — gen [matrix; KC-001/AD-001 header tag placeholders skipped, generic numbering] |
+| 40 | Laboratory Vacuum & Pump System Prefunctional Checklist (2.12.2) | 75a7e56b | 6/48/0 | 6 | PASS — gen [matrix]; null key per marginal ruling |
+| 41 | Fan Filter Unit Prefunctional Checklist (2.12.3) | 6fa340cf | 5/34/0 | 8 | PASS — gen [matrix]; null key per marginal ruling; one label-less check row skipped (source artifact) |
+| 42 | Lab Fume Hood Prefunctional Checklist (2.12.4) | bb815388 | 6/46/0 | 8 | PASS — gen [matrix; per-floor phases] |
+
+### Batch E metrics (2026-07-21)
+
+Attempted 5 · passed first audit 1 first-run, 5/5 after one generator iteration (four
+matrix-furniture variants ruled in one pass: header tag placeholders, Tag: fill-in rows,
+Trade/OK? label rows, label-less check rows) · quarantined 0 · contamination 0 ·
+drift check clean (EF/ductwork counts stable).
+
 ### Batch D metrics (2026-07-21)
 
 Attempted 9 · passed first audit 6 (three needed iterations: dhw-pumps' 'Device' calibration
