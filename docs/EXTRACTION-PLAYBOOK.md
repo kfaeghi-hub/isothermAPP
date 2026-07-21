@@ -183,6 +183,27 @@ question "new family — was there a pilot?" BEFORE any alarm about the extracti
 | 7 (forms 30–41) | 12 | 11 | 0 | 2 (duplicate-bank detector; SPECIFIED+COMMENTS header refinement) | 92% |
 | 8 (forms 42–51) | 10 | 6 | 0 | 4 (title-banner precedence; despaced equality; PANEL/Y-N/INSPECTED boundaries; all-cell reverse-trace) | 60% |
 | 9a (forms 52–61, +1 exclusion) | 10 | 4 | 0 | 1 (prefix-anchored containment) | 40% |
+| 9b (forms 62–82, +1 exclusion) | 21 | 20 | 0 | 2 (bounded prefix; composite-row match) | **95%** |
+
+**Batch 9b verdict: the pilot-first prediction (≥90% on a piloted family) is
+CONFIRMED at 95%.** The pilot passed first-time; the single miss (MHV cables) was
+a prefix-rule greedy trap introduced mid-batch and fixed with composite-row
+matching (retroactive clean across all 82 JSONs after both matcher changes).
+Trend restored: 40% → 95% under the revised regime. Pilot-first stands as the
+standing rule for every new family/directory.
+
+### Batch 9b retrospective (2026-07-21)
+**(a)** Elec long-tail patterns all ruled: per-unit test banks → unit columns;
+dielectric-absorption minute tables → 17-row grids; paired two-column checklists
+(OCR) → two item sections; certification-mark acronyms (CSA on a motor listing)
+are DATA and stay out of labels to honour the branding sweep — record in
+_extraction, values in cells. Second intentionally-blank master excluded.
+**(b)** The mid-batch matcher trap (bare "CABLE" prefix-matching a long item)
+shows single-candidate matching is fragile; composite-row matching (label +
+same-row option cells) fixed the class. If a third greedy trap appears, replace
+first-candidate matching with best-candidate scoring rather than patching again.
+**(c)** Schedule-row-count check still pending (carried two batches — do it in
+Batch 10 or drop it with a reason).
 
 **Called per the regime rule: by the headline metric (92% → 60% → 40%) the loop
 is NOT learning, and the regime needs revision.** The extraction-error rate tells
