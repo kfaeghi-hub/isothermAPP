@@ -51,7 +51,19 @@ those 16 masters fold into this campaign.
 | 25 | VAV (Cooling Only) Prefunctional Checklist (2.6.11.3) | e9b47c4a | 8/36/1 | 8 | PASS — gen; key vav |
 | 26 | VAV with Electric Reheat Prefunctional Checklist (2.6.11.4) | d4cc32ff | 8/38/1 | 8 | PASS — gen; key vav |
 | 27 | VAV with Hot Water Reheat Prefunctional Checklist (2.6.11.6) | e4cca626 | 9/48/1 | 8 | PASS — gen; key vav |
-| 28 | VAV Air Terminal Unit (All Types) Prefunctional Checklist (2.6.11.7) | 70c3db84 | 3/17/0 | 5 (incl. Commissioning Agent as printed) | PASS — GATE FORM, hand-authored transposed check-table; AWAITING TONY'S GATE REVIEW (render-mode design) |
+| 28 | VAV Air Terminal Unit (All Types) Prefunctional Checklist (2.6.11.7) | 70c3db84 | 3/17/0 | 5 (incl. Commissioning Agent as printed) | PASS — GATE FORM ACCEPTED (Tony 2026-07-21); render_mode='check_table' (sole user) |
+
+### Gate resolution: check_table render mode (2026-07-21)
+
+Built per Tony's option-1 verdict with all four specifics: (a) fleet-scale acceptance on a
+24-TU ZZ-TEST instance (`6ca1879d`, TEST-TU-101..406 vav fixtures, 146 mixed responses) —
+**12/12 checks PASS** (out/ct-accept.mjs); (b) landscape + column chunking (1–9 / 10–17,
+unit-tag column repeated per chunk, thead repeats on row overflow); (c) completed cells =
+status + response date, N red per convention; (d) DOCX attempted — html-to-docx handled the
+transposed table, so both formats ship (PDF-only fallback wired and logged if it ever fights).
+Migration: `checklist_templates.render_mode` (nullable text), sole user 70c3db84. The
+Start-Up campaign inherits the mode for fleet forms. PDFs: out/vavct-fleet-blank-contractor.pdf
+(5pp) + out/vavct-fleet-completed.pdf (6pp).
 
 ### Batch C metrics (2026-07-21)
 
