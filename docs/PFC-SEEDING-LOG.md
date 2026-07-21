@@ -65,6 +65,30 @@ Migration: `checklist_templates.render_mode` (nullable text), sole user 70c3db84
 Start-Up campaign inherits the mode for fleet forms. PDFs: out/vavct-fleet-blank-contractor.pdf
 (5pp) + out/vavct-fleet-completed.pdf (6pp).
 
+| 29 | Domestic Water Heater Prefunctional Checklist (2.7.1) | 8144c8af | 8/40/1 | 7 | PASS — gen |
+| 30 | DHW Circulation Pumps and Aquastat Controls PFC (2.7.2) | f6d74d7f | 8/52/1 | 8 | PASS — gen; key pump; aquastat calibration schedule ('Device' header generalization) |
+| 31 | Plumbing Fixture Prefunctional Checklist (2.7.3) | 69a6d9c9 | 2/20/0 | 8 | PASS — gen (pendBanner: bare header titled from group banner) |
+| 32 | Irrigation System Controls Prefunctional Checklist (2.7.5) | 7ca2ebe8 | 5/10/1 | 5 (Irrigation Contractor) | PASS — hand-authored; Yes/No/Data grammar, merged sub-list (R8 declared), Negative Responses grid |
+| 33 | Solar Water Heater Prefunctional Checklist (2.7.6) | 4b10ac9d | 6/47/0 | 5 | PASS — gen [matrix; per-component code columns SC/SCP/PST/DDT] |
+| 34 | Building-Wide Lighting Control System PFC (2.8.2, content in the 2.8.1-named file) | 9fa4b30b | 7/40/0 | 4 | PASS — gen [matrix]; SWAPPED MASTERS (R10) |
+| 35 | Lighting and HVAC Occupancy Sensors PFC (2.8.1, content in the 2.8.2-named file) | 8b3b1bc0 | 4/10/6 | 4 | PASS — hand-authored; 5 per-type grids (R7 compound rows), per-floor matrix banks, 120-row device-record grid (R20) |
+| 36 | Daylight Dimming Prefunctional Checklist (2.8.3) | c324d415 | 3/21/0 | 4 | PASS — gen [matrix] |
+| 37 | Photovoltaic System Prefunctional Checklist (2.9.2) | 06a35e4f | 11/45/0 | 4 | PASS — gen; seeds under R26 (IEL WIP excluded) |
+
+### Batch D metrics (2026-07-21)
+
+Attempted 9 · passed first audit 6 (three needed iterations: dhw-pumps' 'Device' calibration
+header; solar-wh's per-component code columns — one generator rule regression caught by the
+drift check, the trade-cell rule ate EF's TAB banner, reverted same run; lighting-occupancy's
+SPECIFIED-vocab field row) · quarantined 0 · **SWAPPED-MASTERS catch (R10): the 2.8.1/2.8.2
+files carry each other's content — both extracted under content-true identities, flagged for
+the ShareSync sitting** · generator rules added 4 (pendBanner bare-header titling; Check
+header w/o second cell; per-column code rows; Location OK? calibration-header generalization) ·
+retro static pass over 103 Word JSONs (65 CSA + 38 PFC): clean after removing the stale
+pre-swap artifact. Harness-internal note for the record: the grid-row reverse-trace check has
+a latent always-pass expression (`!gridComposites.length === 0`) — grid-row invention is in
+practice guarded by the forward pass + composite claims; flagged, not silently relied upon.
+
 ### Batch C metrics (2026-07-21)
 
 Attempted 6 · passed first audit 5 (Check-Table needed one trivial iteration — blank-row
