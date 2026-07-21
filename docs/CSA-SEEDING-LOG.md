@@ -200,3 +200,10 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 123 | Compartment Unit Installation Verification Checklist | ivc/- (fallback) | 0fd142ef | 8 | 80 | 10 | 6 | PASS (compound: 6 component grids + fire-damper/CAV/reheat matrices) |
 
 | 124 | Make Up Air Unit Installation Verification Checklist | ivc/ahu | ec6253d5 | 11 | 120 | 14 | 6 | PASS (largest Word compound; ahu via MAU-family ruling; coil bank duplication declared+kept) |
+| 125 | Air Compressor Installation Verification Checklist | ivc/- (fallback) | d543b1a3 | 2 | 15 | 1 | 6 | PASS (Motor Voltage source dup retained; Fixtures-folder duplicate master excluded per R19) |
+| 126 | Gas/Fluid Distribution Verification Checklist | ivc/- (fallback) | aa75ecce | 1 | 7 | 0 | 6 | PASS (identical master under 08 Specialty seeded once per R19) |
+| 127 | Regulating Station Installation Verification Checklist | ivc/- (fallback) | 1f734a0e | 2 | 6 | 1 | 6 | PASS (screened: distinct from Excel plumbing PRS) |
+| 128 | Gas Storage Tank Installation Verification Checklist | ivc/- (fallback) | 1789c6cf | 1 | 32 | 0 | 6 | PASS |
+| 129 | Gas Supply Station Installation Verification Checklist | ivc/- (fallback) | 6ae19027 | 1 | 11 | 0 | 6 | PASS |
+| 130 | Gas Fixture Installation Verification Checklist | ivc/- (fallback) | 8c3c5b22 | 1 | 0 | 1 | 6 | PASS (zero-item schedule) |
+| 131 | Hydraulic Fixture Installation Verification Checklist | ivc/- (fallback) | 6f750f31 | 1 | 0 | 1 | 6 | PASS (zero-item schedule) |
