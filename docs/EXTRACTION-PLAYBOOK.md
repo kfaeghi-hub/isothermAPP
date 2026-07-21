@@ -32,6 +32,7 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 | R19 | **Duplicate masters** — seed the ruled master only (Heat_Exchanger-new, not Heat_Exchanger; Fan_Coils, not the startup_contractors variant). | Step-1 rulings |
 | R20 | **Schedule tables → numbered-row grids** — blank fill-in schedule tables (Equipment No./Fixture Location/Spec/Shop/Installed) become a grid with the schedule columns and numbered blank rows; a pure-schedule form may have zero items. Pagination repeats of the same schedule merge into one grid. | Batch 7 |
 | R21 | **Contaminated masters: flag-and-proceed** — used/filled source files keep extracting, structure-only: identity/residual skips exclude ALL filled data (client, project, technician, live values); nothing reaches the seed; one summary line per residual for Tony's later ShareSync cleanup. Contamination alone is never a skip/quarantine reason. Files containing a person's name get an explicit privacy flag — still proceed. | Tony ruling 2026-07-21 |
+| R22 | **Standard marks are data** — certification/standard acronyms appearing as field CONTENT (CSA/UL listing marks on a nameplate, code references in a check) are recorded as grid-cell/comment values, never in labels — the branding sweep stays absolute with zero exceptions. Record the option set in _extraction. | Synchronous Motor, endorsed 2026-07-21 |
 
 ## 2 · Structural patterns catalog
 
@@ -184,6 +185,28 @@ question "new family — was there a pilot?" BEFORE any alarm about the extracti
 | 8 (forms 42–51) | 10 | 6 | 0 | 4 (title-banner precedence; despaced equality; PANEL/Y-N/INSPECTED boundaries; all-cell reverse-trace) | 60% |
 | 9a (forms 52–61, +1 exclusion) | 10 | 4 | 0 | 1 (prefix-anchored containment) | 40% |
 | 9b (forms 62–82, +1 exclusion) | 21 | 20 | 0 | 2 (bounded prefix; composite-row match) | **95%** |
+
+| 10 (forms 83–115, +4 exclusions) | 33 | 32 | 0 | 1 (section-title lookahead boundary) | **97%** |
+
+### Batch 10 retrospective (2026-07-21)
+**(a)** Arch AFRC family exactly as anticipated: least equipment-like of the
+campaign — one uniform shape (prefilled Subject/Assembly nameplate → skip with
+identity carried in template name; components grid; repeated per-component
+Cx-process review block with Interim/Final acceptance gate items; Performance
+Criteria → comments). Uniformity made a PARSER-DRIVEN generator the right tool —
+faithful per-sheet component lists at 31-form scale. Envelope groups →
+Building Envelope; interior groups → null category (process items, no single
+trade); Elevator/Escalator → Vertical Transportation. Empty Static Verification
+sheets (4 Roof variants) = blank-master exclusions.
+**(b)** Pilot caught the one gap (component-counter ran into block headers that
+REUSE component names — fixed with a title-plus-eval-header lookahead). No
+misses after the pilot.
+**(c)** Elevator sheet's minor source spellings (receptables/resevoir) left
+verbatim as data-field names — R6 normalization is for typos in checklist
+literals; field-name spellings on long nameplate lists get a lighter touch,
+noted per form. Schedule-row-count check: DROPPED with reason — schedule tables
+appeared in exactly two batches, the counts have never drifted post-seed, and
+the reverse-trace + component-count checks already bound grid shape.
 
 **Batch 9b verdict: the pilot-first prediction (≥90% on a piloted family) is
 CONFIRMED at 95%.** The pilot passed first-time; the single miss (MHV cables) was
