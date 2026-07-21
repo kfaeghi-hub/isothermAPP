@@ -125,3 +125,5 @@ component data duplicates EWT/LWT pairs verbatim (retained).
 
 TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 (cooling_tower), TEST-VAV-1/2 + TEST-CAV-1/2 (no key — basic-fallback types).
+| 66 | Medium Voltage Metal Enclosed Switch Installation Verification Checklist | ivc/- (fallback) | f9266762 | 4 | 18 | 7 | 2 | PASS (test package -> phase-column grids) |
+| 67 | Medium Voltage Oil Switch Installation Verification Checklist | ivc/- (fallback) | 9613aa35 | 4 | 14 | 7 | 2 | PASS |
