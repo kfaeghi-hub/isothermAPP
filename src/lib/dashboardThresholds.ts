@@ -11,6 +11,8 @@ export const FINDING_AGED_DAYS = 30
 export const DRAFT_STALE_DAYS = 7
 /** An in-progress checklist untouched for this many days enters the queue. */
 export const CHECKLIST_STALE_DAYS = 14
+/** A deliverable is overdue this many days after its due date (0 = the day after). */
+export const DELIVERABLE_OVERDUE_GRACE_DAYS = 0
 
 /** Days since a date-only or timestamp string; null input → null. */
 export function daysSince(date: string | null | undefined): number | null {

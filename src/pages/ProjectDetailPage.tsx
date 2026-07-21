@@ -20,6 +20,7 @@ import { SiteReportsPage } from './SiteReportsPage'
 import { MeetingsPage } from './MeetingsPage'
 import { ChecklistsPage } from './ChecklistsPage'
 import { TeamPage } from './TeamPage'
+import { DeliverablesPage } from './DeliverablesPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, TradeType,
 } from '../types/database'
@@ -58,7 +59,7 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'site_reports', label: 'Site Reports', built: true  },
   { id: 'meetings',     label: 'Meetings',     built: true  },
   { id: 'checklists',   label: 'Checklists',   built: true  },
-  { id: 'deliverables', label: 'Deliverables', built: false },
+  { id: 'deliverables', label: 'Deliverables', built: true },
 ]
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -660,15 +661,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           <ChecklistsPage projectId={projectId} phases={phases} />
         )}
 
-        {/* Deliverables stub */}
+        {/* Deliverables */}
         {activeTab === 'deliverables' && (
-          <div className="p-20 text-center">
-            <div className="text-3xl mb-3 opacity-20">✅</div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Deliverables</p>
-            <p className="text-sm text-gray-400 max-w-sm mx-auto">
-              Deliverables composed from this project's classifications — Cx Plan, OPR/BoD review, Systems Manual, seasonal testing, and more.
-            </p>
-          </div>
+          <DeliverablesPage projectId={projectId} />
         )}
       </div>
 

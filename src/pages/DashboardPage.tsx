@@ -21,6 +21,7 @@ const QUEUE_KIND: Record<string, { label: string; cls: string }> = {
   aged_finding:    { label: 'AGED',      cls: 'bg-amber-50 text-amber-700' },
   stale_draft:     { label: 'DRAFT',     cls: 'bg-sky-50 text-sky-700' },
   stale_checklist: { label: 'CHECKLIST', cls: 'bg-violet-50 text-violet-700' },
+  overdue_deliverable: { label: 'DELIVERABLE', cls: 'bg-rose-50 text-rose-700' },
 }
 
 function ageChip(age: number): string {

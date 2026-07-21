@@ -10,7 +10,7 @@ export type DeliverableType =
   | 'ivc_checklist' | 'pfc_checklist' | 'fpt_script'
   | 'opr' | 'bod' | 'cx_plan' | 'systems_manual' | 'final_report'
   | 'training' | 'ten_month_review' | 'ocx_plan' | 'site_report' | 'other'
-export type DeliverableStatus = 'not_started' | 'in_progress' | 'received' | 'complete' | 'na'
+export type DeliverableStatus = 'not_started' | 'in_progress' | 'submitted' | 'accepted'
 export type DocRegisterStatus = 'outstanding' | 'received' | 'reviewed' | 'na'
 export type AttachmentType = 'shop_drawing' | 'tab_report' | 'pressure_test' | 'startup' | 'om_manual' | 'factory_test' | 'other'
 
@@ -319,14 +319,20 @@ export interface OptionDeliverableDefault {
   created_at: string
 }
 
+// One-of CHECK: pool-linked (template_id, name null) OR ad-hoc (name, template_id null).
 export interface ProjectDeliverable {
   id: string
   project_id: string
-  template_id: string
+  template_id: string | null
+  name: string | null
   status: DeliverableStatus
   due_date: string | null
-  assigned_to: string | null
+  assigned_to: string | null      // profile-name convention (§12)
   notes: string | null
+  date_submitted: string | null
+  date_accepted: string | null
+  sort_order: number
+  org_id: string | null
   created_at: string
   updated_at: string
 }

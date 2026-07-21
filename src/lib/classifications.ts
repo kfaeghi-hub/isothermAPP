@@ -43,13 +43,17 @@ export function validateRequired(
 }
 
 /** Deliverable composition: union of every selected option's default templates,
- *  deduped by template_id. Any option in any dimension may contribute. */
+ *  deduped by template_id. Any option in any dimension may contribute.
+ *  Inactive templates never compose (dormant seeds, e.g. the Envelope set);
+ *  inactive options can't be selected in pickers, and the tab's
+ *  compose-from-classification filters them independently. */
 export async function composeDeliverableTemplateIds(selectedOptionIds: string[]): Promise<string[]> {
   if (selectedOptionIds.length === 0) return []
   const { data } = await supabase
     .from('option_deliverable_defaults')
-    .select('template_id')
+    .select('template_id, deliverable_templates!inner(active)')
     .in('option_id', selectedOptionIds)
+    .eq('deliverable_templates.active', true)
   return [...new Set((data ?? []).map(r => r.template_id as string))]
 }
 

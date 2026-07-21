@@ -217,7 +217,7 @@ export function ClassificationsPage() {
       const { count } = await supabase.from('project_deliverables')
         .select('id', { count: 'exact', head: true }).eq('template_id', target.id)
       if (nMap > 0) lines.push(`${nMap} option mapping${nMap === 1 ? '' : 's'} will be deleted with it.`)
-      if ((count ?? 0) > 0) lines.push(`${count} project deliverable${count === 1 ? '' : 's'} reference it — they will be deleted from those projects.`)
+      if ((count ?? 0) > 0) lines.push(`${count} project deliverable${count === 1 ? '' : 's'} reference it — they will be kept as project-local (ad-hoc) rows carrying this name.`)
     }
     setImpact(lines)
   }
@@ -227,10 +227,15 @@ export function ClassificationsPage() {
   async function performDelete() {
     if (!deleteTarget) return
     setDeleting(true)
-    // project_deliverables.template_id is NO ACTION by design — clear it first.
+    // project_deliverables.template_id is NO ACTION by design. A project's tracked
+    // work must survive pool retirement: snapshot the template's name into the row
+    // (converting it to ad-hoc — satisfies the pool-or-adhoc CHECK), then unlink.
     if (deleteTarget.kind === 'template') {
+      const { data: tmpl } = await supabase.from('deliverable_templates')
+        .select('name').eq('id', deleteTarget.id).single()
       const { error } = await supabase.from('project_deliverables')
-        .delete().eq('template_id', deleteTarget.id)
+        .update({ template_id: null, name: tmpl?.name ?? '(retired deliverable)' })
+        .eq('template_id', deleteTarget.id)
       if (error) { alert(error.message); setDeleting(false); return }
     }
     // company_roles.role_type_id is NO ACTION — clear the directory tags first

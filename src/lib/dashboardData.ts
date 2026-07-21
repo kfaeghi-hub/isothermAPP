@@ -5,7 +5,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import {
-  FINDING_AGED_DAYS, DRAFT_STALE_DAYS, CHECKLIST_STALE_DAYS, daysSince,
+  FINDING_AGED_DAYS, DRAFT_STALE_DAYS, CHECKLIST_STALE_DAYS,
+  DELIVERABLE_OVERDUE_GRACE_DAYS, daysSince,
 } from './dashboardThresholds'
 
 // ── Shared per-project stats (portfolio card + project Overview header) ──────
@@ -91,7 +92,7 @@ export interface DashProject {
 }
 
 export interface QueueRow {
-  kind: 'overdue_item' | 'aged_finding' | 'stale_draft' | 'stale_checklist'
+  kind: 'overdue_item' | 'aged_finding' | 'stale_draft' | 'stale_checklist' | 'overdue_deliverable'
   projectId: string
   description: string
   detail: string          // "due 2026-07-10" / "42 days old"
@@ -123,7 +124,7 @@ export interface ActivityRow {
 }
 
 export interface MineItem {
-  section: 'finding' | 'meeting' | 'report' | 'checklist'
+  section: 'finding' | 'meeting' | 'report' | 'checklist' | 'deliverable'
   projectId: string
   label: string
   tab: string
@@ -152,7 +153,7 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     const d = new Date(); d.setMonth(d.getMonth() - 5); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
   })()
 
-  const [pRes, fRes, miRes, mRes, srRes, ciRes, taRes, pcRes] = await Promise.all([
+  const [pRes, fRes, miRes, mRes, srRes, ciRes, taRes, pcRes, pdRes] = await Promise.all([
     supabase.from('projects').select('id, name, com_number, status, start_date, finish_date, created_at, companies(name)'),
     supabase.from('findings').select('id, project_id, number, title, status, date_raised, date_closed, category, created_at, identified_by, responsible_party_id, contacts(company_id, companies(name, abbreviation))'),
     supabase.from('meeting_items')
@@ -163,6 +164,9 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     supabase.from('checklist_instances').select('id, project_id, status, created_at, updated_at, completed_at, authored_by, source_template_name_snapshot'),
     supabase.from('project_team_assignments').select('id, project_id, company_id, companies(name, abbreviation), company_role_types(name, abbreviation)'),
     supabase.from('project_classifications').select('project_id, dimension_id, option_id'),
+    supabase.from('project_deliverables')
+      .select('id, project_id, template_id, name, status, assigned_to, due_date, deliverable_templates(name)')
+      .not('status', 'in', '(submitted,accepted)'),
   ])
 
   const one = <T,>(v: T | T[] | null | undefined): T | null => Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
@@ -178,6 +182,10 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
   const reports = (srRes.data ?? []) as any[]
   const instances = (ciRes.data ?? []) as any[]
   const assignments = (taRes.data ?? []) as any[]
+  // Non-submitted/accepted deliverables only (queue + My Items feed).
+  const deliverables = ((pdRes.data ?? []) as any[]).map(d => ({
+    ...d, displayName: d.name ?? one<any>(d.deliverable_templates)?.name ?? '(unnamed)',
+  }))
 
   const activeIds = projects.filter(p => p.status === 'active').map(p => p.id)
 
@@ -231,6 +239,15 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
       kind: 'stale_checklist', projectId: ci.project_id,
       description: `${ci.source_template_name_snapshot} untouched`,
       detail: `${age}d idle`, ageDays: age, tab: 'checklists',
+    })
+  }
+  for (const d of deliverables) {
+    if (!d.due_date) continue
+    const late = daysSince(d.due_date) ?? 0
+    if (late > DELIVERABLE_OVERDUE_GRACE_DAYS) queue.push({
+      kind: 'overdue_deliverable', projectId: d.project_id,
+      description: `${d.displayName} overdue`,
+      detail: `${late}d overdue`, ageDays: late, tab: 'deliverables',
     })
   }
   queue.sort((a, b) => b.ageDays - a.ageDays)
@@ -320,6 +337,12 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     ...instances.filter(c => c.status === 'in_progress' && c.authored_by === profileName).map(c => ({
       section: 'checklist' as const, projectId: c.project_id,
       label: `${c.source_template_name_snapshot} (in progress)`, tab: 'checklists',
+    })),
+    // Deliverables assigned by profile name (§12 convention); already filtered
+    // to non-submitted/accepted at the query.
+    ...deliverables.filter(d => d.assigned_to === profileName).map(d => ({
+      section: 'deliverable' as const, projectId: d.project_id,
+      label: `${d.displayName} (${String(d.status).replace('_', ' ')})`, tab: 'deliverables',
     })),
   ]
 
