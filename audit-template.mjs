@@ -176,12 +176,27 @@ async function readDocxBlocks(file) {
     .filter(b => Object.keys(b.cells).length)
 }
 
+// ── PDF source support (IEL family: .doc masters read via their PDF render
+// twins — Word COM blocked by an add-in hang; identical content). Page
+// furniture (firm header, page footer, version line) auto-filtered with row
+// numbering preserved.
+async function readPdfRowsForAudit(file) {
+  const { pdfRows, isPdfFurniture } = await import('./dump-pdf.mjs')
+  const COLS = 'ABCDEFGHIJKLMNOP'
+  return (await pdfRows(file))
+    .filter(b => !isPdfFurniture(b.cells))
+    .map(b => ({ r: b.r, cells: Object.fromEntries(b.cells.map((c, i) => [COLS[i], c]).filter(([, v]) => v && v.trim())) }))
+    .filter(b => Object.keys(b.cells).length)
+}
+
 // ── 1 · Row reconciliation ─────────────────────────────────────────────────────
 console.log('\n=== 1 · Row reconciliation ===')
 try {
   const rows = t._extraction.source_file.endsWith('.docx')
     ? await readDocxBlocks(t._extraction.source_file)
-    : readSheet(t._extraction.source_file, t._extraction.source_sheet)
+    : t._extraction.source_file.endsWith('.pdf')
+      ? await readPdfRowsForAudit(t._extraction.source_file)
+      : readSheet(t._extraction.source_file, t._extraction.source_sheet)
   const skipRanges = (t._extraction.skipped_rows ?? []).flatMap(s => {
     const m = String(s.rows).match(/R(\d+)(?:-R?(\d+))?/)
     if (!m) return []
@@ -287,7 +302,7 @@ try {
   // Component-section field counts == grid row counts (xlsx geometry only —
   // Word component blocks are paragraph runs without contiguous boundaries;
   // forward reconciliation + reverse trace still validate every row there).
-  const isWordSource = t._extraction.source_file.endsWith('.docx')
+  const isWordSource = /\.(docx|pdf)$/.test(t._extraction.source_file)
   let compChecks = 0, compFails = []
   if (isWordSource) console.log('  SKIP  component field-count check (Word source — paragraph geometry)')
   const headerRows = isWordSource ? [] : rows.filter(row => {

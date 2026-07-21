@@ -1,5 +1,10 @@
 # PFC Long-Tail Seeding Log
 
+**CAMPAIGN COMPLETE — 2026-07-21.** 56 templates seeded across Batches A–F (11+11+6+9+5+14),
+all full-audit green. Final register: 57 pfc templates (56 campaign + the pre-campaign AHU),
+DB total 238 (181 ivc + 57 pfc). check_table render mode built and fleet-proven at the
+2.6.11.7 gate. Closing-state report delivered.
+
 One row per seeded template. Campaign opened 2026-07-21 (inventory accepted, batches A→F ratified,
 autonomous to the 2.6.11.7 Check-Table gate). Sources: `6. Prefunctional Checksheets\BCA_Construction_Check_List`
 + `...\Elec-IEL` only. Type `pfc` throughout; contractor hand-out is the spot-check render.
@@ -81,7 +86,36 @@ Start-Up campaign inherits the mode for fleet forms. PDFs: out/vavct-fleet-blank
 | 41 | Fan Filter Unit Prefunctional Checklist (2.12.3) | 6fa340cf | 5/34/0 | 8 | PASS — gen [matrix]; null key per marginal ruling; one label-less check row skipped (source artifact) |
 | 42 | Lab Fume Hood Prefunctional Checklist (2.12.4) | bb815388 | 6/46/0 | 8 | PASS — gen [matrix; per-floor phases] |
 
-### Batch E metrics (2026-07-21)
+| 43 | Automatic Transfer Switch Prefunctional Checklist (IEL 02/06) | dc9dbfd2 | 4/29/1 | 5 (Commissioning Authority) | PASS — IEL PILOT, first-pass; PDF-twin path |
+| 44 | Emergency Generator Prefunctional Checklist (IEL) | 5946c14b | 5/36/1 | 8 | PASS — gen-iel; key generator |
+| 45 | Fire Alarm Prefunctional Checklist (IEL) | 081067eb | 5/32/0 | 4 | PASS — gen-iel; Fire Protection default; one transient API 502 on first seed (nothing landed; clean retry) |
+| 46 | Grounding Prefunctional Checklist (IEL) | 1e116b58 | 4/14/0 | 4 | PASS — gen-iel |
+| 47 | Heating Cable Prefunctional Checklist (IEL) | 1d40bc91 | 2/9/0 | 4 | PASS — gen-iel |
+| 48 | Lighting Prefunctional Checklist (IEL) | 2eb3eb5f | 4/18/0 | 5 | PASS — gen-iel |
+| 49 | Low Voltage Dry Type Transformer Prefunctional Checklist (IEL) | a6b23fe4 | 4/23/1 | 4 | PASS — gen-iel |
+| 50 | Low Voltage Motor Control Center Prefunctional Checklist (IEL) | ca4129a3 | 6/61/0 | 4 | PASS — gen-iel; breaker banks declared (R9) |
+| 51 | Low Voltage Switchgear Prefunctional Checklist (IEL) | b31febe9 | 5/67/0 | 4 | PASS — gen-iel; breaker banks declared (R9) |
+| 52 | Medium Voltage Switchgear Prefunctional Checklist (IEL) | 38d9dd22 | 5/67/0 | 4 | PASS — gen-iel; breaker banks declared (R9) |
+| 53 | Panel Prefunctional Checklist (IEL, Version 02 Jan 2023) | a2b5d5f7 | 4/29/0 | 4 | PASS — gen-iel |
+| 54 | Security / CCTV Prefunctional Checklist (IEL) | 31a76390 | 9/46/0 | 4 | PASS — gen-iel; same-titled phase banks kept (R9) |
+| 55 | Unit Substation Prefunctional Checklist (IEL) | c45b4fbd | 4/34/1 | 4 | PASS — gen-iel |
+| 56 | Unit Substation Transformer Prefunctional Checklist (IEL) | 27bd2dd7 | 4/34/1 | 4 | PASS — gen-iel |
+
+### Batch F metrics (2026-07-21)
+
+Attempted 14 · pilot (ATS) first-pass · 11 more first-pass · 3 needed one iteration
+(switchgear-family duplicate-bank declarations) · quarantined 0 · contamination 0.
+**Source-path pivot:** Word COM hangs machine-wide this session (probe on a previously
+convertible CSA .doc also hangs; ShareSync Office Plugin implicated but disabling it did
+not clear the hang — flagged as an environment issue for Tony). Batch F extracted from the
+PDF render twins instead (identical content): new `dump-pdf.mjs` (y/x layout grouping),
+harness PDF mode (furniture auto-skips: firm header / page footer / version line /
+Comments:), `gen-iel.mjs` with lowercase-continuation wrap-merge (all merges declared as
+merged_rows). Calibration schedules: blank rows invisible in the PDF text layer — 12-row
+capacity seeded and declared per form. **IEL = Isotherm Engineering Ltd. — the firm's own
+masters**; "Commissioning Authority" role kept as printed (R23). ATS key left null (no
+ruled key; an `ats` field-def set exists on the register — flagged for Tony's optional
+ruling). Final full-corpus retro: 121/121 static-clean.
 
 Attempted 5 · passed first audit 1 first-run, 5/5 after one generator iteration (four
 matrix-furniture variants ruled in one pass: header tag placeholders, Tag: fill-in rows,
