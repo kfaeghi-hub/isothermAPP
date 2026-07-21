@@ -127,3 +127,5 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 (cooling_tower), TEST-VAV-1/2 + TEST-CAV-1/2 (no key — basic-fallback types).
 | 66 | Medium Voltage Metal Enclosed Switch Installation Verification Checklist | ivc/- (fallback) | f9266762 | 4 | 18 | 7 | 2 | PASS (test package -> phase-column grids) |
 | 67 | Medium Voltage Oil Switch Installation Verification Checklist | ivc/- (fallback) | 9613aa35 | 4 | 14 | 7 | 2 | PASS |
+| 68 | Valve Regulated Lead-Acid Battery Installation Verification Checklist | ivc/- (fallback) | d9085944 | 3 | 12 | 2 | 2 | PASS (filename says Value Regulated; named Valve Regulated, noted) |
+| 69 | Voltage Transformer Installation Verification Checklist | ivc/- (fallback) | 76f7ad47 | 3 | 10 | 4 | 2 | PASS |
