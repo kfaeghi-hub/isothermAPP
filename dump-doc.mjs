@@ -26,9 +26,13 @@ export function docBlocks(file) {
   const un = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
   const CHK = /[☐☑☒■□✓✗]/g
   const textOf = frag => {
-    let t = [...frag.matchAll(/<w:t(?: [^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => un(m[1])).join('')
+    // Cell-internal line breaks separate stacked sub-attributes (V7 family) —
+    // render as ' / ' so compound labels stay readable and reconcilable.
+    const withBreaks = frag.replace(/<w:br\/>|<w:br [^>]*\/>/g, '<w:t xml:space="preserve"> / </w:t>')
+    let t = [...withBreaks.matchAll(/<w:t(?: [^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => un(m[1])).join('')
     if ([...frag.matchAll(/<w:sym [^>]*w:font="Wingdings[^"]*"/g)].length) t += ' [CHK]'
     return t.replace(CHK, '[CHK]').replace(/\s+/g, ' ').trim()
+      .replace(/^(\/\s*)+/, '').replace(/(\s*\/)+$/, '').trim()
   }
   // body children in order
   const body = xml.match(/<w:body>([\s\S]*)<\/w:body>/)[1]
@@ -39,7 +43,12 @@ export function docBlocks(file) {
     const frag = m[0]
     if (frag.startsWith('<w:tbl>')) {
       for (const rowM of frag.matchAll(/<w:tr[ >][\s\S]*?<\/w:tr>/g)) {
-        const cells = [...rowM[0].matchAll(/<w:tc>[\s\S]*?<\/w:tc>/g)].map(c => textOf(c[0]))
+        // Multi-paragraph cells (V7 stacked sub-attributes) join with ' / '.
+        const cells = [...rowM[0].matchAll(/<w:tc>[\s\S]*?<\/w:tc>/g)].map(c => {
+          const paras = [...c[0].matchAll(/<w:p[ >][\s\S]*?<\/w:p>|<w:p\/>/g)].map(p => textOf(p[0])).filter(Boolean)
+          return (paras.length ? paras.join(' / ') : textOf(c[0]))
+            .replace(/^(\/\s*)+/, '').replace(/(\s*\/)+$/, '').trim()
+        })
         blocks.push({ kind: 'T', cells })
       }
     } else {

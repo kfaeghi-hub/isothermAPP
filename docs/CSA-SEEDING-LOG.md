@@ -227,3 +227,12 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 149 | Hot Water Heating System Controls Verification Checklist | ivc/- (fallback) | 5a9fe4b6 | 3 | 13 | 0 | 6 | PASS |
 | 150 | CCS Modem Verification Checklist | ivc/- (fallback) | 8b447d8d | 2 | 11 | 1 | 6 | PASS |
 | 151 | CCS Report Printer Verification Checklist | ivc/- (fallback) | 02cf8e23 | 2 | 9 | 1 | 6 | PASS |
+| 152 | Sound System Verification Checklist | ivc/- (fallback) | 26e75192 | 2 | 3 | 1 | 1 | PASS (V7 family pilot - first-pass; compound sub-attribute cells kept whole; single Inspected By signoff per R23) |
+| 153 | Cable Television System Verification Checklist | ivc/- (fallback) | 3b3850af | 2 | 4 | 1 | 1 | PASS |
+| 154 | Clock and Program Equipment Verification Checklist | ivc/- (fallback) | e3cb0b8b | 2 | 5 | 1 | 1 | PASS |
+| 155 | Intercommunication System Verification Checklist | ivc/- (fallback) | 9fc47ad2 | 1 | 0 | 1 | 1 | PASS (zero-item) |
+| 156 | Medical Dictation System Verification Checklist | ivc/- (fallback) | 8c72dc74 | 2 | 3 | 1 | 1 | PASS |
+| 157 | Pocket Paging System Verification Checklist | ivc/- (fallback) | 0eec15da | 2 | 3 | 1 | 1 | PASS |
+| 158 | Public Address System Verification Checklist | ivc/- (fallback) | ec0153ae | 2 | 3 | 1 | 1 | PASS |
+| 159 | Sound Masking System Verification Checklist | ivc/- (fallback) | 4e0063c0 | 2 | 3 | 1 | 1 | PASS |
+| 160 | Telemetry System Verification Checklist | ivc/- (fallback) | 06b74e3b | 2 | 3 | 1 | 1 | PASS (TELEMTERY title typo in skipped row, noted) |
