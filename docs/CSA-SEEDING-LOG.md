@@ -35,6 +35,13 @@ forms are skipped and logged below, never force-fit.
 | 19 | Direct Fired Makeup Air Unit Installation Verification Checklist | ivc/ahu | e322f824 | 3 | 44 | 1 | 2 | PASS (Start-Up re-checks kept verbatim; residual project data excluded) |
 | 20 | Fume Exhauster Installation Verification Checklist | ivc/fan | 312593fe | 4 | 21 | 3 | 2 | PASS (two-equipment compound: exhauster + swing-arm motor) |
 | 21 | Exhaust Fan Installation Verification Checklist | ivc/fan | 4f7a57c5 | 5 | 30 | 3 | 2 | PASS (compound-sheet ruling: damper matrix as No.1-3 grid — known semantic edge: grid-cell checks don't auto-create findings, CxA logs manually; duplicated bank deduped, logged) |
+| 22 | Heat Exchanger Installation Verification Checklist | ivc/— (fallback) | 9844ea5a | 2 | 17 | 1 | 2 | PASS (from -new master per ruling; residual TAG excluded) |
+| 23 | Glycol Mixing and Fill Tank Installation Verification Checklist | ivc/— (fallback) | 87cd70df | 2 | 15 | 0 | 2 | PASS |
+| 24 | Expansion Tank Installation Verification Checklist | ivc/— (fallback) | 916e0289 | 2 | 25 | 1 | 2 | PASS (cross-page duplicate rows retained) |
+| 25 | Variable Frequency Drive Installation Verification Checklist | ivc/— (fallback) | 66f1247c | 3 | 16 | 1 | 2 | PASS (FOOTNOTES block empty in master, logged; SUBMITTED/ACCEPTABLE headers added to audit boundary) |
+| 26 | Steam Boiler Installation Verification Checklist | ivc/boiler | f315ef98 | 3 | 41 | 1 | 2 | PASS (Start-Up re-checks kept per ratified precedent) |
+| 27 | Fluid Cooler Installation Verification Checklist | ivc/cooling_tower | bfe9ce9d | 2 | 36 | 2 | 2 | PASS (assembled system package: cooler data + expansion tank evaluation, extracted faithfully) |
+| 28 | Sump Pump Installation Verification Checklist | ivc/pump | 3f326561 | 3 | 20 | 1 | 2 | PASS |
 
 ## Quarantine list
 

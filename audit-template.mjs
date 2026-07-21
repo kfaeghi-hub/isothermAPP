@@ -180,7 +180,7 @@ try {
     if (!label) continue
     // Component/section headers: row also carries SPECIFIED or STATUS or NO. N column headers
     const others = Object.entries(row.cells).filter(([c]) => c !== 'A').map(([, v]) => v)
-    const isHeader = others.some(v => /SPECIFIED|STATUS|VALUE|COMPLIES|^NO\.\s*\d/i.test(v))
+    const isHeader = others.some(v => /SPECIFIED|STATUS|VALUE|COMPLIES|SUBMITTED|ACCEPTABLE|^NO\.\s*\d/i.test(v))
     if (isHeader) {
       const ok = sectionTitles.some(st => headerMatch(label, st)) || grids.some(g => headerMatch(label, g.title))
       if (!ok) unmatched.push(`R${row.r} header "${label}" matches no section/grid title`)
@@ -215,7 +215,7 @@ try {
       && (x.cells.A) && !Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|SPECIFIED/i.test(v)))
     // stop at first evaluation header between components
     const evalH = rows.find(x => x.r > h.r && (!next || x.r < next.r)
-      && Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|^NO\.\s*\d/i.test(v)))
+      && Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|SUBMITTED|ACCEPTABLE|^NO\.\s*\d/i.test(v)))
     const upper = evalH ? evalH.r : (next ? next.r : Infinity)
     const count = fieldRows.filter(x => x.r < upper).length
     const grid = grids.find(g => headerMatch(h.cells.A, g.title))
