@@ -169,6 +169,9 @@ async function readDocxBlocks(file) {
       return b
     })
     .filter(b => !(b.cells.filter(c => c && c.trim()).length === 1 && ROWNUM.test(b.cells.find(c => c && c.trim()).trim())))
+    // Standalone checkbox glyphs (paragraph-run item layouts print the [CHK]
+    // boxes as their own blocks) are furniture, like row numbers.
+    .filter(b => !(b.cells.filter(c => c && c.trim()).length === 1 && /^\[CHK\]$/.test(b.cells.find(c => c && c.trim()).trim())))
     .map(b => ({ r: b.r, cells: Object.fromEntries(b.cells.map((c, i) => [COLS[i], c]).filter(([, v]) => v && v.trim())) }))
     .filter(b => Object.keys(b.cells).length)
 }

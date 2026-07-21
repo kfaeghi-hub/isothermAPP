@@ -34,6 +34,28 @@ those 16 masters fold into this campaign.
 | 10 | Pump Prefunctional Checklist (2.6.8.1) | e6457c0f | 8/47/1 | 7 (TAB Contractor) | PASS — gen |
 | 11 | Variable Frequency Drive Prefunctional Checklist (2.9.1) | ace7bfa5 | 6/58/0 | 6 | PASS — gen; null key; no calibration tail in source |
 
+| 12 | Ductwork Prefunctional Checklist (2.6.1.2) | 7d922406 | 10/65/0 | 7 | PASS — gen [per-floor matrix, R12] |
+| 13 | Steam and Condensate Piping Prefunctional Checklist (2.6.2.3) | 8ab67f50 | 7/45/0 | 4 | PASS — gen; PRV Information register block |
+| 14 | Chilled Water Piping Prefunctional Checklist (2.6.3.3) | 7935b3c8 | 4/34/0 | 6 | PASS — gen |
+| 15 | Condenser Water Piping Prefunctional Checklist (2.6.3.4) | fadc5375 | 5/33/0 | 6 | PASS — gen |
+| 16 | Air Separator Prefunctional Checklist (2.6.3.6) | b265adfd | 1/11/0 | 4 | PASS — gen [matrix; bank title carried in header]; lighting-footnote artifact in info block (R6/FPB) |
+| 17 | Expansion Tank Prefunctional Checklist (2.6.3.7) | 0d1c27cf | 2/18/0 | 4 | PASS — gen [matrix]; same footnote artifact |
+| 18 | Chem-Free Condenser Water Treatment & Conductivity Control PFC (2.6.3.8) | 67ce0515 | 5/29/0 | 5 | PASS — gen |
+| 19 | Condenser Water Treatment Circulation Water Filters PFC (2.6.3.9) | 0931de9e | 3/33/0 | 5 | PASS — gen |
+| 20 | Air Flow Measuring Station Prefunctional Checklist (2.6.4.3) | f4b38c29 | 4/32/0 | 6 | PASS — gen + declared bare sub-banners (one iteration: OPERATIONAL CHECKS float-filter reverse-trace catch) |
+| 21 | Hydronic Flow Meter Prefunctional Checklist (2.6.4.4) | b866be6f | 2/14/1 | 4 (functional roles) | PASS — hand-authored; calibration-check procedure form; Check Record grid w/ method rows |
+| 22 | Construction IAQ Plan Prefunctional Checklist (2.6.7.1) | 30b43a8a | 12/46/0 | 8 | PASS — hand-authored; paragraph-run layout ([CHK]-glyph filter added); null categories (cross-trade process) |
+
+### Batch B metrics (2026-07-21)
+
+Attempted 11 · passed first audit 10 (AFMS needed one iteration — bare sub-banner rows +
+the all-caps float-filter interaction; fixed via declared banners in config) · quarantined 0 ·
+harness rules added 1 ([CHK]-glyph paragraph filter) · retro pass over 76 Word JSONs
+(65 CSA + 11 Batch A): clean. First-pass rate **91%**.
+Tooling note: the PowerShell re-encode mojibake trap bit gen-pfc.mjs (Get-Content/-replace
+round-trip) — generator rewritten via the Write tool, now the standing rule for ALL
+unicode-bearing files, not just memory files.
+
 ### Batch A metrics (2026-07-21)
 
 Attempted 11 · passed first audit 11 (pilot first-pass; the 8 generated hit one tooling
