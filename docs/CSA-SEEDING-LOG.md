@@ -134,3 +134,6 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 
 | 72 | Medium Voltage SF6 Switch Installation Verification Checklist | ivc/- (fallback) | 5f9cde17 | 4 | 15 | 7 | 2 | PASS |
 | 73 | Medium Voltage Vacuum Switch Installation Verification Checklist | ivc/- (fallback) | ad9a62e0 | 4 | 14 | 7 | 2 | PASS |
+| 74 | Medium Voltage Vacuum Circuit Breaker Installation Verification Checklist | ivc/- (fallback) | 3602cd19 | 4 | 12 | 8 | 2 | PASS (contact-measurement region -> three grids) |
+| 75 | Medium Voltage Motor Starter Installation Verification Checklist | ivc/- (fallback) | 48f8e89b | 5 | 15 | 8 | 2 | PASS |
+
