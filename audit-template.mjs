@@ -293,7 +293,14 @@ if (instanceId) {
       text += (await (await doc.getPage(p)).getTextContent()).items.map(i => i.str).join(' ') + '\n'
     const allItems = t.sections.flatMap(s => s.items ?? [])
     const sample = allItems.filter((_, i) => i % Math.max(1, Math.floor(allItems.length / 6)) === 0).slice(0, 6)
-    const found = sample.filter(i => text.toUpperCase().includes(i.label.toUpperCase().slice(0, 40)))
+    // Punctuation (em-dashes, commas) and line-wrap artifacts vary in extracted PDF
+    // text — compare on normalized and fully-despaced forms.
+    const pnorm = s => String(s).toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim()
+    const textN = pnorm(text), textD = textN.replace(/ /g, '')
+    const found = sample.filter(i => {
+      const lbl = pnorm(i.label).slice(0, 40).trim()
+      return textN.includes(lbl) || textD.includes(lbl.replace(/ /g, ''))
+    })
     check(found.length >= Math.min(5, sample.length), `pdf.js probe: ${found.length}/${sample.length} sampled labels found`)
     console.log(`         · ${outFile} (${doc.numPages} pages, ${(pdf.length / 1024).toFixed(0)} kB)`)
   }
