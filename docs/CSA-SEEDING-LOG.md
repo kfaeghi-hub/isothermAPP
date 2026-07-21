@@ -65,6 +65,21 @@ forms are skipped and logged below, never force-fit.
 | 49 | Chilled Water System Verification Checklist | ivc/— (fallback) | 66d6bd24 | 1 | 18 | 0 | 2 | PASS (loop-position duplicate bank declared + kept; residual project data excluded) |
 | 50 | Hot Water Heating System Verification Checklist | ivc/— (fallback) | 5b06d22a | 1 | 14 | 0 | 2 | PASS |
 | 51 | Low Voltage Power Circuit Breaker Installation Verification Checklist | ivc/— (fallback) | d8000198 | 3 | 16 | 4 | 2 | PASS (first Elec/NETA-family form: paired-label nameplate blocks → grids; asterisk footnote carried as item hint) |
+| 52 | Low Voltage Cable Installation Verification Checklist | ivc/— (fallback) | 9f8100b7 | 4 | 5 | 4 | 2 | PASS |
+| 53 | Capacitor Installation Verification Checklist | ivc/— (fallback) | 227a7dbb | 4 | 7 | 4 | 2 | PASS (residual project data excluded) |
+| 54 | Circuit Switcher Installation Verification Checklist | ivc/— (fallback) | e31ae5da | 3 | 13 | 2 | 2 | PASS (residual project data excluded) |
+| 55 | Current Transformer Installation Verification Checklist | ivc/— (fallback) | 12e7ef0b | 4 | 6 | 3 | 2 | PASS (three per-CT test banks → CT 1–3 grid columns; residual project data excluded) |
+| 56 | Dry Type Reactor Installation Verification Checklist | ivc/— (fallback) | ac92d095 | 4 | 6 | 5 | 2 | PASS (CT-form copy artifact in item label cleaned+logged; residual project data excluded) |
+| 57 | Flooded Lead-Acid Battery Installation Verification Checklist | ivc/— (fallback) | f046ebb8 | 3 | 12 | 2 | 2 | PASS |
+| 58 | Fall of Potential Ground Resistance Verification Checklist | ivc/— (fallback) | 16aaf137 | 2 | 0 | 2 | 2 | PASS (zero-item measurement form) |
+| 59 | Insulated Molded Case Circuit Breaker Installation Verification Checklist | ivc/— (fallback) | 3923fc01 | 3 | 12 | 4 | 2 | PASS |
+| 60 | Liquid Filled Reactor Installation Verification Checklist | ivc/— (fallback) | 3e1a9588 | 4 | 9 | 4 | 2 | PASS |
+| 61 | Low Voltage Air Switch Installation Verification Checklist | ivc/— (fallback) | 5515a0ff | 3 | 17 | 3 | 2 | PASS |
+
+**Excluded (Batch 9a):** Clamp_On_Grounding_Resistance.xlsx — sheet reads "SHEET
+INTENTIONALLY LEFT BLANK FOR INDIVIDUAL TO POPULATE AS NEEDED"; intentionally blank
+master, nothing to extract (exclusion, not quarantine). Residual project data also
+present in it.
 
 ## Duplication rulings — consistency note (Tony, 2026-07-20)
 

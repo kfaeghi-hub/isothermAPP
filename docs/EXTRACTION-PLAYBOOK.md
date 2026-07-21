@@ -31,6 +31,7 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 | R18 | **Equipment keys are ruled, never invented** — ahu (incl. RTU, Direct-Fired MAU), pump (incl. sump), fan (incl. fume exhausters), fcu (incl. split-system AC), heat_pump, chiller, cooling_tower (incl. fluid cooler), boiler (FD/ND/steam), erv (heat recovery wheel). Everything else → null → basic fallback nameplate (works; verified). | Step-1 rulings |
 | R19 | **Duplicate masters** — seed the ruled master only (Heat_Exchanger-new, not Heat_Exchanger; Fan_Coils, not the startup_contractors variant). | Step-1 rulings |
 | R20 | **Schedule tables → numbered-row grids** — blank fill-in schedule tables (Equipment No./Fixture Location/Spec/Shop/Installed) become a grid with the schedule columns and numbered blank rows; a pure-schedule form may have zero items. Pagination repeats of the same schedule merge into one grid. | Batch 7 |
+| R21 | **Contaminated masters: flag-and-proceed** — used/filled source files keep extracting, structure-only: identity/residual skips exclude ALL filled data (client, project, technician, live values); nothing reaches the seed; one summary line per residual for Tony's later ShareSync cleanup. Contamination alone is never a skip/quarantine reason. Files containing a person's name get an explicit privacy flag — still proceed. | Tony ruling 2026-07-21 |
 
 ## 2 · Structural patterns catalog
 
@@ -145,6 +146,27 @@ numbered rows a blank schedule gets) recurred 4 times (PF 8, DS 16, CP 2, PTP 36
 BSI 12) with the rule "match the source table extent" — candidate for a harness
 check next batch (count blank formatted rows between header and next block).
 
+### Batch 9a (Elec directory, forms 52–61 + 1 exclusion, 2026-07-21)
+
+**(a) Novel behaviors → rules:** Elec forms EXTRACT their nameplate blocks (they
+are breaker/cable/test data, not the register's project nameplate) — so the bare
+"NAMEPLATE" banner needs an explicit skip when its block becomes a grid.
+Intentionally-blank masters ("SHEET INTENTIONALLY LEFT BLANK…") are exclusions,
+not quarantines. Per-unit test banks (CT 1–3) → unit columns (EF-dampers
+pattern). Elec source labels are bare with units/options in adjacent cells —
+extracted labels carry the qualifier ("Length (ft)").
+
+**(b) Near-misses → checks:** 6/10 first-audit failures in two classes: missing
+NAMEPLATE-banner skips (2 forms — extraction-side) and bare-vs-qualified label
+matching (4 forms — harness; prefix-anchored containment added, safe against the
+mid-string-swallow bug). **Regime revision adopted (see metrics): pilot-first —
+run ONE form of any new family/directory through static audit BEFORE authoring
+the rest.** Both failure classes would have been caught on the pilot and forms
+2–10 would have passed first-time.
+
+**(c) Judgment → code:** none new this batch; schedule-row-count check still
+pending.
+
 ## 6 · Batch metrics
 
 | Batch (session) | Attempted | Passed first audit | Quarantined | Harness rules added | First-pass rate |
@@ -155,6 +177,18 @@ check next batch (count blank formatted rows between header and next block).
 | 6 (forms 21–29) | 9 | 8 | 0 | 1 (SUBMITTED/ACCEPTABLE boundary) | 89% |
 | 7 (forms 30–41) | 12 | 11 | 0 | 2 (duplicate-bank detector; SPECIFIED+COMMENTS header refinement) | 92% |
 | 8 (forms 42–51) | 10 | 6 | 0 | 4 (title-banner precedence; despaced equality; PANEL/Y-N/INSPECTED boundaries; all-cell reverse-trace) | 60% |
+| 9a (forms 52–61, +1 exclusion) | 10 | 4 | 0 | 1 (prefix-anchored containment) | 40% |
+
+**Called per the regime rule: by the headline metric (92% → 60% → 40%) the loop
+is NOT learning, and the regime needs revision.** The extraction-error rate tells
+the opposite story (JSON changes needed: B7 0, B8 0, B9a 2 — all small skip
+additions), but the metric as defined measures first-contact harness fit, and
+every new family keeps paying a 1-form tax spread across the whole batch because
+all forms are authored before the first audit runs. Revision adopted for Batch 9b
+onward: **pilot-first** — author + static-audit ONE form per new family, fix
+harness/pattern gaps, then author the rest. Prediction: Batch 9b (same NETA
+family, pilot already paid) should run ≥90% first-pass; if it doesn't, escalate
+to Tony with a proposed metric redefinition rather than another patch.
 
 Retroactive flags to date: 1 (fume-exhausters undeclared duplicate bank —
 declaration added, seeded template unchanged). Retroactive passes after every

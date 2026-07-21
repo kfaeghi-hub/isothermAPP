@@ -133,6 +133,10 @@ function labelsMatch(src, extracted) {
   // Containment only when the contained side is substantial — "TYPE" must not
   // swallow "CORRECT FILTER TYPE(S) USED" (the greedy-consumption bug).
   if ((a.includes(b) && b.length >= 10) || (b.includes(a) && a.length >= 10)) return true
+  // Token-prefix: bare source label vs qualified extracted label ("LENGTH" ->
+  // "Length (ft)", "SYSTEM" -> "System (Grounded/Ungrounded)"). Prefix-anchored,
+  // so mid-string swallowing stays blocked.
+  if (b.startsWith(a + ' ')) return true
   return overlap(toks(a), toks(b)) >= 0.6
 }
 
