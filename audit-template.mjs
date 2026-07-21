@@ -134,9 +134,10 @@ function labelsMatch(src, extracted) {
   // swallow "CORRECT FILTER TYPE(S) USED" (the greedy-consumption bug).
   if ((a.includes(b) && b.length >= 10) || (b.includes(a) && a.length >= 10)) return true
   // Token-prefix: bare source label vs qualified extracted label ("LENGTH" ->
-  // "Length (ft)", "SYSTEM" -> "System (Grounded/Ungrounded)"). Prefix-anchored,
-  // so mid-string swallowing stays blocked.
-  if (b.startsWith(a + ' ')) return true
+  // "Length (ft)", "SYSTEM" -> "System (Grounded/Ungrounded)"). Prefix-anchored
+  // AND bounded (max 4 qualifier tokens) so "CABLE" can't swallow the long
+  // "Cable data compares with drawings & specifications" item.
+  if (b.startsWith(a + ' ') && toks(b).length - toks(a).length <= 4) return true
   return overlap(toks(a), toks(b)) >= 0.6
 }
 
@@ -221,6 +222,12 @@ try {
     if (exactItem) { exactItem._used = true; continue }
     const exactRow = gridRowLabels.find(g => !g._used && labelsExact(label, g.label))
     if (exactRow) { exactRow._used = true; continue }
+    // Composite-row match: a source row whose OTHER cells are option/unit labels
+    // ("CABLE | SHIELDED | UNSHIELDED | CONCENTRIC NEUTRAL") must claim the grid
+    // row that embeds those options — before a bare-prefix fuzzy item can steal it.
+    const composite = [label, ...others].join(' ')
+    const compRow = gridRowLabels.find(g => !g._used && others.length > 0 && labelsMatch(composite, g.label))
+    if (compRow) { compRow._used = true; continue }
     const hitItem = items.find(i => !i._used && labelsMatch(label, i.label))
     if (hitItem) { hitItem._used = true; continue }
     const hitRow = gridRowLabels.find(g => !g._used && labelsMatch(label, g.label))

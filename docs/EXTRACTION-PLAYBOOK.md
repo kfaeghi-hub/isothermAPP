@@ -169,6 +169,11 @@ pending.
 
 ## 6 · Batch metrics
 
+**What the first-pass metric measures (Tony, 2026-07-21): harness-anticipation of
+new territory — NOT extraction quality.** Extraction quality is the JSON-corrections
+number (0 / 0 / 2 across Batches 7–9a). A future first-pass dip triggers the
+question "new family — was there a pilot?" BEFORE any alarm about the extractions.
+
 | Batch (session) | Attempted | Passed first audit | Quarantined | Harness rules added | First-pass rate |
 |---|---|---|---|---|---|
 | 1 (calibration) | 1 | 1 (human-gated) | 0 | — (harness built after) | — |

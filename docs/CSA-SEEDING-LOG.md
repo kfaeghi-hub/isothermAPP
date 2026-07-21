@@ -81,6 +81,14 @@ INTENTIONALLY LEFT BLANK FOR INDIVIDUAL TO POPULATE AS NEEDED"; intentionally bl
 master, nothing to extract (exclusion, not quarantine). Residual project data also
 present in it.
 
+| 62 | Low Voltage Surge Arrester Installation Verification Checklist | ivc/— (fallback) | aa35f6e0 | 4 | 7 | 4 | 2 | PASS (Batch 9b PILOT — passed first audit) |
+| 63 | Medium/High Voltage Surge Arrester Installation Verification Checklist | ivc/— (fallback) | 259d8bbe | 4 | 8 | 4 | 2 | PASS |
+| 64 | Medium/High Voltage Cable Installation Verification Checklist | ivc/— (fallback) | 7ea6e750 | 4 | 11 | 4 | 2 | PASS |
+| 65 | Medium/High Voltage Oil Circuit Breaker Installation Verification Checklist | ivc/— (fallback) | c9550ba1 | 3 | 12 | 4 | 2 | PASS |
+
+**Excluded (Batch 9b):** Motor_Stator.xlsx — second intentionally-blank master
+("SHEET INTENTIONALLY LEFT BLANK…"), nothing to extract.
+
 ## Duplication rulings — consistency note (Tony, 2026-07-20)
 
 Two source-duplication cases, two rulings, one principle: **duplicates are kept when
