@@ -196,3 +196,6 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 119 | Air Cooled Packaged A/C Unit Installation Verification Checklist | ivc/- (fallback) | 288623e4 | 2 | 7 | 1 | 6 | PASS |
 | 120 | Flow Measuring Station Verification Checklist | ivc/- (fallback) | 148a93e7 | 1 | 0 | 1 | 6 | PASS (zero-item schedule) |
 | 121 | Water Cooled DE Refrigeration Unit Installation Verification Checklist | ivc/- (fallback) | 4b482af3 | 2 | 14 | 1 | 6 | PASS |
+| 122 | Fire Damper Installation Verification Checklist | ivc/- (fallback) | 94ab4c65 | 1 | 0 | 6 | 6 | PASS (six numbered banks No.1-36 all kept as grids) |
+| 123 | Compartment Unit Installation Verification Checklist | ivc/- (fallback) | 0fd142ef | 8 | 80 | 10 | 6 | PASS (compound: 6 component grids + fire-damper/CAV/reheat matrices) |
+

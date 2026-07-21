@@ -149,11 +149,11 @@ async function readDocxBlocks(file) {
   const { docBlocks } = await import('./dump-doc.mjs')
   const COLS = 'ABCDEFGHIJKLMNOP'
   const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|REMARKS:)/i
-  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+)$/i
+  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|\/+)$/i
   return docBlocks(file)
     .filter(b => b.cells.some(c => c && c.trim()))
     .filter(b => !PAGE_HDR.test((b.cells[0] ?? '').trim()))
-    .filter(b => !(b.kind === 'P' && FLOAT_COL.test((b.cells[0] ?? '').trim())))
+    .filter(b => !(FLOAT_COL.test((b.cells[0] ?? '').trim()) && b.cells.filter(c => c && c.trim()).length === 1))
     .map(b => ({ r: b.r, cells: Object.fromEntries(b.cells.map((c, i) => [COLS[i], c]).filter(([, v]) => v && v.trim())) }))
     .filter(b => Object.keys(b.cells).length)
 }
@@ -253,6 +253,7 @@ try {
     if (hitRow) { hitRow._used = true; continue }
     if (gridComposites.some(g => labelsMatch(label, g.label))) continue
     if (sectionTitles.some(st => labelsMatch(label, st))) continue
+    if (grids.some(g => headerMatch(label, g.title) || labelsMatch(label, g.title))) continue
     // Word signoff blocks carry named role rows (vs xlsx POSITION/TITLE) —
     // account them against the JSON's signoff roles.
     if ((t.signoffs ?? []).some(s => labelsMatch(label, s.role_label))) continue
