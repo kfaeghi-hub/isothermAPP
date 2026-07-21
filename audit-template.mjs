@@ -25,7 +25,7 @@ import { inflateRawSync } from 'node:zlib'
 const TRADE_TYPES = ['Mechanical', 'Electrical', 'Controls/BAS', 'Plumbing', 'Structural', 'TAB',
   'Fire Protection', 'Geothermal', 'Refrigeration', 'HVAC', 'Life Safety', 'Security',
   'Vertical Transportation', 'Building Envelope']
-const RULED_KEYS = ['ahu', 'pump', 'fan', 'fcu', 'heat_pump', 'chiller', 'cooling_tower', 'boiler', 'erv']
+const RULED_KEYS = ['ahu', 'pump', 'fan', 'fcu', 'heat_pump', 'chiller', 'cooling_tower', 'boiler', 'erv', 'generator']
 const FIELD_DEF_KEYS = ['ahu', 'ats', 'boiler', 'chiller', 'cooling_tower', 'erv', 'fan', 'fcu', 'generator', 'heat_pump', 'pump']
 const BRAND_RE = /\b(CSA|Z320|Z318|BCA|BCxA|IEL)\b/i
 const BASE = process.env.PW_BASE_URL ?? 'https://isotherm-app.vercel.app'
@@ -148,8 +148,8 @@ function labelsMatch(src, extracted) {
 async function readDocxBlocks(file) {
   const { docBlocks } = await import('./dump-doc.mjs')
   const COLS = 'ABCDEFGHIJKLMNOP'
-  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:)/i
-  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|DATE:?|ROOM NO\.?|\/+)$/i
+  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:?|Note:)/i
+  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|DATE:?|ROOM NO\.|\/+)$/i
   return docBlocks(file)
     .filter(b => b.cells.some(c => c && c.trim()))
     .filter(b => !PAGE_HDR.test((b.cells[0] ?? '').trim()))

@@ -236,3 +236,13 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 158 | Public Address System Verification Checklist | ivc/- (fallback) | ec0153ae | 2 | 3 | 1 | 1 | PASS |
 | 159 | Sound Masking System Verification Checklist | ivc/- (fallback) | 4e0063c0 | 2 | 3 | 1 | 1 | PASS |
 | 160 | Telemetry System Verification Checklist | ivc/- (fallback) | 06b74e3b | 2 | 3 | 1 | 1 | PASS (TELEMTERY title typo in skipped row, noted) |
+| 161-178 | 2.5 Electrical set (Exit Sign bb317421, Emerg Lighting Battery 1d13a3f1, Lightning Rods a93f3f6e, Direct Wired Circuits c234e29b, Exterior Lighting da767390, Ground Fault Relay 15537f3c, Solid State Relays f068f110, LV Relay System 89989e96, Meters/Relays/IDR a92a3917, Transformer Indication Meter eb144f8d, Interior Lighting db1bcaae, Motor Testing 731967dc, Motor Verification 51f21e0b, Motor Order Form 3a77dd72, Transformer Summary a9aa6a86, Power/Panel Boards 26715b79, Transducers 047c9024, Central Battery System b6187ed2) | ivc/- | - | - | - | - | 6 | 18/18 PASS (17 first-pass; 3 small skip/dup fixes + CATV V7 Note-item R25 correction) |
+| 179 | Essential Power Diesel Generator Installation Verification Checklist | ivc/generator | db9baffc | 5 | 23 | 4 | 6 | PASS (generator ruled key; duplicate master folder seeded once per R19; DEISEL banner typo noted) |
+| 180 | UPS and Central Battery Systems Verification Checklist | ivc/- (fallback) | 584209d4 | 2 | 51 | 5 | 6 | PASS (six same-titled banks merged; cross-bank duplicate checks declared; Inperative/Tine typos cleaned) |
+
+## CAMPAIGN COMPLETE - 2026-07-21
+
+**Final register: 180 CSA IVC templates** (+2 pre-campaign = 182 total in DB).
+Word-only sweep: forms 116-180 (65 forms) across 2.1 HVAC/Compressed Air/
+Specialty (16), 2.3 Fire Protection (11), 2.4 BAS (9), V7 comm systems (9),
+2.5 Electrical (20). 2.2 Plumbing contributed zero (all Excel-covered).
