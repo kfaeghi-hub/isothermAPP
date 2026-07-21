@@ -199,3 +199,4 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 122 | Fire Damper Installation Verification Checklist | ivc/- (fallback) | 94ab4c65 | 1 | 0 | 6 | 6 | PASS (six numbered banks No.1-36 all kept as grids) |
 | 123 | Compartment Unit Installation Verification Checklist | ivc/- (fallback) | 0fd142ef | 8 | 80 | 10 | 6 | PASS (compound: 6 component grids + fire-damper/CAV/reheat matrices) |
 
+| 124 | Make Up Air Unit Installation Verification Checklist | ivc/ahu | ec6253d5 | 11 | 120 | 14 | 6 | PASS (largest Word compound; ahu via MAU-family ruling; coil bank duplication declared+kept) |
