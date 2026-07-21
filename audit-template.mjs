@@ -195,7 +195,7 @@ try {
       && (x.cells.A) && !Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|SPECIFIED/i.test(v)))
     // stop at first evaluation header between components
     const evalH = rows.find(x => x.r > h.r && (!next || x.r < next.r)
-      && Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES/i.test(v)))
+      && Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|^NO\.\s*\d/i.test(v)))
     const upper = evalH ? evalH.r : (next ? next.r : Infinity)
     const count = fieldRows.filter(x => x.r < upper).length
     const grid = grids.find(g => headerMatch(h.cells.A, g.title))
