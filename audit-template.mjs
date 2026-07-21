@@ -141,10 +141,29 @@ function labelsMatch(src, extracted) {
   return overlap(toks(a), toks(b)) >= 0.6
 }
 
+// ── Word (.docx) source support ────────────────────────────────────────────────
+// Converted S01-VP masters: blocks (paragraphs + table rows) numbered like rows;
+// cell index -> pseudo-columns A,B,C… Word grammar auto-skips: repeating page
+// headers and floating column-label paragraphs.
+async function readDocxBlocks(file) {
+  const { docBlocks } = await import('./out/dump-doc.mjs')
+  const COLS = 'ABCDEFGHIJKLMNOP'
+  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|REMARKS:)/i
+  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+)$/i
+  return docBlocks(file)
+    .filter(b => b.cells.some(c => c && c.trim()))
+    .filter(b => !PAGE_HDR.test((b.cells[0] ?? '').trim()))
+    .filter(b => !(b.kind === 'P' && FLOAT_COL.test((b.cells[0] ?? '').trim())))
+    .map(b => ({ r: b.r, cells: Object.fromEntries(b.cells.map((c, i) => [COLS[i], c]).filter(([, v]) => v && v.trim())) }))
+    .filter(b => Object.keys(b.cells).length)
+}
+
 // ── 1 · Row reconciliation ─────────────────────────────────────────────────────
 console.log('\n=== 1 · Row reconciliation ===')
 try {
-  const rows = readSheet(t._extraction.source_file, t._extraction.source_sheet)
+  const rows = t._extraction.source_file.endsWith('.docx')
+    ? await readDocxBlocks(t._extraction.source_file)
+    : readSheet(t._extraction.source_file, t._extraction.source_sheet)
   const skipRanges = (t._extraction.skipped_rows ?? []).flatMap(s => {
     const m = String(s.rows).match(/R(\d+)(?:-R?(\d+))?/)
     if (!m) return []
@@ -234,14 +253,21 @@ try {
     if (hitRow) { hitRow._used = true; continue }
     if (gridComposites.some(g => labelsMatch(label, g.label))) continue
     if (sectionTitles.some(st => labelsMatch(label, st))) continue
+    // Word signoff blocks carry named role rows (vs xlsx POSITION/TITLE) —
+    // account them against the JSON's signoff roles.
+    if ((t.signoffs ?? []).some(s => labelsMatch(label, s.role_label))) continue
     unmatched.push(`R${row.r} "${label}"`)
   }
   check(unmatched.length === 0, `every source row mapped or logged (${unmatched.length} unmatched)`)
   unmatched.forEach(u => console.log(`         · ${u}`))
 
-  // Component-section field counts == grid row counts
+  // Component-section field counts == grid row counts (xlsx geometry only —
+  // Word component blocks are paragraph runs without contiguous boundaries;
+  // forward reconciliation + reverse trace still validate every row there).
+  const isWordSource = t._extraction.source_file.endsWith('.docx')
   let compChecks = 0, compFails = []
-  const headerRows = rows.filter(row => {
+  if (isWordSource) console.log('  SKIP  component field-count check (Word source — paragraph geometry)')
+  const headerRows = isWordSource ? [] : rows.filter(row => {
     const others = Object.entries(row.cells).filter(([c]) => c !== 'A').map(([, v]) => v)
     // SPECIFIED marks a component-data header — unless COMMENTS also appears
     // (mixed/mislabeled evaluation headers, e.g. Plumbing_Fixture R54).
