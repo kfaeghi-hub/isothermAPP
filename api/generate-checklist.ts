@@ -287,6 +287,9 @@ interface DocData {
   gridRespMap:    Record<string, any>
   findingMap:     Record<string, { number: string | null; title: string | null }>  // rKey -> finding
   mode:           'completed' | 'blank'
+  // Blank-mode audience: 'field' = internal Field Copy (no banner, Isotherm company
+  // prefilled); 'contractor' = the hand-out treatment. Ignored in completed mode.
+  audience:       'field' | 'contractor'
 }
 
 /** Legend wording depends on the checklist type. */
@@ -317,7 +320,7 @@ function linkedFindings(findingMap: DocData['findingMap']) {
 
 function buildChecklistHtml(d: DocData): string {
   const { instance, project, responseTargets, sections, items, grids, signoffs, fieldDefs,
-          responseMap, gridRespMap, findingMap, mode } = d
+          responseMap, gridRespMap, findingMap, mode, audience } = d
   const snapshot = instance.nameplate_snapshot ?? null
   const nUnits = responseTargets.length
   const unitTag = (t: any) => esc(t.equipment?.tag ?? t.equipment?.descriptor ?? '?')
@@ -462,10 +465,13 @@ function buildChecklistHtml(d: DocData): string {
   }).join('\n')
 
   // ── Header block ────────────────────────────────────────────────────────────
-  // Blank mode: the CONTRACTOR identifies themselves — no Isotherm name on the form.
+  // Blank/contractor: the CONTRACTOR identifies themselves — no Isotherm name on the form.
+  // Blank/field: internal copy — Company prefilled, Name/Date left for handwriting.
   const blankLine = `<span class="hdr-line"></span>`
   const rightRows = mode === 'blank'
-    ? [['Name', blankLine], ['Company', blankLine], ['Email', blankLine], ['Phone', blankLine], ['Date', blankLine]]
+    ? (audience === 'field'
+        ? [['Name', blankLine], ['Company', `<span class="hdr-val">Isotherm Engineering Ltd.</span>`], ['Email', blankLine], ['Phone', blankLine], ['Date', blankLine]]
+        : [['Name', blankLine], ['Company', blankLine], ['Email', blankLine], ['Phone', blankLine], ['Date', blankLine]])
     : [
         ['Name',    `<span class="hdr-val">${esc(instance.completed_by ?? instance.authored_by ?? '')}</span>`],
         ['Company', `<span class="hdr-val">Isotherm Engineering Ltd.</span>`],
@@ -483,7 +489,7 @@ function buildChecklistHtml(d: DocData): string {
     .map(([l, v]) => `<div><span class="hdr-lbl">${l}:</span> ${v}</div>`).join('')
 
   const modeSubtitle = mode === 'blank'
-    ? 'BLANK FORM — FOR CONTRACTOR USE'
+    ? (audience === 'field' ? 'FIELD COPY' : 'BLANK FORM — FOR CONTRACTOR USE')
     : `COMPLETED${instance.completed_at ? ' · ' + isoShort(instance.completed_at) : ''}`
 
   return `<!DOCTYPE html>
@@ -497,7 +503,7 @@ function buildChecklistHtml(d: DocData): string {
   </div>
   <div class="brandrule"></div>
 
-  ${mode === 'blank' ? `<div class="blank-notice">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</div>` : ''}
+  ${mode === 'blank' && audience === 'contractor' ? `<div class="blank-notice">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</div>` : ''}
 
   <div class="title-legend">
     <div class="tl-title">
@@ -566,7 +572,7 @@ function buildChecklistHtml(d: DocData): string {
 
 function buildChecklistDocxHtml(d: DocData): string {
   const { instance, project, responseTargets, sections, items, grids, signoffs, fieldDefs,
-          responseMap, gridRespMap, findingMap, mode } = d
+          responseMap, gridRespMap, findingMap, mode, audience } = d
   const snapshot = instance.nameplate_snapshot ?? null
   const nUnits = responseTargets.length
 
@@ -715,7 +721,9 @@ function buildChecklistDocxHtml(d: DocData): string {
   // Header block
   const line = '<span style="color:#B8C2CE;">__________________________</span>'
   const rightRows = mode === 'blank'
-    ? [['Name', line], ['Company', line], ['Email', line], ['Phone', line], ['Date', line]]
+    ? (audience === 'field'
+        ? [['Name', line], ['Company', `<strong>Isotherm Engineering Ltd.</strong>`], ['Email', line], ['Phone', line], ['Date', line]]
+        : [['Name', line], ['Company', line], ['Email', line], ['Phone', line], ['Date', line]])
     : [
         ['Name',    `<strong>${esc(instance.completed_by ?? instance.authored_by ?? '')}</strong>`],
         ['Company', `<strong>Isotherm Engineering Ltd.</strong>`],
@@ -733,7 +741,7 @@ function buildChecklistDocxHtml(d: DocData): string {
   const rightHtml = rightRows
     .map(([l, v]) => `<p style="margin:3px 0;"><span ${hdrLbl}>${l}:</span> ${v}</p>`).join('')
 
-  const modeSubtitle = mode === 'blank' ? 'BLANK FORM — FOR CONTRACTOR USE' :
+  const modeSubtitle = mode === 'blank' ? (audience === 'field' ? 'FIELD COPY' : 'BLANK FORM — FOR CONTRACTOR USE') :
     `COMPLETED${instance.completed_at ? ' · ' + isoShort(instance.completed_at) : ''}`
 
   return `<!DOCTYPE html>
@@ -750,7 +758,7 @@ function buildChecklistDocxHtml(d: DocData): string {
 <h1>${FIRM_NAME}</h1>
 <p style="text-align:center;font-size:8pt;color:#555;margin:2px 0;">${FIRM_ADDR} &nbsp;&bull;&nbsp; ${FIRM_PHONE} &nbsp;&bull;&nbsp; ${FIRM_EMAIL}</p>
 
-${mode === 'blank' ? `<p style="background-color:#FFF9C4;border:1px solid #F59E0B;padding:5px 10px;font-size:8pt;font-weight:bold;color:#92400E;margin:8px 0;">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</p>` : ''}
+${mode === 'blank' && audience === 'contractor' ? `<p style="background-color:#FFF9C4;border:1px solid #F59E0B;padding:5px 10px;font-size:8pt;font-weight:bold;color:#92400E;margin:8px 0;">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</p>` : ''}
 
 <p style="font-size:12pt;font-weight:bold;color:#1F3A5F;margin-top:10px;">${esc(instance.source_template_name_snapshot)}</p>
 <p style="font-size:8pt;color:#666;">${esc(instance.source_template_type_snapshot?.toUpperCase())} &nbsp;&bull;&nbsp; ${esc(modeSubtitle)}</p>
@@ -865,10 +873,12 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const { instance_id, mode = 'completed' } = req.body ?? {}
+    const { instance_id, mode = 'completed', audience: audienceParam } = req.body ?? {}
     if (!instance_id) return res.status(400).json({ error: 'instance_id required' })
     if (mode !== 'completed' && mode !== 'blank')
       return res.status(400).json({ error: 'mode must be completed or blank' })
+    if (audienceParam !== undefined && audienceParam !== 'field' && audienceParam !== 'contractor')
+      return res.status(400).json({ error: 'audience must be field or contractor' })
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
@@ -965,9 +975,15 @@ export default async function handler(req: any, res: any) {
 
     const signoffs = (soRes.data ?? []) as any[]
 
+    // Blank-mode audience: IVCs are CxA-filled (Field Copy default); PFCs are
+    // contractor-facing (Hand-out default). Explicit param always wins.
+    const audience: 'field' | 'contractor' =
+      audienceParam ?? (instance.type === 'ivc' ? 'field' : 'contractor')
+
     const docData: DocData = {
       instance, project, responseTargets, sections, items, grids, signoffs, fieldDefs,
       responseMap, gridRespMap, findingMap, mode: mode as 'completed' | 'blank',
+      audience,
     }
 
     // ── Integrity guard: no dropped nameplate rows (same rule as the site report) ──
@@ -1002,7 +1018,8 @@ export default async function handler(req: any, res: any) {
     const [pdfBuffer, docxBuffer] = await Promise.all([toPdf(pdfHtml), toDocx(docxHtml)])
 
     const store = supabase.storage.from('checklists')
-    const base  = `${instance.project_id}/${instance_id}/${mode}`
+    // Blank variants coexist per audience (field copy vs contractor hand-out).
+    const base  = `${instance.project_id}/${instance_id}/${mode === 'blank' ? `blank-${audience}` : mode}`
     const [docxUp, pdfUp] = await Promise.all([
       store.upload(`${base}.docx`, docxBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

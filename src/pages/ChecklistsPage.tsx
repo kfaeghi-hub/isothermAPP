@@ -158,7 +158,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const [deleting, setDeleting]           = useState(false)
 
   // ── Generate document state ───────────────────────────────────────────────
-  const [generating, setGenerating] = useState<'completed' | 'blank' | null>(null)
+  const [generating, setGenerating] = useState<'completed' | 'blank-field' | 'blank-contractor' | null>(null)
 
   // ── Field resilience: drafts + per-field save state ───────────────────────
   // Text inputs hold a local draft so typing is never gated on a DB round-trip.
@@ -1020,14 +1020,14 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
   // ── Generate document ──────────────────────────────────────────────────
 
-  async function generateDoc(mode: 'completed' | 'blank') {
+  async function generateDoc(mode: 'completed' | 'blank', audience?: 'field' | 'contractor') {
     if (!instance) return
-    setGenerating(mode)
+    setGenerating(mode === 'blank' ? `blank-${audience ?? 'contractor'}` : mode)
     try {
       const resp = await fetch('/api/generate-checklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instance_id: instance.id, mode }),
+        body: JSON.stringify({ instance_id: instance.id, mode, ...(mode === 'blank' ? { audience } : {}) }),
       })
       const data = await resp.json()
       if (!resp.ok) throw new Error(data.error ?? 'Generation failed')
@@ -1179,14 +1179,24 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                   {generating === 'completed' ? 'Generating…' : 'Export'}
                 </button>
               )}
-              <button
-                onClick={() => generateDoc('blank')}
-                disabled={!!generating}
-                className="text-xs border border-slate-300 text-slate-600 rounded px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50 transition-colors font-medium"
-                title="Generate blank hand-out for contractor (Spec + Shop Drawing pre-filled)"
-              >
-                {generating === 'blank' ? 'Generating…' : 'Print Blank'}
-              </button>
+              {/* Blank generation, both audiences; default-first by type (ivc → Field Copy) */}
+              {(instance.type === 'ivc'
+                ? (['field', 'contractor'] as const)
+                : (['contractor', 'field'] as const)
+              ).map(aud => (
+                <button
+                  key={aud}
+                  onClick={() => generateDoc('blank', aud)}
+                  disabled={!!generating}
+                  className="text-xs border border-slate-300 text-slate-600 rounded px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50 transition-colors font-medium"
+                  title={aud === 'field'
+                    ? 'Blank internal field copy — no contractor banner, Isotherm company prefilled'
+                    : 'Blank hand-out for contractor (Spec + Shop Drawing pre-filled)'}
+                >
+                  {generating === `blank-${aud}` ? 'Generating…'
+                    : aud === 'field' ? 'Field Copy' : 'Contractor Copy'}
+                </button>
+              ))}
               <button onClick={() => {
                 setHeaderForm({
                   authored_by: instance.authored_by ?? '',
