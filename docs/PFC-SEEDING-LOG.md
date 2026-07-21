@@ -22,6 +22,7 @@ those 16 masters fold into this campaign.
 
 | # | Name | template_id | s/i/g | signoffs | audit |
 |---|---|---|---|---|---|
+| 1 | Boiler Prefunctional Checklist (2.6.2.1) | 748554cd | 13/112/1 | 6 (BCA roles) | PASS — Batch A PILOT; first-pass green; harness pre-additions (OK?/Note # headers, Comments: auto-skip) were the whole BCA grammar delta |
 
 ## Exclusions
 

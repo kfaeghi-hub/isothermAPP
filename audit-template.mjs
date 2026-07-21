@@ -148,7 +148,9 @@ function labelsMatch(src, extracted) {
 async function readDocxBlocks(file) {
   const { docBlocks } = await import('./dump-doc.mjs')
   const COLS = 'ABCDEFGHIJKLMNOP'
-  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:?|Note:)/i
+  // COMMENTS: = the BCA forms' per-bank comments row (instance notes field), the
+  // Word-family analog of REMARKS.
+  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:?|Note:|COMMENTS:)/i
   const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|DATE:?|ROOM NO\.|\/+)$/i
   return docBlocks(file)
     .filter(b => b.cells.some(c => c && c.trim()))
@@ -225,7 +227,8 @@ try {
     if (!label) continue
     // Component/section headers: row also carries SPECIFIED or STATUS or NO. N column headers
     const others = Object.entries(row.cells).filter(([c]) => c !== 'A').map(([, v]) => v)
-    const isHeader = others.some(v => /SPECIFIED|STATUS|VALUE|COMPLIES|SUBMITTED|ACCEPTABLE|INSPECTED|^Y\/N$|PANEL\s*\d|^NO\.\s*\d/i.test(v))
+    // OK?/Note # = BCA construction-checklist bank headers (PFC campaign).
+    const isHeader = others.some(v => /SPECIFIED|STATUS|VALUE|COMPLIES|SUBMITTED|ACCEPTABLE|INSPECTED|^Y\/N$|PANEL\s*\d|^NO\.\s*\d|^OK\?$|^NOTE\s*#$/i.test(v))
     if (isHeader) {
       const ok = sectionTitles.some(st => headerMatch(label, st)) || grids.some(g => headerMatch(label, g.title))
       if (!ok) unmatched.push(`R${row.r} header "${label}" matches no section/grid title`)
@@ -329,7 +332,8 @@ console.log('\n=== 2 · Vocabulary validity ===')
     `equipment_type "${t.equipment_type}" in ruled key map (or null fallback)`)
   const badStatus = t.sections.flatMap(s => s.items ?? []).filter(i => (i.status_type ?? 'yn_nr_na') !== 'yn_nr_na')
   check(badStatus.length === 0, `status_type yn_nr_na throughout (${badStatus.length} deviations)`)
-  check(t.type === 'ivc', `type is ivc`)
+  // ivc = CSA campaign; pfc = PFC long-tail campaign (2026-07-21). Same item model.
+  check(t.type === 'ivc' || t.type === 'pfc', `type "${t.type}" is ivc or pfc`)
 }
 
 // ── 3 · Branding sweep ─────────────────────────────────────────────────────────
@@ -369,18 +373,22 @@ if (templateId) {
 // ── 5 · Render verification ────────────────────────────────────────────────────
 if (instanceId) {
   console.log('\n=== 5 · Render verification ===')
+  // Spot-check render follows the blank-default audience rule: ivc -> Field Copy,
+  // pfc -> Contractor Hand-out (PFC campaign convention).
+  const audience = t.type === 'pfc' ? 'contractor' : 'field'
+  const audLabel = audience === 'field' ? 'Field Copy' : 'Contractor Hand-out'
   const res = await fetch(`${BASE}/api/generate-checklist`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instance_id: instanceId, mode: 'blank', audience: 'field' }),
+    body: JSON.stringify({ instance_id: instanceId, mode: 'blank', audience }),
   })
   const body = await res.json().catch(() => ({}))
-  check(res.ok, `Field Copy blank generated${res.ok ? '' : ` (${res.status} ${body.error})`}`)
+  check(res.ok, `${audLabel} blank generated${res.ok ? '' : ` (${res.status} ${body.error})`}`)
   if (res.ok) {
     const expectFallback = !FIELD_DEF_KEYS.includes(t.equipment_type)
     check(body.stats.fallback === expectFallback, `nameplate fallback=${body.stats.fallback} as expected (${expectFallback})`)
     check(body.stats.nameplate_rows > 0, `nameplate rows > 0 (${body.stats.nameplate_rows})`)
     const pdf = Buffer.from(await (await fetch(body.pdf_url)).arrayBuffer())
-    const outFile = `out/${(t.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-field.pdf`
+    const outFile = `out/${(t.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${audience}.pdf`
     const { writeFileSync } = await import('node:fs')
     writeFileSync(outFile, pdf)
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
