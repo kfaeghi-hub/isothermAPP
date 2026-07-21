@@ -190,3 +190,9 @@ family via parser-driven generator + Elevator + Escalator) + 4 exclusions
 sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 
 **EXCEL CANON COMPLETE: 115 templates seeded across Mech (51), Elec (31), Arch (33).**
+| 116 | Supply Fan Installation Verification Checklist | ivc/fan | 7c69200e | 7 | 49 | 7 | 6 | PASS (WORD PILOT - calibration #2 approved; R23/R24 ratified) |
+| 117 | Air Dryer Installation Verification Checklist | ivc/- (fallback) | 4ff22425 | 2 | 7 | 1 | 0 | PASS (source prints no signoff block - faithfully zero; duplicate master under Compressed Air seeded once) |
+| 118 | Liquid Cooled Packaged A/C Unit Installation Verification Checklist | ivc/- (fallback) | 49a64544 | 2 | 6 | 1 | 6 | PASS |
+| 119 | Air Cooled Packaged A/C Unit Installation Verification Checklist | ivc/- (fallback) | 288623e4 | 2 | 7 | 1 | 6 | PASS |
+| 120 | Flow Measuring Station Verification Checklist | ivc/- (fallback) | 148a93e7 | 1 | 0 | 1 | 6 | PASS (zero-item schedule) |
+| 121 | Water Cooled DE Refrigeration Unit Installation Verification Checklist | ivc/- (fallback) | 4b482af3 | 2 | 14 | 1 | 6 | PASS |
