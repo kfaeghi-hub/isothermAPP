@@ -150,12 +150,25 @@ async function readDocxBlocks(file) {
   const COLS = 'ABCDEFGHIJKLMNOP'
   // COMMENTS: = the BCA forms' per-bank comments row (instance notes field), the
   // Word-family analog of REMARKS.
-  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:?|Note:|COMMENTS:)/i
+  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:?|Note:|(GENERAL )?COMMENTS:)/i
   const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|DATE:?|ROOM NO\.|\/+)$/i
+  // Row-numbering furniture (BCA 2021-era forms): a leading pure-number/letter
+  // cell ("1", "12", "a.") shifts out when a labeled cell follows; a block that
+  // is ONLY a number/letter (paragraph-run item numbering) drops entirely.
+  const ROWNUM = /^(\d{1,3}\.?|[a-z]\.)$/i
   return docBlocks(file)
     .filter(b => b.cells.some(c => c && c.trim()))
     .filter(b => !PAGE_HDR.test((b.cells[0] ?? '').trim()))
     .filter(b => !(FLOAT_COL.test((b.cells[0] ?? '').trim()) && b.cells.filter(c => c && c.trim()).length === 1))
+    .map(b => {
+      const ne = b.cells.filter(c => c && c.trim())
+      if (ne.length > 1 && ROWNUM.test(ne[0].trim())) {
+        const idx = b.cells.findIndex(c => c && c.trim())
+        return { ...b, cells: b.cells.slice(0, idx).concat(b.cells.slice(idx + 1)) }
+      }
+      return b
+    })
+    .filter(b => !(b.cells.filter(c => c && c.trim()).length === 1 && ROWNUM.test(b.cells.find(c => c && c.trim()).trim())))
     .map(b => ({ r: b.r, cells: Object.fromEntries(b.cells.map((c, i) => [COLS[i], c]).filter(([, v]) => v && v.trim())) }))
     .filter(b => Object.keys(b.cells).length)
 }

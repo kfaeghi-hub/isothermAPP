@@ -23,6 +23,24 @@ those 16 masters fold into this campaign.
 | # | Name | template_id | s/i/g | signoffs | audit |
 |---|---|---|---|---|---|
 | 1 | Boiler Prefunctional Checklist (2.6.2.1) | 748554cd | 13/112/1 | 6 (BCA roles) | PASS — Batch A PILOT; first-pass green; harness pre-additions (OK?/Note # headers, Comments: auto-skip) were the whole BCA grammar delta |
+| 2 | Boiler (Temporary Start) Prefunctional Checklist (2.6.2.1) | ca10c6b1 | 18/142/1 | 6 (Boiler Startup Contractor variant) | PASS — gen; six safety banks retained (R9), declared |
+| 3 | Electric Boiler (Temporary Start) Prefunctional Checklist (2.6.2.1) | f450e525 | 12/51/3 | 6 | PASS — hand-authored; 2021 rewrite grammar (row-number shift rule); CONTAMINATED (R21, privacy flag — see below) |
+| 4 | Water Cooled Chiller Prefunctional Checklist (2.6.3.1) | d73ed2a0 | 8/57/1 | 7 (TAB Contractor) | PASS — gen |
+| 5 | Air Cooled Chiller Prefunctional Checklist (2.6.3.2) | 54435ddb | 8/55/1 | 7 | PASS — gen |
+| 6 | Cooling Tower Prefunctional Checklist (2.6.3.5) | 1eb52674 | 10/63/1 | 7 | PASS — gen |
+| 7 | Building Automation System (BAS) Prefunctional Checklist (2.6.4.1) | 7ac0dfbf | 7/22/5 | 4 (GC+CC+CxP+Owner) | PASS — hand-authored; graphics matrix grid (R13), 3 sample sub-forms -> schedule grids (R20) |
+| 8 | Exhaust Fan Prefunctional Checklist (2.6.5.1) | d102a6c0 | 7/64/1 | 6 | PASS — gen [matrix mode, R12] |
+| 9 | Heat Exchanger Prefunctional Checklist (2.6.6.1) | a89f4928 | 5/39/1 | 6 | PASS — gen; null key |
+| 10 | Pump Prefunctional Checklist (2.6.8.1) | e6457c0f | 8/47/1 | 7 (TAB Contractor) | PASS — gen |
+| 11 | Variable Frequency Drive Prefunctional Checklist (2.9.1) | ace7bfa5 | 6/58/0 | 6 | PASS — gen; null key; no calibration tail in source |
+
+### Batch A metrics (2026-07-21)
+
+Attempted 11 · passed first audit 11 (pilot first-pass; the 8 generated hit one tooling
+rework — BOM in the PowerShell dump redirects ate R1, generator-side fix, then all
+first-pass; both hand-authored first-pass) · quarantined 0 · harness rules added 4
+(OK?/Note # bank-header vocab; (GENERAL )?COMMENTS: auto-skip; row-number shift/drop;
+pfc type + contractor-audience render) · retro pass over all 65 CSA Word JSONs: clean.
 
 ## Exclusions
 
@@ -35,4 +53,8 @@ those 16 masters fold into this campaign.
 
 ## Contamination notes (R21 — for Tony's ShareSync sitting)
 
-(none yet)
+- `2.6.2.1 Boiler (Electric) Construction Checklist_Temporary Start.docx` — USED PROJECT FILE:
+  Humber College Phase 2 Central Plant in the Project cell; submittal signature fills
+  (contractor company "Ecosystem", 18 Mar 2025); approval fills with PERSON NAMES —
+  **PRIVACY FLAG: "Isotherm Engineering Ltd. / Tony Faeghi" and "Humber College / Hooman
+  Aboutalebi"**. Structure-only extraction; all residuals excluded via skips.
