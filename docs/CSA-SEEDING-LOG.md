@@ -26,6 +26,14 @@ forms are skipped and logged below, never force-fit.
 | 10 | Pump Installation Verification Checklist | ivc/pump | 05016509 | 3 | 28 | 2 | 2 | PASS (quarantine lifted by ruling; fragment merges logged in _extraction.merged_rows) |
 | 11 | Fan Powered Box Installation Verification Checklist | ivc/— (fallback) | a574eb8f | 4 | 20 | 1 | 2 | PASS (source "CAV box" copy artifact cleaned to "Box", logged) |
 | 12 | Reheat Coil Installation Verification Checklist | ivc/— (fallback) | 8f65bebf | 2 | 13 | 0 | 2 | PASS (no component rows in source — first zero-grid template) |
+| 13 | Unit Heater Installation Verification Checklist | ivc/— (fallback) | 77acbe36 | 1 | 13 | 0 | 2 | PASS (VALVAES typo + artifact suffix cleaned, logged; residual project data excluded) |
+| 14 | Cabinet Unit Heater Installation Verification Checklist | ivc/— (fallback) | ce1f07b3 | 2 | 15 | 0 | 2 | PASS (same cleanups as UH; residual project data excluded) |
+| 15 | Radiant Panel Installation Verification Checklist | ivc/— (fallback) | 48ae8c5f | 3 | 15 | 1 | 2 | PASS |
+| 16 | Radiation Installation Verification Checklist | ivc/— (fallback) | 1f78a9ba | 3 | 14 | 1 | 2 | PASS |
+| 17 | Split System Air Conditioning Unit Installation Verification Checklist | ivc/fcu | 609c6572 | 2 | 7 | 1 | 2 | PASS |
+| 18 | Heat Recovery Wheel Installation Verification Checklist | ivc/erv | 3e45088c | 2 | 7 | 2 | 2 | PASS (duplicate VSD-verified row retained verbatim, logged) |
+| 19 | Direct Fired Makeup Air Unit Installation Verification Checklist | ivc/ahu | e322f824 | 3 | 44 | 1 | 2 | PASS (Start-Up re-checks kept verbatim; residual project data excluded) |
+| 20 | Fume Exhauster Installation Verification Checklist | ivc/fan | 312593fe | 4 | 21 | 3 | 2 | PASS (two-equipment compound: exhauster + swing-arm motor) |
 
 ## Quarantine list
 
