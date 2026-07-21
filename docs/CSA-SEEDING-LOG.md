@@ -55,6 +55,16 @@ forms are skipped and logged below, never force-fit.
 | 39 | Pressure Regulating Station Installation Verification Checklist | ivc/— (fallback) | 5d57d496 | 2 | 6 | 1 | 2 | PASS |
 | 40 | Water Purification Equipment Installation Verification Checklist | ivc/— (fallback) | 7c593baf | 2 | 24 | 1 | 2 | PASS |
 | 41 | Tile Bed Installation Verification Checklist | ivc/— (fallback) | 5a7553a7 | 2 | 24 | 1 | 2 | PASS |
+| 42 | DDC Field Control Panel Installation Verification Checklist | ivc/— (fallback) | b41be28a | 2 | 0 | 3 | 2 | PASS (per-panel matrices → panel-column grids; zero items; residual project data excluded) |
+| 43 | Pneumatic Control Panel Installation Verification Checklist | ivc/— (fallback) | 4a0cf177 | 2 | 0 | 2 | 2 | PASS |
+| 44 | Control Points List Verification Checklist | ivc/— (fallback) | 493e858a | 2 | 0 | 2 | 2 | PASS (points-list schedule; source provides 2 blank rows; residual project data excluded) |
+| 45 | Point-to-Point Verification Checklist | ivc/— (fallback) | ee6d4453 | 1 | 0 | 1 | 2 | PASS (USED PROJECT FILE as master — tech name + client project + real point rows all excluded, structure only; zero-item per Drainage precedent as anticipated) |
+| 46 | Operator's Workstation Installation Verification Checklist | ivc/— (fallback) | 008cac64 | 2 | 0 | 2 | 2 | PASS (Specified/Installed component table → two-column grid) |
+| 47 | Building System Integration Verification Checklist | ivc/— (fallback) | 14ba6c9d | 1 | 0 | 1 | 2 | PASS (pure integration schedule; residual project data excluded) |
+| 48 | Smoke Management System Verification Checklist | ivc/— (fallback) | 88c864b5 | 1 | 10 | 0 | 2 | PASS |
+| 49 | Chilled Water System Verification Checklist | ivc/— (fallback) | 66d6bd24 | 1 | 18 | 0 | 2 | PASS (loop-position duplicate bank declared + kept; residual project data excluded) |
+| 50 | Hot Water Heating System Verification Checklist | ivc/— (fallback) | 5b06d22a | 1 | 14 | 0 | 2 | PASS |
+| 51 | Low Voltage Power Circuit Breaker Installation Verification Checklist | ivc/— (fallback) | d8000198 | 3 | 16 | 4 | 2 | PASS (first Elec/NETA-family form: paired-label nameplate blocks → grids; asterisk footnote carried as item hint) |
 
 ## Duplication rulings — consistency note (Tony, 2026-07-20)
 

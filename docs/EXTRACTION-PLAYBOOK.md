@@ -117,6 +117,34 @@ Batch-1–6 retro) and immediately earned its keep — flagged fume-exhausters'
 undeclared-but-correct bank on the retroactive pass (declaration added; template
 unchanged).
 
+### Batch 8 (controls/system-level + first Elec form, forms 42–51, 2026-07-21)
+
+**(a) Novel source behaviors → general rules:** (1) *Per-panel data+check
+matrices* (DDC/PCP: Field/PC Panel 1–3) → grids with panel columns for both data
+rows and check rows (R13 extension; six zero-item grid-only templates this batch).
+(2) *Component tables with Specified/Installed columns* (OWS) → two-column grids.
+(3) *Elec/NETA family* (LVCB, precedent for the whole 1.2 directory): paired-label
+nameplate blocks (two label/value pairs per row, no standard NAMEPLATE block) →
+single-Recorded grids; asterisk footnotes → item hints; INSPECTED/N-A columns =
+yn_nr_na. (4) A master can be a **used project file** (Point_to_Point: technician
+name, client project, live point rows) — structure extracts, every content cell
+skips, flag loudly for ShareSync cleanup.
+
+**(b) Near-misses → checks:** four first-audit failures, ALL harness-inference
+gaps on the new families, zero extraction errors: banner rows fuzzy-consuming
+items ("TRIP UNIT NAMEPLATE" ate "Trip unit battery" — grid/section-title
+banners now claim before fuzzy items), word-split labels ("SOFT WARE PROGRAM" —
+despaced equality added), and panel-matrix boundary vocabulary (PANEL n / Y/N /
+INSPECTED added to both boundary regexes — the vocabulary-growth sweep flagged
+Y/N and INSPECTED pre-batch but the regexes weren't extended until the audit
+failed: **extend the regexes when the sweep finds new words, not after**).
+Reverse-trace now pools ALL text cells (paired-label layouts).
+
+**(c) Judgment → code:** none new; the schedule-row-count judgment (how many
+numbered rows a blank schedule gets) recurred 4 times (PF 8, DS 16, CP 2, PTP 36,
+BSI 12) with the rule "match the source table extent" — candidate for a harness
+check next batch (count blank formatted rows between header and next block).
+
 ## 6 · Batch metrics
 
 | Batch (session) | Attempted | Passed first audit | Quarantined | Harness rules added | First-pass rate |
@@ -126,13 +154,20 @@ unchanged).
 | 4b–5 (forms 10–20 + EF parked) | 12 | 12 | 0 | 2 (merged_rows, no-bare-fragment) | 100% |
 | 6 (forms 21–29) | 9 | 8 | 0 | 1 (SUBMITTED/ACCEPTABLE boundary) | 89% |
 | 7 (forms 30–41) | 12 | 11 | 0 | 2 (duplicate-bank detector; SPECIFIED+COMMENTS header refinement) | 92% |
+| 8 (forms 42–51) | 10 | 6 | 0 | 4 (title-banner precedence; despaced equality; PANEL/Y-N/INSPECTED boundaries; all-cell reverse-trace) | 60% |
 
 Retroactive flags to date: 1 (fume-exhausters undeclared duplicate bank —
-declaration added, seeded template unchanged; caught by the new bank detector).
+declaration added, seeded template unchanged). Retroactive passes after every
+harness change remain clean across all 51 JSONs.
 
-Trend: 60% → 100% → 89% → 92%. Batch 7 crossed into a new discipline (plumbing)
-with two genuinely new structures (schedule tables, system-level sheets) and held
-above 90%; the single first-pass miss was a harness-inference refinement, not an
-extraction error — the extraction JSON needed no change. Loop is learning. The
-pre-batch vocabulary sweep (retro 6b) ran before extraction this batch and
-correctly predicted zero unknown boundary words.
+Trend: 60% → 100% → 89% → 92% → **60%**. Read honestly: the headline metric
+dipped hard in Batch 8. The split tells a different story — **extraction
+first-pass was 10/10** (no JSON needed any change); all four failures were
+harness-inference gaps on two brand-new structure families (panel matrices,
+Elec paired-label blocks) hit in one batch. The loop's learning shows up as: the
+same class of miss (boundary vocabulary) recurred from Batch 6 despite the sweep
+running — because the sweep's findings weren't applied to the regexes before
+extraction. Rule tightened in retro 8(b): the sweep must UPDATE the regexes, not
+just observe. Watch Batch 9 (Elec directory, now-precedented family): if the
+harness metric doesn't rebound above 90% on a known family, the loop is not
+learning and the regime needs revision.
