@@ -140,3 +140,6 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 | 76 | Metal Enclosed Busway Installation Verification Checklist | ivc/- (fallback) | 5cd3f4c7 | 4 | 10 | 5 | 2 | PASS |
 | 77 | Overcurrent Relay Installation Verification Checklist | ivc/- (fallback) | 75d57358 | 4 | 18 | 4 | 2 | PASS (paired two-column checklist -> two item sections; relay test tables -> grids) |
 
+| 78 | Three Phase Dry Type Transformer Installation Verification Checklist | ivc/- (fallback) | 8beb1be7 | 4 | 7 | 3 | 2 | PASS |
+| 79 | Three Phase Liquid Filled Transformer Installation Verification Checklist | ivc/- (fallback) | 491bf2ac | 4 | 11 | 3 | 2 | PASS |
+
