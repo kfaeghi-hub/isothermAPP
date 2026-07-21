@@ -46,6 +46,21 @@ those 16 masters fold into this campaign.
 | 21 | Hydronic Flow Meter Prefunctional Checklist (2.6.4.4) | b866be6f | 2/14/1 | 4 (functional roles) | PASS — hand-authored; calibration-check procedure form; Check Record grid w/ method rows |
 | 22 | Construction IAQ Plan Prefunctional Checklist (2.6.7.1) | 30b43a8a | 12/46/0 | 8 | PASS — hand-authored; paragraph-run layout ([CHK]-glyph filter added); null categories (cross-trade process) |
 
+| 23 | Fan Powered VAV with Electric Reheat PFC (2.6.11.1) | 30c79f50 | 9/43/1 | 8 | PASS — gen; key vav |
+| 24 | Fan Powered VAV with Hot Water Reheat PFC (2.6.11.2) | c42545a1 | 10/53/1 | 8 | PASS — gen; key vav; Associated Checklists block excluded |
+| 25 | VAV (Cooling Only) Prefunctional Checklist (2.6.11.3) | e9b47c4a | 8/36/1 | 8 | PASS — gen; key vav |
+| 26 | VAV with Electric Reheat Prefunctional Checklist (2.6.11.4) | d4cc32ff | 8/38/1 | 8 | PASS — gen; key vav |
+| 27 | VAV with Hot Water Reheat Prefunctional Checklist (2.6.11.6) | e4cca626 | 9/48/1 | 8 | PASS — gen; key vav |
+| 28 | VAV Air Terminal Unit (All Types) Prefunctional Checklist (2.6.11.7) | 70c3db84 | 3/17/0 | 5 (incl. Commissioning Agent as printed) | PASS — GATE FORM, hand-authored transposed check-table; AWAITING TONY'S GATE REVIEW (render-mode design) |
+
+### Batch C metrics (2026-07-21)
+
+Attempted 6 · passed first audit 5 (Check-Table needed one trivial iteration — blank-row
+range off by one) · quarantined 0 · harness rules added 1 (transposed-header all-cell
+item-label claim) · all five Word VAV forms render on the freshly minted vav nameplate
+(fallback=false). Check-Table seeded to ZZ-TEST for the gate render; register acceptance
+pending Tony's gate verdict.
+
 ### Batch B metrics (2026-07-21)
 
 Attempted 11 · passed first audit 10 (AFMS needed one iteration — bare sub-banner rows +

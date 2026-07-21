@@ -80,6 +80,15 @@ was seeded; this file records *how to extract*.
 - **vav key minted** (Tony 2026-07-21): field-def set proposed and live (spec 8 / shop_drawing 10 / installed 8 — terminal-unit fields; cooling-only leaves reheat blank, fan-powered uses FLA; Tony to confirm in passing). Six PFC VAV forms keyed vav; CSA VAV Box IVC backfilled full-stack per R25 (template 9fe6dd96, JSON, TEST-VAV-1/2 fixtures typed, re-audit PASS). RULED_KEYS/FIELD_DEF_KEYS additions are additive-only — no retro pass required (cannot change a prior verdict; no prior template carries the key).
 - **Gates:** one calibration-class stop — 2.6.11.7 VAV Air Terminal Unit Check-Table.xlsx (transposed units-as-rows; expected to need a generic check-table render mode; JSON + contractor-variant PDF to Tony pre-seed). Light pilots: first BCA-docx form and first IEL .doc (anatomies may differ from S01-VP).
 
+### PFC campaign patterns (Batches A-C, 2026-07-21)
+
+- **BCA standard grammar**: preamble (title/rev, register fill-ins, Submittal + CxP Approval boilerplate + signature grids, "⟨Unit⟩ Information" register blocks) → skips; "Bank | OK?/Rec'd | Note #" headers → item sections; Comments: rows auto-skip; calibration tail → 1 item + numbered schedule grid.
+- **BCA matrix grammar**: "Check | Trade/Floor # | ⟨subject⟩" header, per-unit [CHK] columns (R12), single-cell bank banners → sections; per-column unit-number rows skipped.
+- **2021-rewrite grammar** (Electric Boiler TS): lettered/numbered banks — row-number cells shift left, bare number/letter and [CHK]-glyph paragraphs drop (harness furniture rules).
+- **Check-table grammar** (2.6.11.7 gate): transposed fleet record — units as rows, checks as columns; extraction transposes back (items = columns, hints = the numbered procedure key from the companion sheet, sections = phase banners); blank fleet rows = per-target instance rows; harness claims the transposed header row via all-cell item-label match.
+- **Signoffs vary per form** and render as printed (R23): 4-8 roles, incl. Boiler Startup Contractor, Sheet Metal Contractor, TAB Contractor, functional roles (flow-meter), "Commissioning Agent" vs "Provider" as each master prints.
+- **Tooling rule (mojibake, third bite)**: NEVER round-trip unicode-bearing files through PowerShell Get-Content/-replace/Set-Content — applies to source files, configs, generators, docs. Write tool only. Dump captures: `Out-File -Encoding utf8` (BOM stripped by consumers), never ascii (mangles curly quotes), never bare `>`.
+
 ## 5 · Retrospectives
 
 ### Batches 1–6 (retroactive, written 2026-07-21)

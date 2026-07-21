@@ -276,6 +276,9 @@ try {
     // Word signoff blocks carry named role rows (vs xlsx POSITION/TITLE) —
     // account them against the JSON's signoff roles.
     if ((t.signoffs ?? []).some(s => labelsMatch(label, s.role_label))) continue
+    // Transposed check-table header (PFC 2.6.11.7 gate): a row whose cells ARE
+    // the item labels (units-as-rows layout) is claimed by those items.
+    if (Object.values(row.cells).some(v => items.some(i => labelsExact(v, i.label)))) continue
     unmatched.push(`R${row.r} "${label}"`)
   }
   check(unmatched.length === 0, `every source row mapped or logged (${unmatched.length} unmatched)`)
