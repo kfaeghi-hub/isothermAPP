@@ -149,7 +149,7 @@ async function readDocxBlocks(file) {
   const { docBlocks } = await import('./dump-doc.mjs')
   const COLS = 'ABCDEFGHIJKLMNOP'
   const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|REMARKS:)/i
-  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|\/+)$/i
+  const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|DATE:?|ROOM NO\.?|\/+)$/i
   return docBlocks(file)
     .filter(b => b.cells.some(c => c && c.trim()))
     .filter(b => !PAGE_HDR.test((b.cells[0] ?? '').trim()))

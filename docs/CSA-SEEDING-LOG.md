@@ -207,3 +207,14 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 129 | Gas Supply Station Installation Verification Checklist | ivc/- (fallback) | 6ae19027 | 1 | 11 | 0 | 6 | PASS |
 | 130 | Gas Fixture Installation Verification Checklist | ivc/- (fallback) | 8c3c5b22 | 1 | 0 | 1 | 6 | PASS (zero-item schedule) |
 | 131 | Hydraulic Fixture Installation Verification Checklist | ivc/- (fallback) | 6f750f31 | 1 | 0 | 1 | 6 | PASS (zero-item schedule) |
+| 132 | Communication System Installation Verification Checklist | ivc/- (fallback) | eba4da53 | 1 | 0 | 1 | 6 | PASS (45-row component grid) |
+| 133 | Egress System Verification Checklist | ivc/- (fallback) | 506fa3e2 | 1 | 11 | 0 | 6 | PASS (Life Safety categories) |
+| 134 | Fire Extinguisher Verification Checklist | ivc/- (fallback) | 2df2ecca | 1 | 0 | 1 | 6 | PASS (per-unit matrix; capacity banks merged) |
+| 135 | Fire Alarm System Installation Verification Checklist | ivc/- (fallback) | c714602e | 1 | 0 | 14 | 6 | PASS (14 component grids; Annunicator typo cleaned) |
+| 136 | Fire Pump Installation Verification Checklist | ivc/- (fallback) | 7dd1dbdf | 2 | 9 | 1 | 6 | PASS (screened distinct from Excel Pump) |
+| 137 | Fire Hose Cabinet Verification Checklist | ivc/- (fallback) | 383bacf0 | 1 | 0 | 1 | 6 | PASS |
+| 138 | Preaction Valve Station Installation Verification Checklist | ivc/- (fallback) | e89b8706 | 2 | 11 | 1 | 6 | PASS |
+| 139 | Fire and Smoke Separation Verification Checklist | ivc/- (fallback) | ddbc3652 | 1 | 0 | 1 | 6 | PASS (per-room matrix; MS/DE/NA legend noted) |
+| 140 | Sprinkler Piping System Verification Checklist | ivc/- (fallback) | ecb6ebcb | 1 | 0 | 1 | 6 | PASS |
+| 141 | Standpipe System Installation Verification Checklist | ivc/- (fallback) | 7dc9949c | 2 | 10 | 1 | 6 | PASS |
+| 142 | Water Supply Systems Overview Verification Checklist | ivc/- (fallback) | 62af0649 | 8 | 25 | 0 | 6 | PASS (Resevoir typo cleaned) |
