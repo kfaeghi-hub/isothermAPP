@@ -43,6 +43,18 @@ forms are skipped and logged below, never force-fit.
 | 27 | Fluid Cooler Installation Verification Checklist | ivc/cooling_tower | bfe9ce9d | 2 | 36 | 2 | 2 | PASS (assembled system package: cooler data + expansion tank evaluation, extracted faithfully) |
 | 28 | Sump Pump Installation Verification Checklist | ivc/pump | 3f326561 | 3 | 20 | 1 | 2 | PASS |
 | 29 | Rooftop Unit Installation Verification Checklist | ivc/ahu | 7f47a1b2 | 10 | 106 | 10 | 2 | PASS (deviant sheet "RTU_Final ST" ruled static-verification by content; three per-fan V/A grids; Roof Curb flashing → Building Envelope) |
+| 30 | Domestic Hot Water System Verification Checklist | ivc/— (fallback) | 1ebdc718 | 1 | 12 | 0 | 2 | PASS (system-level; EQUIPMENT NUMBER column → comments; residual project data excluded) |
+| 31 | Domestic Cold Water System Verification Checklist | ivc/— (fallback) | 1f71fdee | 1 | 11 | 0 | 2 | PASS (residual project data excluded) |
+| 32 | Domestic Hot Water Tank Installation Verification Checklist | ivc/— (fallback) | 9c2983ce | 2 | 20 | 1 | 2 | PASS (residual project data excluded) |
+| 33 | Water Heater Installation Verification Checklist | ivc/— (fallback) | 0619d591 | 2 | 19 | 1 | 2 | PASS |
+| 34 | Water Meter Installation Verification Checklist | ivc/— (fallback) | 859671c4 | 2 | 8 | 1 | 2 | PASS |
+| 35 | Backflow Preventor Installation Verification Checklist | ivc/— (fallback) | 2549bb0b | 2 | 7 | 1 | 2 | PASS (residual project data excluded) |
+| 36 | Mixing Valve Installation Verification Checklist | ivc/— (fallback) | 4803d38a | 2 | 4 | 1 | 2 | PASS |
+| 37 | Plumbing Fixture Installation Verification Checklist | ivc/— (fallback) | 96747b1e | 2 | 10 | 1 | 2 | PASS (new schedule-table pattern → numbered-blank-row grid; mixed SPECIFIED+COMMENTS header refined harness inference) |
+| 38 | Drainage System Installation Verification Checklist | ivc/— (fallback) | ac7d7bb9 | 1 | 0 | 1 | 2 | PASS (first zero-item template — pure fixture schedule) |
+| 39 | Pressure Regulating Station Installation Verification Checklist | ivc/— (fallback) | 5d57d496 | 2 | 6 | 1 | 2 | PASS |
+| 40 | Water Purification Equipment Installation Verification Checklist | ivc/— (fallback) | 7c593baf | 2 | 24 | 1 | 2 | PASS |
+| 41 | Tile Bed Installation Verification Checklist | ivc/— (fallback) | 5a7553a7 | 2 | 24 | 1 | 2 | PASS |
 
 ## Duplication rulings — consistency note (Tony, 2026-07-20)
 

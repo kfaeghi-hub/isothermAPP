@@ -30,6 +30,7 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 | R17 | **Branding** — CSA/Z320/Z318/BCA/BCxA/IEL and firm/client names appear ONLY in revision_label/description. Isotherm identity on all output; generic signoff roles (IVC convention: "Commissioning Authority (CxA)" + "Contractor"). | Standing rule |
 | R18 | **Equipment keys are ruled, never invented** — ahu (incl. RTU, Direct-Fired MAU), pump (incl. sump), fan (incl. fume exhausters), fcu (incl. split-system AC), heat_pump, chiller, cooling_tower (incl. fluid cooler), boiler (FD/ND/steam), erv (heat recovery wheel). Everything else → null → basic fallback nameplate (works; verified). | Step-1 rulings |
 | R19 | **Duplicate masters** — seed the ruled master only (Heat_Exchanger-new, not Heat_Exchanger; Fan_Coils, not the startup_contractors variant). | Step-1 rulings |
+| R20 | **Schedule tables → numbered-row grids** — blank fill-in schedule tables (Equipment No./Fixture Location/Spec/Shop/Installed) become a grid with the schedule columns and numbered blank rows; a pure-schedule form may have zero items. Pagination repeats of the same schedule merge into one grid. | Batch 7 |
 
 ## 2 · Structural patterns catalog
 
@@ -48,7 +49,7 @@ codified. `docs/CSA-SEEDING-LOG.md` records *what* was seeded; this file records
 - **Electrical**: starters/disconnects, fused disconnects, wiring, speed switches, marine vapor-proof lights, VSDs/VFD hardware, basin/immersion heaters, essential power, drive install checks.
 - **Refrigeration**: refrigerant/oil levels & sight glasses, TXV, circuiting, crankcase heater, rupture disk, refrigerant monitor, refrigeration start-up report.
 - **TAB**: air/water balancing, balance reports, balance marks, measured temps/capacities/dP-across checks.
-- **Plumbing**: backflow preventors (install/certify/operate), makeup-water connections.
+- **Plumbing**: backflow preventors (install/certify/operate), makeup-water connections; **default trade for domestic-water equipment/system forms** (tanks, heaters, meters, fixtures, purification, drainage, tile bed — Batch 7 precedent), with C/BAS-Electrical carve-outs as usual.
 - **Fire Protection**: fire dampers, FACP interlocks, duct smoke detectors.
 - **Life Safety**: CO detector w/ calibration certificate (MAU).
 - **Building Envelope**: roof-curb flashing/sealing integration (RTU).
@@ -88,6 +89,34 @@ FLAG verbatim-duplicate item banks; adding a duplicate-bank detector is the
 candidate check for Batch 7. Sentence-casing/typo logging remains judgment by
 design (R6 requires human-quality phrasing).
 
+### Batch 7 (water/plumbing, forms 30–41, 2026-07-21)
+
+**(a) Novel source behaviors → general rules:** (1) *Blank schedule tables*
+(Equipment No. | Fixture Location | Spec | Shop | Installed with empty fill-in
+rows; Plumbing Fixture, Drainage) → grid with the schedule columns and numbered
+blank rows (numbered-blank-row precedent). Drainage is a pure schedule → the
+first zero-item template; renders fine. **New rule R20: schedule tables →
+numbered-row grids; a form may have zero items.** (2) *System-level verification
+sheets* (DHW/DCW: VERIFICATION ACTIVITIES + EQUIPMENT NUMBER + YES/NO/N-A) →
+items; equipment references go in comments (R5 extension); YES/NO/N-A maps to
+yn_nr_na directly. (3) *Trade default shift*: domestic-water forms default to
+Plumbing (not Mechanical) — precedent added to §3.
+
+**(b) Near-miss → check:** the Plumbing Fixture R54 header mixes SPECIFIED with
+COMMENTS (source mislabel) — the component-counter wrongly demanded a grid.
+Refined: SPECIFIED marks a component header only when COMMENTS is absent. Also an
+ops failure worth recording: fixture SQL POSTed via PowerShell ConvertTo-Json
+failed silently-ish and 13 templates seeded without instances (cleaned up via
+safety-checked delete of instance-less templates). **Ops rules: run SQL files via
+`node --env-file=.env out/run-sql.mjs <file>`; capture seeder output with
+`Out-File -Encoding ascii` (BOM breaks JSON.parse); verify instance_id is non-null
+before moving on.**
+
+**(c) Judgment → code:** duplicate-bank detector added this batch (from the
+Batch-1–6 retro) and immediately earned its keep — flagged fume-exhausters'
+undeclared-but-correct bank on the retroactive pass (declaration added; template
+unchanged).
+
 ## 6 · Batch metrics
 
 | Batch (session) | Attempted | Passed first audit | Quarantined | Harness rules added | First-pass rate |
@@ -96,8 +125,14 @@ design (R6 requires human-quality phrasing).
 | 2–4a (forms 2–9) | 10 | 6 | 2 (Pump, EF) | 3 (greedy-match, NO.N boundary, pdf.js probe) | 60% |
 | 4b–5 (forms 10–20 + EF parked) | 12 | 12 | 0 | 2 (merged_rows, no-bare-fragment) | 100% |
 | 6 (forms 21–29) | 9 | 8 | 0 | 1 (SUBMITTED/ACCEPTABLE boundary) | 89% |
+| 7 (forms 30–41) | 12 | 11 | 0 | 2 (duplicate-bank detector; SPECIFIED+COMMENTS header refinement) | 92% |
 
-Trend: 60% → 100% → 89%. The Batch-6 dip was a single new-vocabulary boundary miss
-(VFD), not a repeat of a known failure mode; its class-level fix (sweep the canon
-for boundary words when the vocabulary grows) is recorded in retro (b). Loop is
-learning; watch whether Batch 7 (new discipline: plumbing) holds ≥90%.
+Retroactive flags to date: 1 (fume-exhausters undeclared duplicate bank —
+declaration added, seeded template unchanged; caught by the new bank detector).
+
+Trend: 60% → 100% → 89% → 92%. Batch 7 crossed into a new discipline (plumbing)
+with two genuinely new structures (schedule tables, system-level sheets) and held
+above 90%; the single first-pass miss was a harness-inference refinement, not an
+extraction error — the extraction JSON needed no change. Loop is learning. The
+pre-batch vocabulary sweep (retro 6b) ran before extraction this batch and
+correctly predicted zero unknown boundary words.

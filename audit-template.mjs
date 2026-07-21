@@ -226,7 +226,10 @@ try {
   let compChecks = 0, compFails = []
   const headerRows = rows.filter(row => {
     const others = Object.entries(row.cells).filter(([c]) => c !== 'A').map(([, v]) => v)
-    return others.some(v => /SPECIFIED/i.test(v)) && row.cells.A && !isSkipped(row.r)
+    // SPECIFIED marks a component-data header — unless COMMENTS also appears
+    // (mixed/mislabeled evaluation headers, e.g. Plumbing_Fixture R54).
+    return others.some(v => /SPECIFIED/i.test(v)) && !others.some(v => /COMMENTS/i.test(v))
+      && row.cells.A && !isSkipped(row.r)
   })
   for (const h of headerRows) {
     const next = headerRows.find(x => x.r > h.r)
