@@ -172,6 +172,25 @@ try {
     lost.forEach(m => console.log(`         · ${m.row} "${m.fragment}"`))
   }
 
+  // Duplication distinguisher test (ruled 2026-07-20, codified 2026-07-21): a
+  // verbatim-duplicate BANK (>=3 consecutive item labels repeated consecutively
+  // elsewhere) must be a conscious decision — declared in _extraction.notes with
+  // duplicate/re-check/retained/deduped wording. Lone duplicate items are fine.
+  {
+    const seq = t.sections.flatMap(s => (s.items ?? []).map(i => norm(i.label)))
+    let bank = false
+    for (let i = 0; i + 3 <= seq.length && !bank; i++) {
+      const tri = seq.slice(i, i + 3).join('|')
+      for (let j = i + 3; j + 3 <= seq.length; j++) {
+        if (seq.slice(j, j + 3).join('|') === tri) { bank = true; break }
+      }
+    }
+    const declared = /duplicat|re-check|recheck|retained|dedup/i.test((t._extraction.notes ?? []).join(' '))
+    check(!bank || declared, bank
+      ? 'duplicate item bank present and declared in _extraction.notes'
+      : 'no undeclared duplicate item banks')
+  }
+
   const unmatched = []
   for (const row of rows) {
     if (isSkipped(row.r)) continue
