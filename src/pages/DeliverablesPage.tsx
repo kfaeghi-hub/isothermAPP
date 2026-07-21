@@ -36,7 +36,7 @@ export function DeliverablesPage({ projectId }: Props) {
   const fetchAll = useCallback(async () => {
     const [rowsData, profRes] = await Promise.all([
       fetchDeliverables(projectId),
-      supabase.from('profiles').select('name').order('name'),
+      supabase.from('user_profiles').select('name').order('name'),
     ])
     setRows(rowsData)
     setMemberNames(((profRes.data ?? []) as any[]).map(p => p.name as string).filter(Boolean))
