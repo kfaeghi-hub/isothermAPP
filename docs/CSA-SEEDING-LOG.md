@@ -34,13 +34,14 @@ forms are skipped and logged below, never force-fit.
 | 18 | Heat Recovery Wheel Installation Verification Checklist | ivc/erv | 3e45088c | 2 | 7 | 2 | 2 | PASS (duplicate VSD-verified row retained verbatim, logged) |
 | 19 | Direct Fired Makeup Air Unit Installation Verification Checklist | ivc/ahu | e322f824 | 3 | 44 | 1 | 2 | PASS (Start-Up re-checks kept verbatim; residual project data excluded) |
 | 20 | Fume Exhauster Installation Verification Checklist | ivc/fan | 312593fe | 4 | 21 | 3 | 2 | PASS (two-equipment compound: exhauster + swing-arm motor) |
+| 21 | Exhaust Fan Installation Verification Checklist | ivc/fan | 4f7a57c5 | 5 | 30 | 3 | 2 | PASS (compound-sheet ruling: damper matrix as No.1-3 grid — known semantic edge: grid-cell checks don't auto-create findings, CxA logs manually; duplicated bank deduped, logged) |
 
 ## Quarantine list
 
 | Form | Reason |
 |---|---|
 | ~~Pump.xlsx~~ | RESOLVED by ruling 2026-07-20: fragments are wrapped-label continuations, merged upward with logged reconstruction (FD Boiler phrasing as reference). Seeded as form 10. Harness now enforces the merge-upward rule (merged_rows + no-bare-fragment checks). |
-| Exhaust_Fans.xlsx | Ruling 2026-07-20: re-extracted with unit-matrix learnings (fan checks → per-target items; per-damper checks → No. 1–3 grid; duplicated bank deduped, logged). Static audit PASS. First compound sheet — JSON awaiting Tony's pre-seed review; seeds on approval. |
+| ~~Exhaust_Fans.xlsx~~ | RESOLVED: approved and seeded as form 21. Ratified precedents from this review: (a) per-damper/per-component check matrices extract as grids — grid-cell checks not auto-creating findings is an accepted known semantic edge, not a defect; (b) Start-Up items appearing on the Static Verification sheet itself are kept (MAU/EF pattern) — faithful to source over sheet-name purism. |
 
 Supporting evidence for the Pump quarantine, found later in the batch: the FD Boiler
 sheet spells the same checks in full ("INSTALLED AS PER DRAWINGS AND SPECIFICATIONS" /
