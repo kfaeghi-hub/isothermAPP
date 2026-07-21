@@ -146,7 +146,7 @@ function labelsMatch(src, extracted) {
 // cell index -> pseudo-columns A,B,C… Word grammar auto-skips: repeating page
 // headers and floating column-label paragraphs.
 async function readDocxBlocks(file) {
-  const { docBlocks } = await import('./out/dump-doc.mjs')
+  const { docBlocks } = await import('./dump-doc.mjs')
   const COLS = 'ABCDEFGHIJKLMNOP'
   const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|REMARKS:)/i
   const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+)$/i
