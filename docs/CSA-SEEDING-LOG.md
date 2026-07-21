@@ -218,3 +218,12 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 | 140 | Sprinkler Piping System Verification Checklist | ivc/- (fallback) | ecb6ebcb | 1 | 0 | 1 | 6 | PASS |
 | 141 | Standpipe System Installation Verification Checklist | ivc/- (fallback) | 7dc9949c | 2 | 10 | 1 | 6 | PASS |
 | 142 | Water Supply Systems Overview Verification Checklist | ivc/- (fallback) | 62af0649 | 8 | 25 | 0 | 6 | PASS (Resevoir typo cleaned) |
+| 143 | Air Handling Unit Controls Verification Checklist | ivc/- (fallback) | 7d3927a3 | 2 | 13 | 0 | 6 | PASS |
+| 144 | CCS Alarm Printer Verification Checklist | ivc/- (fallback) | 292f9797 | 2 | 7 | 1 | 6 | PASS |
+| 145 | Chilled Water Controls Verification Checklist | ivc/- (fallback) | c540b69a | 2 | 16 | 0 | 6 | PASS (per-unit fill-ins retained) |
+| 146 | Building Control Field Panel Verification Checklist | ivc/- (fallback) | 9fb023b0 | 2 | 9 | 1 | 6 | PASS (screened distinct from Excel DDC/Pneumatic panels) |
+| 147 | Control System Software Verification Checklist | ivc/- (fallback) | 574d406f | 1 | 16 | 0 | 6 | PASS |
+| 148 | Emergency Power Control System Verification Checklist | ivc/- (fallback) | 6fafcb43 | 1 | 21 | 0 | 6 | PASS (hospital staged sequence; Life Safety categories) |
+| 149 | Hot Water Heating System Controls Verification Checklist | ivc/- (fallback) | 5a9fe4b6 | 3 | 13 | 0 | 6 | PASS |
+| 150 | CCS Modem Verification Checklist | ivc/- (fallback) | 8b447d8d | 2 | 11 | 1 | 6 | PASS |
+| 151 | CCS Report Printer Verification Checklist | ivc/- (fallback) | 02cf8e23 | 2 | 9 | 1 | 6 | PASS |

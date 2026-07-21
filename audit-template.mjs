@@ -148,7 +148,7 @@ function labelsMatch(src, extracted) {
 async function readDocxBlocks(file) {
   const { docBlocks } = await import('./dump-doc.mjs')
   const COLS = 'ABCDEFGHIJKLMNOP'
-  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|REMARKS:)/i
+  const PAGE_HDR = /^(PROJECT NAME|FILE NO\.?|VERIFICATION PROGRAM|SUBJECT:|SERVICE:|EQUIPMENT:|DESCRIPTION:|REMARKS:)/i
   const FLOAT_COL = /^(SPECIFIED|SHOP DRAWINGS|INSTALLED|STATUS|COMMENTS|NO\.\s*\d+|OPERATIONAL CHECKS|DATE:?|ROOM NO\.?|\/+)$/i
   return docBlocks(file)
     .filter(b => b.cells.some(c => c && c.trim()))
