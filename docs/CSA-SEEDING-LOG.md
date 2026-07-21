@@ -137,3 +137,6 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 | 74 | Medium Voltage Vacuum Circuit Breaker Installation Verification Checklist | ivc/- (fallback) | 3602cd19 | 4 | 12 | 8 | 2 | PASS (contact-measurement region -> three grids) |
 | 75 | Medium Voltage Motor Starter Installation Verification Checklist | ivc/- (fallback) | 48f8e89b | 5 | 15 | 8 | 2 | PASS |
 
+| 76 | Metal Enclosed Busway Installation Verification Checklist | ivc/- (fallback) | 5cd3f4c7 | 4 | 10 | 5 | 2 | PASS |
+| 77 | Overcurrent Relay Installation Verification Checklist | ivc/- (fallback) | 75d57358 | 4 | 18 | 4 | 2 | PASS (paired two-column checklist -> two item sections; relay test tables -> grids) |
+
