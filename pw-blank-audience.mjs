@@ -35,17 +35,15 @@ function docxXml(buf) {
   return ''
 }
 
-function pdfText(buf) {
+/** Real text extraction via pdf.js — the crude flate-stream probe misses
+ *  subset-font glyphs (known false negatives in pw-checklist-docs). */
+async function pdfText(buf) {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), disableWorker: true }).promise
   let text = ''
-  let i = 0
-  while ((i = buf.indexOf('stream', i)) !== -1) {
-    let s = i + 6
-    if (buf[s] === 0x0d) s++
-    if (buf[s] === 0x0a) s++
-    const end = buf.indexOf('endstream', s)
-    if (end === -1) break
-    try { text += inflateRawSync(buf.subarray(s + 2, end)).toString('latin1') } catch { /* not flate */ }
-    i = end + 9
+  for (let p = 1; p <= doc.numPages; p++) {
+    const tc = await (await doc.getPage(p)).getTextContent()
+    text += tc.items.map(i => i.str).join(' ') + '\n'
   }
   return text
 }
@@ -78,14 +76,13 @@ for (const audience of ['field', 'contractor']) {
   writeFileSync(`out/blank-${audience}.docx`, docx)
 
   const txt  = docxXml(docx).replace(/<[^>]+>/g, ' ')
-  const ptxt = pdfText(pdf)
+  const ptxt = await pdfText(pdf)
 
   if (audience === 'contractor') {
     check(txt.includes(BANNER), 'contractor.docx: banner with return instruction PRESENT')
     check(!txt.includes('FIELD COPY'), 'contractor.docx: no FIELD COPY subtitle')
     check(/Company:\s+_+/.test(txt), 'contractor.docx: Company is a blank line')
-    check(ptxt.includes('FOR CONTRACTOR USE') || pdf.includes('FOR CONTRACTOR USE'),
-      'contractor.pdf: banner text present')
+    check(ptxt.includes('FOR CONTRACTOR USE'), 'contractor.pdf: banner text present')
   } else {
     check(!txt.includes(BANNER), 'field.docx: NO contractor banner / return instruction')
     check(txt.includes('FIELD COPY'), 'field.docx: FIELD COPY subtitle')
@@ -93,8 +90,7 @@ for (const audience of ['field', 'contractor']) {
       'field.docx: Company prefilled "Isotherm Engineering Ltd."')
     check(/Name:\s+_+/.test(txt) && /Date:\s+_+/.test(txt),
       'field.docx: Name/Date left blank for handwriting')
-    check(!ptxt.includes('FOR CONTRACTOR USE') && !pdf.includes('FOR CONTRACTOR USE'),
-      'field.pdf: banner text absent')
+    check(!ptxt.includes('FOR CONTRACTOR USE'), 'field.pdf: banner text absent')
   }
 }
 
