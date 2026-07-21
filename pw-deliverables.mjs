@@ -32,8 +32,28 @@ const zzId = ids.find(p => p.name === TEST_PROJECT)?.id
 const leedId = ids.find(p => p.name === LEED_PROJECT)?.id
 if (!zzId || !leedId) { console.error('ZZ-TEST family projects not found'); process.exit(1) }
 
+// Pre-clean (self-healing): a prior failed run may have left rows/state behind.
+await sql(`delete from project_deliverables where project_id='${zzId}'`)
+await sql(`delete from project_deliverables where project_id='${leedId}' and template_id in
+  (select id from deliverable_templates where name like 'Envelope %' or name in ('Design Review','Design Review Backcheck'))`)
+await sql(`delete from project_classifications where project_id='${leedId}' and option_id in
+  (select id from classification_options where label='LEED Envelope Cx (BECx)')`)
+await sql(`update classification_options set active=false where label='LEED Envelope Cx (BECx)'`)
+await sql(`update deliverable_templates set active=false where name like 'Envelope %'`)
+
 const browser = await chromium.launch()
-const page = await (await browser.newContext()).newPage()
+let context = await browser.newContext()
+let page = await context.newPage()
+
+// loginAs assumes a signed-out session — each login gets a FRESH context.
+async function newSession(creds) {
+  await context.close()
+  context = await browser.newContext()
+  page = await context.newPage()
+  await page.setViewportSize({ width: 1500, height: 1000 })
+  page.on('dialog', d => d.accept())
+  await loginAs(page, creds)
+}
 await page.setViewportSize({ width: 1500, height: 1000 })
 page.on('dialog', d => d.accept())
 
@@ -135,7 +155,7 @@ if (!live) { await browser.close(); process.exit(1) }
 
 // ── B: dev.test sees it in the Attention Queue + My Items ───────────────────
 {
-  await loginAs(page, credentials())
+  await newSession(credentials())
   await page.waitForTimeout(2000)
   check(await page.getByText('DELIVERABLE').count() > 0, 'Attention Queue shows a DELIVERABLE row')
   check(await page.getByText(`${ADHOC_NAME} overdue`).count() > 0, 'overdue deliverable named in the queue')
@@ -144,19 +164,21 @@ if (!live) { await browser.close(); process.exit(1) }
 }
 
 // ── C: Envelope activation → 6-row compose delta on ZZ-TEST-LEED ────────────
-await loginAs(page, adminCredentials())
+await newSession(adminCredentials())
 {
-  // First: the seed-delta re-sync (Design Review + Backcheck now map to Enhanced)
+  // Activate the dormant Envelope option + templates BEFORE the page loads its
+  // classification config (sign-off 4: activation within the test).
+  await sql(`update classification_options set active=true where label='LEED Envelope Cx (BECx)'`)
+  await sql(`update deliverable_templates set active=true where name like 'Envelope %'`)
+
+  // First: the seed-delta re-sync (Design Review + Backcheck now map to Enhanced).
+  // The envelope option is active but NOT selected — it must not compose yet.
   await openProjectTab('ZZ-TEST-LEED', 'Deliverables')
   const pre = await composePreviewNames()
   check(pre.names.length === 2 && pre.names.includes('Design Review') && pre.names.includes('Design Review Backcheck'),
     `LEED re-sync offers exactly the 2 Enhanced seed-delta rows (got: ${pre.names.join(', ')})`)
   await pre.modal.getByRole('button', { name: /^Add \d+$/ }).click()
   await page.waitForTimeout(1500)
-
-  // Activate the dormant Envelope option + its 6 templates (sign-off 4: within the test)
-  await sql(`update classification_options set active=true where label='LEED Envelope Cx (BECx)'`)
-  await sql(`update deliverable_templates set active=true where name like 'Envelope %'`)
 
   // Select the option on the project (Edit Project modal pill)
   await page.getByRole('button', { name: 'Edit Project' }).click()

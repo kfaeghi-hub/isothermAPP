@@ -120,7 +120,10 @@ try {
   // Overview stat header (same-derivation proof surface)
   await page.goto(page.url().split('?')[0])
   await page.waitForTimeout(2000)
+  // The header renders ~3s after a cold navigation (stats fetch behind auth) —
+  // auto-wait instead of racing a fixed count() snapshot.
   const header = page.locator('[data-testid="project-stat-header"]')
+  await header.waitFor({ timeout: 15000 }).catch(() => {})
   check(await header.count() === 1, 'project Overview stat header renders')
   // innerText returns RENDERED text — the label is CSS-uppercased.
   check(/open findings/i.test(await header.innerText()), 'stat header shows Open Findings')

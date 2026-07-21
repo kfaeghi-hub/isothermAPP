@@ -1,8 +1,12 @@
 # Deliverables Tab — Proposal (Phase 2 close-out)
 
-Status: **awaiting Tony's approval** — no code until sign-off. Proposed 2026-07-21.
-Sign-off items flagged at the end. Companion to the existing composition machinery
-(deliverable_templates pool, option_deliverable_defaults, creation-time composition).
+Status: **APPROVED AND BUILT — 2026-07-21.** All four sign-offs resolved: (1) enum
+swapped with formal mapping; (2) snapshot-to-ad-hoc pool-delete fix; (3) OPR & BoD
+stays combined; (4) Envelope option + 6 templates seeded DORMANT (active=false) —
+activation is two admin toggles + compose when a BECx project is awarded. Reorder is
+up/down arrows (team-matrix precedent). Proof: pw-deliverables.mjs 22/22 (incl.
+run-twice idempotency and the activate→6-row-delta→deactivate Envelope case) +
+pw-dashboard re-run green. The section below is the as-approved proposal.
 
 ## 1 · Current table shape (as it actually exists)
 
