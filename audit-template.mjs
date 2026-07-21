@@ -146,6 +146,13 @@ try {
   })
   const isSkipped = r => skipRanges.some(([lo, hi]) => r >= lo && r <= hi)
 
+  // Ruled 2026-07-20: orphan fragment rows merge upward into their preceding
+  // partial row — never seeded as standalone items. JSONs declare them in
+  // _extraction.merged_rows: [{row:"R28", into:"R27", fragment:"RECOMMENDED"}].
+  const mergedRows = (t._extraction.merged_rows ?? [])
+  const mergedRowNums = new Set(mergedRows.map(m => Number(String(m.row).replace(/^R/, ''))))
+  const fragments = mergedRows.map(m => norm(m.fragment ?? ''))
+
   const sectionTitles = t.sections.map(s => s.title)
   const items = t.sections.flatMap(s => (s.items ?? []).map(i => ({ ...i, _sec: s.title, _used: false })))
   const grids = t.sections.flatMap(s => (s.grids ?? []).map(g => ({ ...g, _sec: s.title })))
@@ -153,9 +160,22 @@ try {
   const gridComposites = grids.flatMap(g =>
     g.definition.columns.flatMap(c => g.definition.rows.map(r => ({ label: `${c.label} ${r.label}`, grid: g.title }))))
 
+  // Fragment rule: no item may BE a bare logged fragment, and every merged row's
+  // fragment text must appear inside some item label (it merged, not vanished).
+  {
+    const allItems = t.sections.flatMap(s => s.items ?? [])
+    const bare = allItems.filter(i => fragments.includes(norm(i.label)))
+    check(bare.length === 0, `no fragment seeded as a standalone item (${bare.length} found)`)
+    const lost = mergedRows.filter(m => m.fragment
+      && !allItems.some(i => norm(i.label).includes(norm(m.fragment))))
+    check(lost.length === 0, `every merged fragment survives inside an item label (${lost.length} lost)`)
+    lost.forEach(m => console.log(`         · ${m.row} "${m.fragment}"`))
+  }
+
   const unmatched = []
   for (const row of rows) {
     if (isSkipped(row.r)) continue
+    if (mergedRowNums.has(row.r)) continue // fragment rows merge upward — accounted for
     const label = row.cells.A ?? Object.values(row.cells)[0]
     if (!label) continue
     // Component/section headers: row also carries SPECIFIED or STATUS or NO. N column headers
@@ -209,7 +229,8 @@ try {
 
   // Reverse: no invented items / grid rows
   const srcLabels = rows.filter(r => !isSkipped(r.r)).map(r => r.cells.A ?? Object.values(r.cells)[0]).filter(Boolean)
-  const inventedItems = items.filter(i => !srcLabels.some(sl => labelsMatch(sl, i.label)))
+  const inventedItems = items.filter(i => !srcLabels.some(sl => labelsMatch(sl, i.label))
+    && !fragments.some(f => f && norm(i.label).includes(f)))
   check(inventedItems.length === 0, `every item traces to a source row (${inventedItems.length} unexplained)`)
   inventedItems.forEach(i => console.log(`         · item "${i.label}"`))
   const inventedRows = gridRowLabels.filter(g => !srcLabels.some(sl => labelsMatch(sl, g.label))

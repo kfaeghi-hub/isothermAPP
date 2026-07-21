@@ -23,13 +23,14 @@ forms are skipped and logged below, never force-fit.
 | 7 | Cooling Tower Installation Verification Checklist | ivc/cooling_tower | a11c3fc7 | 2 | 39 | 1 | 2 | PASS |
 | 8 | Variable Air Volume Box Installation Verification Checklist | ivc/— (fallback) | 9fe6dd96 | 3 | 17 | 1 | 2 | PASS |
 | 9 | Constant Air Volume Box Installation Verification Checklist | ivc/— (fallback) | 64311bf6 | 4 | 17 | 1 | 2 | PASS |
+| 10 | Pump Installation Verification Checklist | ivc/pump | 05016509 | 3 | 28 | 2 | 2 | PASS (quarantine lifted by ruling; fragment merges logged in _extraction.merged_rows) |
 
 ## Quarantine list
 
 | Form | Reason |
 |---|---|
-| Pump.xlsx | 4 item rows with fragmentary labels (R22 "SPECIFICATIONS", R23 "RECOMMENDATIONS", R28 "RECOMMENDED", R30 "OF FLOW CORRECT") — each structurally an independent item row (own status/comments cells, no cross-row merges); intended wording unrecoverable without human read of the source layout. |
-| Exhaust_Fans.xlsx | Compound multi-equipment sheet: three separate nameplate blocks, a MOTORIZED DAMPER NO.1–3 status matrix whose first rows read as per-damper identity values, and a duplicated 7-item damper bank (R98–104 = R105–111) with no distinguishing labels. Mapping requires guessing. |
+| ~~Pump.xlsx~~ | RESOLVED by ruling 2026-07-20: fragments are wrapped-label continuations, merged upward with logged reconstruction (FD Boiler phrasing as reference). Seeded as form 10. Harness now enforces the merge-upward rule (merged_rows + no-bare-fragment checks). |
+| Exhaust_Fans.xlsx | Ruling 2026-07-20: re-extracted with unit-matrix learnings (fan checks → per-target items; per-damper checks → No. 1–3 grid; duplicated bank deduped, logged). Static audit PASS. First compound sheet — JSON awaiting Tony's pre-seed review; seeds on approval. |
 
 Supporting evidence for the Pump quarantine, found later in the batch: the FD Boiler
 sheet spells the same checks in full ("INSTALLED AS PER DRAWINGS AND SPECIFICATIONS" /
