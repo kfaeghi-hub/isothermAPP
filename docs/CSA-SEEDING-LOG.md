@@ -24,6 +24,8 @@ forms are skipped and logged below, never force-fit.
 | 8 | Variable Air Volume Box Installation Verification Checklist | ivc/— (fallback) | 9fe6dd96 | 3 | 17 | 1 | 2 | PASS |
 | 9 | Constant Air Volume Box Installation Verification Checklist | ivc/— (fallback) | 64311bf6 | 4 | 17 | 1 | 2 | PASS |
 | 10 | Pump Installation Verification Checklist | ivc/pump | 05016509 | 3 | 28 | 2 | 2 | PASS (quarantine lifted by ruling; fragment merges logged in _extraction.merged_rows) |
+| 11 | Fan Powered Box Installation Verification Checklist | ivc/— (fallback) | a574eb8f | 4 | 20 | 1 | 2 | PASS (source "CAV box" copy artifact cleaned to "Box", logged) |
+| 12 | Reheat Coil Installation Verification Checklist | ivc/— (fallback) | 8f65bebf | 2 | 13 | 0 | 2 | PASS (no component rows in source — first zero-grid template) |
 
 ## Quarantine list
 
