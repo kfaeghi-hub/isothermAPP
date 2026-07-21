@@ -290,6 +290,9 @@ interface DocData {
   // Blank-mode audience: 'field' = internal Field Copy (no banner, Isotherm company
   // prefilled); 'contractor' = the hand-out treatment. Ignored in completed mode.
   audience:       'field' | 'contractor'
+  // Template-level render flag. 'check_table' = transposed fleet record (units as
+  // rows, items as numbered columns, landscape, chunked). Null = standard layout.
+  renderMode:     string | null
 }
 
 /** Legend wording depends on the checklist type. */
@@ -315,6 +318,199 @@ function linkedFindings(findingMap: DocData['findingMap']) {
   return [...seen.values()].sort((a, b) =>
     Number(a.number ?? 0) - Number(b.number ?? 0))
 }
+
+// ── Check-table HTML builder (PDF path, render_mode='check_table') ─────────────
+// Transposed fleet record: rows = instance targets (units), columns = the items,
+// numbered 1..N in section order. Landscape; when the fleet's checks exceed one
+// page width the item columns CHUNK across pages with the unit-tag column
+// repeated per chunk. A procedures-key legend (item number -> label + hint)
+// precedes the matrix, reproducing the source's Instructions sheet. Completed
+// cells render status + response date (N red per convention), never date alone.
+
+const CT_CHUNK = 9 // item columns per landscape chunk (tag column repeated)
+
+function buildCheckTableHtml(d: DocData): string {
+  const { instance, project, responseTargets, sections, items, signoffs,
+          responseMap, findingMap, mode, audience } = d
+
+  // Items numbered 1..N in section order, each carrying its section title.
+  const ordered: { item: any; n: number; secTitle: string }[] = []
+  let n = 0
+  for (const section of sections) {
+    for (const item of items.filter(i => i.section_id === section.id)) {
+      ordered.push({ item, n: ++n, secTitle: section.title })
+    }
+  }
+
+  // Procedures key (legend) — number, label, hint.
+  const keyRows = ordered.map(o => `
+    <tr><td class="ctk-n">${o.n}</td><td><b>${esc(o.item.label)}</b>${o.item.hint ? `<div class="hint">${esc(o.item.hint)}</div>` : ''}</td></tr>`).join('')
+
+  // Matrix chunks.
+  const chunks: typeof ordered[] = []
+  for (let i = 0; i < ordered.length; i += CT_CHUNK) chunks.push(ordered.slice(i, i + CT_CHUNK))
+
+  const cellFor = (o: { item: any; n: number }, t: any): string => {
+    if (mode === 'blank') return `<td class="ct-cell"></td>`
+    const r = responseMap[rKey(o.item.id, t.id)]
+    const st = r?.status ?? null
+    const date = isoShort(r?.updated_at ?? r?.created_at)
+    const fnd = findingMap[rKey(o.item.id, t.id)]
+    if (!st) return `<td class="ct-cell"><span class="empty-dash">—</span></td>`
+    return `<td class="ct-cell"><span class="${stClass(st)}">${esc(stLabel(st))}</span>` +
+           `${date ? `<div class="ct-date">${esc(date)}</div>` : ''}` +
+           `${fnd ? `<div class="fnd">→ #${esc(fnd.number ?? '?')}</div>` : ''}</td>`
+  }
+
+  const matrixHtml = chunks.map((chunk, ci) => {
+    // Section band: colspan runs over this chunk's columns per section.
+    const bands: { title: string; span: number }[] = []
+    for (const o of chunk) {
+      const last = bands[bands.length - 1]
+      if (last && last.title === o.secTitle) last.span++
+      else bands.push({ title: o.secTitle, span: 1 })
+    }
+    const bandThs = bands.map(b => `<th class="ct-band" colspan="${b.span}">${esc(b.title)}</th>`).join('')
+    const colThs = chunk.map(o =>
+      `<th class="ct-col"><div class="ct-num">${o.n}</div><div class="ct-lbl">${esc(o.item.label)}</div></th>`).join('')
+    const bodyRows = responseTargets.map(t => {
+      const tag = esc(t.equipment?.tag ?? t.equipment?.descriptor ?? '?')
+      return `<tr class="ct-row"><td class="ct-tag">${tag}</td>${chunk.map(o => cellFor(o, t)).join('')}</tr>`
+    }).join('\n')
+    const w = 84 / chunk.length
+    return `
+  <h2 class="sec">Checkout Record${chunks.length > 1 ? ` — Columns ${chunk[0].n}–${chunk[chunk.length - 1].n} of ${ordered.length}` : ''}</h2>
+  <table class="ct">
+    ${colgroup([16, ...Array(chunk.length).fill(w)])}
+    <thead>
+      <tr><th class="lh" rowspan="3">Unit Tag</th>${bandThs}</tr>
+      <tr>${colThs}</tr>
+      <tr>${chunk.map(() => `<th class="ct-sub">${mode === 'blank' ? 'Status / Date' : ''}</th>`).join('')}</tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+  ${ci < chunks.length - 1 ? '<div class="ct-break"></div>' : ''}`
+  }).join('\n')
+
+  // Header block (same conventions as the standard layout).
+  const blankLine = `<span class="hdr-line"></span>`
+  const rightRows = mode === 'blank'
+    ? (audience === 'field'
+        ? [['Name', blankLine], ['Company', `<span class="hdr-val">Isotherm Engineering Ltd.</span>`], ['Email', blankLine], ['Phone', blankLine], ['Date', blankLine]]
+        : [['Name', blankLine], ['Company', blankLine], ['Email', blankLine], ['Phone', blankLine], ['Date', blankLine]])
+    : [
+        ['Name',    `<span class="hdr-val">${esc(instance.completed_by ?? instance.authored_by ?? '')}</span>`],
+        ['Company', `<span class="hdr-val">Isotherm Engineering Ltd.</span>`],
+        ['Email',   `<span class="hdr-val">${FIRM_EMAIL}</span>`],
+        ['Phone',   `<span class="hdr-val">${FIRM_PHONE}</span>`],
+        ['Date',    `<span class="hdr-val">${esc(isoShort(instance.completed_at ?? instance.date_performed))}</span>`],
+      ]
+  const leftRows = [
+    ['Customer',        esc(project?.companies?.name ?? project?.companies?.abbreviation ?? '—')],
+    ['Project',         esc(project?.name ?? '—')],
+    ['Project Address', esc(project?.address ?? '—')],
+    ['Project #',       esc(project?.com_number ?? '—')],
+  ].map(([l, v]) => `<div><span class="hdr-lbl">${l}:</span> <span class="hdr-val">${v}</span></div>`).join('')
+  const rightHtml = rightRows.map(([l, v]) => `<div><span class="hdr-lbl">${l}:</span> ${v}</div>`).join('')
+
+  const modeSubtitle = mode === 'blank'
+    ? (audience === 'field' ? 'FIELD COPY' : 'BLANK FORM — FOR CONTRACTOR USE')
+    : `COMPLETED${instance.completed_at ? ' · ' + isoShort(instance.completed_at) : ''}`
+
+  const findings = mode === 'blank' ? [] : linkedFindings(findingMap)
+  const findingsHtml = findings.length === 0 ? '' : `
+  <h2 class="sec">Linked Findings</h2>
+  <table>
+    ${colgroup([12, 88])}
+    <thead><tr><th class="lh">Finding</th><th class="lh">Title</th></tr></thead>
+    <tbody>${findings.map(f =>
+      `<tr><td style="font-weight:700;color:#C0392B;">#${esc(f.number ?? '?')}</td><td>${esc(f.title ?? '')}</td></tr>`
+    ).join('\n')}</tbody>
+  </table>`
+
+  const signoffRows = signoffs.map(s => {
+    const nameCompany = mode === 'blank' ? '' : [s.signer_name, s.signer_company].filter(Boolean).join(' / ')
+    const date = mode === 'blank' ? '' : isoShort(s.signed_at)
+    return `<tr>
+      <td class="so-role">${esc(s.role_label_snapshot)}</td>
+      <td>${dashOr(mode, nameCompany)}</td>
+      <td></td>
+      <td style="font-family:monospace;font-size:8pt;">${dashOr(mode, date)}</td>
+    </tr>`
+  }).join('\n')
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>${CSS}${CT_CSS}</style></head>
+<body class="mode-${mode}">
+<div class="page">
+
+  <div class="firm">
+    <h1>${FIRM_NAME}</h1>
+    <div class="addr">${FIRM_ADDR} &nbsp;&bull;&nbsp; ${FIRM_PHONE} &nbsp;&bull;&nbsp; ${FIRM_EMAIL}</div>
+  </div>
+  <div class="brandrule"></div>
+
+  ${mode === 'blank' && audience === 'contractor' ? `<div class="blank-notice">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</div>` : ''}
+
+  <div class="title-legend">
+    <div class="tl-title">
+      <div class="cl-name">${esc(instance.source_template_name_snapshot)}</div>
+      <div class="cl-sub">${esc(instance.source_template_type_snapshot?.toUpperCase())} &nbsp;&bull;&nbsp; FLEET CHECKOUT RECORD &nbsp;&bull;&nbsp; ${esc(modeSubtitle)}</div>
+    </div>
+    <div class="tl-legend">
+      <div class="lg-hdr">LEGEND</div>
+      ${legendLines(instance).map(esc).join('<br>')}
+    </div>
+  </div>
+
+  <table class="hdr-tbl" style="margin-top:10px;">
+    ${colgroup([50, 50])}
+    <tbody><tr><td>${leftRows}</td><td>${rightHtml}</td></tr></tbody>
+  </table>
+
+  <h2 class="sec">Checkout Procedures and Key</h2>
+  <div class="ct-keynote">Each numbered column of the checkout record refers to the procedure below. In each cell, record the check's status and completion date.</div>
+  <table>
+    ${colgroup([6, 94])}
+    <tbody>${keyRows}</tbody>
+  </table>
+
+  <div class="ct-break"></div>
+
+  ${matrixHtml}
+
+  ${findingsHtml}
+
+  ${signoffs.length > 0 ? `
+  <h2 class="sec">Sign-offs</h2>
+  <table>
+    ${colgroup([28, 34, 22, 16])}
+    <thead>
+      <tr><th class="lh">Position / Title</th><th class="lh">Name / Company</th><th class="lh">Signature</th><th class="lh">Date</th></tr>
+    </thead>
+    <tbody>${signoffRows}</tbody>
+  </table>` : ''}
+
+</div>
+</body></html>`
+}
+
+const CT_CSS = `
+  @page { size: letter landscape; }
+  .ct { table-layout: fixed; width: 100%; }
+  .ct-band { background: #DCE6F1; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 2px; border: 1px solid #B9C6D6; }
+  .ct-col { vertical-align: bottom; padding: 3px 2px; border: 1px solid #ccc; background: #F2F5F8; }
+  .ct-num { font-size: 9pt; font-weight: 700; }
+  .ct-lbl { font-size: 6.4pt; font-weight: 600; line-height: 1.25; word-wrap: break-word; }
+  .ct-sub { font-size: 6pt; color: #999; font-weight: 400; border: 1px solid #ccc; padding: 1px; }
+  .ct-tag { font-weight: 700; font-size: 8pt; padding: 3px 4px; border: 1px solid #ccc; background: #FAFBFC; }
+  .ct-cell { text-align: center; padding: 2px; border: 1px solid #ccc; font-size: 8pt; min-height: 18px; }
+  .ct-date { font-size: 6pt; color: #666; font-family: monospace; }
+  .ct-row { page-break-inside: avoid; }
+  .ct-break { page-break-after: always; }
+  .ct-keynote { font-size: 8pt; color: #555; margin: 4px 0 6px; }
+  .ctk-n { font-weight: 700; text-align: center; }
+`
 
 // ── HTML builder (PDF path) ────────────────────────────────────────────────────
 
@@ -816,7 +1012,7 @@ ${signoffs.length > 0 ? `
 // Footer via displayHeaderFooter (NOT position:fixed, which clips rows at page breaks).
 // top: 0.5in gives continuation pages their margin.
 
-async function toPdf(html: string): Promise<Buffer> {
+async function toPdf(html: string, landscape = false): Promise<Buffer> {
   const execPath = await chromium.executablePath(CHROMIUM_PACK_URL)
   const browser  = await puppeteer.launch({
     args: chromium.args,
@@ -829,6 +1025,7 @@ async function toPdf(html: string): Promise<Buffer> {
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
     const pdf = await page.pdf({
       format: 'letter',
+      landscape,
       printBackground: true,
       margin: { top: '0.5in', right: '0', bottom: '0.55in', left: '0' },
       displayHeaderFooter: true,
@@ -861,6 +1058,41 @@ async function toDocx(html: string): Promise<Buffer> {
     header:  false,
   })
   return Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
+}
+
+// ── Check-table DOCX (attempted-but-optional per the gate verdict) ─────────────
+// The transposed matrix is a wide fixed table html-to-docx may fight; if it
+// throws, the caller ships PDF-only with a note rather than failing the render.
+
+function buildCheckTableDocxHtml(d: DocData): string {
+  const { instance, project, responseTargets, sections, items, responseMap, mode } = d
+  const T  = 'style="width:100%;border-collapse:collapse;font-size:7pt;"'
+  const TH = 'style="border:1px solid #999;background:#eef2f6;font-size:6.5pt;padding:2px;"'
+  const TD = 'style="border:1px solid #999;padding:2px;text-align:center;"'
+  const ordered: { item: any; n: number }[] = []
+  let n = 0
+  for (const section of sections)
+    for (const item of items.filter(i => i.section_id === section.id)) ordered.push({ item, n: ++n })
+  const keyRows = ordered.map(o =>
+    `<tr><td ${TD}><b>${o.n}</b></td><td style="border:1px solid #999;padding:2px;">${esc(o.item.label)}${o.item.hint ? ` — <i>${esc(o.item.hint)}</i>` : ''}</td></tr>`).join('')
+  const headRow = `<tr><th ${TH}>Unit Tag</th>${ordered.map(o => `<th ${TH}>${o.n}</th>`).join('')}</tr>`
+  const bodyRows = responseTargets.map(t => {
+    const cells = ordered.map(o => {
+      if (mode === 'blank') return `<td ${TD}></td>`
+      const r = responseMap[rKey(o.item.id, t.id)]
+      const st = r?.status ?? null
+      const date = isoShort(r?.updated_at ?? r?.created_at)
+      return `<td ${TD}>${st ? `<span style="${stInline(st)}">${esc(stLabel(st))}</span>${date ? `<br><span style="font-size:5.5pt;color:#666;">${esc(date)}</span>` : ''}` : ''}</td>`
+    }).join('')
+    return `<tr><td style="border:1px solid #999;padding:2px;font-weight:bold;">${esc(t.equipment?.tag ?? '?')}</td>${cells}</tr>`
+  }).join('\n')
+  return `
+  <h1 style="font-size:13pt;">${esc(instance.source_template_name_snapshot)}</h1>
+  <p style="font-size:8pt;">${esc(project?.name ?? '')} — Fleet Checkout Record (${responseTargets.length} units)</p>
+  <h2 style="font-size:10pt;">Checkout Procedures and Key</h2>
+  <table ${T}><tbody>${keyRows}</tbody></table>
+  <h2 style="font-size:10pt;">Checkout Record</h2>
+  <table ${T}><thead>${headRow}</thead><tbody>${bodyRows}</tbody></table>`
 }
 
 // ── Vercel serverless handler ──────────────────────────────────────────────────
@@ -980,64 +1212,90 @@ export default async function handler(req: any, res: any) {
     const audience: 'field' | 'contractor' =
       audienceParam ?? (instance.type === 'ivc' ? 'field' : 'contractor')
 
+    // Template render flag (check_table = transposed fleet record).
+    let renderMode: string | null = null
+    if (instance.source_template_id) {
+      const { data: tmplRow } = await supabase
+        .from('checklist_templates').select('render_mode')
+        .eq('id', instance.source_template_id).single()
+      renderMode = tmplRow?.render_mode ?? null
+    }
+
     const docData: DocData = {
       instance, project, responseTargets, sections, items, grids, signoffs, fieldDefs,
       responseMap, gridRespMap, findingMap, mode: mode as 'completed' | 'blank',
-      audience,
+      audience, renderMode,
     }
 
     // ── Integrity guard: no dropped nameplate rows (same rule as the site report) ──
     const { rows: npRows, usedFallback } = buildNameplate(
       responseTargets, instance.nameplate_snapshot ?? null, mode as any, fieldDefs,
     )
-    const pdfHtml  = buildChecklistHtml(docData)
-    const docxHtml = buildChecklistDocxHtml(docData)
+    const isCheckTable = renderMode === 'check_table'
+    const pdfHtml  = isCheckTable ? buildCheckTableHtml(docData)     : buildChecklistHtml(docData)
+    const docxHtml = isCheckTable ? buildCheckTableDocxHtml(docData) : buildChecklistDocxHtml(docData)
 
     // Count the np-row markers actually emitted — the bug this guards against is the
-    // nameplate silently collapsing to a bare header row.
+    // nameplate silently collapsing to a bare header row. Check-table mode has no
+    // nameplate (fleet unit data lives on the register): the guard is standard-only.
     const expectedNpRows = npRows.length
     const pdfNpRows      = (pdfHtml.match(/class="np-row"/g)  ?? []).length
     const docxNpRows     = (docxHtml.match(/class="np-row"/g) ?? []).length
     const gridRowCount   = grids.reduce((s, g) => s + (g.definition.rows?.length ?? 0), 0)
 
-    if (expectedNpRows === 0)
-      console.error('[checklist] FATAL: nameplate resolved to 0 rows — the table would print empty')
-    if (pdfNpRows !== expectedNpRows || docxNpRows !== expectedNpRows)
-      console.error(
-        `[checklist] NAMEPLATE ROW MISMATCH: expected ${expectedNpRows}, ` +
-        `pdf ${pdfNpRows}, docx ${docxNpRows}`,
-      )
+    if (!isCheckTable) {
+      if (expectedNpRows === 0)
+        console.error('[checklist] FATAL: nameplate resolved to 0 rows — the table would print empty')
+      if (pdfNpRows !== expectedNpRows || docxNpRows !== expectedNpRows)
+        console.error(
+          `[checklist] NAMEPLATE ROW MISMATCH: expected ${expectedNpRows}, ` +
+          `pdf ${pdfNpRows}, docx ${docxNpRows}`,
+        )
+    }
 
     console.log(
-      `[checklist] instance=${instance_id} mode=${mode} units=${responseTargets.length} ` +
-      `items=${items.length} gridRows=${gridRowCount} npRows=${expectedNpRows} ` +
-      `(pdf ${pdfNpRows} / docx ${docxNpRows}) fieldDefs=${fieldDefs.length} ` +
+      `[checklist] instance=${instance_id} mode=${mode} render=${renderMode ?? 'standard'} ` +
+      `units=${responseTargets.length} items=${items.length} gridRows=${gridRowCount} ` +
+      `npRows=${expectedNpRows} (pdf ${pdfNpRows} / docx ${docxNpRows}) fieldDefs=${fieldDefs.length} ` +
       `fallback=${usedFallback} findings=${Object.keys(findingMap).length}`,
     )
 
-    const [pdfBuffer, docxBuffer] = await Promise.all([toPdf(pdfHtml), toDocx(docxHtml)])
+    // DOCX is required in standard mode; attempted-but-optional for check_table
+    // (gate verdict): if html-to-docx fights the transposed table, ship PDF-only.
+    const pdfBuffer = await toPdf(pdfHtml, isCheckTable)
+    let docxBuffer: Buffer | null = null
+    try {
+      docxBuffer = await toDocx(docxHtml)
+    } catch (docxErr: any) {
+      if (!isCheckTable) throw docxErr
+      console.warn(`[checklist] check_table DOCX failed (shipping PDF-only): ${docxErr.message}`)
+    }
 
     const store = supabase.storage.from('checklists')
     // Blank variants coexist per audience (field copy vs contractor hand-out).
     const base  = `${instance.project_id}/${instance_id}/${mode === 'blank' ? `blank-${audience}` : mode}`
-    const [docxUp, pdfUp] = await Promise.all([
-      store.upload(`${base}.docx`, docxBuffer, {
+    const pdfUp = await store.upload(`${base}.pdf`, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+    if (pdfUp.error) return res.status(500).json({ error: pdfUp.error.message })
+    let rawDocxUrl: string | null = null
+    if (docxBuffer) {
+      const docxUp = await store.upload(`${base}.docx`, docxBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         upsert: true,
-      }),
-      store.upload(`${base}.pdf`, pdfBuffer, { contentType: 'application/pdf', upsert: true }),
-    ])
-    if (docxUp.error ?? pdfUp.error)
-      return res.status(500).json({ error: (docxUp.error ?? pdfUp.error)?.message })
+      })
+      if (docxUp.error) return res.status(500).json({ error: docxUp.error.message })
+      rawDocxUrl = store.getPublicUrl(`${base}.docx`).data.publicUrl
+    }
 
     const ts = Date.now()
-    const { data: { publicUrl: rawDocxUrl } } = store.getPublicUrl(`${base}.docx`)
-    const { data: { publicUrl: rawPdfUrl  } } = store.getPublicUrl(`${base}.pdf`)
+    const { data: { publicUrl: rawPdfUrl } } = store.getPublicUrl(`${base}.pdf`)
 
     return res.status(200).json({
       pdf_url:     `${rawPdfUrl}?t=${ts}`,
-      storage_url: `${rawDocxUrl}?t=${ts}`,
-      stats: { units: responseTargets.length, nameplate_rows: expectedNpRows, fallback: usedFallback },
+      storage_url: rawDocxUrl ? `${rawDocxUrl}?t=${ts}` : null,
+      stats: {
+        units: responseTargets.length, nameplate_rows: expectedNpRows, fallback: usedFallback,
+        render_mode: renderMode ?? 'standard', docx: !!docxBuffer,
+      },
     })
 
   } catch (err: any) {
