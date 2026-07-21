@@ -86,7 +86,7 @@ Start-Up campaign inherits the mode for fleet forms. PDFs: out/vavct-fleet-blank
 | 41 | Fan Filter Unit Prefunctional Checklist (2.12.3) | 6fa340cf | 5/34/0 | 8 | PASS — gen [matrix]; null key per marginal ruling; one label-less check row skipped (source artifact) |
 | 42 | Lab Fume Hood Prefunctional Checklist (2.12.4) | bb815388 | 6/46/0 | 8 | PASS — gen [matrix; per-floor phases] |
 
-| 43 | Automatic Transfer Switch Prefunctional Checklist (IEL 02/06) | dc9dbfd2 | 4/29/1 | 5 (Commissioning Authority) | PASS — IEL PILOT, first-pass; PDF-twin path |
+| 43 | Automatic Transfer Switch Prefunctional Checklist (IEL 02/06) | dc9dbfd2 | 4/29/1 | 5 (Commissioning Authority) | PASS — IEL PILOT, first-pass; PDF-twin path; **keyed ats post-close (Tony ruling), full-stack backfill, re-audit PASS (nameplate live, fallback=false)** |
 | 44 | Emergency Generator Prefunctional Checklist (IEL) | 5946c14b | 5/36/1 | 8 | PASS — gen-iel; key generator |
 | 45 | Fire Alarm Prefunctional Checklist (IEL) | 081067eb | 5/32/0 | 4 | PASS — gen-iel; Fire Protection default; one transient API 502 on first seed (nothing landed; clean retry) |
 | 46 | Grounding Prefunctional Checklist (IEL) | 1e116b58 | 4/14/0 | 4 | PASS — gen-iel |
