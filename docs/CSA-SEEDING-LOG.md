@@ -150,3 +150,43 @@ TEST-FC-1/2 (fcu), TEST-B-1/2 (boiler), TEST-CH-1/2 (chiller), TEST-CT-1/2
 **Elec directory (1.2) COMPLETE:** 33 files = 31 seeded (forms 51-82 incl. the
 Batch-8 LVCB) + 2 intentionally-blank exclusions (Clamp_On_Grounding_Resistance,
 Motor_Stator).
+| 83 | Architectural Field Review â€” Below Grade â€” Below-grade deck systems Verification Checklist | ivc/- (fallback) | 2c4c2eec | 3 | 26 | 1 | 2 | PASS |
+| 84 | Architectural Field Review â€” Below Grade â€” Crawl spaces Verification Checklist | ivc/- (fallback) | 649a2c6e | 4 | 39 | 1 | 2 | PASS |
+| 85 | Architectural Field Review â€” Below Grade â€” Perimeter drainage Verification Checklist | ivc/- (fallback) | c30478a6 | 3 | 26 | 1 | 2 | PASS |
+| 86 | Architectural Field Review â€” Below Grade â€” Slabs-on grade Verification Checklist | ivc/- (fallback) | ce596f44 | 3 | 26 | 1 | 2 | PASS |
+| 87 | Architectural Field Review â€” Below Grade â€” Wall systems Verification Checklist | ivc/- (fallback) | d373e1af | 12 | 143 | 1 | 2 | PASS |
+| 88 | Architectural Field Review â€” Common Interior â€” Acoustic barriers Verification Checklist | ivc/- (fallback) | 59886b93 | 2 | 13 | 1 | 2 | PASS |
+| 89 | Architectural Field Review â€” Common Interior â€” Active coatings Verification Checklist | ivc/- (fallback) | 8f241e7a | 2 | 13 | 1 | 2 | PASS |
+| 90 | Architectural Field Review â€” Common Interior â€” Finishes Verification Checklist | ivc/- (fallback) | a849743c | 2 | 13 | 1 | 2 | PASS |
+| 91 | Architectural Field Review â€” Common Interior â€” Glazing Verification Checklist | ivc/- (fallback) | 1d5d4752 | 2 | 13 | 1 | 2 | PASS |
+| 92 | Architectural Field Review â€” Common Interior â€” Insulation Verification Checklist | ivc/- (fallback) | e6f84b29 | 2 | 13 | 1 | 2 | PASS |
+| 93 | Architectural Field Review â€” Common Interior â€” Joints, junctions, interfaces Verification Checklist | ivc/- (fallback) | 0f1eae69 | 8 | 91 | 1 | 2 | PASS |
+| 94 | Elevator Installation Verification Checklist | ivc/- (fallback) | 562830f6 | 2 | 2 | 1 | 2 | PASS |
+| 95 | Escalator Installation Verification Checklist | ivc/- (fallback) | 29fd3736 | 2 | 2 | 1 | 2 | PASS |
+| 96 | Architectural Field Review â€” Exterior Wall â€” Active/passive shading devices Verification Checklist | ivc/- (fallback) | dc9752fa | 7 | 78 | 1 | 2 | PASS |
+| 97 | Architectural Field Review â€” Exterior Wall â€” Back-up walls Verification Checklist | ivc/- (fallback) | 80f8bc5c | 6 | 65 | 1 | 2 | PASS |
+| 98 | Architectural Field Review â€” Exterior Wall â€” Cladding Verification Checklist | ivc/- (fallback) | abbc81e5 | 11 | 130 | 1 | 2 | PASS |
+| 99 | Architectural Field Review â€” Exterior Wall â€” Fenestration Verification Checklist | ivc/- (fallback) | 9b2f1e65 | 11 | 130 | 1 | 2 | PASS |
+| 100 | Architectural Field Review â€” Exterior Wall â€” Interior finishes affecting wall performance Verification Checklist | ivc/- (fallback) | 78ae7fb4 | 6 | 65 | 1 | 2 | PASS |
+| 101 | Architectural Field Review â€” Exterior Wall â€” Opaque Walls Verification Checklist | ivc/- (fallback) | 6fbe54b6 | 12 | 143 | 1 | 2 | PASS |
+| 102 | Architectural Field Review â€” Floor Ceiling â€” Access floors Verification Checklist | ivc/- (fallback) | 7b8f9dcc | 2 | 13 | 1 | 2 | PASS |
+| 103 | Architectural Field Review â€” Floor Ceiling â€” Ballasts Verification Checklist | ivc/- (fallback) | e3b34876 | 2 | 13 | 1 | 2 | PASS |
+| 104 | Architectural Field Review â€” Floor Ceiling â€” Membranes Verification Checklist | ivc/- (fallback) | 4c982c7d | 2 | 13 | 1 | 2 | PASS |
+| 105 | Architectural Field Review â€” Floor Ceiling â€” Penetrations Verification Checklist | ivc/- (fallback) | 8bf0021d | 2 | 13 | 1 | 2 | PASS |
+| 106 | Architectural Field Review â€” Floor Ceiling â€” Protective coatings Verification Checklist | ivc/- (fallback) | 867c9fb3 | 2 | 13 | 1 | 2 | PASS |
+| 107 | Architectural Field Review â€” Interior Walls â€” Active/passive shading devices Verification Checklist | ivc/- (fallback) | 46c893d4 | 2 | 13 | 1 | 2 | PASS |
+| 108 | Architectural Field Review â€” Interior Walls â€” Cladding Verification Checklist | ivc/- (fallback) | d85e2f70 | 2 | 13 | 1 | 2 | PASS |
+| 109 | Architectural Field Review â€” Interior Walls â€” Fenestration Verification Checklist | ivc/- (fallback) | 48c69486 | 2 | 13 | 1 | 2 | PASS |
+| 110 | Architectural Field Review â€” Interior Walls â€” Interior finishes affecting wall performance Verification Checklist | ivc/- (fallback) | bb5ee276 | 2 | 13 | 1 | 2 | PASS |
+| 111 | Architectural Field Review â€” Interior Walls â€” Opaque walls Verification Checklist | ivc/- (fallback) | 9d5d297e | 2 | 13 | 1 | 2 | PASS |
+| 112 | Architectural Field Review â€” Roof â€” EPDM Verification Checklist | ivc/- (fallback) | 4144c871 | 7 | 78 | 1 | 2 | PASS |
+| 113 | Architectural Field Review â€” Roof â€” Inverted Verification Checklist | ivc/- (fallback) | 9d6ee692 | 8 | 91 | 1 | 2 | PASS |
+| 114 | Architectural Field Review â€” Roof â€” Penetrations Verification Checklist | ivc/- (fallback) | 2bd9e26c | 8 | 91 | 1 | 2 | PASS |
+| 115 | Architectural Field Review â€” Roof â€” Walkways Verification Checklist | ivc/- (fallback) | c67df14b | 4 | 39 | 1 | 2 | PASS |
+
+**Arch directory (1.3) COMPLETE:** 37 files = 33 seeded (forms 83-115: 31 AFRC
+family via parser-driven generator + Elevator + Escalator) + 4 exclusions
+(Roof Four_ply / Green_Roof / Mod_bit / Two_ply - empty Static Verification
+sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
+
+**EXCEL CANON COMPLETE: 115 templates seeded across Mech (51), Elec (31), Arch (33).**

@@ -255,7 +255,15 @@ try {
     // stop at first evaluation header between components
     const evalH = rows.find(x => x.r > h.r && (!next || x.r < next.r)
       && Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|SUBMITTED|ACCEPTABLE|INSPECTED|^Y\/N$|PANEL\s*\d|^NO\.\s*\d/i.test(v)))
-    const upper = evalH ? evalH.r : (next ? next.r : Infinity)
+    // A row whose label IS a section title AND is immediately followed by an
+    // evaluation header is a block header, not a field (Arch per-component
+    // blocks open with a bare component-name row; the component GRID may reuse
+    // the same names, so the lookahead is what disambiguates).
+    const isEvalHdr = x => Object.entries(x.cells).some(([c, v]) => c !== 'A' && /STATUS|VALUE|COMPLIES|SUBMITTED|ACCEPTABLE|INSPECTED|^Y\/N$|PANEL\s*\d|^NO\.\s*\d/i.test(v))
+    const secBound = rows.find((x, xi) => x.r > h.r && x.cells.A
+      && sectionTitles.some(st => stripDecor(x.cells.A) === stripDecor(st))
+      && rows[xi + 1] && isEvalHdr(rows[xi + 1]))
+    const upper = Math.min(evalH?.r ?? Infinity, next?.r ?? Infinity, secBound?.r ?? Infinity)
     const count = fieldRows.filter(x => x.r < upper).length
     const grid = grids.find(g => headerMatch(h.cells.A, g.title))
     if (!grid) { compFails.push(`component "${h.cells.A}" (R${h.r}) has no grid`); continue }
