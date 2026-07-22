@@ -1025,13 +1025,10 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     if (!instance) return
     setGenerating(mode === 'blank' ? `blank-${audience ?? 'contractor'}` : mode)
     try {
-      const resp = await fetch('/api/generate-checklist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instance_id: instance.id, mode, ...(mode === 'blank' ? { audience } : {}) }),
-      })
+      const resp = await authedFetch('/api/generate-checklist',
+        { instance_id: instance.id, mode, ...(mode === 'blank' ? { audience } : {}) })
       const data = await resp.json()
-      if (!resp.ok) throw new Error(data.error ?? 'Generation failed')
+      if (!resp.ok) throw new Error(apiErrorMessage(resp.status, data.error))
       // Open PDF in new tab; DOCX auto-downloads or opens
       if (data.pdf_url)     window.open(data.pdf_url, '_blank')
       if (data.storage_url) window.open(data.storage_url, '_blank')

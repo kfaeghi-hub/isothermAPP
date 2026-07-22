@@ -446,13 +446,9 @@ export function MeetingsPage({ projectId }: Props) {
     if (!meeting) return
     setGenerating(true); setGenError(null)
     try {
-      const res = await fetch('/api/generate-minutes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ meeting_id: meeting.id }),
-      })
+      const res = await authedFetch('/api/generate-minutes', { meeting_id: meeting.id })
       const body = await res.json()
-      if (!res.ok) throw new Error(body.error ?? `Generation failed (${res.status})`)
+      if (!res.ok) throw new Error(apiErrorMessage(res.status, body.error))
       await fetchMeetings()
     } catch (e) {
       setGenError(e instanceof Error ? e.message : 'Generation failed.')

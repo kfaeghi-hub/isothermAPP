@@ -157,14 +157,10 @@ export function SiteReportsPage({ projectId }: Props) {
     setGeneratingId(reportId)
     setGenError(null)
     try {
-      const res = await fetch('/api/generate-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_id: reportId }),
-      })
+      const res = await authedFetch('/api/generate-report', { report_id: reportId })
       const payload = await res.json()
       if (!res.ok) {
-        setGenError(`Generation failed: ${payload.error ?? res.statusText}`)
+        setGenError(apiErrorMessage(res.status, payload.error))
         return
       }
       // Update local state immediately with returned URLs
