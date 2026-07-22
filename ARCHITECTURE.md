@@ -692,9 +692,10 @@ Test-created projects use ZZ-TEST-prefixed unique names. Credentials come from
 The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
 - `pw-report-regen.mjs` — regeneration byte-clean diff (the gate for any change
   near the report path; before/after capture, normalized-text compare)
-- `pw-checklist-docs.mjs` — four-deliverable checklist content audit (known
-  limitation: the ASCII PDF probe can't read glyph-encoded text — PDFs are
-  verified via `pw-pdf-shot.mjs` PNG rendering instead)
+- `pw-checklist-docs.mjs` — four-deliverable checklist content audit. PDF checks
+  use real pdf.js text extraction (upgraded 2026-07-22 from an ASCII flate probe
+  that kept two checks permanently yellow — green means green). Canonical
+  fixture: the two-unit A/C / Fan Coil / Heat Pump instance on ZZ-TEST.
 - `pw-copy.mjs` — multi-unit copy: never-overwrite, copied-N-opens-finding-modal
 - `pw-finding-register.mjs` — full ASHRAE register: create → detail → report
   lines → delete → byte-clean restore
@@ -785,10 +786,18 @@ deployment state. A gate run against a stale bundle is void — re-run and say s
 - **Never round-trip unicode-bearing source files through PowerShell** (echo,
   Set-Content, -replace pipelines): it mojibakes em-dashes, arrows, and accented
   characters. Use the Edit/Write file tools. This has bitten four times.
-- **Deploy verification is bundle-content, not deploy-state:** before any
-  production-gated test run, confirm the SERVED JS bundle contains a marker of the
-  change (fetch index.html → asset URL → grep the bundle). A gate run against a
-  stale bundle is void (see Testing).
+- **Pre-push build verification is `npm run build`, nothing less.** The deployed
+  build runs `tsc -b && vite build`; `tsc --noEmit -p tsconfig.json` on the
+  solution-style config CHECKS NOTHING and `vite build` alone does not typecheck.
+  Run the real build command locally before every push that touches src/ or api/.
+  (Learned 2026-07-22: three Vercel deploys broke on missing imports a false-green
+  local check waved through, leaving a user-visible window where endpoints
+  required auth the served app didn't send.)
+- **Deploy verification is bundle-content, not deploy-state:** after pushing,
+  confirm the SERVED JS bundle contains a marker of the change (fetch index.html
+  → asset URL → grep the bundle) before any production-gated test run. A gate run
+  against a stale bundle is void (see Testing). The pair is the standard: build
+  locally, push, verify what's actually live.
 - **Rule 4 (records):** completed/issued artifacts are frozen point-in-time
   records — corrections change templates/live rows only; snapshots and issued
   documents are never rewritten.

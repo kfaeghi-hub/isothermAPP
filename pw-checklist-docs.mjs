@@ -52,18 +52,17 @@ function docxParts(buf) {
   return parts
 }
 
-/** Crude but sufficient PDF text probe: inflate every FlateDecode stream and concat. */
-function pdfText(buf) {
+/** Real PDF text extraction via pdf.js — replaced the crude flate-stream probe,
+ *  which couldn't read subset-font glyphs and kept two checks permanently
+ *  yellow (retired 2026-07-22: green means green). Same approach as
+ *  pw-blank-audience. */
+async function pdfText(buf) {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), disableWorker: true }).promise
   let text = ''
-  let i = 0
-  while ((i = buf.indexOf('stream', i)) !== -1) {
-    let s = i + 6
-    if (buf[s] === 0x0d) s++
-    if (buf[s] === 0x0a) s++
-    const end = buf.indexOf('endstream', s)
-    if (end === -1) break
-    try { text += inflateRawSync(buf.subarray(s + 2, end)).toString('latin1') } catch { /* not flate */ }
-    i = end + 9
+  for (let p = 1; p <= doc.numPages; p++) {
+    const tc = await (await doc.getPage(p)).getTextContent()
+    text += tc.items.map(i => i.str).join(' ') + '\n'
   }
   return text
 }
@@ -93,7 +92,7 @@ for (const mode of ['completed', 'blank']) {
   const xml = docxXml(docx)
   const parts = docxParts(docx)
   const txt = xml.replace(/<[^>]+>/g, ' ')
-  const ptxt = pdfText(pdf)
+  const ptxt = await pdfText(pdf)
   results[mode] = { xml, txt, ptxt, parts, stats: body.stats }
 
   // DOCX package intact (audit passed last round — do not regress)
