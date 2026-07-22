@@ -1,5 +1,87 @@
 # LANDING-PAGE-PROPOSAL.md — Animated public landing page
 
+**Status: V2 REVISION APPROVED AND BUILT (2026-07-22).** Tony redirected the
+v1 restrained page to a cinematic first-impression piece: heavy scroll-driven
+animation, a real 3D element, minimal words; performance explicitly not a
+constraint (containment via the lazy chunk is the one perf rule kept).
+Everything else from v1 stands: routing shape, src/pages/landing/ containment,
+purple/vermilion tokens, test plan, no app-component changes. See "V2 —
+Cinematic revision" below; the v1 sections after it are the original record.
+
+---
+
+## V2 — Cinematic revision (as-built)
+
+### 3D centerpiece — recommendation: shader-displaced contour plane
+
+A single full-bleed Three.js plane (fixed canvas behind all content,
+persisting across the whole scroll), displaced by layered simplex noise in the
+vertex shader; the fragment shader draws **iso-elevation contour lines** from
+the displaced height — glowing vermilion lines banding into lavender at the
+peaks, over deep cover purple with distance fog. A topographic instrument
+readout, alive and dark. Chosen over extruded line geometry (heavy, rigid) and
+particle fields (noisy, less "instrument"): the shader plane gives continuous
+morphing for free — every animation is a uniform change.
+
+Interaction: pointer position (fine pointers only) eases into a gaussian bump
+uniform — the field swells toward the cursor. Scroll progress drives noise
+amplitude, contour density, drift speed, and camera dolly via GSAP.
+
+### Scroll choreography (beat by beat)
+
+0. **Load** — field breathes in (amplitude 0 → calm), headline reveals
+   word-by-word (GSAP stagger, y+blur, power3.out — cinematic, no bounce),
+   rules draw, CTA rises.
+1. **Hero (free scroll)** — field calm, cursor-reactive; hairline rules,
+   maximal negative space.
+2. **The stage (pinned, ~4 viewport-heights)** — the section pins; four
+   typographic moments pass through it one per beat: *Field checklists ·
+   Issues log · Meeting minutes · Deliverables* — each blurs/tracks in huge,
+   holds, tracks out. With each beat the field steps up: amplitude rises,
+   contours tighten, color shifts one step from vermilion toward lavender.
+   Content transitions in place; the world morphs behind it.
+3. **Crescendo** — amplitude peaks then settles; the closing line and the
+   full-size Sign-in CTA reveal. The instrument comes to rest.
+4. **Footer** — normal flow, solid cover ground; the canvas ends behind it.
+
+Lenis smooth scroll throughout, driven from GSAP's ticker so ScrollTrigger
+and the render loop share one clock.
+
+### Dependencies (approved, landing-chunk-only)
+
+| Package | Version | Why |
+|---|---|---|
+| `gsap` (+ ScrollTrigger, bundled) | 3.15.0 | scroll-driven timelines, pinning, scrub, text staggers. SplitText is Club-only — word/char splitting is a ~15-line local helper instead |
+| `lenis` | 1.3.25 | smooth scroll; integrated via `gsap.ticker` |
+| `three` (+ `@types/three` dev) | 0.185.1 | the contour-field scene (plain Three, not react-three-fiber — one scene, one material; fewer moving parts and no reconciler coupling) |
+
+All imported ONLY inside `src/pages/landing/` — the lazy split keeps the
+authenticated app at zero added bytes. Recorded in ARCHITECTURE.md.
+
+### Copy (draft — Tony revises)
+
+H1 "Commissioning management, built by commissioning agents." · four
+two-word-scale phrases as typographic moments · closing line "One connected
+record." + Sign in. No paragraphs, no cards. Screenshot section DROPPED (v1's
+plate + asset removed) — the field is the visual.
+
+### Fallback strategy (non-negotiables kept)
+
+- **prefers-reduced-motion → static variant:** entirely separate render path —
+  no Lenis, no GSAP, no canvas; plain stacked sections, all content visible,
+  flat CSS contour SVG. Verified by the suite, not just guarded.
+- **No WebGL / context failure → CSS contour fallback:** canvas creation is
+  try/caught; failure renders the v1 animated CSS contour SVG behind the same
+  DOM. A phone that shows something simple beats a phone that shows nothing.
+- **Mobile:** DPR capped at 2, reduced mesh density, pointer interaction only
+  on fine pointers; same graceful path.
+- Single H1, real section headings, CTAs are real links with visible focus;
+  all phrase text lives in the DOM regardless of animation state.
+
+---
+
+## V1 (original proposal — superseded by V2 above where they conflict)
+
 **Status: PROPOSED — awaiting Tony's approval. No code written.**
 
 - Date proposed: 2026-07-22

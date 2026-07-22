@@ -60,16 +60,20 @@ src/
 ├── routes/ProjectDetailRoute.tsx  # /projects/:id wrapper — supplies companies to ProjectDetailPage
 │
 ├── pages/
-│   ├── landing/                # PUBLIC landing page (2026-07-22) — contained tree,
-│   │   ├── LandingPage.tsx     # lazy route chunk; no app component modified for it.
-│   │   ├── useReveal.ts        # IntersectionObserver scroll reveal (no motion lib)
-│   │   ├── landing.css         # landing-scoped keyframes incl. the isotherm-contour
-│   │   └── sections/           # drift signature; reduced-motion guarded.
-│   │       # Hero · Capabilities · Visual (ZZ-TEST-only screenshot plate,
-│   │       # regenerate after the UI punch-list session — see LandingPage.tsx
-│   │       # header) · Footer. 21st.dev used as STRUCTURAL reference only
-│   │       # (hero-minimalism rule-draw, grid-feature-cards layout) — fully
-│   │       # re-tokened, zero dependencies adopted (framer-motion/GSAP rejected).
+│   ├── landing/                # PUBLIC landing page — V2 CINEMATIC (2026-07-22,
+│   │   │                       # docs/LANDING-PAGE-PROPOSAL.md V2). Contained lazy
+│   │   │                       # chunk; gsap/lenis/three imported ONLY here.
+│   │   ├── LandingPage.tsx     # mode switch: reduced-motion → StaticLanding,
+│   │   │                       # else CinematicLanding
+│   │   ├── CinematicLanding.tsx# Lenis + GSAP/ScrollTrigger choreography: word-
+│   │   │                       # stagger hero → pinned 4-phrase stage → crescendo
+│   │   ├── ContourField.tsx    # Three.js shader-displaced contour plane (the 3D
+│   │   │                       # centerpiece); WebGL failure → CSS fallback
+│   │   ├── CssContour.tsx      # flat SVG contour (fallback + static variant bg)
+│   │   ├── StaticLanding.tsx   # reduced-motion first-class path: no motion, no
+│   │   │                       # canvas, all content visible
+│   │   ├── landing.css         # word masks, fallback drift, reduced-motion stills
+│   │   └── sections/LandingFooter.tsx
 │   ├── LoginPage.tsx / ResetPasswordPage.tsx
 │   ├── DashboardPage.tsx       # HOME (/) — sections A·Now, B·Projects, C·Findings, D·Mine (Recharts)
 │   ├── ProjectsPage.tsx        # /projects — list, filters, create; navigates to /projects/:id
@@ -624,7 +628,17 @@ hairline grid, ink-colored text (never series-colored).
 ### Icons & UI dependencies
 
 `lucide-react` (sole icon set) · `recharts` · `react-router-dom` · Tailwind v4 via
-`@tailwindcss/vite`. No component library (no Radix/shadcn), no motion library.
+`@tailwindcss/vite`. No component library (no Radix/shadcn). The APP has no
+motion library — all app motion is the hand-rolled CSS system.
+
+**Landing-page-only dependencies (V2 cinematic, 2026-07-22 — imported ONLY under
+`src/pages/landing/`, carried by its lazy chunk; the authenticated app pays
+zero bytes):** `gsap` 3.15 (+ bundled ScrollTrigger; SplitText is Club-only —
+word splitting is a local helper) · `lenis` 1.3 (smooth scroll via gsap.ticker)
+· `three` 0.185 + `@types/three` (the shader-displaced contour-field
+centerpiece; plain Three, not react-three-fiber). Landing chunk ≈182 KB gz —
+accepted by ruling: performance is explicitly not a constraint on this page;
+containment is.
 
 ### Known UI debt (recorded 2026-07-22 — flagged, deliberately not yet fixed)
 

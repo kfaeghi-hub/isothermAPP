@@ -1,40 +1,15 @@
-/* Landing-page-scoped styles — src/pages/landing/ only (containment rule:
-   nothing in the app tree references this file). Motion grammar matches the
-   app: precision, no bounce, everything guarded for reduced motion. */
+/* Landing-page-scoped styles — src/pages/landing/ only (containment rule).
+   V2 cinematic: GSAP owns the choreography; this file carries the word-mask
+   plumbing, the CSS contour fallback drift, and the reduced-motion stills. */
 
-/* ── Scroll reveal ─────────────────────────────────────────────────────────
-   useReveal adds .lv-in when the element enters the viewport (once).
-   Single elements: .lv-hidden → .lv-in. Stagger groups: .lv-group reveals
-   its children with --rise-i delays (same convention as the app's .rise). */
-.lv-hidden { opacity: 0; transform: translateY(12px); }
-.lv-in {
-  animation: lv-rise 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--rise-i, 0) * 70ms);
-}
-.lv-group > * { opacity: 0; }
-.lv-group.lv-in > * {
-  animation: lv-rise 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--rise-i, 0) * 80ms);
-}
-@keyframes lv-rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* Word-reveal masks: GSAP animates .lp-word inside an overflow-hidden mask. */
+.lp-mask { display: inline-block; overflow: hidden; vertical-align: bottom; }
+.lp-word { display: inline-block; will-change: transform, opacity, filter; }
 
-/* ── Hero rule-draw ────────────────────────────────────────────────────────
-   Hairlines lay themselves across the cover like a sheet being ruled —
-   the "drawing being set up" entrance (structural ref: 21st.dev
-   hero-minimalism accent lines, re-expressed; no library). */
-.lv-rule {
-  transform: scaleX(0);
-  transform-origin: left center;
-  animation: lv-draw 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-}
-@keyframes lv-draw { to { transform: scaleX(1); } }
+/* Phrase moments on the pinned stage (GSAP drives opacity/tracking/blur). */
+.lp-phrase { will-change: opacity, letter-spacing, filter; }
 
-/* ── Isotherm contour drift — the signature ────────────────────────────────
-   The logo's contour language, drifting slowly across the cover. Dash
-   offset only (GPU-cheap), ~90 s period: an instrument warming up. */
+/* ── CSS contour fallback — drifts when WebGL is unavailable ─────────────── */
 .lv-contour path {
   stroke-dasharray: 260 140;
   animation: lv-drift 90s linear infinite;
@@ -43,9 +18,8 @@
 .lv-contour path:nth-child(3) { animation-duration: 130s; }
 @keyframes lv-drift { to { stroke-dashoffset: -400; } }
 
-/* ── Reduced motion: everything renders visible and still ─────────────────── */
+/* ── Reduced motion: everything still (StaticLanding is the render path,
+   but belt-and-braces if any animated class survives) ───────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .lv-hidden, .lv-group > * { opacity: 1 !important; transform: none !important; }
-  .lv-in, .lv-group.lv-in > *, .lv-contour path { animation: none !important; }
-  .lv-rule { animation: none; transform: scaleX(1); }
+  .lv-contour path, .lp-word, .lp-phrase { animation: none !important; }
 }

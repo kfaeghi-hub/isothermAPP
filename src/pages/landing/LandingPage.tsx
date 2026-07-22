@@ -1,28 +1,20 @@
-// Public landing page — unauthenticated visitors at "/" land here; the CTA
-// leads to /login. Contained: everything under src/pages/landing/ + its own
-// landing.css; no app component was modified for this page (LogoMark/LogoLockup
-// are consumed as-is). As-built record: docs/LANDING-PAGE-PROPOSAL.md.
+// Public landing page — unauthenticated visitors at "/" land here; CTA →
+// /login. Contained: everything under src/pages/landing/ (GSAP, Lenis, and
+// Three.js are imported ONLY here — the lazy split keeps the authenticated
+// app at zero added bytes). As-built record: docs/LANDING-PAGE-PROPOSAL.md V2.
 //
-// TODO (Tony, scheduled): regenerate src/assets/landing-dashboard.png at the
-// END of the UI punch-list session so the shipped image matches the polished
-// app. Capture rule: dev.test session, clipped ABOVE the project cards —
-// ZZ-TEST family only, no project names ever ship on this page.
+// Two first-class render paths, decided once at mount:
+//   cinematic — Lenis + GSAP/ScrollTrigger choreography over the WebGL
+//               contour field (which itself falls back to the CSS contour
+//               if a context can't be created)
+//   static    — prefers-reduced-motion: plain stacked page, no motion, no
+//               canvas; all content visible
 
 import './landing.css'
-import { LandingHero } from './sections/LandingHero'
-import { LandingCapabilities } from './sections/LandingCapabilities'
-import { LandingVisual } from './sections/LandingVisual'
-import { LandingFooter } from './sections/LandingFooter'
+import { CinematicLanding } from './CinematicLanding'
+import { StaticLanding } from './StaticLanding'
 
 export default function LandingPage() {
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <LandingHero />
-      <main>
-        <LandingCapabilities />
-        <LandingVisual />
-      </main>
-      <LandingFooter />
-    </div>
-  )
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return reduced ? <StaticLanding /> : <CinematicLanding />
 }
