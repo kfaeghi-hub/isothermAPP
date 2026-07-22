@@ -25,7 +25,7 @@ function Words({ text }: { text: string }) {
     <>
       {text.split(' ').map((w, i, arr) => (
         <span key={i} className="lp-mask">
-          <span className="lp-word">{w}{i < arr.length - 1 ? ' ' : ''}</span>
+          <span className="lp-word">{w}{i < arr.length - 1 ? ' ' : ''}</span>
         </span>
       ))}
     </>
