@@ -251,6 +251,18 @@ button:not(:disabled):active, a:active {
   animation: sheet-in 130ms cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* RC4 — modal responsiveness (mobile Wave 1). Below the sm breakpoint every
+   multi-column field grid inside a modal stacks to one column: desktop forms
+   keep their two-column layout, phones get full-width fields. Scoped to
+   .modal-body so nothing outside modals is touched. The visible scrollbar is
+   the affordance for consumers that haven't migrated to the footer slot yet. */
+@media (max-width: 39.9rem) {
+  .modal-body .grid[class*='grid-cols-'] { grid-template-columns: 1fr !important; }
+}
+.modal-body { scrollbar-width: thin; }
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--color-rule); border-radius: 3px; }
+
 @media (prefers-reduced-motion: reduce) {
   .modal-sheet, aside[class*="animate-"] { animation: none !important; }
   * { transition-duration: 0.01ms !important; }

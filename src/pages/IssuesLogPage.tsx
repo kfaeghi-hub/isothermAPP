@@ -791,7 +791,21 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       )}
 
       {/* ── Create Finding modal — the issues-log register (ASHRAE 202) ── */}
-      <Modal title="New Finding" open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md">
+      <Modal title="New Finding" open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setCreateOpen(false)} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+            <button
+              onClick={createFinding}
+              disabled={creating}
+              className="px-5 py-2.5 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
+            >
+              {creating ? 'Creating…' : 'Create Finding'}
+            </button>
+          </div>
+        }>
         <div className="space-y-4">
 
           {/* Title — required */}
@@ -968,19 +982,6 @@ export function IssuesLogPage({ projectId, phases }: Props) {
           </div>
 
           {createError && <p className="text-sm text-red-600">{createError}</p>}
-
-          <div className="flex justify-end gap-2 pt-1">
-            <button onClick={() => setCreateOpen(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
-              Cancel
-            </button>
-            <button
-              onClick={createFinding}
-              disabled={creating}
-              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
-            >
-              {creating ? 'Creating…' : 'Create Finding'}
-            </button>
-          </div>
         </div>
       </Modal>
 
@@ -1044,6 +1045,20 @@ export function IssuesLogPage({ projectId, phases }: Props) {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         maxWidth="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEditOpen(false)} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={savingEdit}
+              className="px-5 py-2.5 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
+            >
+              {savingEdit ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        }
       >
         <div className="space-y-4">
 
@@ -1206,18 +1221,6 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <button onClick={() => setEditOpen(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
-              Cancel
-            </button>
-            <button
-              onClick={saveEdit}
-              disabled={savingEdit}
-              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium"
-            >
-              {savingEdit ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
         </div>
       </Modal>
     </div>
