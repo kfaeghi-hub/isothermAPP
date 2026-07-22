@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -85,6 +85,21 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const setActiveTab = (tab: Tab) => {
     setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true })
   }
+
+  // RC1 — mobile tab strip: keep the active tab in view; fade the right edge
+  // while more tabs are hidden past it (fade clears at scroll end).
+  const tabStripRef = useRef<HTMLDivElement>(null)
+  const [tabFade, setTabFade] = useState(true)
+  const onTabStripScroll = () => {
+    const el = tabStripRef.current
+    if (el) setTabFade(el.scrollLeft + el.clientWidth < el.scrollWidth - 8)
+  }
+  useEffect(() => {
+    const el = tabStripRef.current
+    if (!el) return
+    el.querySelector<HTMLElement>('[data-tab-active]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+    onTabStripScroll()
+  }, [activeTab])
 
   // Access control: employees see project settings only as leads. RLS lets each
   // user read their OWN membership row; admins see all (and are implicit leads).
@@ -370,9 +385,11 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           ← Projects
         </button>
 
-        {/* Project identity row — the sheet's title block */}
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="min-w-0">
+        {/* Project identity row — the sheet's title block. Below lg the title
+            takes the full row and actions wrap under it (RC5: the side-by-side
+            row truncated the title to "ZZ-TES…" at 375). */}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 mb-3">
+          <div className="min-w-0 basis-full lg:basis-auto lg:flex-1">
             <h2 className="font-display text-lg font-bold text-gray-900 leading-tight truncate">{project.name}</h2>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               <ClassificationBadges
@@ -388,17 +405,20 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               {project.com_number && (
                 <span className="font-mono text-xs text-gray-500">{project.com_number}</span>
               )}
+              {/* Verbose meta stays desktop-only (RC5): on phones it stacked the
+                  header to ~480px before any content; client/address/dates all
+                  live on Overview and in Edit Project. */}
               {project.companies && (
-                <span className="text-xs text-gray-500">{project.companies.name}</span>
+                <span className="hidden lg:inline text-xs text-gray-500">{project.companies.name}</span>
               )}
               {!project.companies && (
-                <span className="text-xs text-gray-400 italic">Standalone</span>
+                <span className="hidden lg:inline text-xs text-gray-400 italic">Standalone</span>
               )}
               {project.address && (
-                <span className="text-xs text-gray-400">{project.address}</span>
+                <span className="hidden lg:inline text-xs text-gray-400">{project.address}</span>
               )}
               {formatDateRange(project.start_date, project.finish_date) && (
-                <span className="text-xs font-mono text-gray-500">
+                <span className="hidden lg:inline text-xs font-mono text-gray-500">
                   {formatDateRange(project.start_date, project.finish_date)}
                 </span>
               )}
@@ -433,24 +453,35 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           </div>
         </div>
 
-        {/* Tabs — the sheet's contents rule */}
-        <div className="flex gap-0 -mb-px overflow-x-auto">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-[13px] border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'border-standard-600 text-standard-700 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 font-medium'
-              } ${!tab.built ? 'text-gray-400' : ''}`}
-            >
-              {tab.label}
-              {!tab.built && (
-                <span className="ml-1.5 font-mono text-[9px] uppercase tracking-wider text-gray-400">soon</span>
-              )}
-            </button>
-          ))}
+        {/* Tabs — the sheet's contents rule. The strip scrolls horizontally on
+            phones (RC1): the active tab auto-scrolls into view, and an edge
+            fade signals the hidden tabs (the audit found the strip ending
+            clean at the viewport edge with 5 tabs undiscoverable). */}
+        <div className="relative">
+          <div ref={tabStripRef} onScroll={onTabStripScroll}
+            className="flex gap-0 -mb-px overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                data-tab-active={activeTab === tab.id || undefined}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2.5 lg:py-2 text-[13px] border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-standard-600 text-standard-700 font-semibold'
+                    : 'border-transparent text-gray-500 hover:text-gray-800 font-medium'
+                } ${!tab.built ? 'text-gray-400' : ''}`}
+              >
+                {tab.label}
+                {!tab.built && (
+                  <span className="ml-1.5 font-mono text-[9px] uppercase tracking-wider text-gray-400">soon</span>
+                )}
+              </button>
+            ))}
+          </div>
+          {tabFade && (
+            <div className="lg:hidden pointer-events-none absolute inset-y-0 right-0 w-10
+              bg-gradient-to-l from-white to-transparent" aria-hidden="true" />
+          )}
         </div>
       </div>
 
@@ -459,9 +490,10 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
         {/* Overview */}
         {activeTab === 'overview' && (
-          <div className="p-6 max-w-4xl">
+          <div className="p-4 lg:p-6 max-w-4xl">
             <ProjectStatHeader projectId={projectId} onTab={setActiveTab} />
-            <div className="grid grid-cols-3 gap-5">
+            {/* single column on phones (the 3-col grid squeezed cards to ~180px) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
               {/* Team summary — the Team tab owns the full matrix */}
               <div className="card-tile bg-white rounded-xl border border-gray-200 p-5">
@@ -531,7 +563,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               </div>
 
               {/* Distribution */}
-              <div className="col-span-2 card-tile bg-white rounded-xl border border-gray-200 p-4">
+              <div className="sm:col-span-2 card-tile bg-white rounded-xl border border-gray-200 p-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Distribution List</h3>
                 {distribution.length === 0 ? (
                   <p className="text-xs text-gray-400 mb-3">No contacts on the distribution yet — add them below.</p>
@@ -593,9 +625,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
               {/* Notes + metadata */}
               {(project.notes || true) && (
-                <div className="col-span-3 card-tile bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="grid grid-cols-3 gap-5">
-                    <div className="col-span-2">
+                <div className="sm:col-span-2 lg:col-span-3 card-tile bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <div className="lg:col-span-2">
                       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Notes</h3>
                       {project.notes ? (
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{project.notes}</p>

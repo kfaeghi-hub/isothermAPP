@@ -393,7 +393,8 @@ export function EquipmentPage({ projectId }: Props) {
     <div className="flex h-full min-h-0 rise">
 
       {/* ── Left panel: equipment list ──────────────────────────────────── */}
-      <div className={`flex flex-col border-r border-gray-200 bg-white shrink-0 ${selectedId ? 'w-72' : 'flex-1'}`}>
+      {/* RC2 — below lg: detail open hides the list (full-width detail + back). */}
+      <div className={`flex-col border-r border-gray-200 bg-white shrink-0 ${selectedId ? 'hidden lg:flex lg:w-72' : 'flex flex-1'}`}>
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
           <span className="text-xs font-semibold text-gray-700 mr-auto">
@@ -454,8 +455,16 @@ export function EquipmentPage({ projectId }: Props) {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             {/* Header */}
-            <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+            <div className="px-4 lg:px-6 pt-5 pb-4 border-b border-gray-100">
               <div className="flex items-start gap-3">
+                {/* mobile back to the register list (RC2) */}
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="lg:hidden shrink-0 -ml-1 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 text-lg"
+                  aria-label="Back to equipment list"
+                >
+                  ←
+                </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${selected.kind === 'system' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>

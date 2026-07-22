@@ -1048,7 +1048,8 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     <div className="flex h-full overflow-hidden">
 
       {/* ── Instance list ─────────────────────────────────────────── */}
-      <div className={`flex flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all ${narrow ? 'w-72' : 'flex-1'}`}>
+      {/* RC2 — below lg: an open instance hides the list (full-width fill view). */}
+      <div className={`flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all ${narrow ? 'hidden lg:flex lg:w-72' : 'flex flex-1'}`}>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
           <div className="flex gap-1">
             {(['all', 'ivc', 'pfc', 'fpt'] as const).map(f => (
@@ -1109,8 +1110,18 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       {selectedId && instance ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-          {/* Header */}
-          <div className="px-5 py-3.5 border-b border-gray-200 flex items-start gap-3 flex-shrink-0">
+          {/* Header — below lg the action cluster wraps to its own full-width
+              row under the title (side-by-side crushed the title to one word
+              per line at 375). */}
+          <div className="px-4 lg:px-5 py-3.5 border-b border-gray-200 flex flex-wrap items-start gap-3 flex-shrink-0">
+            {/* mobile back to the instance list (RC2) */}
+            <button
+              onClick={() => setSelectedId(null)}
+              className="lg:hidden flex-shrink-0 -ml-1 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 text-lg"
+              aria-label="Back to checklist list"
+            >
+              ←
+            </button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <TypeBadge type={instance.type} />
@@ -1133,7 +1144,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap basis-full lg:basis-auto justify-start lg:justify-end">
               {/* Sync chip — the engineer must never have to guess whether their work landed. */}
               {instance.status !== 'complete' && (
                 <span className={`text-[11px] font-medium rounded px-2 py-1 whitespace-nowrap ${
@@ -1252,10 +1263,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
               {/* Column header for multi-unit */}
               {responseTargets.length > 1 && (
-                <div className="sticky top-0 z-10 flex items-center border-b border-gray-200 bg-white px-5 py-2">
-                  <div className="flex-1 min-w-0" />
+                /* Desktop: aligned unit columns. Mobile: the units become a wrap
+                   row of chips so Copy from… stays reachable (unit tags repeat
+                   inline on every response row below). */
+                <div className="sticky top-0 z-10 flex flex-wrap lg:flex-nowrap items-center gap-y-1 border-b border-gray-200 bg-white px-4 lg:px-5 py-2">
+                  <div className="hidden lg:block flex-1 min-w-0" />
                   {responseTargets.map(t => (
-                    <div key={t.id} className="w-20 text-center flex-shrink-0 px-1 relative">
+                    <div key={t.id} className="w-auto lg:w-20 text-center flex-shrink-0 px-2 lg:px-1 relative">
                       <span className="text-[11px] font-semibold text-gray-600 block">
                         {t.equipment?.tag ?? t.equipment?.descriptor ?? '?'}
                       </span>
@@ -1287,7 +1301,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                       )}
                     </div>
                   ))}
-                  <div className="w-24 flex-shrink-0" />
+                  <div className="hidden lg:block w-24 flex-shrink-0" />
                 </div>
               )}
 
@@ -1768,8 +1782,10 @@ function ItemRow({
   isComplete: boolean
 }) {
   return (
-    <div className="flex items-start gap-3 px-5 py-2.5 border-b border-gray-100 hover:bg-gray-50/40 group">
-      <div className="flex-1 min-w-0 pt-0.5">
+    // RC7 — below lg the row stacks: full-width label, then one touch-height
+    // response row per unit (tag inline). Desktop keeps the column layout.
+    <div className="flex flex-col lg:flex-row lg:items-start gap-2 lg:gap-3 px-4 lg:px-5 py-3 lg:py-2.5 border-b border-gray-100 hover:bg-gray-50/40 group">
+      <div className="lg:flex-1 min-w-0 pt-0.5">
         <p className="text-xs text-gray-800">{item.label}</p>
         {item.hint && <p className="text-[11px] text-gray-400 mt-0.5">{item.hint}</p>}
         {item.expected_response && (
@@ -1788,7 +1804,12 @@ function ItemRow({
         const state = saveState[key]
 
         return (
-          <div key={target.id} className="w-20 flex-shrink-0 flex flex-col items-center gap-1">
+          <div key={target.id} className="w-full lg:w-20 flex-shrink-0 flex flex-row lg:flex-col items-center gap-2 lg:gap-1">
+            {responseTargets.length > 1 && (
+              <span className="lg:hidden font-mono text-[11px] text-gray-500 w-20 flex-shrink-0 truncate">
+                {target.equipment?.tag ?? '?'}
+              </span>
+            )}
             {item.status_type === 'yn_nr_na' ? (
               <YnNrNaInput
                 value={currentStatus as any}
@@ -1811,12 +1832,15 @@ function ItemRow({
             {link && (
               <span className="text-[10px] text-amber-600 font-medium">Finding</span>
             )}
-            {/* Row-level apply-to-all: instant, no confirm — the row is visible and re-tappable */}
+            {/* Row-level apply-to-all: instant, no confirm — the row is visible
+                and re-tappable. Hover-reveal is desktop-only; on touch it is
+                always visible (hover-gated controls are invisible on phones). */}
             {!isComplete && responseTargets.length > 1 && currentStatus && (
               <button
                 data-testid={`apply-all-${item.id}-${target.id}`}
                 onClick={() => onApplyRowToAll(item, target.id)}
-                className="text-[10px] text-gray-300 hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-[10px] text-gray-400 hover:text-teal-600 min-h-11 lg:min-h-0 px-2 lg:px-0
+                  lg:text-gray-300 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                 title="Apply this response to all units on this row">
                 ⇉ all
               </button>
@@ -1825,8 +1849,8 @@ function ItemRow({
         )
       })}
 
-      {/* Spacer for header alignment */}
-      <div className="w-24 flex-shrink-0" />
+      {/* Spacer for header alignment (desktop columns only) */}
+      <div className="hidden lg:block w-24 flex-shrink-0" />
     </div>
   )
 }
@@ -1849,7 +1873,7 @@ function YnNrNaInput({ value, onChange, disabled }: {
       value={value ?? ''}
       onChange={e => onChange((e.target.value || null) as any)}
       disabled={disabled}
-      className={`w-full text-center text-xs rounded border px-1 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:cursor-default ${
+      className={`w-full text-center text-xs rounded border px-1 py-1 min-h-11 lg:min-h-0 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:cursor-default ${
         value === 'y'  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
         : value === 'n'  ? 'bg-red-50 text-red-700 border-red-300'
         : value === 'nr' || value === 'na' ? 'bg-gray-100 text-gray-500 border-gray-300'
@@ -1874,14 +1898,14 @@ function PassFailInput({ value, onChange, disabled }: {
       <button
         onClick={() => !disabled && onChange(value === 'pass' ? null : 'pass')}
         disabled={disabled}
-        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors disabled:cursor-default ${
+        className={`flex-1 text-[10px] font-semibold py-1 min-h-11 lg:min-h-0 rounded border transition-colors disabled:cursor-default ${
           value === 'pass' ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 text-gray-400 hover:border-green-600 hover:text-green-600'
         }`}
       >P</button>
       <button
         onClick={() => !disabled && onChange(value === 'fail' ? null : 'fail')}
         disabled={disabled}
-        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors disabled:cursor-default ${
+        className={`flex-1 text-[10px] font-semibold py-1 min-h-11 lg:min-h-0 rounded border transition-colors disabled:cursor-default ${
           value === 'fail' ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-600'
         }`}
       >F</button>
