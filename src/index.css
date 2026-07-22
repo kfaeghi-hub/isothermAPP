@@ -183,6 +183,56 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Apple-grade material & motion (dashboard) ─────────────────────────
+   Translucent chrome, layered depth, instant press response, one
+   orchestrated entrance. All of it collapses under reduced-motion /
+   reduced-transparency. */
+
+/* Floating chrome: content scrolls under a real material, not an opaque bar. */
+.chrome-material {
+  background: color-mix(in srgb, var(--color-paper) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .chrome-material { background: var(--color-paper); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* Card depth: soft offset shadows (never halos), deepening on hover with an
+   interruptible transition that always animates from the current value. */
+.card-tile {
+  box-shadow: 0 1px 2px rgb(22 21 31 / 0.05), 0 8px 24px -16px rgb(22 21 31 / 0.12);
+  transition: box-shadow 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1),
+              border-color 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.card-tile:hover {
+  box-shadow: 0 2px 4px rgb(22 21 31 / 0.05), 0 16px 32px -16px rgb(22 21 31 / 0.16);
+  transform: translateY(-1px);
+}
+
+/* Instant press response, on pointer-down, everywhere. */
+button:not(:disabled):active, a:active {
+  transform: scale(0.985);
+  transition: transform 80ms ease-out;
+}
+
+/* One orchestrated entrance: sections rise as a set, stagger carried by
+   --rise-i. Exponential ease-out from an already-visible-ish default. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rise {
+  animation: rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--rise-i, 0) * 45ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+  button:not(:disabled):active, a:active { transform: none; }
+  .card-tile, .card-tile:hover { transform: none; }
+}
+
 /* The contents drawer's one authored motion: a fast paper slide. */
 @keyframes drawer {
   from { transform: translateX(-100%); }

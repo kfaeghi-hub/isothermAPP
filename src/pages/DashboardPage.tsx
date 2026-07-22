@@ -90,32 +90,34 @@ export function DashboardPage() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="max-w-[1400px] mx-auto p-6 space-y-10">
-
-        {/* Document title block */}
-        <div className="flex items-end justify-between border-b-2 border-gray-900 pb-3">
+      {/* Floating document chrome: the register's title rides over content */}
+      <div className="chrome-material sticky top-0 z-10">
+        <div className="max-w-[1400px] mx-auto px-6 pt-5 pb-3 flex items-end justify-between border-b-2 border-gray-900">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
               Isotherm Engineering · Commissioning Record
             </p>
-            <h1 className="font-display text-[22px] font-bold text-gray-900 leading-tight mt-0.5">
+            <h1 className="font-display text-[24px] font-bold text-gray-900 leading-tight mt-0.5 tracking-[-0.02em]">
               Portfolio Register
             </h1>
           </div>
           <p className="font-mono text-[11px] text-gray-500 pb-0.5">{today}</p>
         </div>
+      </div>
+
+      <div className="max-w-[1400px] mx-auto p-6 space-y-10">
 
         {/* ── A · Now ─────────────────────────────────────────────────── */}
-        <section className="space-y-5">
-          {/* Instrument readings: one ruled line, not four cards */}
-          <div className="bg-white border-y border-gray-200 grid grid-cols-2 lg:grid-cols-4 divide-x divide-gray-200">
+        <section className="space-y-5 rise" style={{ '--rise-i': 0 } as React.CSSProperties}>
+          {/* Instrument readings as tiles: large optical numerals, real depth */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatChip label="Active Projects" value={data.stats.activeProjects} testid="chip-active" />
             <StatChip label="Open Findings" value={data.stats.openFindings} alert={data.stats.openFindings > 0} testid="chip-findings" />
             <StatChip label="Overdue Action Items" value={data.stats.overdueItems} alert={data.stats.overdueItems > 0} testid="chip-overdue" />
             <StatChip label="Avg Days to Close (90d)" value={data.stats.avgDaysToClose ?? '—'} testid="chip-close" />
           </div>
 
-          <div className="bg-white rounded-md border border-gray-200">
+          <div className="card-tile bg-white rounded-xl border border-gray-200">
             <ClauseHead n="1" title="Attention Queue" extra={String(data.queue.length)} />
             {data.queue.length === 0 ? (
               <p className="px-4 py-6 text-sm text-gray-400 text-center" data-testid="queue-empty">Nothing needs attention.</p>
@@ -157,7 +159,7 @@ export function DashboardPage() {
         </section>
 
         {/* ── B · Projects ────────────────────────────────────────────── */}
-        <section className="space-y-4">
+        <section className="space-y-4 rise" style={{ '--rise-i': 1 } as React.CSSProperties}>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="xl:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4 content-start" data-testid="portfolio-cards">
               {actives.map(p => {
@@ -166,7 +168,7 @@ export function DashboardPage() {
                 const daysToFinish = p.finish_date ? -(daysSince(p.finish_date) ?? 0) : null
                 return (
                   <Link key={p.id} to={`/projects/${p.id}`}
-                    className="bg-white rounded-md border border-gray-200 p-4 hover:border-standard-500 transition-colors block">
+                    className="card-tile bg-white rounded-xl border border-gray-200 p-4 hover:border-standard-500 transition-colors block">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="min-w-0">
                         <p className="font-display text-sm font-bold text-gray-900 truncate">{p.name}</p>
@@ -198,7 +200,7 @@ export function DashboardPage() {
               {actives.length === 0 && <p className="text-sm text-gray-400 p-4">No active projects.</p>}
             </div>
 
-            <div className="bg-white rounded-md border border-gray-200" data-testid="followup-radar">
+            <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="followup-radar">
               <ClauseHead n="2" title="Follow-up Radar" sub="days since last site visit — stalest first" />
               <div className="p-4">
               <ResponsiveContainer width="100%" height={Math.max(120, radar.length * 34)}>
@@ -215,7 +217,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-md border border-gray-200" data-testid="portfolio-timeline">
+          <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="portfolio-timeline">
             <ClauseHead n="3" title="Portfolio Timeline" />
             <div className="p-4">
             {timeline.length === 0 ? (
@@ -244,9 +246,9 @@ export function DashboardPage() {
         </section>
 
         {/* ── C · Findings ────────────────────────────────────────────── */}
-        <section className="space-y-4">
+        <section className="space-y-4 rise" style={{ '--rise-i': 2 } as React.CSSProperties}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-md border border-gray-200" data-testid="trend-chart">
+            <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="trend-chart">
               <ClauseHead n="4" title="Findings Opened vs Closed" sub="6 months" />
               <div className="p-4">
               <ResponsiveContainer width="100%" height={200}>
@@ -262,7 +264,7 @@ export function DashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-md border border-gray-200" data-testid="system-chart">
+            <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="system-chart">
               <ClauseHead n="5" title="Open Findings by System" />
               <div className="p-4">
               {data.bySystem.length === 0 ? (
@@ -281,7 +283,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-md border border-gray-200" data-testid="responsible-table">
+          <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="responsible-table">
             <div className="border-b border-gray-200">
               <ClauseHead n="6" title="Open Items by Responsible Party" />
               <p className="text-[10px] text-gray-400 px-4 pb-2 -mt-1">Meeting action items + findings, grouped by company via the team matrix. Free-text labels listed separately — never string-matched.</p>
@@ -312,8 +314,8 @@ export function DashboardPage() {
         </section>
 
         {/* ── D · Mine ────────────────────────────────────────────────── */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-md border border-gray-200" data-testid="my-items">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 rise" style={{ '--rise-i': 3 } as React.CSSProperties}>
+          <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="my-items">
             <div className="border-b border-gray-200">
               <ClauseHead n="7" title="My Items" />
               <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400" title="Matched by your profile name against identified_by / prepared_by / authored_by — the existing text conventions.">
@@ -335,7 +337,7 @@ export function DashboardPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-md border border-gray-200" data-testid="recent-activity">
+          <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="recent-activity">
             <ClauseHead n="8" title="Recent Activity" />
             <div className="divide-y divide-gray-50">
               {data.activity.map((a, i) => (
@@ -358,16 +360,16 @@ export function DashboardPage() {
   )
 }
 
-/** One reading on the instrument line: mono numeral over a small-cap label. */
+/** One instrument reading: a tile with a large optically-tight numeral. */
 function StatChip({ label, value, alert = false, testid }: {
   label: string; value: number | string; alert?: boolean; testid: string
 }) {
   return (
-    <div className="px-5 py-4" data-testid={testid}>
-      <p className={`font-mono text-[26px] font-medium leading-none tabular-nums ${alert ? 'text-amber-700' : 'text-gray-900'}`}>
+    <div className="card-tile bg-white rounded-xl border border-gray-200 px-5 py-4" data-testid={testid}>
+      <p className={`font-mono text-[32px] font-medium leading-none tabular-nums tracking-[-0.02em] ${alert ? 'text-amber-700' : 'text-gray-900'}`}>
         {value}
       </p>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-2">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-2.5">{label}</p>
     </div>
   )
 }
