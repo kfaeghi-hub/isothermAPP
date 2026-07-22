@@ -3,6 +3,7 @@ import {
   esc, isoShort, isoLong, isFilenameCaption, toBase64, primaryEmail,
   BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
 } from './_shared/doc-common.js'
+import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -383,11 +384,7 @@ ${docSection}
 // ── Vercel serverless handler ──────────────────────────────────────────────────
 
 export default async function handler(req: any, res: any) {
-  // CORS — same origin in production but needed for local Vite dev proxy
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res)) return
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' })
 
   try {
@@ -396,10 +393,15 @@ export default async function handler(req: any, res: any) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 
+    // Identity BEFORE any resource lookup (no id probing), then 404, then authz.
+    const { userId } = await requireUser(req, supabase)
+
     const { data: report, error: rErr } = await supabase
       .from('site_reports').select('*').eq('id', report_id).single()
     if (rErr || !report)
       return res.status(404).json({ error: rErr?.message ?? 'not found' })
+
+    await requireProjectAccess(supabase, userId, report.project_id)
 
     const { data: project } = await supabase
       .from('projects').select('*, companies(id,name,abbreviation)').eq('id', report.project_id).single()
@@ -450,6 +452,7 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ storage_url, pdf_url })
 
   } catch (err: any) {
+    if (err instanceof AuthError) return res.status(err.status).json({ error: err.message })
     console.error('generate-report error:', err)
     return res.status(500).json({ error: err.message, stack: err.stack })
   }

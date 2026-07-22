@@ -4,6 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import HTMLtoDOCX from 'html-to-docx'
+// Auth is the ONE shared import this endpoint takes — its render pipeline stays
+// deliberately independent of doc-common (landscape + per-mode footers).
+import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 
 const CHROMIUM_PACK_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
@@ -1098,10 +1101,7 @@ function buildCheckTableDocxHtml(d: DocData): string {
 // ── Vercel serverless handler ──────────────────────────────────────────────────
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res)) return
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' })
 
   try {
@@ -1116,10 +1116,15 @@ export default async function handler(req: any, res: any) {
       auth: { persistSession: false },
     })
 
+    // Identity BEFORE any resource lookup (no id probing), then 404, then authz.
+    const { userId } = await requireUser(req, supabase)
+
     const { data: instance, error: instErr } = await supabase
       .from('checklist_instances').select('*').eq('id', instance_id).single()
     if (instErr || !instance)
       return res.status(404).json({ error: instErr?.message ?? 'instance not found' })
+
+    await requireProjectAccess(supabase, userId, instance.project_id)
 
     const { data: project } = await supabase
       .from('projects').select('*, companies(id, name, abbreviation)')
@@ -1299,6 +1304,7 @@ export default async function handler(req: any, res: any) {
     })
 
   } catch (err: any) {
+    if (err instanceof AuthError) return res.status(err.status).json({ error: err.message })
     console.error('generate-checklist error:', err)
     return res.status(500).json({ error: err.message, stack: err.stack })
   }

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   esc, isoShort, BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
 } from './_shared/doc-common.js'
+import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -331,10 +332,7 @@ ${asumHtml}
 // ── Vercel serverless handler ──────────────────────────────────────────────────
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res)) return
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' })
 
   try {
@@ -343,9 +341,14 @@ export default async function handler(req: any, res: any) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 
+    // Identity BEFORE any resource lookup (no id probing), then 404, then authz.
+    const { userId } = await requireUser(req, supabase)
+
     const { data: meeting, error: mErr } = await supabase
       .from('meetings').select('*, meeting_types(name)').eq('id', meeting_id).single()
     if (mErr || !meeting) return res.status(404).json({ error: mErr?.message ?? 'not found' })
+
+    await requireProjectAccess(supabase, userId, meeting.project_id)
 
     const [projRes, topicRes, attRes, itemRes, teamRes, roleRes] = await Promise.all([
       supabase.from('projects').select('*').eq('id', meeting.project_id).single(),
@@ -425,6 +428,7 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ storage_url, pdf_url })
   } catch (err: any) {
+    if (err instanceof AuthError) return res.status(err.status).json({ error: err.message })
     console.error('generate-minutes error:', err)
     return res.status(500).json({ error: err.message, stack: err.stack })
   }
