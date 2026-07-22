@@ -246,3 +246,9 @@ sheets, blank-master precedent). Residuals excluded from Elevator + a36 flagged.
 Word-only sweep: forms 116-180 (65 forms) across 2.1 HVAC/Compressed Air/
 Specialty (16), 2.3 Fire Protection (11), 2.4 BAS (9), V7 comm systems (9),
 2.5 Electrical (20). 2.2 Plumbing contributed zero (all Excel-covered).
+
+*(Correction 2026-07-22 — the "+2 pre-campaign = 182" line above miscounts: the two
+pre-campaign templates were ONE ivc (A/C / Fan Coil / Heat Pump) and ONE pfc (AHU
+Prefunctional). The ivc register is therefore 181 (180 campaign + 1), and the full
+DB register is 238 = 181 ivc + 57 pfc, matching PFC-SEEDING-LOG. The campaign's own
+count of 180 is unaffected.)*

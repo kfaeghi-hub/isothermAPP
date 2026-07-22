@@ -17,7 +17,7 @@
 
 **Built, tested, committed:**
 - Scaffold (Vite + React + TS + Tailwind v4), Supabase wired (ca-central-1), project on local disk, GitHub repo connected, ARCHITECTURE.md in place.
-- **Auth & roles:** branded login page, inline forgot-password flow, Supabase password-reset flow (redirects to `/reset-password`), AuthContext wrapping the full app, no public signup, logout. Four roles: admin / developer / user / client.
+- **Auth & roles:** branded login page, inline forgot-password flow, Supabase password-reset flow (redirects to `/reset-password`), AuthContext wrapping the full app, no public signup, logout. Four roles at Phase 1 close: admin / developer / user / client. *(Now five — `owner` added 2026-07-20 with the access-control/owner-tier build; §3.3.)*
 - Database schema (all tables) with **real per-role RLS** via `get_my_role()` SECURITY DEFINER function (38 tables; dev allow-all fully replaced).
 - **Directory** — companies & contacts, extensible roles, filtering.
 - **Projects** — list, create with project-type, active/completed sections, search, filters, delete.
@@ -69,25 +69,58 @@
 - **doc-common extraction** — shared letterhead/CSS/toPdf/toDocx/upload layer under
   api/_shared, proven byte-clean by regeneration diff before any new consumer.
 
-### Phase 2 — checklist engine (BUILT; template seeding in progress)
+### Phase 2 — checklist engine: COMPLETE AND CLOSED (2026-07-21)
 
-**Built and verified on production:** 14-table template/instance/response schema,
-Template Library, instance snapshots, multi-unit parallel columns, fill-out with
-offline outbox (localStorage, natural-key upserts), failed-item finding modal with
-duplicate prevention and a finding QUEUE (bulk copies walk one modal per hit),
+**Engine (built and verified on production):** 14-table template/instance/response
+schema, Template Library, instance snapshots, multi-unit parallel columns, fill-out
+with offline outbox (localStorage, natural-key upserts), failed-item finding modal
+with duplicate prevention and a finding QUEUE (bulk copies walk one modal per hit),
 signoffs, completion with nameplate snapshot, reopen audit trail, PDF+DOCX
-generation (completed + blank hand-out modes, standardized empty-cell semantics,
-wide-grid ≥5-column per-target rule, section-band keep-with-next pagination),
-multi-unit copy feature (row apply-to-all; column copy-from-unit that never
-overwrites), PFC/IVC source-identity typing rule (Prefunctional folder → pfc;
-names follow type: "⟨Equipment⟩ Prefunctional Checklist").
+generation in FOUR render modes (§6: completed · blank Field Copy · blank
+Contractor Hand-out · transposed check_table fleet mode), standardized empty-cell
+semantics, wide-grid ≥5-column per-target rule, section-band keep-with-next
+pagination, multi-unit copy feature (row apply-to-all; column copy-from-unit that
+never overwrites), PFC/IVC source-identity typing rule (Prefunctional folder →
+pfc; names follow type: "⟨Equipment⟩ Prefunctional Checklist").
 
-**Seeding state:** AHU Prefunctional Checklist seeded from the firm master (Batch 1
-of the real-form seeding). **Next: Batch 1 resumes at Boiler → Pump → BAS**, then
-Batch 2 (chillers, cooling tower, exhaust fan, heat exchanger) and Batch 3 (VFD +
-electrical set). FPT module and LEED deliverable tracking remain.
+**Template library: BOTH SEEDING CAMPAIGNS CLOSED — 238 templates in the register
+(181 ivc / 57 pfc).** CSA IVC campaign (180 templates) closed 2026-07-21
+(`docs/CSA-SEEDING-LOG.md`); PFC campaign (56 templates) closed
+(`docs/PFC-SEEDING-LOG.md`); plus the two pre-campaign AHU templates. Extraction
+governed by `docs/EXTRACTION-PLAYBOOK.md` — 26 standing rules, six source
+grammars, four harness source modes; every template passed the
+`audit-template.mjs` five-family self-audit. **The next campaign (Start-Up, then
+FPT) starts from those three documents.**
 
-**Then:** Phase 3 — reminders/aging, Status & Action Summary (§6A), data import (contacts, equipment), long-form documents (Cx Plan, OPR, BOD, Systems Manual, Final Report), client portal, MBCx/OCx.
+### Phase 2 close-out additions (2026-07-20/21, all live)
+
+- **Access control (as-built record: `docs/ACCESS-CONTROL-PROPOSAL.md`)** —
+  `project_members` membership wall + membership-scoped RLS across every
+  project-scoped table, destructive-rights concentration, own-drafts rule, C2
+  status-guard trigger, creator auto-membership trigger. Gate: pw-access.
+- **Symmetric owner tier (as-built record: `docs/OWNER-TIER-PROPOSAL.md`)** —
+  5-role model (admin / developer / owner / user / client; §3.3),
+  `is_owner`/`is_staff`/`owner_member` helpers, the §3.1 inline-role-list sweep,
+  the `project_members` wall predicate, `list_internal_profiles` RPC, `dev.admin`
+  as sole all-seeing break-glass account. Gate: pw-access 54/54.
+- **Deliverables tab (as-built record: `docs/DELIVERABLES-TAB-PROPOSAL.md`)** —
+  four-state lifecycle with app-side date stamps, ad-hoc via the pool-or-adhoc
+  CHECK, compose-from-classification with active-flag filtering (idempotent),
+  pool-delete snapshot-to-ad-hoc, dashboard overdue queue + My Items. LEED model:
+  Fundamental 7 / Enhanced 14 / MBCx 3 / Envelope BECx 6 dormant. Gate:
+  pw-deliverables 22/22.
+- **UI overhaul (2026-07-22)** — full visual-system redesign executed with
+  EXTERNAL design tooling/skills (not in-repo specs): logo-pinned purple/vermilion
+  palette, Archivo + Spline Sans Mono, motion system, single chart grammar. Future
+  readers: the styling provenance and as-built record live in ARCHITECTURE.md
+  "UI & Design System" — do not look for it in this spec's history.
+
+**Remaining after close-out:** Start-Up campaign (GATED: Word COM fix + the
+startup-type decision), FPT module + campaign (PARKED post-rollout; S03
+Balancing-Report ruling flagged), then Phase 3 remainder — reminders/aging, Status
+& Action Summary (§6A), data import (contacts, equipment), long-form documents
+(Cx Plan, OPR, BOD, Systems Manual, Final Report), client portal, MBCx/OCx.
+Canonical queue: MASTER-BRIEF §10.
 
 ### Master Phase 6 — AI Trend-Log Verification (SPEC'D — see docs/BAS-SPEC.md)
 - Module spec complete (v1.2), validated against real TDSB enteliWEB exports and
@@ -141,16 +174,22 @@ CLIENT = a COMPANY with the Client/Owner role
   └─ has many PROJECT
 
 PROJECT (belongs to a CLIENT, or standalone)
+  ├─ MEMBERS (project_members — BUILT 2026-07-20: the access-control wall; §3.3.
+  │    profile + is_lead; creator auto-membership trigger; UNIQUE(project, profile))
   ├─ CLASSIFICATIONS (junction → classification_options; five seeded dimensions, §5.1) → drive deliverable composition
   ├─ has many PHASE (optional; e.g., PH-1, PH-2)
   ├─ DISTRIBUTION LIST (references CONTACTs)
   ├─ EQUIPMENT / SYSTEM list (the Cx Index rows)
   ├─ ISSUES LOG → has many FINDING        ← THE BACKBONE
-  ├─ DELIVERABLES (conditional on project_type)
+  ├─ DELIVERABLES REGISTER (project_deliverables — BUILT 2026-07-21, the Deliverables
+  │    tab; composed from classifications §5.2, plus ad-hoc rows. Each row: pool
+  │    template XOR ad-hoc name (CHECK), status not_started→in_progress→submitted→
+  │    accepted with date stamps, assigned_to, due_date, sort_order. Distinct from
+  │    the GENERATED documents below, which are their own modules:)
   │    ├─ Site Reports (Site Notes)
   │    ├─ IVC / PFC checklists (instances of TEMPLATEs, attached to EQUIPMENT)
   │    ├─ FPT scripts (instances, attached to SYSTEMs)
-  │    ├─ OPR, BOD, Cx Plan, Systems Manual, Training, Final Report, 10-month review, OCx Plan
+  │    ├─ OPR, BOD, Cx Plan, Systems Manual, Training, Final Report, 10-month review, OCx Plan (long-form: planned)
   ├─ DOCUMENTATION REGISTER (status of received docs)
   ├─ FILE ATTACHMENTS (shop drawings, TAB, pressure tests, O&M …)
   ├─ TEAM MATRIX (project_team_assignments → company_role_types; communication matrix)
@@ -217,6 +256,12 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 - id, name, deliverableType, equipmentType (for checklists), type (IVC / PFC / FPT / document)
 - For checklist templates: nameplateFields[], sections[] → lineItems[], measurementGrids[], signOffBlock.
 - **Default-subset maps per project type** (Standard / LEED Fundamental / Enhanced / MBCx) live here too — they define which pool templates auto-add to a new project of that type.
+- *(CORRECTION 2026-07-22 — this entity predates two later decisions and is kept as
+  planning history: (1) "project type" was replaced by the classification framework
+  (§5.1), so the maps live on classification OPTIONS via
+  `option_deliverable_defaults`; (2) the pool split in two — `deliverable_templates`
+  (documents) vs `checklist_templates` (equipment checklists) — and the two are
+  never conflated (§5.2). Current LEED set counts are in §5.2, not here.)*
 
 **Checklist Template** (a checklist-type entry in the Template Pool)
 - id, name, equipmentType, type (IVC / PFC / FPT)
@@ -271,13 +316,34 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
   seven-day disclaimer on every PDF page.
 
 **User** (team + future client)
-- id, name, email, role (Admin / Developer / User / Client)
+- id, name, email, role (Admin / Developer / Owner / User / Client — `user_role_enum`)
 
-### 3.3 Permission roles
-- **Admin** — full access; creates projects, manages template library, manages users.
-- **Developer** — technical/config access (templates, integrations, data import).
-- **User** — works projects: findings, checklists, reports, equipment. Cannot manage users/templates.
-- **Client** *(future portal)* — read-only view of their own projects' status and open issues; no internal data.
+### 3.3 Permission roles & access control (REWRITTEN AS-BUILT 2026-07-20 —
+full records: `docs/ACCESS-CONTROL-PROPOSAL.md` + `docs/OWNER-TIER-PROPOSAL.md`)
+
+**Model: global role × project membership.** `project_members` (project + profile +
+`is_lead`) is the visibility wall; membership-scoped RLS runs on every
+project-scoped table via SECURITY DEFINER helpers (`get_my_role`,
+`is_admin_or_dev`, `is_owner`, `is_staff`, `is_project_member`, `is_project_lead`,
+`owner_member`, `my_profile_name`). The boundary is **visibility and destruction —
+never workflow**: inline-adds and all content work stay member-open.
+
+| Role | Visibility | Powers |
+|---|---|---|
+| **Admin** | ALL projects | everything; break-glass/super. `dev.admin` is the sole all-seeing daily account (an ordinary admin — no SQL special-case) |
+| **Developer** | ALL projects | technical/config (recorded exception E5) |
+| **Owner** | **member projects only** — identical scoping to employees | within member projects: everything admin can do, incl. membership management and all hard-deletes (`owner_member()` split); plus firm-level writes (templates, vocabularies, classifications). Never user/role management or `orgs` writes |
+| **User** ("Employee") | member projects only | content work: findings, checklists, reports, equipment, meetings. Leads (is_lead) additionally edit project settings |
+| **Client** *(future portal)* | nothing — appears in ZERO policies | read-only portal later |
+
+**Destructive concentration:** project delete/complete (C2 status-guard trigger),
+hard-delete findings/equipment, delete ANY checklist instance incl. completed,
+delete issued documents — admin/dev OR owner-within-member-project only. Members
+may delete their OWN unissued drafts (own-drafts rule, name-text matched).
+**Creator auto-membership** is a DB trigger (survives API/test inserts; known
+trap: INSERT..RETURNING evaluates SELECT policy before the trigger — the app uses
+client-generated ids). `list_internal_profiles()` (SECURITY DEFINER, caller-gated
+inside) feeds membership pickers without exposing emails or client rows.
 
 ---
 
@@ -400,10 +466,32 @@ There are **two deliberately separate firm-level pools — never conflate them:*
 **Composition:** any classification option may contribute deliverable defaults via
 `option_deliverable_defaults` (option → deliverable_template). At project creation the
 app composes the **union of all selected options' contributions**, deduped, into the
-project's own editable `project_deliverables` copy. Seeded mappings: New Construction →
-the base Cx set (4); LEED Fundamental → its set (4); LEED Enhanced → Fundamental's set
-plus its additions (10); MBCx → MBCx Plan. Facility Type / Phases / Services contribute
-nothing yet — the mechanism is ready when they should.
+project's own editable `project_deliverables` copy — and the Deliverables tab
+(BUILT 2026-07-21) can re-run composition later as an idempotent delta
+(active-flag-filtered; run-twice offers zero rows).
+
+**Seeded mappings (LEED-accuracy pass, 2026-07-21 — as-built record:
+`docs/DELIVERABLES-TAB-PROPOSAL.md`):** New Construction → the base Cx set (4);
+**LEED Fundamental → 7** (Cx Plan, OPR & BoD Review, Design Review,
+Issues-and-Benefits Log, System Test Execution Verification, Final Cx Report,
+CFR & O&M Plan); **LEED Enhanced → 14** (Fundamental's 7 replicated + Design
+Review Backcheck, Contractor Submittal Review, Systems Manual Verification,
+Training Verification, Seasonal/Deferred Testing, 10-Month Operations Review,
+OCx Plan); **MBCx → 3** (MBCx Plan, Quarterly Trend Analysis, MBCx Report);
+**LEED Envelope Cx (BECx) → 6 — option AND its six Envelope templates seeded
+DORMANT (`active=false`)**; activation is two admin toggles + compose when a BECx
+project is awarded. OPR & BoD stays one combined deliverable by ruling. Facility
+Type / Phases / Services contribute nothing yet — the mechanism is ready when they
+should.
+
+**Deliverables register mechanics (as-built):** pool row XOR ad-hoc name
+(`pool_or_adhoc` CHECK); four-state status (`not_started → in_progress →
+submitted → accepted`) with `date_submitted`/`date_accepted` stamped on advance
+and cleared on regression (app-side `statusDates()`, the `date_closed` pattern);
+admin pool-template deletion snapshots the name into the row (degrades to ad-hoc)
+rather than violating the CHECK; reorder via up/down arrows (team-matrix
+precedent, no drag). Overdue deliverables feed the dashboard Attention Queue;
+assigned deliverables feed My Items.
 
 Everything else about the pool principle is unchanged: templates are created once and
 referenced; per-project copies are editable (remove defaults that don't apply, add any
@@ -428,7 +516,35 @@ section/topic **bands never strand at a page bottom** (band + first row share an
 unbreakable tbody); DOCX package-integrity checks; row-count integrity logged.
 
 - **Site Report** — letterhead, project header, distribution, progress observations, documentation table, issues table (open with full diary; closed grey + CLOSED in place; register fields — Location line, description body, corrective-action line — render only-when-present so historical findings regenerate byte-clean), embedded per-finding photos. *(BUILT.)*
-- **IVC / PFC** — *(BUILT — api/generate-checklist.ts.)* Letterhead, unit identity + nameplate block (Specified/Shop Dwg/Installed; multi-unit side-by-side column groups), check sections with Y/N/NR/NA + parallel unit columns, measurement grids (**wide-grid rule:** ≥5-column grids render per-target stacked; ≤4 combined), sign-offs. Two modes: **completed** (frozen snapshot; defined-but-empty → em-dash, not-defined → shaded) and **blank hand-out** (§6D Capability A — Spec/Shop pre-filled, Installed clean white, not-applicable shaded, no zebra). **Typing rule:** template type comes from the SOURCE master's identity — Prefunctional folder → `pfc`, Installation Verification → `ivc`, Functional Testing → `fpt`; names follow type ("⟨Equipment⟩ Prefunctional Checklist"); ask when ambiguous, never guess.
+- **IVC / PFC** — *(BUILT — api/generate-checklist.ts; deliberately self-contained,
+  does NOT import doc-common — it needs landscape PDFs + per-mode footers.)*
+  Letterhead, unit identity + nameplate block (Specified/Shop Dwg/Installed;
+  multi-unit side-by-side column groups), check sections with Y/N/NR/NA + parallel
+  unit columns, measurement grids (**wide-grid rule:** ≥5-column grids render
+  per-target stacked; ≤4 combined), sign-offs. **FOUR render modes (as-built):**
+  1. **completed** — frozen snapshot (nameplate from `nameplate_snapshot`, never
+     live equipment); defined-but-empty → em-dash, not-defined → shaded.
+  2. **blank — Field Copy** (audience `field`; DEFAULT for `ivc`) — internal
+     hand-out: no banner, Isotherm prefilled, Spec/Shop prefilled, Installed clean
+     white for on-site handwriting, no zebra.
+  3. **blank — Contractor Hand-out** (audience `contractor`; DEFAULT for non-ivc)
+     — "BLANK FORM — FOR CONTRACTOR USE" banner, identity lines blank. Explicit
+     audience param always wins; both variants coexist in storage
+     (`blank-field.*` / `blank-contractor.*`). (§6D Capability A.)
+  4. **check_table** (per-template `render_mode`) — transposed fleet mode for
+     high-count equipment (VAV & kin): landscape, units as ROWS, items as numbered
+     COLUMNS in section order, "Checkout Procedures and Key" legend, 9-column
+     chunking with the unit-tag column repeated per chunk, completed cells render
+     status + response date, findings as "→ #n". DOCX attempted-but-optional (wide
+     tables may ship PDF-only with a warning).
+  **Template library:** 238 templates seeded (181 ivc / 57 pfc) — campaigns closed
+  2026-07-21; method and rules in `docs/EXTRACTION-PLAYBOOK.md`, campaign records
+  in `docs/CSA-SEEDING-LOG.md` + `docs/PFC-SEEDING-LOG.md`. **Typing rule:**
+  template type comes from the SOURCE master's identity — Prefunctional folder →
+  `pfc`, Installation Verification → `ivc`, Functional Testing → `fpt`; names
+  follow type ("⟨Equipment⟩ Prefunctional Checklist"); ask when ambiguous, never
+  guess. (`startup` is deliberately NOT a checklist type today — the Start-Up
+  campaign is gated on that decision; MASTER-BRIEF §10.)
 - **Meeting Minutes** — *(BUILT — api/generate-minutes.ts, §3.2 Meeting.)*
 - **FPT** — front matter + revision control, submittal/participants/approval blocks, requested-documentation table, functional testing record grouped by system (test step / expected & actual / Pass Y/N / note#). *(Planned.)*
 - **Cx Plan, OPR, BOD, Systems Manual, Final Report** — templated long-form documents. *(Planned.)*
@@ -719,19 +835,31 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 - Client portal scope (status only, or issue-level visibility) — phase 3.
 - Data-import specifics for the TDSB Excel and Outlook contacts.
 
-**Open items register (canonical list: MASTER-BRIEF §12):**
-- **Storage privacy hardening** — REQUIRED pre-client-rollout: all document buckets
-  are public with unguessable URLs; one batched pass to private buckets + signed
-  URLs across every download link. (Recorded 2026-07-19.)
+**Open items register (canonical list: MASTER-BRIEF §12; verified 2026-07-22):**
+- **Storage privacy hardening** — VERIFIED STILL OPEN, REQUIRED pre-client-rollout:
+  all five document buckets (site-reports, meeting-minutes, finding-photos,
+  checklists, equipment-files) are public with unguessable URLs; one batched pass
+  to private buckets + signed URLs across every download link. (Recorded
+  2026-07-19.)
+- **Unauthenticated generate-* endpoints** — VERIFIED STILL OPEN (2026-07-22): all
+  three generators accept an id-only POST with no caller verification, run
+  service-role (RLS bypassed), CORS `*`. Fix (JWT + membership check before
+  rendering) rides the same pre-client-rollout hardening pass.
+- **Break-glass / test-admin split** — dev.admin currently serves both the
+  human break-glass role and scripted test seeding (.env); split before the firm
+  scales past the three owners or real client data lands. (Recorded 2026-07-20.)
 - **site_reports.issued_at** — future addition; until then the dashboard's Recent
   Activity approximates with updated_at of generated reports, honestly labeled
   "report generated".
 - **projects.last_visited_at** — written on project open but unused by the
   dashboard (last visit derives from site-report dates by design); cleanup
   candidate for a later pass.
-- **My Items user-id normalization** — identified_by / prepared_by / authored_by
-  are name-text conventions matched against profile.name; normalize to user-id
-  columns when multi-user pressure warrants.
+- **My Items user-id normalization** — identified_by / prepared_by / authored_by /
+  assigned_to are name-text conventions matched against profile.name; normalize to
+  user-id columns when multi-user pressure warrants.
+- **IEL 12-row capacity truing pass** — OPTIONAL, NOT OWED: the Elec-IEL templates
+  seeded at the master's capacity; a truing pass against real project row counts
+  is a quality option to schedule only if field use demands it, not a debt.
 
 ---
 

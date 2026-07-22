@@ -88,18 +88,49 @@ timeline, trend/system charts, company-keyed responsible rollup, My Items, Recen
 Activity; security_invoker coverage view); and the doc-common extraction (gated
 byte-clean before any consumer).
 
-Phase 2 (Checklist Engine) is built through document generation: the 14-table
-schema, Template Library, snapshot instances, multi-unit parallel columns, offline
-outbox fill-out, failed-item finding modal with duplicate prevention + finding
-queue, signoffs, completion snapshots, reopen audit trail, PDF+DOCX generation
-(completed + blank hand-out modes, standardized empty-cell semantics, wide-grid
-per-target rule, band pagination), and the multi-unit copy feature (row
-apply-to-all; never-overwrite column copy; copied N/fail routes through the normal
-finding flow per target). Templates are typed by SOURCE identity (Prefunctional
-folder → pfc; names follow type). Seeded so far: A/C / Fan Coil / Heat Pump (ivc),
-AHU Prefunctional Checklist (pfc, from the firm master). Remaining: Batch 1
-seeding resumes at Boiler → Pump → BAS, then Batches 2–3; FPT module; LEED
-deliverable tracking (Phase 3, §5).
+**Phase 2 (Checklist Engine) is COMPLETE and CLOSED (2026-07-21).** The engine:
+14-table schema, Template Library, snapshot instances, multi-unit parallel columns,
+offline outbox fill-out, failed-item finding modal with duplicate prevention +
+finding queue, signoffs, completion snapshots, reopen audit trail, PDF+DOCX
+generation (completed + **audience-aware blank modes** — Field Copy default for
+ivc, Contractor Hand-out default otherwise, explicit param wins; standardized
+empty-cell semantics; wide-grid ≥5-column per-target rule; band pagination), the
+multi-unit copy feature (row apply-to-all; never-overwrite column copy; copied
+N/fail routes through the normal finding flow per target), and the transposed
+**check_table render mode** (landscape, units as rows / items as numbered columns,
+9-column chunking with repeated tag column, status+date cells; DOCX
+attempted-but-optional — wide tables may ship PDF-only) fleet-proven at the
+2.6.11.7 VAV gate. Templates are typed by SOURCE identity (Prefunctional folder →
+pfc; names follow type).
+
+**Template seeding — both campaigns CLOSED.** CSA IVC campaign complete 2026-07-21
+(`docs/CSA-SEEDING-LOG.md`); PFC campaign complete (`docs/PFC-SEEDING-LOG.md`).
+DB register: **238 templates — 181 ivc / 57 pfc** (campaign JSON 180+56 plus the
+two pre-campaign AHU templates). Extraction governed by
+`docs/EXTRACTION-PLAYBOOK.md` (26 rules, six source grammars, four harness source
+modes); every template passed the `audit-template.mjs` five-family self-audit.
+
+**Access control + symmetric owner tier (2026-07-20; as-built records:
+`docs/ACCESS-CONTROL-PROPOSAL.md`, `docs/OWNER-TIER-PROPOSAL.md`).**
+`project_members` + membership-scoped RLS on every project-scoped table,
+destructive-rights concentration, own-drafts rule, C2 status-guard trigger,
+creator auto-membership; the 5-role model (admin / developer / **owner** / user /
+client) with `is_owner`/`is_staff`/`owner_member` helpers — owners scoped to
+member projects only; `dev.admin` is the sole all-seeing break-glass account.
+
+**Deliverables tab — Phase 2 close-out (2026-07-21; as-built record:
+`docs/DELIVERABLES-TAB-PROPOSAL.md`).** Four-state status enum (not_started /
+in_progress / submitted / accepted with date stamps), ad-hoc deliverables via the
+pool-or-adhoc CHECK, compose-from-classification with active-flag filtering and
+run-twice idempotency, pool-delete snapshot-to-ad-hoc, dashboard
+overdue-deliverable queue + My Items integration. **LEED deliverable model:**
+Fundamental 7 / Enhanced 14 / MBCx 3 / Envelope BECx 6 seeded DORMANT
+(activation = two admin toggles + compose when a BECx project is awarded).
+
+**UI overhaul (2026-07-22).** Full visual-system redesign executed with external
+design tooling (logo-pinned purple/vermilion palette, Archivo + Spline Sans Mono,
+motion system, single chart grammar). As-built record: ARCHITECTURE.md
+"UI & Design System" — the styling did not originate in earlier specs.
 
 Phase 6 is fully specified in `docs/BAS-SPEC.md`, validated against real TDSB Delta
 enteliWEB exports and approved submittals, with parsers designed around observed
@@ -261,32 +292,35 @@ sequences to find hidden control issues, failed sequences, energy waste, and
 commissioning deficiencies before they become expensive post-occupancy problems." Never
 "AI controls your building." 90-day validation gate per Track A before commercial build.
 
-## 10. What Claude Code does next
+## 10. What Claude Code does next (refreshed 2026-07-22 — Phase 2 CLOSED)
 
-Still the Phase 2/3 checklist track, not AI/BAS yet. The §10 pre-flight and the core
-Phase 2 build sequence are DONE and must not re-run: the migration (14 tables,
-cross-instance integrity constraints, `org_id` per rule 17), TypeScript types,
-ARCHITECTURE.md schema update, Template Library UI, Template Builder, instance creation
-with snapshots, fill-out UI, failed-item-to-finding modal with duplicate prevention and
-linked-finding badges, signoffs, completion with nameplate snapshot, and
-reopen-with-audit-trail — all built and committed through `815e03a`, with one minimal
-real template seeded (A/C / Fan Coil / Heat Pump IVC).
+Everything in §4 is DONE and must not re-run: the Phase 2 checklist engine
+end-to-end, both seeding campaigns (238 templates: 181 ivc / 57 pfc), the
+check_table render mode, audience-aware blank modes, the multi-unit copy feature,
+access control + the owner tier, the Deliverables tab with the LEED deliverable
+model (Envelope BECx dormant), the internal Dashboard, Meeting Minutes, and the
+UI overhaul. The old Batch 1–3 seeding queue in earlier versions of this section
+is COMPLETE — do not restart it.
 
-Also DONE since (do not re-run): field-resilience acceptance (outbox + offline
-tests), checklist PDF-DOCX generation with blank hand-out mode, the multi-unit copy
-feature, the findings register, Meeting Minutes, the router + internal Dashboard,
-doc-common extraction, PFC type/name corrections, meeting-types admin sections.
+The real queue now:
+1. **Start-Up campaign — GATED, do not start until both gates clear:** (a) the
+   Word COM conversion fix for the remaining `.doc` source masters, and (b) the
+   startup-type decision (`startup` is not a checklist type today —
+   `ChecklistType = ivc|pfc|fpt`; per EXTRACTION-PLAYBOOK R10/R11 start-up
+   content embedded on a Static Verification sheet stays ivc. Decide whether
+   Start-Up masters seed as a new type or fold into the existing rule before
+   extracting anything).
+2. **FPT campaign — PARKED until after rollout.** The S03 Balancing-Report
+   ruling is flagged and must be resolved at campaign start, not assumed.
+3. **Live human items (Tony's, not build tasks): rollout · trim · promote.**
+   Roll the tool out to the team; trim the template register (deactivate what the
+   firm won't use); promote dormant sets (e.g. Envelope BECx) when a matching
+   project is awarded.
+4. §12 open items as scheduled (storage privacy hardening and generator
+   authentication before any client-facing rollout).
 
-Next, in order:
-1. **Batch 1 template seeding resumes at Boiler** (2.6.2.1 → `boiler`, type pfc,
-   "Boiler Prefunctional Checklist"), then Pump (2.6.8.1), then BAS (basic
-   nameplate fallback — no field-def key). Standing loop: extract → show JSON →
-   STOP for approval → seed → ZZ-TEST instance → one blank hand-out PDF → commit.
-2. Batch 2 (chillers ×2, cooling tower, exhaust fan, heat exchanger) and Batch 3
-   (VFD + six Elec-IEL electrical) on Tony's signal, fresh session per batch.
-3. Round-3 tail items: transposed check-table render mode when the VAV family
-   seeds; directory legacy-column removal pass; §12 open items as scheduled.
-4. FPT module, then LEED deliverable tracking (Phase 3).
+Only after the checklist track's remaining campaigns land do the low-risk AI
+phases begin (Phase 4 onward; Phase 6 build order is BAS-SPEC §11).
 
 Only after the checklist track lands do the low-risk AI phases begin (Phase 4 onward;
 Phase 6 build order is BAS-SPEC §11).
@@ -309,6 +343,15 @@ use. The fix is one batched hardening pass: convert all document storage to priv
 buckets + signed URLs across every download link (site report links, minutes links,
 finding photo renders, checklist document links, equipment attachments) in a single
 change, not bucket-by-bucket drift.
+
+**Unauthenticated generate-* endpoints (verified still open 2026-07-22).** All three
+document generators (`api/generate-report.ts`, `api/generate-minutes.ts`,
+`api/generate-checklist.ts`) accept an unauthenticated POST carrying only an id,
+run with `SUPABASE_SERVICE_ROLE_KEY` (bypassing RLS), and serve CORS `*` — no JWT
+or caller verification anywhere in `api/`. Anyone who can reach the URL and guess
+a valid uuid can generate and overwrite documents in Storage. Fix belongs in the
+same pre-client-rollout hardening pass as storage privacy: verify the caller's
+Supabase JWT and their project membership before rendering.
 
 **site_reports.issued_at (future addition).** Site reports have no issued
 timestamp; the dashboard's Recent Activity approximates with `updated_at` of

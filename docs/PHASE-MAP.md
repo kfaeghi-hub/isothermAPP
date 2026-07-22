@@ -7,8 +7,8 @@ older document says "Phase 3B" or the v1 brief says "Phase 7," translate here.
 | Master (canonical) | Build Spec (`Isotherm_Cx_System_Build_Spec.md`) | BAS-SPEC (`docs/BAS-SPEC.md`) | v1 Brief (PDF) | Status |
 |---|---|---|---|---|
 | Phase 1 — Core Cx OS | Phase 1 | — | Phase 1 | Complete, deployed |
-| Phase 2 — Checklist Engine | Phase 2 | — | Phase 2 | **Current build** |
-| Phase 3 — Report/Closeout Automation | part of Phase 2/3 | — | Phase 3 | Planned |
+| Phase 2 — Checklist Engine | Phase 2 | — | Phase 2 | **Complete — closed 2026-07-21** (engine + 238-template register) |
+| Phase 3 — Report/Closeout Automation | part of Phase 2/3 | — | Phase 3 | Partially delivered early (checklist PDF/DOCX generation, LEED deliverable tracking via the Deliverables tab); FPT module and long-form documents remain |
 | Phase 4 — Low-Risk AI Assistance | §11A "high value, low risk" | — | Phase 4 | Planned |
 | Phase 5 — AI Equipment/Doc Extraction | §11A "useful later" | §4.5 (submittal extractor, first instance) | Phase 5 | Planned |
 | Phase 6 — AI Trend-Log Verification | Phase 3 "Intelligence" (partial) | **BAS-1a + BAS-1b + BAS-2** | Phase 7 ← swapped | Fully spec'd |

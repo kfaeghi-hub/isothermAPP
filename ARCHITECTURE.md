@@ -6,7 +6,14 @@
 
 ## Overview
 
-A React SPA for managing building commissioning (Cx) projects. Used daily by field engineers at Isotherm Engineering. **Deployed** (https://isotherm-app.vercel.app). Live modules: auth & roles; routed app (react-router-dom — the internal Dashboard is home); directory (companies/contacts + typed phones/emails, locations, role vocabulary); projects (classification framework, dates, team matrix); issues log (full ASHRAE 202 findings register with diary + photos); Cx Index (12-group/88-col); equipment register (11 type templates, tag glossary, attachments); site reports (PDF+DOCX); **checklist engine** (14-table template/instance/response schema, multi-unit fill with offline outbox, auto-findings with duplicate prevention, completed + blank hand-out document generation, multi-unit copy feature); **meeting minutes** (typed meetings, agenda skeletons, carry-forward, generated minutes); **internal dashboard** (Attention Queue, portfolio, charts, responsible rollup). Document generation shares `api/_shared/doc-common.ts`. External integrations (construction PM tools, BAS systems) are seamed but not yet built.
+A React SPA for managing building commissioning (Cx) projects. Used daily by field engineers at Isotherm Engineering. **Deployed** (https://isotherm-app.vercel.app). Live modules: auth & roles (5-role model with project membership — see Access control); routed app (react-router-dom — the internal Dashboard is home); directory (companies/contacts + typed phones/emails, locations, role vocabulary); projects (classification framework, dates, team matrix, membership); issues log (full ASHRAE 202 findings register with diary + photos); Cx Index (12-group/88-col); equipment register (11 type templates, tag glossary, attachments); site reports (PDF+DOCX); **checklist engine** (14-table template/instance/response schema, multi-unit fill with offline outbox, auto-findings with duplicate prevention, completed + audience-aware blank + transposed check_table document generation, multi-unit copy feature) with a **fully seeded template library — 238 templates: 181 ivc / 57 pfc** (campaigns closed 2026-07-21; `docs/CSA-SEEDING-LOG.md`, `docs/PFC-SEEDING-LOG.md`, method in `docs/EXTRACTION-PLAYBOOK.md`); **meeting minutes** (typed meetings, agenda skeletons, carry-forward, generated minutes); **Deliverables tab** (four-state lifecycle, ad-hoc rows, compose-from-classification, LEED sets incl. dormant Envelope BECx); **internal dashboard** (Attention Queue incl. overdue deliverables, portfolio, charts, responsible rollup, My Items). Document generation shares `api/_shared/doc-common.ts` (generate-checklist is a deliberate self-contained sibling — it needs landscape + per-mode footers). External integrations (construction PM tools, BAS systems) are seamed but not yet built.
+
+> **Schema provenance:** there is no `supabase/migrations/` tree — DDL is applied to the
+> live DB via the Supabase Management API/MCP. Canonical as-built sources:
+> `src/types/database.ts` (column-exact mirror; update FIRST on any schema change), the
+> three as-built proposal docs (`docs/ACCESS-CONTROL-PROPOSAL.md`,
+> `docs/OWNER-TIER-PROPOSAL.md`, `docs/DELIVERABLES-TAB-PROPOSAL.md`), and this file.
+> Verbatim policy/function bodies live only in the database (`pg_policies`, `pg_proc`).
 
 ---
 
@@ -19,7 +26,7 @@ A React SPA for managing building commissioning (Cx) projects. Used daily by fie
 | Build | Vite 6 |
 | Backend / DB | Supabase (PostgreSQL + Auth + Storage) — ca-central-1 |
 | DB access | `@supabase/supabase-js` v2 (PostgREST + Realtime client) |
-| Font | IBM Plex Sans (UI) + IBM Plex Mono (identifiers, dates) via Google Fonts |
+| Font | Archivo (display + body, variable width) + Spline Sans Mono (identifiers, dates) via Google Fonts — see UI & Design System |
 | Tests | Playwright (browser-driven, key user flows) |
 
 ---
@@ -75,8 +82,17 @@ api/
 │                               # uploadDocPair (storage + cache-busted URLs).
 │                               # NOTE: import with explicit .js extension (Vercel ESM runtime).
 ├── generate-report.ts          # Site Notes (maxDuration 60)
-├── generate-checklist.ts       # IVC/PFC documents — completed + blank hand-out modes (maxDuration 60)
+├── generate-checklist.ts       # IVC/PFC documents (maxDuration 60) — FOUR render modes:
+│                               # completed · blank Field Copy · blank Contractor Hand-out
+│                               # (audience defaults by type: ivc → field, else contractor;
+│                               # explicit param wins) · check_table transposed fleet mode.
+│                               # DELIBERATELY self-contained (does NOT import doc-common):
+│                               # needs landscape PDFs + per-mode footers.
 └── generate-minutes.ts         # Meeting minutes (maxDuration 60)
+
+NOTE (§12 open item, verified 2026-07-22): none of the three generators
+authenticate the caller — service-role key, CORS *, id-only POST. Fix rides the
+pre-client-rollout hardening pass (JWT + membership check before rendering).
 ```
 
 ---
@@ -116,21 +132,68 @@ Pages own their own data fetching, local state, and layout. Shared UI primitives
 ── Auth ──────────────────────────────────────────────────────────────────────
 
 auth.users            → Supabase-managed; email + password only (public signup DISABLED)
-user_profiles         → id (= auth.uid()), name, email, role (admin|developer|user|client)
+user_profiles         → id (= auth.uid()), name, email, role user_role_enum
+                        (admin|developer|owner|user|client — 'owner' via ADD VALUE 2026-07-20)
                         get_my_role() SECURITY DEFINER function reads this bypassing its own RLS —
                         required to bootstrap the RLS chicken-and-egg cycle.
                         Missing profile row → "Account setup incomplete" screen at login.
 
-RLS pattern (38 tables as of Phase 1):
-  Firm-level tables (trade_types, equipment_tag_glossary, cx_default_*, etc.):
-    SELECT: admin | developer | user
-    ALL:    admin | developer
-  Project-scoped tables (findings, equipment, site_reports, cx_cell_values, etc.):
-    ALL:    admin | developer | user
-  user_profiles:
-    SELECT own row: WHERE id = auth.uid()
-    ALL:            admin
-  All policies call get_my_role() — a SECURITY DEFINER function — to avoid RLS recursion on user_profiles.
+── Access control (as-built 2026-07-20 — full records: docs/ACCESS-CONTROL-PROPOSAL.md
+   + docs/OWNER-TIER-PROPOSAL.md) ───────────────────────────────────────────────
+
+Model: GLOBAL ROLE × PROJECT MEMBERSHIP. The boundary is visibility and
+destruction — never workflow (inline-adds and all content work stay member-open).
+
+project_members       → project_id + profile_id (both FK CASCADE), is_lead, added_by;
+                        UNIQUE(project_id, profile_id). THE membership wall.
+
+Roles: admin (ALL projects; break-glass/super — dev.admin is an ordinary admin
+account, no SQL special-case) · developer (ALL projects; technical/config) ·
+owner (member projects ONLY — same scoping as employees; within them everything
+admin can do incl. membership management, plus firm-level rights; never user/role
+management or orgs writes) · user "Employee" (member projects, content work) ·
+client (appears in ZERO policies — fully locked out until the portal).
+
+Helper functions (all SECURITY DEFINER, STABLE; bodies live in the DB):
+  get_my_role()            → caller's role text (the root oracle)
+  is_admin_or_dev()        → role in (admin, developer) — break-glass meaning
+  is_owner() / is_staff()  → role = owner / role in (admin, developer, owner, user)
+  is_project_member(pid)   → EXISTS project_members row (NO role condition)
+  is_project_lead(pid)     → same AND is_lead
+  owner_member(pid)        → is_owner() AND is_project_member(pid) — the owner-split
+  my_profile_name()        → caller's profile name (own-drafts matching)
+
+Policy patterns:
+  M  (membership)   ALL: is_admin_or_dev() OR is_project_member(project_id) —
+                    default for all project content; child tables resolve via parent
+  L  (lead-gated)   settings writes: … OR is_project_lead() — dates, classifications,
+                    phases, systems-in-scope
+  AD+owner split    destructive rights: is_admin_or_dev() OR owner_member(project_id) —
+                    project delete/complete, hard-delete findings/equipment, delete
+                    ANY checklist instance incl. completed, delete issued docs
+  Own-drafts        DELETE also allowed to a member on their OWN unissued draft
+                    (prepared_by/authored_by = my_profile_name(); name-text, soft)
+  Directory         read/insert/update is_staff(); DELETE admin/dev/owner
+  Firm-config       read is_staff(); write admin/dev/owner (templates, dimensions,
+                    meeting types, Cx defaults, glossary); orgs writes admin-only
+  user_profiles     own-row SELECT + admin ALL; list_internal_profiles() RPC
+                    (SECURITY DEFINER, caller-gated inside) feeds the Access card
+                    without exposing emails or client rows
+
+DB triggers (bodies in the DB; intent recorded here):
+  C2 status-guard         BEFORE UPDATE ON projects — status flips only for
+                          is_admin_or_dev() OR owner_member(); leads edit dates,
+                          never status
+  Creator auto-membership AFTER INSERT ON projects — inserts (project, creator,
+                          is_lead=true); DB-level so API/test inserts get it too;
+                          service-role inserts (auth.uid() null) skip gracefully.
+                          Known trap: INSERT..RETURNING evaluates SELECT policy
+                          BEFORE the trigger — the app uses client-generated ids +
+                          plain INSERT
+  enforce_single_mode_classification — rejects a 2nd option in a single-mode dimension
+  findings date_closed    auto-set on close, cleared on reopen
+  updated_at stamps       on all mutable tables (INSERT-time timestamps stick —
+                          only UPDATEs get stamped; the dashboard tests rely on this)
 
 ── Directory & Projects ───────────────────────────────────────────────────────
 
@@ -165,9 +228,37 @@ option_deliverable_defaults → option → deliverable_template mapping. Project
                              composes the union of all selected options' defaults into
                              project_deliverables (per-project editable copy).
 
-All five carry org_id (rule 17). RLS: firm-config pattern on the config tables,
-project-scoped on the junction. projects.project_type (column + enum type) was
-REMOVED 2026-07-17 — classifications are the only source of truth.
+── Deliverables tab (as-built 2026-07-21 — record: docs/DELIVERABLES-TAB-PROPOSAL.md) ─
+
+project_deliverables  → per-project register. template_id (nullable FK → pool) XOR
+                        name (ad-hoc) via the pool_or_adhoc CHECK; status enum
+                        deliverable_status (not_started | in_progress | submitted |
+                        accepted — replaced the old received/complete/na enum via
+                        ALTER..USING with formal mapping); date_submitted /
+                        date_accepted stamped/cleared APP-SIDE by statusDates()
+                        (src/lib/deliverables.ts — the date_closed pattern, not a
+                        trigger); assigned_to (profile-name text, §12 convention);
+                        due_date, notes, sort_order (up/down arrows, no drag);
+                        UNIQUE(project_id, template_id) — the compose idempotency
+                        backstop.
+Compose:                composeDelta() unions the ACTIVE default templates of the
+                        project's selected ACTIVE options minus rows already
+                        present; applyCompose() upserts with ignoreDuplicates.
+                        Dormant options/templates (active=false) never compose.
+Pool-delete fix:        admin deletion of a pool template snapshots its name into
+                        project_deliverables.name while nulling template_id —
+                        rows degrade to ad-hoc instead of violating the CHECK.
+LEED sets (seeded):     Fundamental 7 · Enhanced 14 (Fundamental's 7 replicated + 7)
+                        · MBCx 3 · Envelope BECx 6 — option + all 6 templates
+                        seeded DORMANT (active=false; activation = two admin
+                        toggles + compose when a BECx project is awarded).
+Dashboard:              overdue deliverables feed the Attention Queue
+                        (DELIVERABLE rows, DELIVERABLE_OVERDUE_GRACE_DAYS) and
+                        assigned deliverables surface in My Items.
+
+All tables carry org_id (rule 17). RLS: firm-config pattern on the config tables,
+project-scoped (M) on the junctions and register. projects.project_type (column +
+enum type) was REMOVED 2026-07-17 — classifications are the only source of truth.
 
 ── Directory child tables (2026-07 enhancement) ───────────────────────────────
 
@@ -214,11 +305,20 @@ finding_photos        → photo records per finding; storage_url = Supabase Stor
 ── Checklist engine (Phase 2 — 14 tables) ─────────────────────────────────────
 
 checklist_templates / _template_sections / _template_items / _template_grids /
-_template_signoffs  → firm pool. Template TYPE comes from the SOURCE master's
+_template_signoffs  → firm pool — SEEDED AT SCALE: 238 templates (181 ivc /
+                      57 pfc), both campaigns closed 2026-07-21. Extraction method
+                      and 26 standing rules: docs/EXTRACTION-PLAYBOOK.md; campaign
+                      records: docs/CSA-SEEDING-LOG.md + docs/PFC-SEEDING-LOG.md.
+                      Template TYPE comes from the SOURCE master's
                       identity (Prefunctional folder → pfc; Installation
                       Verification → ivc; Functional Testing → fpt) and the name
                       follows the type ("⟨Equipment⟩ Prefunctional Checklist").
                       Series codes live in revision_label only (branding rule).
+                      checklist_templates.render_mode selects document layout:
+                      null → standard portrait; 'check_table' → transposed fleet
+                      mode (landscape, units as rows / items as numbered columns,
+                      9-column chunking, status+date cells; DOCX attempted-but-
+                      optional — may ship PDF-only with a warning).
 checklist_instances / _instance_sections / _instance_items / _instance_grids /
 _instance_signoffs / _instance_targets → FULL SNAPSHOT copies at creation (name/
                       type/revision + structure); instances never read the template
@@ -408,15 +508,124 @@ nothing could break when it landed; the full Playwright battery re-ran green as 
 
 ---
 
-## Design Tokens
+## UI & Design System (as-built 2026-07-22)
 
-| Token | Value | Use |
-|---|---|---|
-| Primary action | Teal-700 `#0F766E` | Buttons, active states, underlines |
-| Sidebar bg | Slate-900 | |
-| Content bg | White / Slate-50 | |
-| Mono font | IBM Plex Mono | COM#, dates, finding numbers |
-| UI font | IBM Plex Sans | Everything else |
+> **Provenance note:** the visual system was overhauled in July 2026 through a series of
+> UI enhancement passes driven by external design tooling/skills (visual-world redesign →
+> brand-pinned palette + logo → Apple-grade motion/material pass → chart system pass).
+> The styling did NOT all originate from in-repo specs; this section is the record of
+> what is actually shipped. Commits: `c99b048` (visual world) → `816bac4` (brand repin +
+> logo) → `eb9a2c0` (dashboard motion pass) → `42e803a` (chart system) → `fed6f67`
+> (whole-app motion/material sweep).
+
+### Token layer — `src/index.css` (single source; Tailwind v4 `@theme`, no config file)
+
+The brand is **pinned to the logo**: purple `#443C8F` (institution) + vermilion
+`#E8432D` (heat/attention) on paper white `#fbfaf8`. Two token strategies coexist:
+
+1. **Semantic scales** — `brand-*` (purple 50–950, wordmark `#443C8F` = 600),
+   `standard-*` (alias of brand-*, referenced by Modal/Login/StatHeader),
+   `vermilion-*` (partial: 50/400/500/600/700), plus world names
+   `--color-cover #181536`, `--color-paper`, `--color-ink`, `--color-rule`.
+2. **Remapped stock Tailwind scales** (the migration bridge — legacy utilities inherit
+   the new world with zero per-file edits): `teal-*` → purple (`teal-600 = #443c8f`;
+   **`teal-400 = #f2704f` vermilion** — the class name lies, see debt list),
+   `slate-*` → purple-tinted cover/ink ramp (`slate-900 = #181536` is the sidebar),
+   `gray-*` → neutral ink ramp with faint violet cast (`gray-200 #e0dfe6` hairline,
+   `gray-400 #7b7a85` muted), and `rose/sky/violet-*`.
+
+**Status colors keep their meaning:** green `#1E7A4E` (600) success, amber `#8A5400`
+(700) attention, vermilion red `#C2371F` (600) deviation/overdue. Chip convention is
+tinted field + same-hue text (`bg-green-50 text-green-700`), never gray-on-color.
+`VisitChip` (`src/components/VisitChip.tsx`) is the canonical band chip and exports
+`BAND_HEX` for SVG/chart use — never `#7B7A85` for a live band.
+
+Radii are print-sharp (xs 1px … 2xl 10px); shadows are flat paper offsets, never halos.
+
+### Typography
+
+- **Archivo** (variable, wdth 62–125) is display AND body; `.font-display` sets
+  `font-stretch: 110%` + `-0.01em` tracking for headings/mastheads/stat numbers.
+- **Spline Sans Mono** for identifiers, dates, clause numbers, readings;
+  `tabular-nums` forced on `.font-mono` so figures column-align.
+- Loaded via one Google Fonts css2 request in `index.html`. Micro-labels run uppercase
+  with wide tracking (0.06–0.22em); large numerals use `tracking-[-0.02em]`.
+
+### Shared components
+
+| Component | Purpose |
+|---|---|
+| `components/Logo.tsx` | `LogoMark` (SVG I-beam + vermilion isotherm curves; `color`/`reverse`); brand hex intentionally hardcoded here |
+| `components/VisitChip.tsx` | THE last-visit band chip (bands from dashboardThresholds) |
+| `components/AccessCard.tsx` | Project membership management (owner/admin-gated) |
+| `components/ProjectStatHeader.tsx` | 4-stat project Overview header; same derivation as dashboard cards |
+| `components/ClassificationBadges.tsx` / `ClassificationPicker.tsx` | Per-dimension badges + creation picker |
+| `components/EquipmentPicker.tsx` / `FindingPicker.tsx` | Grouped searchable combo-boxes |
+| `components/ui/Modal.tsx` | The shared dialog: scrim, `.modal-sheet` entrance, standard-600 accent bar, Escape, `sm/md/lg` |
+| `components/ui/EmptyState.tsx` | Empty states with the ink contour watermark |
+
+Pills, tab bars, and section heads are NOT extracted — they live inline per page
+(e.g. `ClauseHead` in DashboardPage; the tab bar in ProjectDetailPage).
+
+### Shell & layout
+
+Desktop: 60-unit `slate-900` (purple cover) left rail with clause-numbered nav —
+groups Operations (1 Dashboard, 2 Projects, 3 Directory), Library (4 Templates,
+5 Classifications), Administration (6 Users super-only, 7 Action Summary "soon").
+Active state = 3px vermilion bar + mono clause number. Mobile: `lg:hidden` header +
+slide-over drawer (fixed overlay, `drawer` keyframe). Content pages are
+master/detail `flex h-full overflow-hidden` layouts that assume desktop width;
+Dashboard is the most responsive surface (`grid-cols-1 lg:grid-cols-2`).
+
+**Known gap — the checklist fill view is desktop-first:** the multi-unit response
+matrix in `ChecklistsPage.tsx` scrolls horizontally (`overflow-x-auto`, min-width
+cells) rather than reflowing on phones. Mobile reflow is roadmap (§6C), not built.
+
+### Motion system (all hand-rolled CSS — no motion library)
+
+- `.rise` — staggered entrance (420ms, `--rise-i * 45ms`); fill-mode `backwards`
+  deliberately, so the transform clears and never becomes a containing block for
+  `position:fixed` overlays. On all primary page roots.
+- `.card-tile` — card depth + hover lift; interruptible 200ms transitions.
+- `.chrome-material` — translucent chrome (blur 16px + saturate); Dashboard sticky header.
+- `.modal-sheet` / `drawer` — dialog and drawer entrances.
+- Global press response: `button:active` scales 0.985 (80ms).
+- Guards: `prefers-reduced-motion` disables all of it; `prefers-reduced-transparency`
+  solidifies `.chrome-material`.
+
+### Charts — `src/lib/chartTheme.ts`
+
+One chart grammar (recharts, DashboardPage is currently the only consumer): single
+purple hue for magnitude, semantic green/amber reserved for status, vermilion for
+thresholds via annotated `ReferenceLine`s (color never carries the encoding alone),
+neutral `#C6C5CD` for no-data, 12px bars with 4px rounded data ends, recessive
+hairline grid, ink-colored text (never series-colored).
+
+### Icons & UI dependencies
+
+`lucide-react` (sole icon set) · `recharts` · `react-router-dom` · Tailwind v4 via
+`@tailwindcss/vite`. No component library (no Radix/shadcn), no motion library.
+
+### Known UI debt (recorded 2026-07-22 — flagged, deliberately not yet fixed)
+
+1. **Legacy navy `#1F3A5F` hardcodes survive the repin:** App.tsx loading/error
+   screens (fully off-token inline styles), AccessCard LEAD badge,
+   ProjectDetailPage tag badge, UsersPage/TeamPage role badges, and
+   **ResetPasswordPage** (heaviest — ~9 inline navy/old-teal values, never adopted
+   the token layer).
+2. **Two card patterns:** canonical `.card-tile bg-white rounded-xl` vs legacy
+   `bg-white rounded-lg border` (popovers, some DeliverablesPage/SiteReportsPage
+   internals); radii diverge xl/lg/md across cards, popovers, and Modal.
+3. **Ad-hoc chips:** LEAD/MEMBER, role badges, and tag badges are styled inline
+   instead of via a shared Badge component; ClassificationBadges uses stock
+   `blue-*`, which is NOT remapped — an off-palette blue in the purple world.
+4. **`teal-400` = vermilion** via remap — works visually, but the class name lies;
+   new code should use `vermilion-*`/`brand-*` names.
+5. **Orphans:** `.tbl-ruled` (defined, referenced nowhere), `LogoLockup` (exported,
+   never imported), stale `theme-color` meta `#062A1D` in index.html, and
+   cover-green-era prose in the index.css header comments.
+6. Contour watermark SVG path duplicated between `.contour-mark` (white) and
+   `.contour-mark-ink` (purple) rather than shared.
 
 ---
 
@@ -487,6 +696,14 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   carry-forward number retention, close-carried-item isolation
 - `pw-dashboard.mjs` — seeds one state per widget (INSERT-TIME timestamps — only
   updates get trigger-stamped), asserts chips/queue/deep-links/rollup, self-cleans
+- `pw-access.mjs` — the access-control gate: API-layer RLS verification via raw
+  authenticated PostgREST, all three legs (employee / owner / admin), 54 checks
+- `pw-deliverables.mjs` — Deliverables tab end-to-end: compose idempotency, date
+  stamps, ad-hoc CHECK, queue/My-Items, LEED re-sync, Envelope activate/deactivate
+- `pw-blank-audience.mjs` — audience-aware blank mode (Field Copy vs Contractor)
+- `pw-signoff-order.mjs` — records integrity: signoff render order stability
+- `pw-checklist-offline.mjs` — field-resilience acceptance (outbox, reconnect)
+- `pw-classification.mjs` — classification → deliverable composition via UI
 - plus earlier-era flow scripts (`pw-team`, `pw-dates`, `pw-directory`, …)
 
 **Deploy-verification pattern (learned the hard way):** Vercel queues builds; a
@@ -546,20 +763,34 @@ deployment state. A gate run against a stale bundle is void — re-run and say s
 - **ZZ-TEST only** for automated tests (see Testing above). Suites verify CONTENT as
   dev.test (employee); privileged seed/cleanup (project create/delete, issued-meeting
   and finding deletes) runs as dev.admin — the §6.1 credential split.
-- **Access control (2026-07-20, as-built record: docs/ACCESS-CONTROL-PROPOSAL.md):**
-  global role × project membership. Employees see member projects only
-  (`project_members` + `is_project_member()` helpers on every project-scoped policy);
-  leads additionally edit project settings; owners (admin/dev) create/complete/delete
-  projects, manage membership, and hold all hard-deletes (findings, equipment, issued
-  documents, completed instances). Creator auto-membership and the project
-  status-guard are DB triggers. The boundary is visibility and destruction — never
-  workflow (inline-adds and all content work stay member-open).
+- **Access control (2026-07-20, as-built records: docs/ACCESS-CONTROL-PROPOSAL.md +
+  docs/OWNER-TIER-PROPOSAL.md):** global role × project membership, 5-role model
+  (admin / developer / owner / user / client). Employees AND owners see member
+  projects only (`project_members` + the helper family on every project-scoped
+  policy); leads additionally edit project settings; destructive rights are
+  admin/dev OR owner-within-member-projects (`owner_member()`); `dev.admin` is the
+  sole all-seeing account (an ordinary admin — break-glass lives in the account
+  layer, not SQL). Creator auto-membership and the project status-guard are DB
+  triggers. The boundary is visibility and destruction — never workflow
+  (inline-adds and all content work stay member-open).
 - **Commit and push are one action.** Never leave local-only commits; report push
   failures immediately.
+- **Never round-trip unicode-bearing source files through PowerShell** (echo,
+  Set-Content, -replace pipelines): it mojibakes em-dashes, arrows, and accented
+  characters. Use the Edit/Write file tools. This has bitten four times.
+- **Deploy verification is bundle-content, not deploy-state:** before any
+  production-gated test run, confirm the SERVED JS bundle contains a marker of the
+  change (fetch index.html → asset URL → grep the bundle). A gate run against a
+  stale bundle is void (see Testing).
 - **Rule 4 (records):** completed/issued artifacts are frozen point-in-time
   records — corrections change templates/live rows only; snapshots and issued
   documents are never rewritten.
 
 ---
 
-*Last updated: 2026-07-20 — routed app with the internal Dashboard as home; checklist engine built through document generation (blank + completed modes, multi-unit copy feature) with real-form seeding in progress (AHU pfc seeded; Boiler next); Meeting Minutes end-to-end; findings full ASHRAE 202 register; doc-common shared generation layer; meeting-types admin sections. See Build Spec §1A for the authoritative module list.*
+*Last updated: 2026-07-22 — Phase 2 closed: checklist engine end-to-end with four
+render modes and the 238-template register (both campaigns closed); access control +
+symmetric owner tier; Deliverables tab with the LEED model (Envelope BECx dormant);
+UI & Design System section added (brand repin to purple/vermilion, motion system,
+chart grammar — external design tooling provenance noted). See Build Spec §1A for
+the authoritative module list.*
