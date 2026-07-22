@@ -4,7 +4,7 @@
 // typographic phrases pass through while the field steps up → crescendo +
 // CTA → footer on solid ground. Copy is Tony's to revise — keep it minimal.
 
-import { useLayoutEffect, useRef } from 'react'
+import { Fragment, useLayoutEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -24,9 +24,12 @@ function Words({ text }: { text: string }) {
   return (
     <>
       {text.split(' ').map((w, i, arr) => (
-        <span key={i} className="lp-mask">
-          <span className="lp-word">{w}{i < arr.length - 1 ? ' ' : ''}</span>
-        </span>
+        <Fragment key={i}>
+          <span className="lp-mask"><span className="lp-word">{w}</span></span>
+          {/* the joining space lives OUTSIDE the inline-block mask — a trailing
+              space inside one collapses and the words fuse visually */}
+          {i < arr.length - 1 ? ' ' : ''}
+        </Fragment>
       ))}
     </>
   )
