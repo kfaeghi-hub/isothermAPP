@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
+import { EmptyState } from '../components/ui/EmptyState'
 import { useAuth } from '../contexts/AuthContext'
 import type { SiteReport, DocRegisterItem } from '../types/database'
 
@@ -233,10 +234,10 @@ export function SiteReportsPage({ projectId }: Props) {
         {loading ? (
           <div className="text-sm text-gray-400 p-4">Loading…</div>
         ) : reports.length === 0 ? (
-          <div className="text-center py-20">
+          <EmptyState>
             <p className="text-sm font-medium text-gray-600 mb-1">No site reports yet</p>
             <p className="text-sm text-gray-400">Create your first Cx Site Note to generate a .docx and PDF.</p>
-          </div>
+          </EmptyState>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">

@@ -154,10 +154,37 @@ body {
   border-bottom: 1px solid var(--color-rule);
 }
 
+/* Readings align in columns: every mono figure is tabular. (typography) */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
 /* The contents drawer's one authored motion: a fast paper slide. */
 @keyframes drawer {
   from { transform: translateX(-100%); }
   to   { transform: translateX(0); }
+}
+
+/* Modals arrive like a sheet set down: fade + settle, fast and flat. */
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-sheet {
+  animation: sheet-in 130ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-sheet, aside[class*="animate-"] { animation: none !important; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* Ink variant of the contour mark for paper-ground empty states. */
+.contour-mark-ink {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23176844' stroke-width='1'%3E%3Cpath d='M60 340c-40-60-30-160 20-210s150-70 210-30 90 130 50 190-120 80-180 60S100 400 60 340z'/%3E%3Cpath d='M95 320c-30-48-24-128 16-168s120-56 168-24 72 104 40 152-96 64-144 48S125 368 95 320z'/%3E%3Cpath d='M130 300c-22-36-18-96 12-126s90-42 126-18 54 78 30 114-72 48-108 36S152 336 130 300z'/%3E%3Cpath d='M165 280c-14-24-12-64 8-84s60-28 84-12 36 52 20 76-48 32-72 24S179 304 165 280z'/%3E%3Cpath d='M200 260c-7-12-6-32 4-42s30-14 42-6 18 26 10 38-24 16-36 12S207 272 200 260z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }
 
 /* The isotherm contour watermark (login cover + empty states only). */

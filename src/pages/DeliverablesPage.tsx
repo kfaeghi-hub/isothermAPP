@@ -5,6 +5,7 @@
 import { Fragment, useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
+import { EmptyState } from '../components/ui/EmptyState'
 import {
   fetchDeliverables, composeDelta, applyCompose, statusDates, displayName,
   STATUS_ORDER, STATUS_META, type DeliverableRow,
@@ -149,16 +150,18 @@ export function DeliverablesPage({ projectId }: Props) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-10 text-center">
-          <p className="text-sm font-medium text-gray-600 mb-1">No deliverables tracked yet</p>
-          <p className="text-sm text-gray-400 max-w-md mx-auto mb-4">
-            Compose the list from this project's classifications — each selected program and
-            lifecycle option contributes its default set — or add rows individually.
-          </p>
-          <button onClick={previewCompose} disabled={composing}
-            className="text-sm px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors">
-            Compose from classification
-          </button>
+        <div className="bg-white rounded-md border border-gray-200">
+          <EmptyState>
+            <p className="text-sm font-medium text-gray-600 mb-1">No deliverables tracked yet</p>
+            <p className="text-sm text-gray-400 max-w-md mx-auto mb-4">
+              Compose the list from this project's classifications — each selected program and
+              lifecycle option contributes its default set — or add rows individually.
+            </p>
+            <button onClick={previewCompose} disabled={composing}
+              className="text-sm px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-sm transition-colors">
+              Compose from classification
+            </button>
+          </EmptyState>
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">

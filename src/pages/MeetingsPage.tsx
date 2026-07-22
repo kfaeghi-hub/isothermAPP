@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../lib/format'
 import { Modal } from '../components/ui/Modal'
+import { EmptyState } from '../components/ui/EmptyState'
 import { FindingPicker, type PickerFinding } from '../components/FindingPicker'
 import { useAuth } from '../contexts/AuthContext'
 import type { Meeting, MeetingType, MeetingTopic, MeetingAttendee, MeetingItem } from '../types/database'
@@ -493,7 +494,7 @@ export function MeetingsPage({ projectId }: Props) {
         </div>
         <div className="flex-1 overflow-auto">
           {meetings.length === 0 ? (
-            <div className="p-12 text-center">
+            <EmptyState>
               <p className="text-sm font-medium text-gray-600 mb-1">No meetings yet</p>
               <p className="text-xs text-gray-400 mb-5 max-w-[220px] mx-auto">
                 Kickoffs, recurring Cx meetings, workshops — each with its agenda skeleton and carried action items.
@@ -502,7 +503,7 @@ export function MeetingsPage({ projectId }: Props) {
                 className="text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800 transition-colors font-medium">
                 + New Meeting
               </button>
-            </div>
+            </EmptyState>
           ) : meetings.map(m => (
             <button key={m.id} onClick={() => setSelectedId(m.id === selectedId ? null : m.id)}
               className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors relative ${m.id === selectedId ? 'bg-teal-50/40' : ''}`}>
@@ -790,7 +791,7 @@ export function MeetingsPage({ projectId }: Props) {
             </div>
           </div>
           {carryInfo && carryInfo.count > 0 && (
-            <label className="flex items-start gap-2 text-sm text-gray-700 bg-amber-50 border border-amber-100 rounded px-3 py-2.5 cursor-pointer">
+            <label className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2.5 cursor-pointer">
               <input type="checkbox" checked={createForm.carryForward}
                 onChange={e => setCreateForm(f => ({ ...f, carryForward: e.target.checked }))}
                 className="mt-0.5" data-testid="carry-forward" />

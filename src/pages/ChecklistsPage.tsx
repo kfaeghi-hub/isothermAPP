@@ -4,6 +4,7 @@ import * as outbox from '../lib/checklistOutbox'
 import { uploadFindingPhoto } from '../lib/photos'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/ui/Modal'
+import { EmptyState } from '../components/ui/EmptyState'
 import type {
   ChecklistTemplate, ChecklistInstance, ChecklistInstanceTarget,
   ChecklistInstanceSection, ChecklistInstanceItem, ChecklistInstanceGrid,
@@ -1071,13 +1072,12 @@ export function ChecklistsPage({ projectId, phases }: Props) {
           {loadingList ? (
             <div className="p-8 text-sm text-gray-400 text-center">Loading checklists…</div>
           ) : filteredInstances.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="text-3xl mb-3 opacity-20">✅</div>
+            <EmptyState>
               <p className="text-sm font-medium text-gray-600 mb-1">No checklists yet</p>
               <p className="text-xs text-gray-400 max-w-[180px] mx-auto">
                 Create IVC, PFC, and FPT checklists from the firm template library.
               </p>
-            </div>
+            </EmptyState>
           ) : (
             filteredInstances.map(inst => {
               const isSelected = inst.id === selectedId
@@ -1877,7 +1877,7 @@ function PassFailInput({ value, onChange, disabled }: {
         onClick={() => !disabled && onChange(value === 'pass' ? null : 'pass')}
         disabled={disabled}
         className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors disabled:cursor-default ${
-          value === 'pass' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-400 hover:border-emerald-400 hover:text-emerald-600'
+          value === 'pass' ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 text-gray-400 hover:border-green-600 hover:text-green-600'
         }`}
       >P</button>
       <button
