@@ -7,13 +7,15 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Cell, Legend,
+  CartesianGrid,
 } from 'recharts'
+import { CHART } from '../lib/chartTheme'
 import { fetchDashboard, type DashboardData, type RespGroup } from '../lib/dashboardData'
 import { fetchClassificationConfig, type ClassificationConfig } from '../lib/classifications'
 import { ClassificationBadges } from '../components/ClassificationBadges'
 import { useAuth } from '../contexts/AuthContext'
 import { daysSince, visitBand } from '../lib/dashboardThresholds'
-import { VisitChip, BAND_HEX } from '../components/VisitChip'
+import { VisitChip } from '../components/VisitChip'
 import { formatDate } from '../lib/format'
 
 const QUEUE_KIND: Record<string, { label: string; cls: string }> = {
@@ -204,12 +206,19 @@ export function DashboardPage() {
               <ClauseHead n="2" title="Follow-up Radar" sub="days since last site visit — stalest first" />
               <div className="p-4">
               <ResponsiveContainer width="100%" height={Math.max(120, radar.length * 34)}>
-                <BarChart data={radar} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: any, _n: any, e: any) => e?.payload?.never ? 'never visited' : `${v} days`} />
-                  <Bar dataKey="days" radius={[0, 2, 2, 0]} minPointSize={3}>
-                    {radar.map((r, i) => <Cell key={i} fill={BAND_HEX[r.band]} />)}
+                <BarChart data={radar} layout="vertical" margin={{ left: 8, right: 24, top: 14 }}>
+                  <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                  <XAxis type="number" tick={CHART.tickMono} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={110} tick={CHART.tick} axisLine={false} tickLine={false} />
+                  <Tooltip {...CHART.tooltip} cursor={CHART.cursor}
+                    formatter={(v: any, _n: any, e: any) => [e?.payload?.never ? 'never visited' : `${v} days`, 'since visit']} />
+                  {/* Thresholds as annotations — bar LENGTH is the encoding, color never carries it alone */}
+                  <ReferenceLine x={14} stroke={CHART.amber} strokeDasharray="4 3"
+                    label={{ value: '14d', fontSize: 9, fill: CHART.amber, position: 'top' }} />
+                  <ReferenceLine x={30} stroke={CHART.vermilion} strokeDasharray="4 3"
+                    label={{ value: '30d', fontSize: 9, fill: CHART.vermilion, position: 'top' }} />
+                  <Bar dataKey="days" radius={[0, CHART.endRadius, CHART.endRadius, 0]} minPointSize={3} barSize={CHART.barSize}>
+                    {radar.map((r, i) => <Cell key={i} fill={r.never ? CHART.neutral : CHART.purple} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -224,15 +233,17 @@ export function DashboardPage() {
               <p className="text-sm text-gray-400">No active projects with both start and finish dates.</p>
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(100, timeline.length * 36)}>
-                <BarChart data={timeline} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" tickFormatter={tlDateLabel} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: any, name: any) => name === 'duration' ? `${v} days` : null}
+                <BarChart data={timeline} layout="vertical" margin={{ left: 8, right: 24, top: 14 }}>
+                  <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                  <XAxis type="number" tickFormatter={tlDateLabel} tick={CHART.tickMono} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={110} tick={CHART.tick} axisLine={false} tickLine={false} />
+                  <Tooltip {...CHART.tooltip} cursor={CHART.cursor}
+                    formatter={(v: any, name: any) => name === 'duration' ? [`${v} days`, 'duration'] : [null, null]}
                     labelFormatter={l => String(l)} />
-                  <ReferenceLine x={todayOffset} stroke="#C2371F" strokeDasharray="4 3"
-                    label={{ value: 'today', fontSize: 9, fill: '#C2371F', position: 'top' }} />
+                  <ReferenceLine x={todayOffset} stroke={CHART.vermilion} strokeDasharray="4 3"
+                    label={{ value: 'today', fontSize: 9, fill: CHART.vermilion, position: 'top' }} />
                   <Bar dataKey="offset" stackId="tl" fill="transparent" />
-                  <Bar dataKey="duration" stackId="tl" fill="#443C8F" radius={[2, 2, 2, 2]} />
+                  <Bar dataKey="duration" stackId="tl" fill={CHART.purple} radius={CHART.endRadius} barSize={CHART.barSize} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -252,13 +263,14 @@ export function DashboardPage() {
               <ClauseHead n="4" title="Findings Opened vs Closed" sub="6 months" />
               <div className="p-4">
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data.trend}>
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="opened" fill="#8A5400" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="closed" fill="#1E7A4E" radius={[2, 2, 0, 0]} />
+                <BarChart data={data.trend} barGap={2}>
+                  <CartesianGrid vertical={false} stroke={CHART.grid} />
+                  <XAxis dataKey="month" tick={CHART.tickMono} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={CHART.tickMono} axisLine={false} tickLine={false} />
+                  <Tooltip {...CHART.tooltip} cursor={CHART.cursor} />
+                  <Legend iconSize={CHART.legend.iconSize} wrapperStyle={CHART.legend.wrapperStyle} />
+                  <Bar dataKey="opened" fill={CHART.amber} radius={[CHART.endRadius, CHART.endRadius, 0, 0]} barSize={CHART.barSize} />
+                  <Bar dataKey="closed" fill={CHART.green} radius={[CHART.endRadius, CHART.endRadius, 0, 0]} barSize={CHART.barSize} />
                 </BarChart>
               </ResponsiveContainer>
               </div>
@@ -272,10 +284,11 @@ export function DashboardPage() {
               ) : (
                 <ResponsiveContainer width="100%" height={Math.max(120, data.bySystem.length * 30)}>
                   <BarChart data={data.bySystem} layout="vertical" margin={{ left: 8, right: 24 }}>
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
-                    <YAxis type="category" dataKey="system" width={110} tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#375672" radius={[0, 2, 2, 0]} />
+                    <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                    <XAxis type="number" allowDecimals={false} tick={CHART.tickMono} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="system" width={110} tick={CHART.tick} axisLine={false} tickLine={false} />
+                    <Tooltip {...CHART.tooltip} cursor={CHART.cursor} />
+                    <Bar dataKey="count" fill={CHART.purple} radius={[0, CHART.endRadius, CHART.endRadius, 0]} barSize={CHART.barSize} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
