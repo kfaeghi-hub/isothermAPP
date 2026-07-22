@@ -12,6 +12,25 @@ Cinematic revision" below; the v1 sections after it are the original record.
 
 ## V2 — Cinematic revision (as-built)
 
+### V5 (2026-07-22, built): mechanical density + the BAS layer
+
+**Scene:** penthouse plant (chiller with tube-bundle marks, boiler cylinder,
+rooftop cooling tower with rotating fan ring — the roof silhouette reads
+mechanical from distance); per-floor terminal variety (air-handling closet,
+VAVs, fan-coils with fan-ring marks, reheat-coil zigzags) + damper ticks at
+takeoffs, valve bowties on the hydronic rings, diffuser fans at outlets;
+exhaust riser with dim one-way upward flow; stair/elevator core with
+per-floor diagonals. **The BAS layer — fourth system, own language:** DASHED
+pale runs (LineDashedMaterial) from equipment → per-floor DDC panels →
+penthouse head end; bidirectional signal pulses faster than air on their own
+rhythm; phase-alternating sensor blinks. **Beats now five:** 01 air · 02
+hydronic · 03 electrical · 04 controls (the web ties the lit systems
+together) · 05 complete — each beat shortened rather than one cut; stage pin
+extended to 500%. Fifth stage phrase 'Complete' (draft). Coarse path:
+trunk-side equipment only, backbone-only web, 40 pulses vs 140 — reduce,
+never drop. Shot review: hero + five beats + finale captured and reviewed;
+NOTHING cut for legibility — fog + opacity hierarchy held the silhouette.
+
 ### V4 enrichment (2026-07-22, built): richer, not busier
 
 Five additions to the V3 scene, each passing the "does this crowd the type or

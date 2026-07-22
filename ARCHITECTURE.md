@@ -67,15 +67,18 @@ src/
 │   │   │                       # else CinematicLanding
 │   │   ├── CinematicLanding.tsx# Lenis + GSAP/ScrollTrigger choreography: word-
 │   │   │                       # stagger hero → pinned 4-phrase stage → crescendo
-│   │   ├── BuildingSection.tsx # V3 centerpiece: abstracted cutaway wireframe
-│   │   │                       # building — floors/columns/penthouse, duct trunk
-│   │   │                       # + branches with airflow particles (vermilion),
-│   │   │                       # hydronic risers (lavender), electrical riser +
-│   │   │                       # panels (pale). Systems ignite per scroll beat
-│   │   │                       # (air → hydronic → electrical → full section);
-│   │   │                       # cursor swirls the airflow. Thin additive lines
-│   │   │                       # only — diagrammatic, never photoreal. WebGL
-│   │   │                       # failure → CSS contour fallback
+│   │   ├── BuildingSection.tsx # V5 centerpiece: cutaway wireframe building with
+│   │   │                       # penthouse plant (chiller/boiler/cooling tower w/
+│   │   │                       # rotating fan ring), per-floor terminal variety,
+│   │   │                       # dampers/valves/diffusers, exhaust riser, stair
+│   │   │                       # core, two-way airflow particles, hydronic +
+│   │   │                       # electrical risers, and the BAS control web
+│   │   │                       # (dashed runs → DDC panels → head end, signal
+│   │   │                       # pulses, sensor blinks). FIVE ignition beats:
+│   │   │                       # air → hydronic → electrical → controls →
+│   │   │                       # complete (cumulative memory-glow). Thin
+│   │   │                       # additive line primitives only — diagrammatic,
+│   │   │                       # never photoreal. WebGL failure → CSS contour
 │   │   ├── CssContour.tsx      # flat SVG contour (fallback + static variant bg)
 │   │   ├── StaticLanding.tsx   # reduced-motion first-class path: no motion, no
 │   │   │                       # canvas, all content visible

@@ -17,6 +17,9 @@ import { LandingFooter } from './sections/LandingFooter'
 gsap.registerPlugin(ScrollTrigger)
 
 export const PHRASES = ['Field checklists', 'Issues log', 'Meeting minutes', 'Deliverables']
+// Five stage moments for the five system beats (draft copy — Tony revises);
+// the static variant keeps the four capability PHRASES.
+export const STAGE_PHRASES = [...PHRASES, 'Complete']
 const HEADLINE = 'Commissioning management, built by commissioning agents.'
 
 /** SplitText is Club-only — a word splitter is all the effect needs. */
@@ -66,24 +69,27 @@ export function CinematicLanding() {
       // air-side → hydronic → electrical → the full lit section.
       const phrases = gsap.utils.toArray<HTMLElement>('.lp-phrase')
       // Cumulative ignition — the commissioning story: each system verifies at
-      // full brightness while the previously-verified dim to a memory-glow,
-      // and the final beat resolves the WHOLE building alive at once.
+      // full brightness while the previously-verified dim to a memory-glow.
+      // Beat 04 is the BAS web tying the lit systems together; beat 05
+      // resolves the WHOLE building alive at once. Five beats, each slightly
+      // shorter than V4's four (shorten, don't cut).
       const IGNITE: Partial<SystemParams>[] = [
-        { cam: 0.25, air: 1 },                          // 01 air-side verifies
-        { cam: 0.5,  air: 0.35, hydro: 1 },             // 02 hydronic verifies
-        { cam: 0.75, hydro: 0.35, elec: 1 },            // 03 electrical verifies
-        { cam: 1.0,  air: 1, hydro: 1, elec: 1 },       // 04 the building complete
+        { cam: 0.22, air: 1 },                                   // 01 air-side verifies
+        { cam: 0.44, air: 0.35, hydro: 1 },                      // 02 hydronic verifies
+        { cam: 0.66, hydro: 0.35, elec: 1 },                     // 03 electrical verifies
+        { cam: 0.88, elec: 0.35, bas: 1 },                       // 04 controls: the web ties it together
+        { cam: 1.02, air: 1, hydro: 1, elec: 1, bas: 1 },        // 05 the building complete
       ]
       const stage = gsap.timeline({
-        scrollTrigger: { trigger: '.lp-stage', start: 'top top', end: '+=400%', pin: true, scrub: 0.6 },
+        scrollTrigger: { trigger: '.lp-stage', start: 'top top', end: '+=500%', pin: true, scrub: 0.6 },
       })
       phrases.forEach((el, i) => {
         stage
           .fromTo(el,
             { opacity: 0, letterSpacing: '0.4em', filter: 'blur(12px)' },
-            { opacity: 1, letterSpacing: '0.08em', filter: 'blur(0px)', duration: 0.55, ease: 'power2.out' }, i)
-          .to(systems.current, { ...IGNITE[i], duration: 1, ease: 'none' }, i)
-          .to(el, { opacity: 0, letterSpacing: '0.3em', filter: 'blur(10px)', duration: 0.45, ease: 'power2.in' }, i + 0.55)
+            { opacity: 1, letterSpacing: '0.08em', filter: 'blur(0px)', duration: 0.5, ease: 'power2.out' }, i)
+          .to(systems.current, { ...IGNITE[i], duration: 0.95, ease: 'none' }, i)
+          .to(el, { opacity: 0, letterSpacing: '0.3em', filter: 'blur(10px)', duration: 0.4, ease: 'power2.in' }, i + 0.5)
       })
 
       // Beat 3 — crescendo: pull back, everything at full glow, flow fast…
@@ -137,9 +143,9 @@ export function CinematicLanding() {
           </div>
         </section>
 
-        {/* The stage — four typographic moments, pinned while the field morphs */}
+        {/* The stage — five typographic moments, pinned while the systems verify */}
         <section className="lp-stage h-svh relative" aria-label="Capabilities">
-          {PHRASES.map((p, i) => (
+          {STAGE_PHRASES.map((p, i) => (
             <h2 key={p} className="lp-phrase absolute inset-0 flex items-center justify-center text-center px-6
               font-display text-[9vw] sm:text-6xl lg:text-7xl font-bold text-white opacity-0">
               <span className="font-mono text-base sm:text-lg text-standard-300 mr-5 align-middle">{String(i + 1).padStart(2, '0')}</span>
