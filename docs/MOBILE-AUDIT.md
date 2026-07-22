@@ -1,6 +1,39 @@
 # MOBILE-AUDIT.md — Full mobile audit + fix wave plan
 
-**Status: PLAN APPROVED — WAVE 1 SHIPPED (2026-07-22). Waves 2–3 pending.**
+**Status: PLAN APPROVED — WAVES 1–2 SHIPPED (2026-07-22). Wave 3 pending
+(Templates was pulled forward into Wave 2 per Tony's real-phone screenshot).**
+
+## Wave 2 exit report
+
+Shipped as `547cc54`. Gates: screenshot review at 375/412/1440 · full battery
+green (twice for the two repaired suites) · `npm run build` pre-push ·
+served-bundle verified.
+
+- **Directory**: two-view collapse below lg (companies ⇄ contacts with back),
+  contact rows as stacked cards with tappable mailto/tel, touch-visible
+  actions. **Site Reports**: cards with the .docx/PDF links prominent.
+  **Projects**: cards + a Filters disclosure (lg:contents keeps the desktop
+  toolbar byte-identical). **Templates** (pulled forward): full-width detail
+  + back. **Deliverables** counter wrap fixed.
+- **Meetings**: the owed with-data verification CAUGHT a real defect — the
+  detail panel was the same uncollapsed two-panel (the audit saw the tab
+  empty and rated it FINE). Collapsed + back + wrapped actions; verified at
+  375 with a probe meeting (created and cleaned).
+- **RC6 chrome**: root-caused by in-page probe — the bleed is translucency
+  wherever backdrop-filter doesn't actually composite (reduced-GPU, WebViews,
+  headless), which @supports cannot detect; 92→96% still ghosted. Ruling
+  applied: legibility beats the material — the sticky band is now solid paper.
+- **Dashboard charts at phone widths: VERIFIED** (the audit's honest gap) —
+  radar, opened-vs-closed, and by-system all reflow correctly at 375/412.
+- **Suite re-entrancy repaired**: pw-team and pw-directory both carried
+  "cleanup via SQL afterwards" headers with no cleanup — every re-run died on
+  their own leftovers. Both now pre-flight-clean their fixture residue and
+  pass twice consecutively.
+- ⚠ **Photo capture remains HUMAN-VERIFICATION-OWED** (carried from Wave 1 —
+  not yet confirmed by Tony's real-phone test).
+
+Remaining Wave 3 (admin): Classifications overflow treatment, Users cards,
+Access card verification, Cx Index scroll affordance + sticky tag column.
 
 ## Wave 1 exit report
 

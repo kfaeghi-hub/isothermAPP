@@ -6,10 +6,28 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-team.mjs
 
 import { chromium } from 'playwright'
+import { createClient } from '@supabase/supabase-js'
 import { login, openTestProject } from './pw-config.mjs'
 
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
+
+// Pre-flight: this suite assigns the CxA and Architect seats and adds a ZZT
+// role; the header's "cleanup via SQL afterwards" was manual and never ran, so
+// every re-run found the seats taken and died at the first Assign wait. Make
+// it re-entrant by clearing its own fixture residue up front.
+{
+  const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
+  const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+  const { data: roles } = await adm.from('company_role_types').select('id,name')
+    .in('name', ['CxA', 'Architect', 'ZZ-Test Role'])
+  for (const r of roles ?? []) {
+    await adm.from('project_team_assignments').delete().eq('project_id', ZZ).eq('role_type_id', r.id)
+    if (r.name === 'ZZ-Test Role') await adm.from('company_role_types').delete().eq('id', r.id)
+  }
+  console.log('pre-flight: ZZ team fixture reset (CxA/Architect seats freed, ZZT role removed)')
+}
 
 const browser = await chromium.launch()
 const page = await (await browser.newContext()).newPage()

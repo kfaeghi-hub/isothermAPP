@@ -8,12 +8,24 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-directory.mjs
 
 import { chromium } from 'playwright'
+import { createClient } from '@supabase/supabase-js'
 import { login } from './pw-config.mjs'
 
 const CO = 'ZZ-TEST Directory Co — Do Not Use'
 const CT = 'ZZ Directory Tester'
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
+
+// Pre-flight: remove any leftover fixture from a prior/interrupted run so the
+// suite is re-entrant (the header's "cleaned up afterwards" was manual and
+// never happened — duplicates broke every re-run).
+{
+  const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+  const { data: cos } = await adm.from('companies').select('id').eq('name', CO)
+  for (const c of cos ?? []) await adm.from('companies').delete().eq('id', c.id)
+  if ((cos?.length ?? 0) > 0) console.log(`pre-flight: removed ${cos.length} leftover fixture company(ies)`)
+}
 
 const browser = await chromium.launch()
 const context = await browser.newContext()
