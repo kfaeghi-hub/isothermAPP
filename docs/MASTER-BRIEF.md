@@ -344,6 +344,12 @@ buckets + signed URLs across every download link (site report links, minutes lin
 finding photo renders, checklist document links, equipment attachments) in a single
 change, not bucket-by-bucket drift.
 
+**No migration history (recorded 2026-07-22).** Schema was applied via the Supabase
+Management API across the build; only three DDL files exist in `migrations/` (see
+its README). The DB is the source of truth, ARCHITECTURE.md the schema reference.
+**Before any environment duplication (staging, second org, disaster recovery),
+generate a full schema dump as the baseline** — do not reconstruct from the repo.
+
 **Unauthenticated generate-* endpoints (verified still open 2026-07-22).** All three
 document generators (`api/generate-report.ts`, `api/generate-minutes.ts`,
 `api/generate-checklist.ts`) accept an unauthenticated POST carrying only an id,

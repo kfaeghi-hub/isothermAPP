@@ -841,6 +841,11 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
   checklists, equipment-files) are public with unguessable URLs; one batched pass
   to private buckets + signed URLs across every download link. (Recorded
   2026-07-19.)
+- **No migration history** — schema was applied via the Supabase Management API
+  across the build; only three DDL files exist in `migrations/` (partial by
+  design — see its README). The DB is the source of truth, ARCHITECTURE.md the
+  schema reference. Before any environment duplication (staging, second org,
+  disaster recovery), generate a full schema dump as the baseline.
 - **Unauthenticated generate-* endpoints** — VERIFIED STILL OPEN (2026-07-22): all
   three generators accept an id-only POST with no caller verification, run
   service-role (RLS bypassed), CORS `*`. Fix (JWT + membership check before
