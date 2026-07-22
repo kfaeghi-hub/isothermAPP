@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { authedFetch, apiErrorMessage } from '../lib/api'
 import * as outbox from '../lib/checklistOutbox'
 import { uploadFindingPhoto } from '../lib/photos'
 import { useAuth } from '../contexts/AuthContext'
