@@ -350,14 +350,17 @@ its README). The DB is the source of truth, ARCHITECTURE.md the schema reference
 **Before any environment duplication (staging, second org, disaster recovery),
 generate a full schema dump as the baseline** — do not reconstruct from the repo.
 
-**Unauthenticated generate-* endpoints (verified still open 2026-07-22).** All three
-document generators (`api/generate-report.ts`, `api/generate-minutes.ts`,
-`api/generate-checklist.ts`) accept an unauthenticated POST carrying only an id,
-run with `SUPABASE_SERVICE_ROLE_KEY` (bypassing RLS), and serve CORS `*` — no JWT
-or caller verification anywhere in `api/`. Anyone who can reach the URL and guess
-a valid uuid can generate and overwrite documents in Storage. Fix belongs in the
-same pre-client-rollout hardening pass as storage privacy: verify the caller's
-Supabase JWT and their project membership before rendering.
+**Generate-* endpoint authentication — RESOLVED 2026-07-22** (as-built record:
+`docs/GENERATE-AUTH-PROPOSAL.md`). Pattern: JWT verification + server-side
+membership authorization via `api/_shared/auth-common.ts` (requireUser →
+resolve-id → requireProjectAccess mirroring the RLS M-pattern; 401/403/404
+distinct, 404 only after token verification); CORS allowlisted (production +
+aliases + preview regex + localhost), foreign origins receive no ACAO header.
+Gates: pw-generate-auth 13/13 (incl. owner-non-member → 403), report-regen
+byte-clean, full battery green. Remaining scope note: endpoints still return
+PUBLIC storage URLs — raw file-URL access stays open until the storage-privacy
+pass below, which now gets simpler: the auth helper can back signed-URL issuance
+from within already-authorized endpoints.
 
 **site_reports.issued_at (future addition).** Site reports have no issued
 timestamp; the dashboard's Recent Activity approximates with `updated_at` of

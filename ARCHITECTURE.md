@@ -90,9 +90,16 @@ api/
 │                               # needs landscape PDFs + per-mode footers.
 └── generate-minutes.ts         # Meeting minutes (maxDuration 60)
 
-NOTE (§12 open item, verified 2026-07-22): none of the three generators
-authenticate the caller — service-role key, CORS *, id-only POST. Fix rides the
-pre-client-rollout hardening pass (JWT + membership check before rendering).
+├── _shared/auth-common.ts      # Auth/authz for the generate-* endpoints (as-built
+│                               # 2026-07-22, docs/GENERATE-AUTH-PROPOSAL.md):
+│                               # applyCors (origin allowlist; foreign origins get NO
+│                               # ACAO header) · requireUser (Bearer JWT → 401, BEFORE
+│                               # any id lookup) · requireProjectAccess (RLS M-pattern
+│                               # mirror: admin/dev OR project_members row — owners
+│                               # ride membership; 403). Order: 401 → 404 → 403 →
+│                               # service-role pipeline. Gate: pw-generate-auth.
+│                               # Endpoints still return PUBLIC storage URLs — the
+│                               # storage-privacy pass (§12) closes raw file access.
 ```
 
 ---

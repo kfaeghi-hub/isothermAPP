@@ -846,10 +846,12 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
   design — see its README). The DB is the source of truth, ARCHITECTURE.md the
   schema reference. Before any environment duplication (staging, second org,
   disaster recovery), generate a full schema dump as the baseline.
-- **Unauthenticated generate-* endpoints** — VERIFIED STILL OPEN (2026-07-22): all
-  three generators accept an id-only POST with no caller verification, run
-  service-role (RLS bypassed), CORS `*`. Fix (JWT + membership check before
-  rendering) rides the same pre-client-rollout hardening pass.
+- **Generate-* endpoint authentication** — RESOLVED 2026-07-22 (as-built:
+  `docs/GENERATE-AUTH-PROPOSAL.md`): JWT verification + server-side membership
+  authorization via `api/_shared/auth-common.ts`; CORS allowlisted. Gates:
+  pw-generate-auth 13/13, report-regen byte-clean, battery green. Endpoints
+  still return public storage URLs — closed by the storage-privacy pass, which
+  the auth helper now simplifies (signed URLs from authorized endpoints).
 - **Break-glass / test-admin split** — dev.admin currently serves both the
   human break-glass role and scripted test seeding (.env); split before the firm
   scales past the three owners or real client data lands. (Recorded 2026-07-20.)

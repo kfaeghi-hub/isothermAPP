@@ -1,6 +1,19 @@
 # GENERATE-AUTH-PROPOSAL.md — Authenticate the generate-* endpoints
 
-**Status: PROPOSED — awaiting Tony's approval. No code written.**
+**Status: APPROVED AND BUILT (2026-07-22).** Built as proposed plus two approved
+additions: token resolved at fetch time via `getSession()` with human 401/403
+messages on the Generate buttons, and the owner-non-member → 403 test case (the
+owner tier rides membership — proven at the endpoint). Commits `a2f96bf`
+(auth-common + endpoints) → `ce403b9`/`602982a` (app; 602982a fixes the missing
+imports that broke three Vercel builds) → `4011c35` (six scripts authenticate via
+pw-config `apiToken`) → `e2b9f74` (pw-generate-auth). Gates: bundle-content
+deploy verification · pw-generate-auth 13/13 · **pw-report-regen byte-clean**
+(document output bit-identical pre/post) · battery green (pw-signoff-order,
+pw-meetings, pw-finding-register, pw-blank-audience, pw-checklist-docs on the
+canonical fixture with only its documented ASCII-probe PDF limitation,
+pw-dashboard, pw-deliverables, pw-access). §12 registers dispositioned. This
+document is now the as-built record; the section below is the as-approved
+proposal.
 
 - Date proposed: 2026-07-22
 - Trigger: verified during the 2026-07-22 doc-reconciliation pass — all three document
