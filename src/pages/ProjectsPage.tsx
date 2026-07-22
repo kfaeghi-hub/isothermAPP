@@ -85,6 +85,7 @@ export function ProjectsPage() {
 
   // Section + filters
   const [section, setSection] = useState<Section>('active')
+  const [mobileFilters, setMobileFilters] = useState(false)   // RC3: phone filter disclosure
   const [search, setSearch] = useState('')
   // Classification filters: dimension_id → selected option_id ('' = all)
   const [classFilters, setClassFilters] = useState<Record<string, string>>({})
@@ -324,8 +325,8 @@ export function ProjectsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden rise">
 
-      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
-      <div className="border-b border-gray-200 bg-white px-5 flex items-stretch h-11 flex-shrink-0">
+      {/* ── Toolbar — wraps on phones; filters fold into a disclosure (RC3) ── */}
+      <div className="border-b border-gray-200 bg-white px-3 lg:px-5 flex flex-wrap lg:flex-nowrap items-stretch lg:h-11 flex-shrink-0 gap-y-1 py-1 lg:py-0">
 
         {/* Section tabs — full-height underline style */}
         <div className="flex items-stretch mr-4">
@@ -368,9 +369,22 @@ export function ProjectsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search name, COM#, client…"
-            className="w-52 pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="w-36 sm:w-52 pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           />
         </div>
+
+        {/* Mobile filters disclosure — desktop renders the selects inline */}
+        <button
+          onClick={() => setMobileFilters(v => !v)}
+          className="lg:hidden self-center text-xs border border-gray-200 rounded px-2.5 py-1.5 text-gray-600 mr-2"
+        >
+          Filters{hasFilters ? ' •' : ''}
+        </button>
+
+        {/* lg:contents dissolves this wrapper on desktop so the selects stay
+            direct toolbar children (layout byte-identical); on phones it is a
+            collapsible wrap row. */}
+        <div className={`${mobileFilters ? 'flex' : 'hidden'} basis-full flex-wrap items-center gap-y-1.5 py-1 lg:py-0 lg:contents`}>
 
         {/* Classification filters — one dropdown per surfaced dimension */}
         {FILTER_DIMENSIONS.map(dimName => {
@@ -425,6 +439,8 @@ export function ProjectsPage() {
           </button>
         )}
 
+        </div>
+
         {isOwner && (
           <button
             onClick={() => { setForm(EMPTY_FORM); setFormError(null); setSelectedTradeIds([]); setAddingTrade(false); setNewTradeName(''); setModalOpen(true) }}
@@ -465,7 +481,36 @@ export function ProjectsPage() {
             )}
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <>
+          {/* Mobile: stacked project cards — the table ran two columns and the
+              filters off-screen at phone widths (RC3). Row actions stay a
+              desktop task (owner delete lives in the table's action column). */}
+          <div className="lg:hidden divide-y divide-gray-100">
+            {filteredProjects.map(p => (
+              <button key={p.id} onClick={() => openProject(p.id)}
+                className="w-full text-left px-4 py-3 active:bg-gray-50">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium text-gray-900 text-sm min-w-0">{p.name}</span>
+                  {p.com_number && <span className="font-mono text-xs text-gray-500 flex-shrink-0">{p.com_number}</span>}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {p.companies?.name ?? 'Standalone'}
+                  {formatDateRange(p.start_date, p.finish_date) && (
+                    <span className="text-gray-400"> · {formatDateRange(p.start_date, p.finish_date)}</span>
+                  )}
+                </p>
+                <div className="mt-1.5">
+                  <ClassificationBadges
+                    dimensions={classConfig.dimensions}
+                    options={classConfig.options}
+                    selections={projClass[p.id] ?? {}}
+                    compact
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+          <table className="w-full text-sm border-collapse hidden lg:table">
             <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
               <tr>
                 <th className="text-left px-5 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Project</th>
@@ -548,6 +593,7 @@ export function ProjectsPage() {
               })}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

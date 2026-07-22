@@ -529,7 +529,8 @@ export function TemplatesPage() {
     <div className="flex h-full overflow-hidden rise">
 
       {/* ── Template list ──────────────────────────────────────────── */}
-      <div className={`flex flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all ${narrow ? 'w-72' : 'flex-1'}`}>
+      {/* RC2 — below lg an open template hides the list (full-width detail). */}
+      <div className={`flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all ${narrow ? 'hidden lg:flex lg:w-72' : 'flex flex-1'}`}>
 
         {/* Toolbar */}
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
@@ -606,8 +607,15 @@ export function TemplatesPage() {
       {selectedTemplate ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-          {/* Detail header */}
-          <div className="px-5 py-3.5 border-b border-gray-200 flex items-start gap-3 flex-shrink-0">
+          {/* Detail header — actions wrap to their own row below lg */}
+          <div className="px-4 lg:px-5 py-3.5 border-b border-gray-200 flex flex-wrap items-start gap-3 flex-shrink-0">
+            <button
+              onClick={() => setSelectedId(null)}
+              className="lg:hidden flex-shrink-0 -ml-1 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 text-lg"
+              aria-label="Back to template list"
+            >
+              ←
+            </button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <TypeBadge type={selectedTemplate.type} />
@@ -624,7 +632,7 @@ export function TemplatesPage() {
               )}
             </div>
             {canEdit && (
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap basis-full lg:basis-auto justify-start lg:justify-end">
                 <button
                   onClick={toggleActive}
                   className={`text-xs border rounded px-3 py-1.5 transition-colors ${

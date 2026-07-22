@@ -64,6 +64,9 @@ export function DirectoryPage() {
 
   // Filters
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
+  // RC2 (mobile Wave 2): below lg the two panels become two views — companies
+  // list, or contacts full-width with a back affordance. Desktop unchanged.
+  const [mobilePane, setMobilePane] = useState<'companies' | 'contacts'>('companies')
   const [companySearch, setCompanySearch] = useState('')
   const [companyTradeFilter, setCompanyTradeFilter] = useState('')
   const [contactSearch, setContactSearch] = useState('')
@@ -486,7 +489,7 @@ export function DirectoryPage() {
     <div className="flex h-full overflow-hidden rise">
 
       {/* ── Left panel: Company list ──────────────────────── */}
-      <aside className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col bg-white">
+      <aside className={`w-full lg:w-64 flex-shrink-0 border-r border-gray-200 flex-col bg-white ${mobilePane === 'contacts' ? 'hidden lg:flex' : 'flex'}`}>
 
         <div className="p-3 border-b border-gray-100 space-y-2">
           <input
@@ -510,12 +513,12 @@ export function DirectoryPage() {
 
         <div className="flex-1 overflow-y-auto py-1">
           <button
-            onClick={() => setSelectedCompanyId(null)}
+            onClick={() => { setSelectedCompanyId(null); setMobilePane('contacts') }}
             className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors
               ${!selectedCompanyId ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <span>All Companies</span>
-            <span className="text-xs text-gray-400">{contacts.length}</span>
+            <span className={`text-xs ${!selectedCompanyId ? 'text-teal-600' : 'text-gray-400'}`}>{contacts.length}</span>
           </button>
 
           {filteredCompanies.length === 0 && (companySearch || companyTradeFilter) && (
@@ -525,7 +528,7 @@ export function DirectoryPage() {
           {filteredCompanies.map(company => (
             <div
               key={company.id}
-              onClick={() => setSelectedCompanyId(company.id)}
+              onClick={() => { setSelectedCompanyId(company.id); setMobilePane('contacts') }}
               className={`group px-3 py-2.5 cursor-pointer border-l-2 transition-colors
                 ${selectedCompanyId === company.id ? 'border-l-teal-500 bg-teal-50' : 'border-l-transparent hover:bg-gray-50'}`}
             >
@@ -556,7 +559,8 @@ export function DirectoryPage() {
                 </div>
               )}
 
-              <div className="hidden group-hover:flex items-center gap-2 mt-1.5">
+              {/* hover-reveal is desktop-only; touch gets the actions always */}
+              <div className="hidden max-lg:flex group-hover:flex items-center gap-2 mt-1.5">
                 <button onClick={e => openEditCompany(company, e)} className="text-xs text-teal-700 hover:underline">
                   Edit
                 </button>
@@ -580,11 +584,19 @@ export function DirectoryPage() {
       </aside>
 
       {/* ── Right panel: Contacts ─────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={`flex-1 flex-col overflow-hidden ${mobilePane === 'contacts' ? 'flex' : 'hidden lg:flex'}`}>
 
-        <div className="border-b border-gray-200 bg-white px-4 py-2.5 flex items-center gap-3 flex-wrap flex-shrink-0">
+        <div className="border-b border-gray-200 bg-white px-3 lg:px-4 py-2.5 flex items-center gap-2 lg:gap-3 flex-wrap flex-shrink-0">
+          {/* mobile back to the companies list (RC2) */}
+          <button
+            onClick={() => setMobilePane('companies')}
+            className="lg:hidden flex-shrink-0 -ml-1 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 text-lg"
+            aria-label="Back to companies"
+          >
+            ←
+          </button>
           {selectedCompany && (
-            <span className="text-sm font-semibold text-gray-700 mr-1 truncate max-w-xs">
+            <span className="text-sm font-semibold text-gray-700 mr-1 truncate max-w-[10rem] lg:max-w-xs">
               {selectedCompany.name}
             </span>
           )}
@@ -593,7 +605,7 @@ export function DirectoryPage() {
             placeholder="Search contacts…"
             value={contactSearch}
             onChange={e => setContactSearch(e.target.value)}
-            className="text-sm border border-gray-200 rounded px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="text-sm border border-gray-200 rounded px-3 py-1.5 flex-1 min-w-0 sm:flex-none sm:w-44 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           />
           {allRoles.length > 0 && (
             <select
@@ -627,7 +639,47 @@ export function DirectoryPage() {
               </p>
             </div>
           ) : (
-            <table className="w-full text-sm border-collapse">
+            <>
+            {/* Mobile: stacked contact cards with tappable tel/mailto — the
+                table's columns were entirely off-screen at phone widths (RC3). */}
+            <div className="lg:hidden divide-y divide-gray-100">
+              {filteredContacts.map(contact => {
+                const pe = primaryOf(contact.contact_emails)
+                const pp = primaryOf(contact.contact_phones)
+                const emailVal = pe?.email ?? contact.email
+                const phoneVal = pp ? `${pp.number}${pp.extension ? ` x${pp.extension}` : ''}` : contact.phone
+                return (
+                  <div key={contact.id} className="px-4 py-3">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-medium text-gray-900 text-sm">{contact.name}</span>
+                      {contact.companies && (
+                        <span className="font-mono text-xs text-gray-500 flex-shrink-0"
+                          title={contact.companies.name}>
+                          {contact.companies.abbreviation ?? contact.companies.name}
+                        </span>
+                      )}
+                    </div>
+                    {contact.trade && <p className="text-xs text-gray-500 mt-0.5">{contact.trade}</p>}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm">
+                      {emailVal && (
+                        <a href={`mailto:${emailVal}`} className="text-teal-700 py-1 break-all">{emailVal}</a>
+                      )}
+                      {phoneVal && (
+                        <a href={`tel:${(pp?.number ?? contact.phone ?? '').replace(/[^+\d]/g, '')}`}
+                          className="text-teal-700 py-1 whitespace-nowrap">
+                          {phoneVal}{pp && <span className="text-[10px] text-gray-400 ml-1">{phoneLabel(pp.phone_type)}</span>}
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <button onClick={e => openEditContact(contact, e)} className="text-teal-700 text-xs py-1.5">Edit</button>
+                      <button onClick={e => deleteContact(contact, e)} className="text-red-500 text-xs py-1.5">Delete</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <table className="w-full text-sm border-collapse hidden lg:table">
               <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                 <tr>
                   <th className="text-left px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Name</th>
@@ -691,6 +743,7 @@ export function DirectoryPage() {
                 })}
               </tbody>
             </table>
+            </>
           )}
         </div>
       </div>

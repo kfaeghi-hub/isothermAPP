@@ -480,7 +480,8 @@ export function MeetingsPage({ projectId }: Props) {
     <div className="flex h-full overflow-hidden rise">
 
       {/* ── Meeting list ─────────────────────────────────────────── */}
-      <div className={`flex flex-col bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 transition-all ${selectedId ? 'w-80' : 'flex-1'}`}>
+      {/* RC2 — below lg an open meeting hides the list (full-width detail). */}
+      <div className={`flex-col bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 transition-all ${selectedId ? 'hidden lg:flex lg:w-80' : 'flex flex-1'}`}>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
           <span className="text-xs font-semibold text-gray-700">Meetings</span>
           <span className="text-[10px] text-gray-400 font-mono">{meetings.length}</span>
@@ -526,8 +527,15 @@ export function MeetingsPage({ projectId }: Props) {
       {/* ── Detail ───────────────────────────────────────────────── */}
       {meeting && (
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          {/* Header */}
-          <div className="px-5 py-3.5 border-b border-gray-200 flex items-start gap-3 flex-shrink-0">
+          {/* Header — actions wrap to their own row below lg */}
+          <div className="px-4 lg:px-5 py-3.5 border-b border-gray-200 flex flex-wrap items-start gap-3 flex-shrink-0">
+            <button
+              onClick={() => setSelectedId(null)}
+              className="lg:hidden flex-shrink-0 -ml-1 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 text-lg"
+              aria-label="Back to meetings"
+            >
+              ←
+            </button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 {typeBadge(meeting)}
@@ -549,7 +557,7 @@ export function MeetingsPage({ projectId }: Props) {
                 {meeting.next_meeting_date && <span>Next: <span className="font-mono">{formatDate(meeting.next_meeting_date)}</span></span>}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap basis-full lg:basis-auto justify-start lg:justify-end">
               <button onClick={generateMinutes} disabled={generating}
                 data-testid="generate-minutes"
                 className="text-xs bg-emerald-600 text-white border border-emerald-700 rounded px-3 py-1.5 hover:bg-emerald-700 disabled:opacity-40 transition-colors font-medium">

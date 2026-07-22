@@ -135,7 +135,7 @@ export function DeliverablesPage({ projectId }: Props) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-700">
           Deliverables
-          <span className="ml-2 text-xs font-normal text-gray-400">{rows.length} tracked</span>
+          <span className="ml-2 text-xs font-normal text-gray-400 whitespace-nowrap">{rows.length} tracked</span>
         </h2>
         <div className="flex items-center gap-2">
           <button onClick={previewCompose} disabled={composing}

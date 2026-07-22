@@ -237,7 +237,66 @@ export function SiteReportsPage({ projectId }: Props) {
           </EmptyState>
         ) : (
           <div className="card-tile bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
+            {/* Mobile: stacked report cards — the table clipped the FILES links
+                (the row's primary actions) off-screen at phone widths (RC3). */}
+            <div className="lg:hidden divide-y divide-gray-100">
+              {reports.map(r => {
+                const isGenerating = generatingId === r.id
+                const hasFiles = !!(r.storage_url && r.pdf_url)
+                return (
+                  <div key={r.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-semibold text-gray-800">
+                        Cx Site Note #{r.report_number}
+                      </span>
+                      {isGenerating ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
+                          <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                          Generating…
+                        </span>
+                      ) : hasFiles ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+                          <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                          Ready
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Not generated</span>
+                      )}
+                    </div>
+                    <p className="font-mono text-[11px] text-gray-500 mt-1">
+                      Visit {r.site_visit_date} · Report {r.report_date} · {r.authored_by}
+                    </p>
+                    <div className="flex items-center gap-4 mt-2">
+                      {r.storage_url && (
+                        <a href={r.storage_url} download
+                          className="text-sm text-teal-700 font-medium py-1">.docx</a>
+                      )}
+                      {r.pdf_url && (
+                        <a href={r.pdf_url} target="_blank" rel="noreferrer"
+                          className="text-sm text-teal-700 font-medium py-1">PDF</a>
+                      )}
+                      <span className="ml-auto flex items-center gap-1.5">
+                        <button onClick={() => generateReport(r.id)} disabled={isGenerating}
+                          className="text-xs text-gray-500 border border-gray-200 rounded px-2.5 py-1.5 disabled:opacity-40">
+                          {hasFiles ? '↺ Regen' : '⚡ Generate'}
+                        </button>
+                        <button onClick={() => openEdit(r)}
+                          className="text-xs text-gray-500 border border-gray-200 rounded px-2.5 py-1.5">
+                          Edit
+                        </button>
+                        {canDelete(r) && (
+                          <button onClick={() => deleteReport(r)}
+                            className="text-xs text-gray-400 border border-gray-200 rounded px-2.5 py-1.5">
+                            ×
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <table className="w-full text-sm hidden lg:table">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-4 py-2.5">Report #</th>
