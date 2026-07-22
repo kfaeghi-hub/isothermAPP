@@ -295,7 +295,7 @@ export function ClassificationsPage() {
   const inputCls = 'border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500'
 
   return (
-    <div className="h-full overflow-auto p-6 space-y-8 max-w-5xl">
+    <div className="h-full overflow-auto p-6 space-y-8 max-w-5xl rise">
 
       {/* ── Dimensions ──────────────────────────────────────────────────── */}
       <section>

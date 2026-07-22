@@ -390,7 +390,7 @@ export function EquipmentPage({ projectId }: Props) {
   if (loading) return <div className="p-8 text-gray-400 text-sm">Loading…</div>
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0 rise">
 
       {/* ── Left panel: equipment list ──────────────────────────────────── */}
       <div className={`flex flex-col border-r border-gray-200 bg-white shrink-0 ${selectedId ? 'w-72' : 'flex-1'}`}>

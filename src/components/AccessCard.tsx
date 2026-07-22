@@ -69,7 +69,7 @@ export function AccessCard({ projectId }: { projectId: string }) {
     || (a.user_profiles?.name ?? '').localeCompare(b.user_profiles?.name ?? ''))
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5" data-testid="access-card">
+    <div className="card-tile bg-white rounded-xl border border-gray-200 p-5" data-testid="access-card">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Access</h3>
         <button onClick={() => setAdding(a => !a)}

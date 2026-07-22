@@ -464,7 +464,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             <div className="grid grid-cols-3 gap-5">
 
               {/* Team summary — the Team tab owns the full matrix */}
-              <div className="bg-white rounded-lg border border-gray-200 p-5">
+              <div className="card-tile bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Project Team</h3>
                   <button onClick={() => setActiveTab('team')}
@@ -493,7 +493,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               {isOwner && <AccessCard projectId={projectId} />}
 
               {/* Phases */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="card-tile bg-white rounded-xl border border-gray-200 p-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Phases</h3>
                 {phases.length === 0 ? (
                   <p className="text-xs text-gray-400 mb-3">No phases — add one below for multi-phase projects.</p>
@@ -531,7 +531,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               </div>
 
               {/* Distribution */}
-              <div className="col-span-2 bg-white rounded-lg border border-gray-200 p-4">
+              <div className="col-span-2 card-tile bg-white rounded-xl border border-gray-200 p-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Distribution List</h3>
                 {distribution.length === 0 ? (
                   <p className="text-xs text-gray-400 mb-3">No contacts on the distribution yet — add them below.</p>
@@ -593,7 +593,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
               {/* Notes + metadata */}
               {(project.notes || true) && (
-                <div className="col-span-3 bg-white rounded-lg border border-gray-200 p-4">
+                <div className="col-span-3 card-tile bg-white rounded-xl border border-gray-200 p-4">
                   <div className="grid grid-cols-3 gap-5">
                     <div className="col-span-2">
                       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Notes</h3>

@@ -322,7 +322,7 @@ export function ProjectsPage() {
   const hasFilters = !!search || Object.values(classFilters).some(Boolean) || !!clientFilter
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden rise">
 
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-200 bg-white px-5 flex items-stretch h-11 flex-shrink-0">

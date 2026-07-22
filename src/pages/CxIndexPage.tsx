@@ -414,7 +414,7 @@ export function CxIndexPage({ projectId }: Props) {
   const totalEntries = cells.size
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 rise">
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 shrink-0">
         <span className="text-[11px] text-gray-400 mr-auto font-mono">

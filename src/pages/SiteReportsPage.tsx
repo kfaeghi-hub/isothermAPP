@@ -205,7 +205,7 @@ export function SiteReportsPage({ projectId }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden rise">
 
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 bg-white border-b border-gray-200 flex-shrink-0">
@@ -239,7 +239,7 @@ export function SiteReportsPage({ projectId }: Props) {
             <p className="text-sm text-gray-400">Create your first Cx Site Note to generate a .docx and PDF.</p>
           </EmptyState>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="card-tile bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">

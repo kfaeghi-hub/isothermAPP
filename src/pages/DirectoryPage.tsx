@@ -483,7 +483,7 @@ export function DirectoryPage() {
   const smallInputCls = 'border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500'
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden rise">
 
       {/* ── Left panel: Company list ──────────────────────── */}
       <aside className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col bg-white">

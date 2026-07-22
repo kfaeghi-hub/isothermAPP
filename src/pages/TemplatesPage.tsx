@@ -526,7 +526,7 @@ export function TemplatesPage() {
   const narrow = !!selectedId
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden rise">
 
       {/* ── Template list ──────────────────────────────────────────── */}
       <div className={`flex flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all ${narrow ? 'w-72' : 'flex-1'}`}>

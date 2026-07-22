@@ -38,7 +38,7 @@ export function UsersPage() {
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading users…</div>
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-3xl rise">
       <table className="w-full text-sm border-collapse" data-testid="users-table">
         <thead>
           <tr className="border-b border-gray-200 text-left text-[11px] uppercase tracking-wider text-gray-400">

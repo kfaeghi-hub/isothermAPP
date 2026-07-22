@@ -15,25 +15,25 @@ export function ProjectStatHeader({ projectId, onTab }: {
     ? Math.round(100 * stats.coverageRecorded / stats.coverageExpected) : null
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 px-5 py-3 mb-5 flex items-center gap-6 flex-wrap"
+    <div className="card-tile bg-white rounded-xl border border-gray-200 px-5 py-4 mb-5 flex items-center gap-8 flex-wrap"
       data-testid="project-stat-header">
       <button onClick={() => onTab('issues')} className="text-left group">
-        <p className={`text-lg font-bold leading-none ${stats.openFindings ? 'text-amber-700' : 'text-[#1F3A5F]'}`}>{stats.openFindings}</p>
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 group-hover:text-teal-700">Open Findings</p>
+        <p className={`font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] ${stats.openFindings ? 'text-amber-700' : 'text-gray-900'}`}>{stats.openFindings}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Open Findings</p>
       </button>
       <button onClick={() => onTab('checklists')} className="text-left group">
-        <p className="text-lg font-bold leading-none text-[#1F3A5F]">{pct === null ? '—' : `${pct}%`}</p>
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 group-hover:text-teal-700">Checklist Coverage</p>
+        <p className="font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] text-gray-900">{pct === null ? '—' : `${pct}%`}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Checklist Coverage</p>
       </button>
       <div>
         <VisitChip lastVisit={stats.lastVisit} />
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">Last Visit</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5">Last Visit</p>
       </div>
       <button onClick={() => onTab('meetings')} className="text-left group">
-        <p className="text-lg font-bold leading-none text-[#1F3A5F]">
+        <p className="font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] text-gray-900">
           {stats.nextMeeting ? formatDate(stats.nextMeeting) : '—'}
         </p>
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 group-hover:text-teal-700">Next Meeting</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Next Meeting</p>
       </button>
     </div>
   )

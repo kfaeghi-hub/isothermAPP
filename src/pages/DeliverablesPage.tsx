@@ -131,7 +131,7 @@ export function DeliverablesPage({ projectId }: Props) {
   const presentTemplateIds = new Set(rows.map(r => r.template_id).filter(Boolean))
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl rise">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-700">
           Deliverables
@@ -164,7 +164,7 @@ export function DeliverablesPage({ projectId }: Props) {
           </EmptyState>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="card-tile bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">

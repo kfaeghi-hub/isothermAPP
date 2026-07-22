@@ -480,7 +480,7 @@ export function MeetingsPage({ projectId }: Props) {
   )
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden rise">
 
       {/* ── Meeting list ─────────────────────────────────────────── */}
       <div className={`flex flex-col bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 transition-all ${selectedId ? 'w-80' : 'flex-1'}`}>

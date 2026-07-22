@@ -386,7 +386,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   const narrow = !!selectedId
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden rise">
 
       {/* ── Finding list panel ────────────────────────────────────── */}
       <div className={`flex flex-col bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 transition-all ${narrow ? 'w-80' : 'flex-1'}`}>
@@ -458,7 +458,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                       #{f.number ?? '—'}
                     </span>
                     <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 flex-shrink-0 ${
-                      isClosed ? 'bg-gray-100 text-gray-400' : 'bg-amber-50 text-amber-700'
+                      isClosed ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'
                     }`}>
                       {isClosed ? 'CLOSED' : 'OPEN'}
                     </span>
