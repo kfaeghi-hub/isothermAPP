@@ -65,11 +65,14 @@ export function CinematicLanding() {
       // the camera descends and a system ignites per beat:
       // air-side → hydronic → electrical → the full lit section.
       const phrases = gsap.utils.toArray<HTMLElement>('.lp-phrase')
+      // Cumulative ignition — the commissioning story: each system verifies at
+      // full brightness while the previously-verified dim to a memory-glow,
+      // and the final beat resolves the WHOLE building alive at once.
       const IGNITE: Partial<SystemParams>[] = [
-        { cam: 0.25, air: 1 },            // 01 Field checklists — air-side
-        { cam: 0.5,  hydro: 1 },          // 02 Issues log — hydronic
-        { cam: 0.75, elec: 1 },           // 03 Meeting minutes — electrical
-        { cam: 1.0 },                     // 04 Deliverables — full section, all lit
+        { cam: 0.25, air: 1 },                          // 01 air-side verifies
+        { cam: 0.5,  air: 0.35, hydro: 1 },             // 02 hydronic verifies
+        { cam: 0.75, hydro: 0.35, elec: 1 },            // 03 electrical verifies
+        { cam: 1.0,  air: 1, hydro: 1, elec: 1 },       // 04 the building complete
       ]
       const stage = gsap.timeline({
         scrollTrigger: { trigger: '.lp-stage', start: 'top top', end: '+=400%', pin: true, scrub: 0.6 },

@@ -12,6 +12,24 @@ Cinematic revision" below; the v1 sections after it are the original record.
 
 ## V2 — Cinematic revision (as-built)
 
+### V4 enrichment (2026-07-22, built): richer, not busier
+
+Five additions to the V3 scene, each passing the "does this crowd the type or
+muddy the silhouette?" test, line primitives only: **terminal equipment**
+(AHU block w/ coil mark at the trunk origin, VAV outlines at branch ends,
+pumps + horizontal heat exchanger at the hydronic base, main switchboard on
+the electrical riser); **two-way physical airflow** (supply out + dimmer
+return back, trunk 1.7× faster than branches, intensity tracking speed);
+**depth atmosphere** (scene fog, faint ground grid, mirrored structural
+reflection, slow idle orbit + bob); **cumulative ignition** (verified systems
+dim to a 0.35 memory-glow while the next verifies; beat 4 resolves the whole
+building alive — the commissioning story); **interaction** (floor-hover
+brightens that floor's branch run on fine pointers; the eddy decay halved so
+it lingers). Hydronic gained twin supply/return riser lines after shot review
+showed its beat reading weak. Coarse path: 330 vs 820 particles, no hover,
+equipment reduced to the trunk-side AHU — reduce, never drop. Shot review:
+hero + four beats + finale captured and reviewed before ship.
+
 ### V3 revision (2026-07-22, built): HVAC/building-themed centerpiece
 
 Tony redirected the abstract contour field to a building-systems scene. As
