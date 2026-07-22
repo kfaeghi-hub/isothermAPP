@@ -1,7 +1,42 @@
 # MOBILE-AUDIT.md — Full mobile audit + fix wave plan
 
-**Status: PLAN APPROVED — WAVES 1–2 SHIPPED (2026-07-22). Wave 3 pending
-(Templates was pulled forward into Wave 2 per Tony's real-phone screenshot).**
+**Status: ALL THREE WAVES SHIPPED (2026-07-22). One open item: photo capture
+remains HUMAN-VERIFICATION-OWED (Tony's real-phone test).**
+
+## Wave 3 exit report
+
+Shipped as `1ebce6d`. Gates: screenshot review at 375/1440 · full battery
+green · fixture-count sanity (A/C-family instances stay at exactly 1 after
+suite runs) · `npm run build` pre-push · served-bundle verified.
+
+**Populated-data re-audit of the FINE list** (Tony's ruling after the
+Meetings catch — FINE-when-empty is unaudited): Equipment, Issues, and Team
+re-verified WITH data and genuinely fine. Two breaks found and fixed:
+- **Dashboard Attention Queue** — populated rows clipped the finding title
+  off-screen at 375 (verified with a transient 40-day-aged seed finding,
+  removed after). Mobile now renders stacked tappable queue entries; the
+  desktop table and its testid untouched.
+- **Deliverables with data** (ZZ-TEST-LEED, 14 rows) — header buttons
+  crowded the counter; DUE/actions clipped. Header wraps; the editable grid
+  scrolls horizontally below lg (the expand-editor row depends on column
+  structure — cards would fight it); remove action touch-visible.
+
+**Wave 3 admin fixes:** Users → stacked cards (role chip + membership
+counts) · Classifications' six tables scroll horizontally below lg (the
+clipped right-edge actions are reachable by swipe — proportionate to the
+admin bar) · Cx Index mobile swipe hint ("tag column stays pinned →"; the
+sticky tag/descriptor columns already existed and were verified) · Access
+card verified at 375 (full-width, toggles reachable). The simplified mobile
+matrix stays §6C roadmap per ruling.
+
+**Suite-cleanup sweep** (Tony's third note): two more suites carried the
+cleanup-comment-with-no-cleanup pattern — pw-signoff-order and
+pw-checklist-offline each created an instance per run and never deleted it
+(7 strays had accumulated; purged, canonical fixture kept). Both now delete
+instances created after their own start timestamp. With Wave 2's
+pw-team/pw-directory repairs, every suite in the battery is now re-entrant.
+
+**Chrome-material**: stays solid per ruling — not revisited.
 
 ## Wave 2 exit report
 
