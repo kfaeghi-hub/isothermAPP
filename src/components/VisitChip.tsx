@@ -12,7 +12,7 @@ export const BAND_CLS: Record<VisitBand, string> = {
 }
 
 export const BAND_HEX: Record<VisitBand, string> = {
-  green: '#176844', amber: '#8A5400', red: '#B3261E', never: '#8D968F',
+  green: '#1E7A4E', amber: '#8A5400', red: '#C2371F', never: '#7B7A85',
 }
 
 export function VisitChip({ lastVisit }: { lastVisit: string | null }) {

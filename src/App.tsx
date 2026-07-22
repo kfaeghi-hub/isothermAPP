@@ -5,6 +5,7 @@ import {
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useAuth } from './contexts/AuthContext'
+import { LogoMark } from './components/Logo'
 import { LoginPage } from './pages/LoginPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -116,14 +117,17 @@ function Shell({ profileName, profileRole, canConfig, isSuper, signOut, children
 
   const cover = (
     <>
-      {/* The cover's masthead */}
-      <div className="px-5 pt-5 pb-4 border-b border-slate-800">
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 mb-1.5">
-          Isotherm Engineering
-        </p>
-        <h1 className="font-display text-[17px] font-bold text-white leading-tight">
-          <span className="font-mono font-medium text-teal-400">Cx</span> System
-        </h1>
+      {/* The cover's masthead — the firm's mark leads */}
+      <div className="px-5 pt-5 pb-4 border-b border-slate-800 flex items-center gap-3">
+        <LogoMark variant="reverse" className="h-9 w-auto flex-shrink-0" />
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 mb-1">
+            Isotherm Engineering
+          </p>
+          <h1 className="font-display text-[17px] font-bold text-white leading-tight">
+            <span className="font-mono font-medium text-teal-400">Cx</span> System
+          </h1>
+        </div>
       </div>
 
       {/* Contents */}
@@ -160,6 +164,7 @@ function Shell({ profileName, profileRole, canConfig, isSuper, signOut, children
           className="p-1 -ml-1 text-slate-300 hover:text-white">
           <Menu className="w-5 h-5" strokeWidth={1.75} />
         </button>
+        <LogoMark variant="reverse" className="h-6 w-auto" />
         <h1 className="font-display text-sm font-bold leading-none">
           <span className="font-mono font-medium text-teal-400">Cx</span> System
         </h1>

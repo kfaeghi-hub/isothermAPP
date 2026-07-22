@@ -227,10 +227,10 @@ export function DashboardPage() {
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(v: any, name: any) => name === 'duration' ? `${v} days` : null}
                     labelFormatter={l => String(l)} />
-                  <ReferenceLine x={todayOffset} stroke="#B3261E" strokeDasharray="4 3"
-                    label={{ value: 'today', fontSize: 9, fill: '#B3261E', position: 'top' }} />
+                  <ReferenceLine x={todayOffset} stroke="#C2371F" strokeDasharray="4 3"
+                    label={{ value: 'today', fontSize: 9, fill: '#C2371F', position: 'top' }} />
                   <Bar dataKey="offset" stackId="tl" fill="transparent" />
-                  <Bar dataKey="duration" stackId="tl" fill="#115437" radius={[2, 2, 2, 2]} />
+                  <Bar dataKey="duration" stackId="tl" fill="#443C8F" radius={[2, 2, 2, 2]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -256,7 +256,7 @@ export function DashboardPage() {
                   <Tooltip />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="opened" fill="#8A5400" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="closed" fill="#176844" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="closed" fill="#1E7A4E" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
               </div>
@@ -273,7 +273,7 @@ export function DashboardPage() {
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
                     <YAxis type="category" dataKey="system" width={110} tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#33546B" radius={[0, 2, 2, 0]} />
+                    <Bar dataKey="count" fill="#375672" radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}

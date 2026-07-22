@@ -26,82 +26,106 @@
   --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Spline Sans Mono", ui-monospace, "Courier New", monospace;
 
-  /* ── The world's own names ─────────────────────────────────────────── */
-  --color-cover: #062a1d;          /* the standard's cover */
-  --color-cover-edge: #0b3b2a;
-  --color-paper: #fbfaf7;          /* inside pages */
-  --color-ink: #1c2420;            /* body ink */
-  --color-ink-display: #0f1713;    /* headings */
-  --color-rule: #dce2dc;           /* hairline rules */
+  /* ── The world's own names — BRAND-PINNED (Isotherm logo, 2026-07-22):
+     purple #443C8F wordmark + vermilion #E8432D mark. Purple is the
+     institution; vermilion is the heat (attention/deviation). ─────────── */
+  --color-cover: #181536;          /* the standard's cover (deep brand purple) */
+  --color-cover-edge: #2d285d;
+  --color-paper: #fbfaf8;          /* inside pages */
+  --color-ink: #23222c;            /* body ink */
+  --color-ink-display: #16151f;    /* headings */
+  --color-rule: #e0dfe6;           /* hairline rules */
 
-  /* Standard green scale (primary) */
-  --color-standard-50: #f2f7f4;
-  --color-standard-100: #e2eee7;
-  --color-standard-200: #c5ddcf;
-  --color-standard-300: #9ac4ab;
-  --color-standard-400: #64a381;
-  --color-standard-500: #35845d;
-  --color-standard-600: #176844;
-  --color-standard-700: #115437;
-  --color-standard-800: #0d452e;
-  --color-standard-900: #0a3826;
-  --color-standard-950: #062a1d;
+  /* Brand purple scale (primary; logo wordmark #443C8F = 600) */
+  --color-brand-50: #f1f0fa;
+  --color-brand-100: #e3e1f5;
+  --color-brand-200: #c9c6ec;
+  --color-brand-300: #a5a0de;
+  --color-brand-400: #7f78cb;
+  --color-brand-500: #5d55af;
+  --color-brand-600: #443c8f;
+  --color-brand-700: #383274;
+  --color-brand-800: #2d285d;
+  --color-brand-900: #24204a;
+  --color-brand-950: #181536;
+
+  /* standard-* keeps its name (components reference it) but carries brand purple */
+  --color-standard-50: #f1f0fa;
+  --color-standard-100: #e3e1f5;
+  --color-standard-200: #c9c6ec;
+  --color-standard-300: #a5a0de;
+  --color-standard-400: #7f78cb;
+  --color-standard-500: #5d55af;
+  --color-standard-600: #443c8f;
+  --color-standard-700: #383274;
+  --color-standard-800: #2d285d;
+  --color-standard-900: #24204a;
+  --color-standard-950: #181536;
+
+  /* Vermilion (the mark's heat — signal/attention family) */
+  --color-vermilion-50: #fcebe7;
+  --color-vermilion-400: #f2704f;
+  --color-vermilion-500: #e8432d;
+  --color-vermilion-600: #c2371f;
+  --color-vermilion-700: #a02d18;
 
   /* ── REMAP: legacy utilities inherit the world ─────────────────────── */
-  /* teal (old action color) → standard green */
-  --color-teal-50: #f2f7f4;
-  --color-teal-100: #e2eee7;
-  --color-teal-200: #c5ddcf;
-  --color-teal-300: #9ac4ab;
-  --color-teal-400: #7fb597;    /* on-cover accents need lift */
-  --color-teal-500: #35845d;
-  --color-teal-600: #176844;
-  --color-teal-700: #115437;
-  --color-teal-800: #0d452e;
-  --color-teal-900: #0a3826;
+  /* teal (old action color) → brand purple; teal-400 = the on-cover accent,
+     now the mark's vermilion so the Cx wordmark pairs like the logo */
+  --color-teal-50: #f1f0fa;
+  --color-teal-100: #e3e1f5;
+  --color-teal-200: #c9c6ec;
+  --color-teal-300: #a5a0de;
+  --color-teal-400: #f2704f;    /* vermilion accent on the cover */
+  --color-teal-500: #5d55af;
+  --color-teal-600: #443c8f;
+  --color-teal-700: #383274;
+  --color-teal-800: #2d285d;
+  --color-teal-900: #24204a;
 
-  /* slate (old shell + text ramp) → cover/ink ramp */
-  --color-slate-50: #fbfaf7;    /* app ground = paper */
-  --color-slate-100: #f2f2ec;
-  --color-slate-200: #e3e5df;
-  --color-slate-300: #c9cdc6;
-  --color-slate-400: #7c8b82;   /* on-cover secondary text (green-tinted) */
-  --color-slate-500: #5d6f64;
-  --color-slate-600: #47584d;
-  --color-slate-700: #14503c;   /* on-cover hover fields */
-  --color-slate-800: #0b3b2a;   /* cover rules/borders */
-  --color-slate-900: #062a1d;   /* the cover itself */
-  --color-slate-950: #041f16;
+  /* slate (old shell + text ramp) → cover/ink ramp (purple-tinted) */
+  --color-slate-50: #fbfaf8;    /* app ground = paper */
+  --color-slate-100: #f1f1f4;
+  --color-slate-200: #e3e3e9;
+  --color-slate-300: #c8c8d1;
+  --color-slate-400: #8f8da6;   /* on-cover secondary text (violet-tinted, never gray) */
+  --color-slate-500: #63616f;
+  --color-slate-600: #4b4956;
+  --color-slate-700: #322c66;   /* on-cover hover fields */
+  --color-slate-800: #2d285d;   /* cover rules/borders */
+  --color-slate-900: #181536;   /* the cover itself */
+  --color-slate-950: #100e26;
 
-  /* gray (borders, secondary text) → paper-tinted ink ramp */
-  --color-gray-50: #f7f7f3;
-  --color-gray-100: #efefe9;
-  --color-gray-200: #dce2dc;    /* hairline rule */
-  --color-gray-300: #c3cac3;
-  --color-gray-400: #78827a;  /* 4.6:1 on white — muted text stays readable */
-  --color-gray-500: #6b756d;
-  --color-gray-600: #4b544d;
-  --color-gray-700: #333b35;
-  --color-gray-800: #232a25;
-  --color-gray-900: #1c2420;    /* ink */
+  /* gray (borders, secondary text) → neutral ink ramp (faint violet cast) */
+  --color-gray-50: #f7f6f4;
+  --color-gray-100: #efeeec;
+  --color-gray-200: #e0dfe6;    /* hairline rule */
+  --color-gray-300: #c6c5cd;
+  --color-gray-400: #7b7a85;    /* 4.6:1 on white — muted text stays readable */
+  --color-gray-500: #6c6b76;
+  --color-gray-600: #4d4c56;
+  --color-gray-700: #35343e;
+  --color-gray-800: #26252f;
+  --color-gray-900: #23222c;    /* ink */
 
-  /* conformance semantics (tuned, not remapped away) */
+  /* conformance semantics: success stays green (status meaning), attention
+     amber, deviation/overdue = brand vermilion */
   --color-amber-50: #fbf3e1;
   --color-amber-700: #8a5400;
-  --color-red-50: #fbeae8;
-  --color-red-500: #c53d34;
-  --color-red-600: #b3261e;
-  --color-red-700: #9a2019;
-  --color-green-50: #e9f4ee;
-  --color-green-600: #176844;
-  --color-green-700: #115437;
-  --color-sky-50: #edf2f6;
-  --color-sky-700: #33546b;
-  --color-rose-50: #fbeae8;
-  --color-rose-700: #9a2019;
-  --color-violet-50: #efeef6;
-  --color-violet-500: #5b5486;
-  --color-violet-700: #48416e;
+  --color-red-50: #fcebe7;
+  --color-red-500: #d84a30;
+  --color-red-600: #c2371f;
+  --color-red-700: #a02d18;
+  --color-green-50: #e9f3ec;
+  --color-green-600: #1e7a4e;
+  --color-green-700: #166141;
+  --color-sky-50: #edf1f6;
+  --color-sky-700: #375672;
+  --color-rose-50: #fcebe7;
+  --color-rose-700: #a02d18;
+  --color-violet-50: #f1f0fa;
+  --color-violet-500: #5d55af;
+  --color-violet-700: #383274;
 
   /* ── Print-sharp radii ─────────────────────────────────────────────── */
   --radius-xs: 1px;
@@ -181,7 +205,7 @@ body {
 
 /* Ink variant of the contour mark for paper-ground empty states. */
 .contour-mark-ink {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23176844' stroke-width='1'%3E%3Cpath d='M60 340c-40-60-30-160 20-210s150-70 210-30 90 130 50 190-120 80-180 60S100 400 60 340z'/%3E%3Cpath d='M95 320c-30-48-24-128 16-168s120-56 168-24 72 104 40 152-96 64-144 48S125 368 95 320z'/%3E%3Cpath d='M130 300c-22-36-18-96 12-126s90-42 126-18 54 78 30 114-72 48-108 36S152 336 130 300z'/%3E%3Cpath d='M165 280c-14-24-12-64 8-84s60-28 84-12 36 52 20 76-48 32-72 24S179 304 165 280z'/%3E%3Cpath d='M200 260c-7-12-6-32 4-42s30-14 42-6 18 26 10 38-24 16-36 12S207 272 200 260z'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23443C8F' stroke-width='1'%3E%3Cpath d='M60 340c-40-60-30-160 20-210s150-70 210-30 90 130 50 190-120 80-180 60S100 400 60 340z'/%3E%3Cpath d='M95 320c-30-48-24-128 16-168s120-56 168-24 72 104 40 152-96 64-144 48S125 368 95 320z'/%3E%3Cpath d='M130 300c-22-36-18-96 12-126s90-42 126-18 54 78 30 114-72 48-108 36S152 336 130 300z'/%3E%3Cpath d='M165 280c-14-24-12-64 8-84s60-28 84-12 36 52 20 76-48 32-72 24S179 304 165 280z'/%3E%3Cpath d='M200 260c-7-12-6-32 4-42s30-14 42-6 18 26 10 38-24 16-36 12S207 272 200 260z'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;

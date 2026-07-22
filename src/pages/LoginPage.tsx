@@ -4,6 +4,7 @@
 
 import { useState, FormEvent } from 'react'
 import { signIn, sendPasswordReset } from '../lib/auth'
+import { LogoMark } from '../components/Logo'
 
 type Mode = 'login' | 'forgot'
 
@@ -48,17 +49,20 @@ export function LoginPage() {
       <div className="contour-mark absolute -left-40 -top-40 w-[420px] h-[420px] opacity-[0.05] pointer-events-none" />
 
       <div className="w-full max-w-sm relative">
-        {/* Title block */}
-        <div className="mb-6 border-l-[3px] border-teal-400 pl-4">
-          <p className="text-[11px] font-semibold tracking-[0.22em] uppercase text-slate-400">
-            Isotherm Engineering Ltd.
-          </p>
-          <h1 className="font-display text-[26px] font-bold text-white leading-tight mt-1">
-            <span className="font-mono font-medium text-teal-400">Cx</span> System
-          </h1>
-          <p className="font-mono text-[11px] text-slate-400 mt-1.5">
-            Commissioning record · authorized personnel
-          </p>
+        {/* Title block — the firm's lockup on the cover */}
+        <div className="mb-6 flex items-start gap-4">
+          <LogoMark variant="reverse" className="h-14 w-auto flex-shrink-0 mt-1" />
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.22em] uppercase text-slate-400">
+              Isotherm Engineering Ltd.
+            </p>
+            <h1 className="font-display text-[26px] font-bold text-white leading-tight mt-1">
+              <span className="font-mono font-medium text-teal-400">Cx</span> System
+            </h1>
+            <p className="font-mono text-[11px] text-slate-400 mt-1.5">
+              Commissioning record · authorized personnel
+            </p>
+          </div>
         </div>
 
         {/* The first inside page */}

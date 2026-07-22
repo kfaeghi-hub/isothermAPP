@@ -19,18 +19,27 @@ green, white lettering, contents list). Content areas are INSIDE PAGES (warm
 paper white, ink text, hairline rules). Print on screen: sharp corners, ruled
 tables, no decorative shadows or glass.
 
-**Palette** (tokens in src/index.css @theme; Tailwind stock scales are REMAPPED
-so legacy utilities inherit the world):
+**Palette** — **BRAND-PINNED 2026-07-22** to the firm's actual logo (purple
+`#443C8F` wordmark + vermilion `#E8432D` mark; the earlier green rendition is
+retired). Tokens in src/index.css @theme; Tailwind stock scales REMAPPED so
+legacy utilities inherit the world:
 
-- Cover green 950 `#062A1D` (sidebar/login field) through standard-600
-  `#176844` (primary actions) to 50 `#F2F7F4` (tint fills). Replaces teal.
-- Paper `#FBFAF7` app ground; surface white `#FFFFFF`; ink `#1C2420` body,
-  `#0F1713` display.
-- Rules: hairline `#DCE2DC`; heavy head-rule ink.
-- Conformance semantics: conforms/closed = standard green; pending/attention =
-  document amber `#8A5400` on `#FBF3E1`; deviation/overdue = mark red `#B3261E`
-  on `#FBEAE8`; informational = steel `#33546B` on `#EDF2F6`.
-- Never gray secondary text on green surfaces — tint from the green.
+- Cover purple 950 `#181536` (sidebar/login field) through brand/standard-600
+  `#443C8F` (primary actions, the wordmark purple) to 50 `#F1F0FA`.
+- Vermilion is the heat: on-cover accent `#F2704F` (the `Cx` mark pairing),
+  deviation/overdue `#C2371F` on `#FCEBE7`. Brand red and semantic red are
+  unified on the vermilion family.
+- Paper `#FBFAF8`; surface white; ink `#23222C` body, `#16151F` display.
+- Rules: hairline `#E0DFE6`; heavy head-rule ink.
+- Conformance semantics: success/closed stays SEMANTIC green `#1E7A4E`
+  (status meaning, not brand); pending amber `#8A5400` on `#FBF3E1`;
+  informational steel `#375672`.
+- Never gray secondary text on purple surfaces — violet-tint it (`#8F8DA6`).
+
+**Logo**: `src/components/Logo.tsx` — vector recreation (I-beam + two
+vermilion isotherm curves). `color` variant on paper, `reverse` on the cover.
+Lives in the sidebar masthead, mobile bar, and login lockup. Replace the
+paths with the official SVG artwork when the source file is provided.
 
 **Type:**
 - `Archivo` (variable, width axis) — UI and headings. Headings use the
