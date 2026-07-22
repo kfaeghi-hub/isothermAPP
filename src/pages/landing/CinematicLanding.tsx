@@ -10,7 +10,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 import { LogoLockup } from '../../components/Logo'
-import { ContourField, INITIAL_FIELD, type FieldParams } from './ContourField'
+import { BuildingSection, INITIAL_SYSTEMS, type SystemParams } from './BuildingSection'
 import { CssContour } from './CssContour'
 import { LandingFooter } from './sections/LandingFooter'
 
@@ -37,7 +37,7 @@ function Words({ text }: { text: string }) {
 
 export function CinematicLanding() {
   const root = useRef<HTMLDivElement>(null)
-  const field = useRef<FieldParams>({ ...INITIAL_FIELD })
+  const systems = useRef<SystemParams>({ ...INITIAL_SYSTEMS })
 
   useLayoutEffect(() => {
     const lenis = new Lenis({ duration: 1.15 })
@@ -47,8 +47,8 @@ export function CinematicLanding() {
     gsap.ticker.lagSmoothing(0)
 
     const ctx = gsap.context(() => {
-      // Beat 0 — load: field breathes in, headline reveals word by word.
-      gsap.to(field.current, { amp: INITIAL_FIELD.amp, duration: 2.4, ease: 'power2.out' })
+      // Beat 0 — load: the structure draws in, headline reveals word by word.
+      gsap.fromTo(systems.current, { glow: 0 }, { glow: 0.9, duration: 2.4, ease: 'power2.out' })
       gsap.from('.lp-word', {
         yPercent: 120, opacity: 0, filter: 'blur(8px)',
         duration: 1.1, stagger: 0.07, ease: 'power3.out', delay: 0.2,
@@ -62,8 +62,15 @@ export function CinematicLanding() {
       })
 
       // Beat 2 — the pinned stage: each phrase passes through in place while
-      // the field steps up (amplitude, density, hue) one increment per beat.
+      // the camera descends and a system ignites per beat:
+      // air-side → hydronic → electrical → the full lit section.
       const phrases = gsap.utils.toArray<HTMLElement>('.lp-phrase')
+      const IGNITE: Partial<SystemParams>[] = [
+        { cam: 0.25, air: 1 },            // 01 Field checklists — air-side
+        { cam: 0.5,  hydro: 1 },          // 02 Issues log — hydronic
+        { cam: 0.75, elec: 1 },           // 03 Meeting minutes — electrical
+        { cam: 1.0 },                     // 04 Deliverables — full section, all lit
+      ]
       const stage = gsap.timeline({
         scrollTrigger: { trigger: '.lp-stage', start: 'top top', end: '+=400%', pin: true, scrub: 0.6 },
       })
@@ -72,22 +79,19 @@ export function CinematicLanding() {
           .fromTo(el,
             { opacity: 0, letterSpacing: '0.4em', filter: 'blur(12px)' },
             { opacity: 1, letterSpacing: '0.08em', filter: 'blur(0px)', duration: 0.55, ease: 'power2.out' }, i)
-          .to(field.current, {
-            amp: 0.55 + (i + 1) * 0.3, density: 8 + (i + 1) * 2.4, hueMix: 0.15 + (i + 1) * 0.2,
-            duration: 1, ease: 'none',
-          }, i)
+          .to(systems.current, { ...IGNITE[i], duration: 1, ease: 'none' }, i)
           .to(el, { opacity: 0, letterSpacing: '0.3em', filter: 'blur(10px)', duration: 0.45, ease: 'power2.in' }, i + 0.55)
       })
 
-      // Beat 3 — crescendo: the field peaks, the closing line + CTA arrive…
+      // Beat 3 — crescendo: pull back, everything at full glow, flow fast…
       gsap.timeline({
         scrollTrigger: { trigger: '.lp-finale', start: 'top 85%', end: 'top 25%', scrub: 0.5 },
       })
-        .to(field.current, { amp: 2.2, density: 19, hueMix: 1, drift: 1.6, ease: 'none' }, 0)
+        .to(systems.current, { cam: 1.15, glow: 1.4, speed: 2.2, ease: 'none' }, 0)
         .from('.lp-finale-inner', { opacity: 0, y: 70, ease: 'none' }, 0)
-      // …then the instrument comes to rest.
-      gsap.to(field.current, {
-        amp: 0.45, density: 9, drift: 0.7,
+      // …then the building settles to a calm idle.
+      gsap.to(systems.current, {
+        glow: 0.7, speed: 0.8,
         scrollTrigger: { trigger: '.lp-finale', start: 'top 25%', end: 'bottom top', scrub: 0.7 },
       })
     }, root)
@@ -101,7 +105,7 @@ export function CinematicLanding() {
 
   return (
     <div ref={root} className="bg-slate-950 text-slate-100">
-      <ContourField params={field} fallback={<div className="fixed inset-0 z-0 bg-slate-900"><CssContour /></div>} />
+      <BuildingSection params={systems} fallback={<div className="fixed inset-0 z-0 bg-slate-900"><CssContour /></div>} />
 
       <div className="relative z-10">
         {/* Hero */}

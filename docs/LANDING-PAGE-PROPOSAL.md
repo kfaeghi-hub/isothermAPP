@@ -12,7 +12,24 @@ Cinematic revision" below; the v1 sections after it are the original record.
 
 ## V2 — Cinematic revision (as-built)
 
-### 3D centerpiece — recommendation: shader-displaced contour plane
+### V3 revision (2026-07-22, built): HVAC/building-themed centerpiece
+
+Tony redirected the abstract contour field to a building-systems scene. As
+built (`BuildingSection.tsx`): an abstracted cutaway wireframe building — six
+floor slabs + corner columns (dim structural lavender), mechanical penthouse,
+duct trunk with per-floor L-branches (vermilion) carrying advected airflow
+particles, twin hydronic risers with floor rings (lavender), electrical riser
+with panel outlines (pale pulses). Line primitives + additive blending only —
+an engineering drawing in light, per the style rules (no textures, no
+photorealism, no manufacturer geometry). Scroll beats: camera descends
+per-phrase while systems ignite in sequence (air → hydronic → electrical →
+full lit section), crescendo pulls back with flow accelerated, then settles.
+Cursor injects a decaying swirl into the particles on fine pointers. Fallbacks
+unchanged (CSS isotherm contour stays the first-class static visual); coarse
+pointers get ~40% particle count, never zero. The V2 contour-field section
+below is superseded but kept as the record.
+
+### 3D centerpiece — V2 recommendation (superseded): shader-displaced contour plane
 
 A single full-bleed Three.js plane (fixed canvas behind all content,
 persisting across the whole scroll), displaced by layered simplex noise in the

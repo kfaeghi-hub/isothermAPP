@@ -67,8 +67,15 @@ src/
 │   │   │                       # else CinematicLanding
 │   │   ├── CinematicLanding.tsx# Lenis + GSAP/ScrollTrigger choreography: word-
 │   │   │                       # stagger hero → pinned 4-phrase stage → crescendo
-│   │   ├── ContourField.tsx    # Three.js shader-displaced contour plane (the 3D
-│   │   │                       # centerpiece); WebGL failure → CSS fallback
+│   │   ├── BuildingSection.tsx # V3 centerpiece: abstracted cutaway wireframe
+│   │   │                       # building — floors/columns/penthouse, duct trunk
+│   │   │                       # + branches with airflow particles (vermilion),
+│   │   │                       # hydronic risers (lavender), electrical riser +
+│   │   │                       # panels (pale). Systems ignite per scroll beat
+│   │   │                       # (air → hydronic → electrical → full section);
+│   │   │                       # cursor swirls the airflow. Thin additive lines
+│   │   │                       # only — diagrammatic, never photoreal. WebGL
+│   │   │                       # failure → CSS contour fallback
 │   │   ├── CssContour.tsx      # flat SVG contour (fallback + static variant bg)
 │   │   ├── StaticLanding.tsx   # reduced-motion first-class path: no motion, no
 │   │   │                       # canvas, all content visible
