@@ -7,7 +7,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-finding-register.mjs
 import { chromium } from 'playwright'
 import { inflateRawSync } from 'node:zlib'
-import { login, openTestProject, BASE_URL } from './pw-config.mjs'
+import { login, openTestProject, BASE_URL, apiToken, credentials } from './pw-config.mjs'
 
 const REPORT = '94b1ee0e-325e-4286-b079-45cecd3400f7'  // ZZ-1 fixture report
 const TITLE  = 'ZZ-REGISTER-TEST finding'
@@ -38,7 +38,7 @@ const visibleText = (buf) => docxXml(buf).replace(/<[^>]+>/g, ' ').replace(/\s+/
 async function generateReportText() {
   const res = await fetch(`${BASE_URL}/api/generate-report`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await apiToken(credentials())}` },
     body: JSON.stringify({ report_id: REPORT }),
   })
   const body = await res.json()

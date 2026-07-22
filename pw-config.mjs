@@ -36,6 +36,23 @@ export function adminCredentials() {
   return { email, password }
 }
 
+/**
+ * Access token for direct api/ endpoint calls (generate-* now require a Bearer
+ * JWT — GENERATE-AUTH build, 2026-07-22). Signs in with supabase-js and returns
+ * the session access token. Scripts fix themselves, not the endpoint.
+ * Env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (already in .env).
+ */
+export async function apiToken({ email, password }) {
+  const { createClient } = await import('@supabase/supabase-js')
+  const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  const { data, error } = await sb.auth.signInWithPassword({ email, password })
+  if (error || !data?.session) {
+    console.error(`apiToken: sign-in failed for ${email}: ${error?.message ?? 'no session'}`)
+    process.exit(1)
+  }
+  return data.session.access_token
+}
+
 /** Log in with explicit credentials and land on the home route. */
 export async function loginAs(page, { email, password }) {
   await page.goto(BASE_URL)

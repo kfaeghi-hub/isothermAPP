@@ -7,10 +7,14 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { inflateRawSync } from 'node:zlib'
+import { apiToken, credentials } from './pw-config.mjs'
 
 const BASE = process.env.PW_BASE_URL ?? 'https://isotherm-app.vercel.app'
 const INSTANCE = process.argv[2]
 if (!INSTANCE) { console.error('usage: node pw-checklist-docs.mjs <instance_id>'); process.exit(1) }
+
+// generate-* endpoints require a Bearer JWT (2026-07-22 hardening).
+const TOKEN = await apiToken(credentials())
 
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
@@ -71,7 +75,7 @@ for (const mode of ['completed', 'blank']) {
   console.log(`\n=== ${mode} ===`)
   const res = await fetch(`${BASE}/api/generate-checklist`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
     body: JSON.stringify({ instance_id: INSTANCE, mode }),
   })
   const body = await res.json().catch(() => ({}))

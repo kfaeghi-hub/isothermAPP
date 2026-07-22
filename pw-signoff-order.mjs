@@ -9,7 +9,7 @@
 
 import { chromium } from 'playwright'
 import { inflateRawSync } from 'node:zlib'
-import { login, openTestProject, TEST_PROJECT, BASE_URL } from './pw-config.mjs'
+import { login, openTestProject, TEST_PROJECT, BASE_URL, apiToken, credentials } from './pw-config.mjs'
 
 const RELOADS = 5
 const fails = []
@@ -124,7 +124,7 @@ if (!instanceId) {
   for (const attempt of [1, 2]) {
     const res = await fetch(`${BASE_URL}/api/generate-checklist`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await apiToken(credentials())}` },
       body: JSON.stringify({ instance_id: instanceId, mode: 'completed' }),
     })
     const body = await res.json().catch(() => ({}))

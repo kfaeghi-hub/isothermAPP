@@ -9,6 +9,7 @@
 
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs'
 import { inflateRawSync } from 'node:zlib'
+import { apiToken, adminCredentials } from './pw-config.mjs'
 
 const BASE = process.env.PW_BASE_URL ?? 'https://isotherm-app.vercel.app'
 const [reportId, phase] = process.argv.slice(2)
@@ -41,9 +42,10 @@ function visibleText(buf) {
 }
 
 console.log(`${phase}: generating report ${reportId} against ${BASE}`)
+// admin token: the regen gate may legitimately target any project's report.
 const res = await fetch(`${BASE}/api/generate-report`, {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await apiToken(adminCredentials())}` },
   body: JSON.stringify({ report_id: reportId }),
 })
 const body = await res.json().catch(() => ({}))

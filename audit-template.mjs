@@ -21,6 +21,7 @@
 
 import { readFileSync } from 'node:fs'
 import { inflateRawSync } from 'node:zlib'
+import { apiToken, adminCredentials } from './pw-config.mjs'
 
 const TRADE_TYPES = ['Mechanical', 'Electrical', 'Controls/BAS', 'Plumbing', 'Structural', 'TAB',
   'Fire Protection', 'Geothermal', 'Refrigeration', 'HVAC', 'Life Safety', 'Security',
@@ -412,7 +413,8 @@ if (instanceId) {
   const audience = t.type === 'pfc' ? 'contractor' : 'field'
   const audLabel = audience === 'field' ? 'Field Copy' : 'Contractor Hand-out'
   const res = await fetch(`${BASE}/api/generate-checklist`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    // dev.admin: seeding harness runs privileged per the §6.1 credential split.
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await apiToken(adminCredentials())}` },
     body: JSON.stringify({ instance_id: instanceId, mode: 'blank', audience }),
   })
   const body = await res.json().catch(() => ({}))
