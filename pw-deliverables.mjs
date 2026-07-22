@@ -101,7 +101,8 @@ if (!live) { await browser.close(); process.exit(1) }
   // Run TWICE — the second run must offer nothing (idempotency proof).
   const second = await composePreviewNames()
   check(second.names.length === 0, 'second compose run offers ZERO rows (idempotent)')
-  await second.modal.getByRole('button', { name: 'Close' }).click()
+  // Two "Close" accessible names since the Modal × gained its aria-label — take the footer button.
+  await second.modal.getByRole('button', { name: 'Close' }).last().click()
   await page.waitForTimeout(400)
   const n2 = await sql(`select count(*) as n from project_deliverables where project_id='${zzId}'`)
   check(Number(n2[0].n) === 4, `row count unchanged after second run (db=${n2[0].n})`)
