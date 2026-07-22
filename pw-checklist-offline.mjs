@@ -11,7 +11,20 @@
 // Needs: dev server on :5173, and `email` / `password` in .env (gitignored, never hardcoded).
 
 import { chromium } from 'playwright'
+import { createClient } from '@supabase/supabase-js'
 import { login, openTestProject, TEST_PROJECT } from './pw-config.mjs'
+
+// Same accumulation defect as pw-signoff-order: one new instance per run,
+// never deleted. Cleanup deletes instances THIS run created, as admin.
+const SUITE_START = new Date().toISOString()
+async function cleanupOwnInstances() {
+  const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+  const { data } = await adm.from('checklist_instances').delete()
+    .eq('project_id', 'e0c427d8-2029-4382-b054-6a84248ad8fe')
+    .gt('created_at', SUITE_START).select('id')
+  console.log(`cleanup: removed ${data?.length ?? 0} instance(s) created by this run`)
+}
 
 const fails = []
 const check = (ok, msg) => {
@@ -177,5 +190,6 @@ if (fails.length === 0) {
 }
 console.log('='.repeat(60))
 
+await cleanupOwnInstances()
 await browser.close()
 process.exit(fails.length === 0 ? 0 : 1)

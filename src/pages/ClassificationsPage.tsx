@@ -304,7 +304,7 @@ export function ClassificationsPage() {
           Rendered in the New/Edit Project modals in this order. Required flags take effect immediately —
           they are enforced at project creation from these values.
         </p>
-        <table className="w-full text-xs border-collapse">
+        <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
           <thead>
             <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
               <th className="py-1.5 pr-3">Dimension</th>
@@ -372,7 +372,7 @@ export function ClassificationsPage() {
             Group labels render as optgroup bands (single) or are informational (multi). "Deliverables"
             maps the default document set this option contributes at project creation.
           </p>
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
             <thead>
               <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                 <th className="py-1.5 pr-3">Label</th>
@@ -474,7 +474,7 @@ export function ClassificationsPage() {
               system does <span className="font-medium">not</span> rewrite historical finding
               categories — issued records keep the text they were created with (rule 4).
             </p>
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                   <th className="py-1.5 pr-3">System</th>
@@ -530,7 +530,7 @@ export function ClassificationsPage() {
               Used as directory tags and as project team seats. Abbreviations render as the
               matrix chips (CxA, GC, BECx…).
             </p>
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                   <th className="py-1.5 pr-3">Role</th>
@@ -595,7 +595,7 @@ export function ClassificationsPage() {
               Each type's default topics seed the agenda of every <span className="font-medium">new</span> meeting
               of that type. Meetings already created keep their copied agendas unchanged.
             </p>
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                   <th className="py-1.5 pr-3">Type</th>
@@ -690,7 +690,7 @@ export function ClassificationsPage() {
               The firm's document deliverable pool (Cx Plan, OPR review, Systems Manual…). Options map
               onto these; project creation composes the union into the project's editable copy.
             </p>
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                   <th className="py-1.5 pr-3 w-64">Name</th>

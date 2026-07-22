@@ -125,7 +125,30 @@ export function DashboardPage() {
               <p className="px-4 py-6 text-sm text-gray-400 text-center" data-testid="queue-empty">Nothing needs attention.</p>
             ) : (
               <>
-                <table className="w-full text-xs" data-testid="attention-queue">
+                {/* Mobile: stacked queue entries — the table row clipped the
+                    finding title off-screen at 375 (found by the populated-data
+                    re-audit; the empty state had hidden it). */}
+                <div className="lg:hidden divide-y divide-gray-50">
+                  {queue.map((q, i) => (
+                    <Link key={i} to={`/projects/${q.projectId}?tab=${q.tab}`}
+                      className="block px-4 py-2.5 active:bg-gray-50">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[9px] font-bold rounded px-1.5 py-0.5 ${QUEUE_KIND[q.kind].cls}`}>
+                          {QUEUE_KIND[q.kind].label}
+                        </span>
+                        {q.kind === 'aged_finding' && (
+                          <span className="text-[9px] font-bold rounded px-1 py-0.5 bg-gray-100 text-gray-500">
+                            {ageChip(q.ageDays)}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-gray-500 truncate">{projName(q.projectId)}</span>
+                        {q.detail && <span className="ml-auto text-[10px] text-gray-400 font-mono">{q.detail}</span>}
+                      </div>
+                      <p className="text-xs text-gray-800 mt-1">{q.description}</p>
+                    </Link>
+                  ))}
+                </div>
+                <table className="w-full text-xs hidden lg:table" data-testid="attention-queue">
                   <tbody>
                     {queue.map((q, i) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">

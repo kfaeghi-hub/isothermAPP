@@ -9,7 +9,21 @@
 
 import { chromium } from 'playwright'
 import { inflateRawSync } from 'node:zlib'
+import { createClient } from '@supabase/supabase-js'
 import { login, openTestProject, TEST_PROJECT, BASE_URL, apiToken, credentials } from './pw-config.mjs'
+
+// This suite creates a fresh instance per run and never deleted it — 8 strays
+// had accumulated on ZZ-TEST. Cleanup: delete instances THIS run created
+// (created_at > suite start), as admin (completed-instance delete is A1).
+const SUITE_START = new Date().toISOString()
+async function cleanupOwnInstances() {
+  const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  await adm.auth.signInWithPassword({ email: process.env.admin_email, password: process.env.admin_password })
+  const { data } = await adm.from('checklist_instances').delete()
+    .eq('project_id', 'e0c427d8-2029-4382-b054-6a84248ad8fe')
+    .gt('created_at', SUITE_START).select('id')
+  console.log(`cleanup: removed ${data?.length ?? 0} instance(s) created by this run`)
+}
 
 const RELOADS = 5
 const fails = []
@@ -151,6 +165,8 @@ if (!instanceId) {
       `issued document: signature block matches the fill view order (${norm(orders[0])})`)
   }
 }
+
+await cleanupOwnInstances()
 
 console.log('\n' + '='.repeat(60))
 console.log(fails.length === 0

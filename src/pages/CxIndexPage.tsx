@@ -454,6 +454,12 @@ export function CxIndexPage({ projectId }: Props) {
       </div>
 
       {/* ── Matrix ─────────────────────────────────────────────────────────── */}
+      {/* Scroll affordance for phones: the matrix scrolls and the tag column is
+          sticky, but the audit found nothing SIGNALS it (§6C's simplified
+          mobile matrix stays roadmap — this is the owed hint, not a redesign). */}
+      <p className="lg:hidden px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-gray-400 border-b border-gray-100 flex-shrink-0">
+        Swipe sideways — 88 columns · tag column stays pinned →
+      </p>
       <div className="overflow-auto flex-1 min-h-0">
         <table className="border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>

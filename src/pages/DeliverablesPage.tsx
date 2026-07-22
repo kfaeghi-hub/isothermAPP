@@ -131,13 +131,14 @@ export function DeliverablesPage({ projectId }: Props) {
   const presentTemplateIds = new Set(rows.map(r => r.template_id).filter(Boolean))
 
   return (
-    <div className="p-6 max-w-4xl rise">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 lg:p-6 max-w-4xl rise">
+      {/* header wraps below lg — the buttons crowded the counter at 375 */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-sm font-semibold text-gray-700">
           Deliverables
           <span className="ml-2 text-xs font-normal text-gray-400 whitespace-nowrap">{rows.length} tracked</span>
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={previewCompose} disabled={composing}
             className="text-xs text-gray-500 hover:text-teal-700 border border-gray-200 hover:border-teal-400 rounded px-3 py-1.5 transition-colors">
             Compose from classification
@@ -164,8 +165,11 @@ export function DeliverablesPage({ projectId }: Props) {
           </EmptyState>
         </div>
       ) : (
-        <div className="card-tile bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+        /* Editable grid: below lg it scrolls horizontally (visible scrollbar
+           as the affordance) rather than collapsing — the expand-editor row
+           depends on the column structure. */
+        <div className="card-tile bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
                 <th className="px-4 py-2 w-8"></th>
@@ -211,7 +215,7 @@ export function DeliverablesPage({ projectId }: Props) {
                       <button onClick={() => setExpanded(expanded === r.id ? null : r.id)}
                         className="text-xs text-gray-400 hover:text-teal-700 px-1" title="Edit">✎</button>
                       <button onClick={() => remove(r)}
-                        className="text-xs text-gray-300 hover:text-red-500 px-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove">✕</button>
+                        className="text-xs text-gray-300 hover:text-red-500 px-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" title="Remove">✕</button>
                     </td>
                   </tr>
                   {expanded === r.id && (

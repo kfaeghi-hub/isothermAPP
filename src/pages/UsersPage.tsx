@@ -37,9 +37,37 @@ export function UsersPage() {
 
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading users…</div>
 
+  const roleChip = (role: string) => (
+    <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${
+      role === 'admin' ? 'bg-[#1F3A5F] text-white'
+      : role === 'owner' ? 'bg-amber-50 text-amber-800'
+      : role === 'developer' ? 'bg-violet-50 text-violet-700'
+      : role === 'user' ? 'bg-teal-50 text-teal-700'
+      : 'bg-gray-100 text-gray-500'
+    }`}>{ROLE_LABEL[role] ?? role}</span>
+  )
+
   return (
-    <div className="p-6 max-w-3xl rise">
-      <table className="w-full text-sm border-collapse" data-testid="users-table">
+    <div className="p-4 lg:p-6 max-w-3xl rise">
+      {/* Mobile: stacked cards — the table clipped role chips and ran the
+          membership columns off-screen at phone widths (RC3). */}
+      <div className="lg:hidden divide-y divide-gray-100">
+        {profiles.map(p => (
+          <div key={p.id} className="py-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-gray-800 text-sm">{p.name}</span>
+              {roleChip(p.role)}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5 break-all">{p.email}</p>
+            {p.role !== 'client' && (
+              <p className="font-mono text-[11px] text-gray-600 mt-1">
+                {counts[p.id]?.total ?? 0} memberships · {counts[p.id]?.leads ?? 0} leads
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+      <table className="w-full text-sm border-collapse hidden lg:table" data-testid="users-table">
         <thead>
           <tr className="border-b border-gray-200 text-left text-[11px] uppercase tracking-wider text-gray-400">
             <th className="py-2 pr-4">Name</th>
