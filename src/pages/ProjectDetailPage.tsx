@@ -370,10 +370,10 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           ← Projects
         </button>
 
-        {/* Project identity row */}
+        {/* Project identity row — the sheet's title block */}
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 leading-tight truncate">{project.name}</h2>
+            <h2 className="font-display text-lg font-bold text-gray-900 leading-tight truncate">{project.name}</h2>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               <ClassificationBadges
                 dimensions={classConfig.dimensions}
@@ -433,21 +433,21 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-0 -mb-px">
+        {/* Tabs — the sheet's contents rule */}
+        <div className="flex gap-0 -mb-px overflow-x-auto">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`px-4 py-2 text-[13px] border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'border-teal-500 text-teal-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-standard-600 text-standard-700 font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-800 font-medium'
               } ${!tab.built ? 'text-gray-400' : ''}`}
             >
               {tab.label}
               {!tab.built && (
-                <span className="ml-1.5 text-[10px] text-gray-300 font-normal">soon</span>
+                <span className="ml-1.5 font-mono text-[9px] uppercase tracking-wider text-gray-400">soon</span>
               )}
             </button>
           ))}

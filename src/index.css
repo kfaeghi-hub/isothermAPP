@@ -1,11 +1,167 @@
+/* THE LIVING STANDARD — design tokens (DESIGN.md is the contract).
+ *
+ * THESIS: the app is the firm's own living standard — CSA/ASHRAE document
+ * grammar as an operating surface. Cover (green) → contents → inside pages
+ * (paper, ink, ruled tables). It refuses the generic admin-dashboard shell.
+ * OWN-WORLD: cover green #062A1D→#176844 actions; paper #FBFAF7; ink #1C2420;
+ * hairline rules; conformance marks (green/amber/red/steel); Archivo +
+ * Spline Sans Mono; sharp radii; print-flat motion.
+ * STORY: an engineer opens the firm's standard, reads the state of the
+ * portfolio as clause-numbered sections, and acts without hunting.
+ * FIRST VIEWPORT (dashboard): document title block, one ruled line of
+ * instrument readings, Attention Queue as the first clause table.
+ * FORM: CSA/ASHRAE normative document — grounded direction #4 of 7,
+ * seed 84078ac6 (impeccable concept-seed, mode operate).
+ *
+ * The Tailwind STOCK scales below are deliberately REMAPPED (teal→standard
+ * green, slate-900→cover, grays→paper/ink) so every legacy utility in the
+ * codebase inherits the world without per-file edits. New code should prefer
+ * the semantic names; the remap is the migration bridge.
+ */
+
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
+  /* ── Faces ─────────────────────────────────────────────────────────── */
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, "Courier New", monospace;
+
+  /* ── The world's own names ─────────────────────────────────────────── */
+  --color-cover: #062a1d;          /* the standard's cover */
+  --color-cover-edge: #0b3b2a;
+  --color-paper: #fbfaf7;          /* inside pages */
+  --color-ink: #1c2420;            /* body ink */
+  --color-ink-display: #0f1713;    /* headings */
+  --color-rule: #dce2dc;           /* hairline rules */
+
+  /* Standard green scale (primary) */
+  --color-standard-50: #f2f7f4;
+  --color-standard-100: #e2eee7;
+  --color-standard-200: #c5ddcf;
+  --color-standard-300: #9ac4ab;
+  --color-standard-400: #64a381;
+  --color-standard-500: #35845d;
+  --color-standard-600: #176844;
+  --color-standard-700: #115437;
+  --color-standard-800: #0d452e;
+  --color-standard-900: #0a3826;
+  --color-standard-950: #062a1d;
+
+  /* ── REMAP: legacy utilities inherit the world ─────────────────────── */
+  /* teal (old action color) → standard green */
+  --color-teal-50: #f2f7f4;
+  --color-teal-100: #e2eee7;
+  --color-teal-200: #c5ddcf;
+  --color-teal-300: #9ac4ab;
+  --color-teal-400: #7fb597;    /* on-cover accents need lift */
+  --color-teal-500: #35845d;
+  --color-teal-600: #176844;
+  --color-teal-700: #115437;
+  --color-teal-800: #0d452e;
+  --color-teal-900: #0a3826;
+
+  /* slate (old shell + text ramp) → cover/ink ramp */
+  --color-slate-50: #fbfaf7;    /* app ground = paper */
+  --color-slate-100: #f2f2ec;
+  --color-slate-200: #e3e5df;
+  --color-slate-300: #c9cdc6;
+  --color-slate-400: #7c8b82;   /* on-cover secondary text (green-tinted) */
+  --color-slate-500: #5d6f64;
+  --color-slate-600: #47584d;
+  --color-slate-700: #14503c;   /* on-cover hover fields */
+  --color-slate-800: #0b3b2a;   /* cover rules/borders */
+  --color-slate-900: #062a1d;   /* the cover itself */
+  --color-slate-950: #041f16;
+
+  /* gray (borders, secondary text) → paper-tinted ink ramp */
+  --color-gray-50: #f7f7f3;
+  --color-gray-100: #efefe9;
+  --color-gray-200: #dce2dc;    /* hairline rule */
+  --color-gray-300: #c3cac3;
+  --color-gray-400: #78827a;  /* 4.6:1 on white — muted text stays readable */
+  --color-gray-500: #6b756d;
+  --color-gray-600: #4b544d;
+  --color-gray-700: #333b35;
+  --color-gray-800: #232a25;
+  --color-gray-900: #1c2420;    /* ink */
+
+  /* conformance semantics (tuned, not remapped away) */
+  --color-amber-50: #fbf3e1;
+  --color-amber-700: #8a5400;
+  --color-red-50: #fbeae8;
+  --color-red-500: #c53d34;
+  --color-red-600: #b3261e;
+  --color-red-700: #9a2019;
+  --color-green-50: #e9f4ee;
+  --color-green-600: #176844;
+  --color-green-700: #115437;
+  --color-sky-50: #edf2f6;
+  --color-sky-700: #33546b;
+  --color-rose-50: #fbeae8;
+  --color-rose-700: #9a2019;
+  --color-violet-50: #efeef6;
+  --color-violet-500: #5b5486;
+  --color-violet-700: #48416e;
+
+  /* ── Print-sharp radii ─────────────────────────────────────────────── */
+  --radius-xs: 1px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+
+  /* Flat paper shadows (offset + soft blur, never halos) */
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 19 / 0.06);
+  --shadow-md: 0 2px 6px -1px rgb(15 23 19 / 0.10);
+  --shadow-lg: 0 6px 16px -4px rgb(15 23 19 / 0.14);
+  --shadow-xl: 0 10px 24px -6px rgb(15 23 19 / 0.16);
 }
 
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Headings speak the document's voice: semi-expanded Archivo. */
+.font-display {
+  font-family: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  font-stretch: 110%;
+  letter-spacing: -0.01em;
+}
+
+/* Focus: a drafting-pen ring in standard green, visible on paper and cover. */
+:focus-visible {
+  outline: 2px solid var(--color-standard-500);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: var(--color-standard-200);
+  color: var(--color-ink-display);
+}
+
+/* Ruled-table grammar: heavy head rule, hairline rows. Opt-in per table. */
+.tbl-ruled thead tr {
+  border-bottom: 2px solid var(--color-ink);
+}
+.tbl-ruled tbody tr {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+/* The contents drawer's one authored motion: a fast paper slide. */
+@keyframes drawer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+/* The isotherm contour watermark (login cover + empty states only). */
+.contour-mark {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1'%3E%3Cpath d='M60 340c-40-60-30-160 20-210s150-70 210-30 90 130 50 190-120 80-180 60S100 400 60 340z'/%3E%3Cpath d='M95 320c-30-48-24-128 16-168s120-56 168-24 72 104 40 152-96 64-144 48S125 368 95 320z'/%3E%3Cpath d='M130 300c-22-36-18-96 12-126s90-42 126-18 54 78 30 114-72 48-108 36S152 336 130 300z'/%3E%3Cpath d='M165 280c-14-24-12-64 8-84s60-28 84-12 36 52 20 76-48 32-72 24S179 304 165 280z'/%3E%3Cpath d='M200 260c-7-12-6-32 4-42s30-14 42-6 18 26 10 38-24 16-36 12S207 272 200 260z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
 }

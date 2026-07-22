@@ -86,24 +86,37 @@ export function DashboardPage() {
     return `${d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' })}`
   }
 
+  const today = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+
   return (
     <div className="h-full overflow-auto">
-      <div className="max-w-[1400px] mx-auto p-6 space-y-8">
+      <div className="max-w-[1400px] mx-auto p-6 space-y-10">
+
+        {/* Document title block */}
+        <div className="flex items-end justify-between border-b-2 border-gray-900 pb-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+              Isotherm Engineering · Commissioning Record
+            </p>
+            <h1 className="font-display text-[22px] font-bold text-gray-900 leading-tight mt-0.5">
+              Portfolio Register
+            </h1>
+          </div>
+          <p className="font-mono text-[11px] text-gray-500 pb-0.5">{today}</p>
+        </div>
 
         {/* ── A · Now ─────────────────────────────────────────────────── */}
-        <section className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="space-y-5">
+          {/* Instrument readings: one ruled line, not four cards */}
+          <div className="bg-white border-y border-gray-200 grid grid-cols-2 lg:grid-cols-4 divide-x divide-gray-200">
             <StatChip label="Active Projects" value={data.stats.activeProjects} testid="chip-active" />
-            <StatChip label="Open Findings" value={data.stats.openFindings} testid="chip-findings" />
-            <StatChip label="Overdue Action Items" value={data.stats.overdueItems} testid="chip-overdue" />
+            <StatChip label="Open Findings" value={data.stats.openFindings} alert={data.stats.openFindings > 0} testid="chip-findings" />
+            <StatChip label="Overdue Action Items" value={data.stats.overdueItems} alert={data.stats.overdueItems > 0} testid="chip-overdue" />
             <StatChip label="Avg Days to Close (90d)" value={data.stats.avgDaysToClose ?? '—'} testid="chip-close" />
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="px-4 py-2.5 border-b border-gray-100 flex items-center">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Attention Queue</h3>
-              <span className="ml-2 text-[10px] text-gray-400 font-mono">{data.queue.length}</span>
-            </div>
+          <div className="bg-white rounded-md border border-gray-200">
+            <ClauseHead n="1" title="Attention Queue" extra={String(data.queue.length)} />
             {data.queue.length === 0 ? (
               <p className="px-4 py-6 text-sm text-gray-400 text-center" data-testid="queue-empty">Nothing needs attention.</p>
             ) : (
@@ -153,11 +166,11 @@ export function DashboardPage() {
                 const daysToFinish = p.finish_date ? -(daysSince(p.finish_date) ?? 0) : null
                 return (
                   <Link key={p.id} to={`/projects/${p.id}`}
-                    className="bg-white rounded-lg border border-gray-200 p-4 hover:border-teal-400 transition-colors block">
+                    className="bg-white rounded-md border border-gray-200 p-4 hover:border-standard-500 transition-colors block">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{p.name}</p>
-                        <p className="text-[11px] text-gray-400 truncate">{p.clientName ?? '—'}{p.com_number ? ` · ${p.com_number}` : ''}</p>
+                        <p className="font-display text-sm font-bold text-gray-900 truncate">{p.name}</p>
+                        <p className="text-[11px] text-gray-500 truncate">{p.clientName ?? '—'}{p.com_number ? <> · <span className="font-mono">{p.com_number}</span></> : ''}</p>
                       </div>
                       <VisitChip lastVisit={s?.lastVisit ?? null} />
                     </div>
@@ -185,37 +198,39 @@ export function DashboardPage() {
               {actives.length === 0 && <p className="text-sm text-gray-400 p-4">No active projects.</p>}
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-4" data-testid="followup-radar">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Follow-up Radar</h3>
-              <p className="text-[10px] text-gray-400 mb-2">Days since last site visit — stalest first.</p>
+            <div className="bg-white rounded-md border border-gray-200" data-testid="followup-radar">
+              <ClauseHead n="2" title="Follow-up Radar" sub="days since last site visit — stalest first" />
+              <div className="p-4">
               <ResponsiveContainer width="100%" height={Math.max(120, radar.length * 34)}>
                 <BarChart data={radar} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(v: any, _n: any, e: any) => e?.payload?.never ? 'never visited' : `${v} days`} />
-                  <Bar dataKey="days" radius={[0, 3, 3, 0]} minPointSize={3}>
+                  <Bar dataKey="days" radius={[0, 2, 2, 0]} minPointSize={3}>
                     {radar.map((r, i) => <Cell key={i} fill={BAND_HEX[r.band]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-4" data-testid="portfolio-timeline">
-            <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Portfolio Timeline</h3>
+          <div className="bg-white rounded-md border border-gray-200" data-testid="portfolio-timeline">
+            <ClauseHead n="3" title="Portfolio Timeline" />
+            <div className="p-4">
             {timeline.length === 0 ? (
               <p className="text-sm text-gray-400">No active projects with both start and finish dates.</p>
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(100, timeline.length * 36)}>
                 <BarChart data={timeline} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <XAxis type="number" tickFormatter={tlDateLabel} tick={{ fontSize: 10 }} />
+                  <XAxis type="number" tickFormatter={tlDateLabel} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(v: any, name: any) => name === 'duration' ? `${v} days` : null}
                     labelFormatter={l => String(l)} />
-                  <ReferenceLine x={todayOffset} stroke="#C0392B" strokeDasharray="4 3"
-                    label={{ value: 'today', fontSize: 9, fill: '#C0392B', position: 'top' }} />
+                  <ReferenceLine x={todayOffset} stroke="#B3261E" strokeDasharray="4 3"
+                    label={{ value: 'today', fontSize: 9, fill: '#B3261E', position: 'top' }} />
                   <Bar dataKey="offset" stackId="tl" fill="transparent" />
-                  <Bar dataKey="duration" stackId="tl" fill="#2C5282" radius={[3, 3, 3, 3]} />
+                  <Bar dataKey="duration" stackId="tl" fill="#115437" radius={[2, 2, 2, 2]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -224,47 +239,52 @@ export function DashboardPage() {
                 No dates: {undated.map(p => p.name).join(', ')}
               </p>
             )}
+            </div>
           </div>
         </section>
 
         {/* ── C · Findings ────────────────────────────────────────────── */}
         <section className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-4" data-testid="trend-chart">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Findings Opened vs Closed — 6 months</h3>
+            <div className="bg-white rounded-md border border-gray-200" data-testid="trend-chart">
+              <ClauseHead n="4" title="Findings Opened vs Closed" sub="6 months" />
+              <div className="p-4">
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={data.trend}>
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
                   <Tooltip />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="opened" fill="#B7791F" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="closed" fill="#1E8449" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="opened" fill="#8A5400" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="closed" fill="#176844" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-4" data-testid="system-chart">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Open Findings by System</h3>
+            <div className="bg-white rounded-md border border-gray-200" data-testid="system-chart">
+              <ClauseHead n="5" title="Open Findings by System" />
+              <div className="p-4">
               {data.bySystem.length === 0 ? (
                 <p className="text-sm text-gray-400">No open findings.</p>
               ) : (
                 <ResponsiveContainer width="100%" height={Math.max(120, data.bySystem.length * 30)}>
                   <BarChart data={data.bySystem} layout="vertical" margin={{ left: 8, right: 24 }}>
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fontFamily: 'Spline Sans Mono' }} />
                     <YAxis type="category" dataKey="system" width={110} tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#1F3A5F" radius={[0, 3, 3, 0]} />
+                    <Bar dataKey="count" fill="#33546B" radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200" data-testid="responsible-table">
-            <div className="px-4 py-2.5 border-b border-gray-100">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Open Items by Responsible Party</h3>
-              <p className="text-[10px] text-gray-400 mt-0.5">Meeting action items + findings, grouped by company via the team matrix. Free-text labels listed separately — never string-matched.</p>
+          <div className="bg-white rounded-md border border-gray-200" data-testid="responsible-table">
+            <div className="border-b border-gray-200">
+              <ClauseHead n="6" title="Open Items by Responsible Party" />
+              <p className="text-[10px] text-gray-400 px-4 pb-2 -mt-1">Meeting action items + findings, grouped by company via the team matrix. Free-text labels listed separately — never string-matched.</p>
             </div>
             {data.responsible.length === 0 ? (
               <p className="px-4 py-6 text-sm text-gray-400 text-center">No open assigned items.</p>
@@ -293,10 +313,10 @@ export function DashboardPage() {
 
         {/* ── D · Mine ────────────────────────────────────────────────── */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200" data-testid="my-items">
-            <div className="px-4 py-2.5 border-b border-gray-100">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">My Items</h3>
-              <p className="text-[10px] text-gray-400 mt-0.5" title="Matched by your profile name against identified_by / prepared_by / authored_by — the existing text conventions.">
+          <div className="bg-white rounded-md border border-gray-200" data-testid="my-items">
+            <div className="border-b border-gray-200">
+              <ClauseHead n="7" title="My Items" />
+              <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400" title="Matched by your profile name against identified_by / prepared_by / authored_by — the existing text conventions.">
                 Matched by name · {profile?.name}
               </p>
             </div>
@@ -315,10 +335,8 @@ export function DashboardPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200" data-testid="recent-activity">
-            <div className="px-4 py-2.5 border-b border-gray-100">
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Recent Activity</h3>
-            </div>
+          <div className="bg-white rounded-md border border-gray-200" data-testid="recent-activity">
+            <ClauseHead n="8" title="Recent Activity" />
             <div className="divide-y divide-gray-50">
               {data.activity.map((a, i) => (
                 <div key={i} className="flex items-center gap-2 px-4 py-2 text-xs">
@@ -340,11 +358,28 @@ export function DashboardPage() {
   )
 }
 
-function StatChip({ label, value, testid }: { label: string; value: number | string; testid: string }) {
+/** One reading on the instrument line: mono numeral over a small-cap label. */
+function StatChip({ label, value, alert = false, testid }: {
+  label: string; value: number | string; alert?: boolean; testid: string
+}) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 px-4 py-3" data-testid={testid}>
-      <p className="text-2xl font-bold text-[#1F3A5F] leading-none">{value}</p>
-      <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1.5">{label}</p>
+    <div className="px-5 py-4" data-testid={testid}>
+      <p className={`font-mono text-[26px] font-medium leading-none tabular-nums ${alert ? 'text-amber-700' : 'text-gray-900'}`}>
+        {value}
+      </p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-2">{label}</p>
+    </div>
+  )
+}
+
+/** Clause head: the document's section grammar (number · title · rule). */
+function ClauseHead({ n, title, extra, sub }: { n: string; title: string; extra?: string; sub?: string }) {
+  return (
+    <div className="px-4 py-2.5 border-b border-gray-200 flex items-baseline gap-2.5">
+      <span className="font-mono text-[11px] font-medium text-standard-600">{n}</span>
+      <h3 className="font-display text-xs font-bold text-gray-900 uppercase tracking-[0.08em]">{title}</h3>
+      {extra !== undefined && <span className="font-mono text-[10px] text-gray-400">{extra}</span>}
+      {sub && <span className="text-[10px] text-gray-400 ml-1">{sub}</span>}
     </div>
   )
 }
