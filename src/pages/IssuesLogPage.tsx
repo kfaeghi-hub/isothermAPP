@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../lib/format'
 import { uploadFindingPhoto } from '../lib/photos'
+import { reportError } from '../lib/mutationError'
 import { Modal } from '../components/ui/Modal'
 import { EquipmentPicker, type PickerEquipment } from '../components/EquipmentPicker'
 import { useAuth } from '../contexts/AuthContext'
@@ -256,33 +257,36 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   async function addDiaryEntry() {
     if (!selectedId || !newEntry.trim()) return
     setAddingEntry(true)
-    await supabase.from('finding_diary_entries').insert({
+    const { error } = await supabase.from('finding_diary_entries').insert({
       finding_id: selectedId,
       entry_date: todayISO(),
       body: newEntry.trim(),
     })
-    setNewEntry('')
     setAddingEntry(false)
+    if (reportError(error, 'add the diary entry')) return
+    setNewEntry('')
     fetchDetail(selectedId)
   }
 
   async function toggleStatus() {
     if (!selectedFinding) return
     const closing = selectedFinding.status === 'open'
-    await supabase
+    const { error } = await supabase
       .from('findings')
       .update({
         status: closing ? 'closed' : 'open',
         date_closed: closing ? todayISO() : null,
       })
       .eq('id', selectedFinding.id)
+    if (reportError(error, 'update the finding status')) return
     fetchFindings()
   }
 
   async function deletePhoto(photo: FindingPhoto) {
     setDeletingPhotoId(photo.id)
     // Delete DB record first — source of truth for UI visibility
-    await supabase.from('finding_photos').delete().eq('id', photo.id)
+    const { error } = await supabase.from('finding_photos').delete().eq('id', photo.id)
+    if (reportError(error, 'delete the photo')) { setDeletingPhotoId(null); return }
     // Then remove from Storage (best-effort; orphaned files are preferable to broken UI state)
     const marker = '/finding-photos/'
     const idx = photo.storage_url.indexOf(marker)
@@ -316,7 +320,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   async function saveEdit() {
     if (!selectedId || !selectedFinding) return
     setSavingEdit(true)
-    await supabase
+    const { error } = await supabase
       .from('findings')
       .update({
         title: editForm.title.trim() || null,
@@ -337,7 +341,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
           : {}),
       })
       .eq('id', selectedId)
-    setSavingEdit(false); setEditOpen(false)
+    setSavingEdit(false)
+    if (reportError(error, 'save the finding')) return
+    setEditOpen(false)
     fetchFindings()
   }
 
@@ -360,9 +366,10 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     }
 
     // Delete the finding row — CASCADE removes diary entries + photo rows
-    await supabase.from('findings').delete().eq('id', findingId)
+    const { error } = await supabase.from('findings').delete().eq('id', findingId)
 
     setDeletingFinding(false)
+    if (reportError(error, 'delete the finding')) return
     setConfirmDeleteId(null)
     setSelectedId(null)
     await fetchFindings()

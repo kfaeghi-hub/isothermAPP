@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import { authedFetch, apiErrorMessage } from '../lib/api'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -181,7 +182,8 @@ export function SiteReportsPage({ projectId }: Props) {
 
   async function deleteReport(r: SiteReport) {
     if (!confirm(`Delete Site Note #${r.report_number}? This also removes any generated files.`)) return
-    await supabase.from('site_reports').delete().eq('id', r.id)
+    const { error } = await supabase.from('site_reports').delete().eq('id', r.id)
+    if (reportError(error, 'delete the report')) return
     fetchReports()
   }
 

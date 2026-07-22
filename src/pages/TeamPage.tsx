@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { resolveEmail, resolvePhone } from '../lib/contactInfo'
+import { reportError } from '../lib/mutationError'
 import { Modal } from '../components/ui/Modal'
 import type {
   CompanyRoleType, TeamAssignmentWithDetail, ContactWithDetail,
@@ -111,9 +112,10 @@ export function TeamPage({ projectId }: Props) {
       .insert({ name }).select('id, name, abbreviation').single()
     if (error || !data) { setAssignError(error?.message ?? 'Could not create company.'); return }
     // Real directory record with this role pre-set (junction + legacy dual-write)
-    await supabase.from('company_roles').insert({
+    const { error: roleError } = await supabase.from('company_roles').insert({
       company_id: data.id, role_type_id: assign.roleTypeId, role: roleType?.name ?? '',
     })
+    reportError(roleError, 'tag the new company with its role')
     setCompanies(cs => [...cs, { id: data.id, name: data.name, abbreviation: data.abbreviation, roleTypeIds: [assign.roleTypeId] }]
       .sort((a, b) => a.name.localeCompare(b.name)))
     setNewCompanyName(''); setAddingCompany(false)
@@ -165,23 +167,26 @@ export function TeamPage({ projectId }: Props) {
   }
 
   async function removeAssignmentRow(id: string) {
-    await supabase.from('project_team_assignments').delete().eq('id', id)
+    const { error } = await supabase.from('project_team_assignments').delete().eq('id', id)
+    if (reportError(error, 'remove this assignment')) return
     fetchAll()
   }
 
   async function removeRoleAssignments(roleTypeId: string, roleName: string) {
     const n = byRole[roleTypeId]?.length ?? 0
     if (!confirm(`Remove the ${roleName} assignment${n > 1 ? `s (${n} entries)` : ''} from this project?`)) return
-    await supabase.from('project_team_assignments')
+    const { error } = await supabase.from('project_team_assignments')
       .delete().eq('project_id', projectId).eq('role_type_id', roleTypeId)
+    if (reportError(error, "remove the role's assignments")) return
     fetchAll()
   }
 
   async function swapCompany(roleTypeId: string, roleName: string, companyId: string, companyName: string) {
     const n = (byRole[roleTypeId] ?? []).filter(a => a.company_id === companyId).length
     if (!confirm(`Replace ${companyName} as ${roleName}? ${n > 1 ? `Its ${n} entries` : 'Its entry'} will be removed.`)) return
-    await supabase.from('project_team_assignments')
+    const { error } = await supabase.from('project_team_assignments')
       .delete().eq('project_id', projectId).eq('role_type_id', roleTypeId).eq('company_id', companyId)
+    if (reportError(error, 'replace the current company')) return
     await fetchAll()
     openAssign(roleTypeId)
   }
@@ -194,10 +199,12 @@ export function TeamPage({ projectId }: Props) {
     const j = i + dir
     if (j < 0 || j >= siblings.length) return
     // Swap sort_orders
-    await Promise.all([
+    const [resA, resB] = await Promise.all([
       supabase.from('project_team_assignments').update({ sort_order: siblings[j].sort_order }).eq('id', a.id),
       supabase.from('project_team_assignments').update({ sort_order: a.sort_order }).eq('id', siblings[j].id),
     ])
+    // On any error the reorder may be half-applied; report and reload to resync.
+    reportError(resA.error ?? resB.error, 'reorder the team')
     fetchAll()
   }
 

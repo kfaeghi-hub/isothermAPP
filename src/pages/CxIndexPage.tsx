@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import type { Equipment } from '../types/database'
 
 // ── Local types ──────────────────────────────────────────────────────────────
@@ -155,11 +156,14 @@ export function CxIndexPage({ projectId }: Props) {
     const defaultColumns = (dcRes.data ?? []) as any[]
 
     for (const dg of defaultGroups) {
-      const { data: newGroup } = await supabase
+      const { data: newGroup, error: gErr } = await supabase
         .from('project_cx_stage_groups')
         .insert({ project_id: projectId, name: dg.name, sort_order: dg.sort_order })
         .select('id')
         .single()
+      // If the very first insert is blocked (e.g. RLS), every one will be — surface
+      // and stop rather than silently doing nothing. fetchAll shows any partial state.
+      if (gErr) { reportError(gErr, 'initialize the Cx Index from the firm default'); await fetchAll(); setIniting(false); return }
       if (!newGroup) continue
       const cols = defaultColumns
         .filter((dc: any) => dc.stage_group_id === dg.id)
@@ -169,7 +173,8 @@ export function CxIndexPage({ projectId }: Props) {
           sort_order: dc.sort_order,
         }))
       if (cols.length > 0) {
-        await supabase.from('project_cx_columns').insert(cols)
+        const { error: cErr } = await supabase.from('project_cx_columns').insert(cols)
+        if (cErr) { reportError(cErr, 'initialize the Cx Index columns'); await fetchAll(); setIniting(false); return }
       }
     }
     await fetchAll()
@@ -190,23 +195,33 @@ export function CxIndexPage({ projectId }: Props) {
       return m
     })
 
-    if (next === null) {
-      await supabase
-        .from('cx_cell_values')
-        .delete()
-        .eq('equipment_id', equipId)
-        .eq('column_id', colId)
-    } else {
-      await supabase.from('cx_cell_values').upsert(
-        {
-          project_id: projectId,
-          equipment_id: equipId,
-          column_id: colId,
-          status: next,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'equipment_id,column_id' }
-      )
+    const { error } = next === null
+      ? await supabase
+          .from('cx_cell_values')
+          .delete()
+          .eq('equipment_id', equipId)
+          .eq('column_id', colId)
+      : await supabase.from('cx_cell_values').upsert(
+          {
+            project_id: projectId,
+            equipment_id: equipId,
+            column_id: colId,
+            status: next,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'equipment_id,column_id' }
+        )
+
+    if (error) {
+      // Roll the one cell back to its pre-click value — don't refetch the whole
+      // matrix (that would clobber other in-flight optimistic toggles).
+      setCells(prev => {
+        const m = new Map(prev)
+        if (current === undefined) m.delete(key)
+        else m.set(key, current)
+        return m
+      })
+      reportError(error, 'save the progress update')
     }
   }
 
@@ -231,7 +246,7 @@ export function CxIndexPage({ projectId }: Props) {
     if (!addEquipForm.tag.trim() && !addEquipForm.descriptor.trim()) return
     setSavingEquip(true)
     const maxSort = equipment.reduce((m, e) => Math.max(m, e.sort_order), 0)
-    await supabase.from('equipment').insert({
+    const { error } = await supabase.from('equipment').insert({
       project_id: projectId,
       kind: addEquipForm.kind,
       category: addEquipForm.category.trim() || null,
@@ -241,6 +256,8 @@ export function CxIndexPage({ projectId }: Props) {
       area_served: addEquipForm.area_served.trim() || null,
       sort_order: maxSort + 1,
     })
+    // On failure keep the modal open with the entered values for retry.
+    if (reportError(error, 'add the equipment')) { setSavingEquip(false); return }
     setSavingEquip(false)
     setAddEquipOpen(false)
     setAddEquipForm(EMPTY_EQUIP)
@@ -252,7 +269,8 @@ export function CxIndexPage({ projectId }: Props) {
   async function saveGroupName(id: string, name: string) {
     const trimmed = name.trim()
     if (!trimmed) { setEditingGroupId(null); return }
-    await supabase.from('project_cx_stage_groups').update({ name: trimmed }).eq('id', id)
+    const { error } = await supabase.from('project_cx_stage_groups').update({ name: trimmed }).eq('id', id)
+    if (error) { reportError(error, 'rename the group'); setEditingGroupId(null); await fetchAll(); return }
     setGroups(prev => prev.map(g => g.id === id ? { ...g, name: trimmed } : g))
     setEditingGroupId(null)
   }
@@ -262,10 +280,12 @@ export function CxIndexPage({ projectId }: Props) {
     const swapIdx = dir === 'up' ? idx - 1 : idx + 1
     if (swapIdx < 0 || swapIdx >= groups.length) return
     const a = groups[idx], b = groups[swapIdx]
-    await Promise.all([
+    const [ra, rb] = await Promise.all([
       supabase.from('project_cx_stage_groups').update({ sort_order: b.sort_order }).eq('id', a.id),
       supabase.from('project_cx_stage_groups').update({ sort_order: a.sort_order }).eq('id', b.id),
     ])
+    // A half-applied swap corrupts ordering — surface and reload server truth.
+    if (reportError(ra.error ?? rb.error, 'reorder the groups')) { await fetchAll(); return }
     const next = [...groups]
     next[idx] = { ...b, sort_order: a.sort_order }
     next[swapIdx] = { ...a, sort_order: b.sort_order }
@@ -283,7 +303,8 @@ export function CxIndexPage({ projectId }: Props) {
       ? `"${g.name}" has progress data. Delete this group and all its progress data?`
       : `Delete group "${g.name}" and its ${g.columns.length} column${g.columns.length !== 1 ? 's' : ''}?`
     if (!confirm(msg)) return
-    await supabase.from('project_cx_stage_groups').delete().eq('id', id)
+    const { error } = await supabase.from('project_cx_stage_groups').delete().eq('id', id)
+    if (reportError(error, 'delete the group')) return
     setGroups(prev => prev.filter(x => x.id !== id))
   }
 
@@ -291,11 +312,12 @@ export function CxIndexPage({ projectId }: Props) {
     const name = prompt('New stage group name:')?.trim()
     if (!name) return
     const maxSort = groups.reduce((m, g) => Math.max(m, g.sort_order), 0)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('project_cx_stage_groups')
       .insert({ project_id: projectId, name, sort_order: maxSort + 1 })
       .select('id, project_id, name, sort_order')
       .single()
+    if (reportError(error, 'add the group')) return
     if (data) setGroups(prev => [...prev, { ...(data as any), columns: [] }])
   }
 
@@ -304,7 +326,8 @@ export function CxIndexPage({ projectId }: Props) {
   async function saveColLabel(id: string, label: string, groupId: string) {
     const trimmed = label.trim()
     if (!trimmed) { setEditingColId(null); return }
-    await supabase.from('project_cx_columns').update({ label: trimmed }).eq('id', id)
+    const { error } = await supabase.from('project_cx_columns').update({ label: trimmed }).eq('id', id)
+    if (error) { reportError(error, 'rename the column'); setEditingColId(null); await fetchAll(); return }
     setGroups(prev => prev.map(g =>
       g.id !== groupId ? g : {
         ...g,
@@ -321,10 +344,11 @@ export function CxIndexPage({ projectId }: Props) {
     const swapIdx = dir === 'up' ? idx - 1 : idx + 1
     if (swapIdx < 0 || swapIdx >= g.columns.length) return
     const a = g.columns[idx], b = g.columns[swapIdx]
-    await Promise.all([
+    const [ra, rb] = await Promise.all([
       supabase.from('project_cx_columns').update({ sort_order: b.sort_order }).eq('id', a.id),
       supabase.from('project_cx_columns').update({ sort_order: a.sort_order }).eq('id', b.id),
     ])
+    if (reportError(ra.error ?? rb.error, 'reorder the columns')) { await fetchAll(); return }
     const newCols = [...g.columns]
     newCols[idx] = { ...b, sort_order: a.sort_order }
     newCols[swapIdx] = { ...a, sort_order: b.sort_order }
@@ -341,7 +365,8 @@ export function CxIndexPage({ projectId }: Props) {
       ? `Column "${col.label}" has ${dataCount} progress entr${dataCount !== 1 ? 'ies' : 'y'}. Delete anyway?`
       : `Delete column "${col.label}"?`
     if (!confirm(msg)) return
-    await supabase.from('project_cx_columns').delete().eq('id', id)
+    const { error } = await supabase.from('project_cx_columns').delete().eq('id', id)
+    if (reportError(error, 'delete the column')) return
     setGroups(prev => prev.map(g =>
       g.id !== groupId ? g : { ...g, columns: g.columns.filter(c => c.id !== id) }
     ))
@@ -352,11 +377,13 @@ export function CxIndexPage({ projectId }: Props) {
     if (!label) return
     const g = groups.find(x => x.id === groupId)
     const maxSort = g ? g.columns.reduce((m, c) => Math.max(m, c.sort_order), 0) : 0
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('project_cx_columns')
       .insert({ stage_group_id: groupId, label, sort_order: maxSort + 1 })
       .select('id, stage_group_id, label, sort_order')
       .single()
+    // Keep the inline add row open with the typed label on failure.
+    if (reportError(error, 'add the column')) return
     if (data) {
       setGroups(prev => prev.map(g =>
         g.id !== groupId ? g : { ...g, columns: [...g.columns, data as CxColumn] }

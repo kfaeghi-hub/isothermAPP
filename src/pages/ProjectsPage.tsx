@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { reportError, reportWriteBlocked } from '../lib/mutationError'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
   fetchClassificationConfig, validateRequired,
@@ -188,15 +189,23 @@ export function ProjectsPage() {
   }
 
   async function setProjectStatus(id: string, status: 'active' | 'completed') {
-    await supabase.from('projects').update({ status }).eq('id', id)
+    // .select() so an RLS-filtered 0-row update (or the C2 status-guard raising)
+    // surfaces instead of silently looking like it worked.
+    const { data, error } = await supabase.from('projects').update({ status }).eq('id', id).select('id')
+    if (reportWriteBlocked({ data, error }, `mark this project ${status}`)) return
     fetchData()
   }
 
   async function confirmDelete() {
     if (!deleteConfirm.project) return
     setDeleting(true)
-    await supabase.from('projects').delete().eq('id', deleteConfirm.project.id)
+    // .select() returns the deleted row; an RLS-blocked delete returns 0 rows
+    // with no error, so reportWriteBlocked catches both the error and the
+    // silent-no-op case. On failure keep the modal open — don't fake success.
+    const { data, error } = await supabase
+      .from('projects').delete().eq('id', deleteConfirm.project.id).select('id')
     setDeleting(false)
+    if (reportWriteBlocked({ data, error }, 'delete this project')) return
     setDeleteConfirm({ open: false, project: null })
     fetchData()
   }
@@ -246,29 +255,35 @@ export function ProjectsPage() {
       if (clErr) { setFormError(`Project created, but classifications failed: ${clErr.message}`); setSaving(false); return }
     }
 
+    // The project row exists from here on; these are secondary inserts. Surface
+    // a partial failure (alert) rather than silently dropping phases/trades/
+    // deliverables, but still finish — the project is real and the refetch shows it.
     if (form.phases.length > 0) {
-      await supabase.from('project_phases').insert(
+      const { error } = await supabase.from('project_phases').insert(
         form.phases.map((name, i) => ({ project_id: project.id, name, sort_order: i }))
       )
+      reportError(error, 'save the project phases (the project itself was created)')
     }
 
     if (selectedTradeIds.length > 0) {
-      await supabase.from('project_trades').insert(
+      const { error } = await supabase.from('project_trades').insert(
         selectedTradeIds.map(trade_type_id => ({ project_id: project.id, trade_type_id }))
       )
+      reportError(error, 'save the systems to be commissioned (the project itself was created)')
     }
 
     // Deliverable composition: union of every selected option's default templates
     // into the per-project editable copy (§5.2 behaviour otherwise unchanged).
     const templateIds = await composeDeliverableTemplateIds(selectedIds)
     if (templateIds.length > 0) {
-      await supabase.from('project_deliverables').insert(
+      const { error } = await supabase.from('project_deliverables').insert(
         templateIds.map(template_id => ({
           project_id: project.id,
           template_id,
           status: 'not_started',
         })),
       )
+      reportError(error, 'compose the deliverables (the project itself was created)')
     }
 
     setSaving(false)
@@ -301,11 +316,12 @@ export function ProjectsPage() {
     const name = newTradeName.trim()
     if (!name) return
     const maxOrder = allTrades.reduce((m, t) => Math.max(m, t.sort_order), 0)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('trade_types')
       .insert({ name, sort_order: maxOrder + 1 })
       .select('*')
       .single()
+    if (reportError(error, 'add the system')) return
     if (data) {
       const trade = data as TradeType
       setAllTrades(prev => [...prev, trade])

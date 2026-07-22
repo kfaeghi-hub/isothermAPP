@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import { authedFetch, apiErrorMessage } from '../lib/api'
 import * as outbox from '../lib/checklistOutbox'
 import { uploadFindingPhoto } from '../lib/photos'
@@ -375,6 +376,11 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   async function createInstance() {
     if (!selectedTemplate || targetDrafts.length === 0) return
     setCreating(true)
+    // Hoisted so the catch can roll back a partially-built instance. Each step
+    // below throws on a Supabase error (they return { error }, they don't throw),
+    // so a failure at any snapshot step surfaces instead of leaving a half-built
+    // instance — e.g. an instance with no targets, or a section with no items.
+    let instanceId: string | null = null
     try {
       // 1. Insert instance
       const { data: inst, error: instErr } = await supabase
@@ -392,12 +398,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
         .select('id')
         .single()
       if (instErr || !inst) throw instErr ?? new Error('Failed to create instance')
-      const instanceId = inst.id
+      instanceId = inst.id
 
       // 2. Insert targets
-      await supabase.from('checklist_instance_targets').insert(
+      const { error: targetsErr } = await supabase.from('checklist_instance_targets').insert(
         targetDrafts.map(t => ({ instance_id: instanceId, ...t }))
       )
+      if (targetsErr) throw targetsErr
 
       // 3. Fetch template sections/items/grids/signoffs
       const [sRes, soRes] = await Promise.all([
@@ -422,7 +429,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
 
       // 4. Snapshot sections → items + grids
       for (const tmplSection of tmplSections) {
-        const { data: instSection } = await supabase
+        const { data: instSection, error: secErr } = await supabase
           .from('checklist_instance_sections')
           .insert({
             instance_id: instanceId,
@@ -432,11 +439,12 @@ export function ChecklistsPage({ projectId, phases }: Props) {
           })
           .select('id')
           .single()
+        if (secErr) throw secErr
         if (!instSection) continue
 
         const sItems = tmplItems.filter((i: any) => i.section_id === tmplSection.id)
         if (sItems.length > 0) {
-          await supabase.from('checklist_instance_items').insert(
+          const { error: itemsErr } = await supabase.from('checklist_instance_items').insert(
             sItems.map((i: any) => ({
               instance_id: instanceId,
               section_id: instSection.id,
@@ -450,11 +458,12 @@ export function ChecklistsPage({ projectId, phases }: Props) {
               sort_order: i.sort_order,
             }))
           )
+          if (itemsErr) throw itemsErr
         }
 
         const sGrids = tmplGrids.filter((g: any) => g.section_id === tmplSection.id)
         if (sGrids.length > 0) {
-          await supabase.from('checklist_instance_grids').insert(
+          const { error: gridsErr } = await supabase.from('checklist_instance_grids').insert(
             sGrids.map((g: any) => ({
               instance_id: instanceId,
               section_id: instSection.id,
@@ -464,13 +473,14 @@ export function ChecklistsPage({ projectId, phases }: Props) {
               sort_order: g.sort_order,
             }))
           )
+          if (gridsErr) throw gridsErr
         }
       }
 
       // 5. Snapshot signoffs
       const tmplSignoffs = soRes.data ?? []
       if (tmplSignoffs.length > 0) {
-        await supabase.from('checklist_instance_signoffs').insert(
+        const { error: signoffsErr } = await supabase.from('checklist_instance_signoffs').insert(
           tmplSignoffs.map((s: any) => ({
             instance_id: instanceId,
             source_signoff_id: s.id,
@@ -478,6 +488,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
             sort_order: s.sort_order,   // carry the template's signature-block order
           }))
         )
+        if (signoffsErr) throw signoffsErr
       }
 
       setCreating(false)
@@ -486,6 +497,11 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       setSelectedId(instanceId)
     } catch (err) {
       setCreating(false)
+      // Roll back the partially-built instance so a failed create leaves nothing
+      // behind. CASCADE FKs clean up any sections/items/grids/targets inserted so far.
+      if (instanceId) {
+        await supabase.from('checklist_instances').delete().eq('id', instanceId)
+      }
       alert(err instanceof Error ? err.message : 'Failed to create checklist.')
     }
   }
@@ -964,12 +980,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       if (eq) nameplateSnapshot[target.equipment_id] = eq
     }
 
-    await supabase.from('checklist_instances').update({
+    const { error } = await supabase.from('checklist_instances').update({
       status: 'complete',
       completed_at: new Date().toISOString(),
       completed_by: profile?.name ?? null,
       nameplate_snapshot: nameplateSnapshot,
     }).eq('id', instance.id)
+    if (reportError(error, 'mark this checklist complete')) { setCompleting(false); return }
 
     setCompleting(false)
     setConfirmComplete(false)
@@ -982,11 +999,12 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   async function reopenInstance() {
     if (!instance) return
     setReopening(true)
-    await supabase.from('checklist_instances').update({
+    const { error } = await supabase.from('checklist_instances').update({
       status: 'in_progress',
       reopened_by: profile?.name ?? null,
       reopened_at: new Date().toISOString(),
     }).eq('id', instance.id)
+    if (reportError(error, 'reopen this checklist')) { setReopening(false); return }
     setReopening(false)
     setConfirmReopen(false)
     await fetchInstances()
@@ -998,11 +1016,14 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   async function saveHeader() {
     if (!instance) return
     setSavingHeader(true)
-    await supabase.from('checklist_instances').update({
+    const { error } = await supabase.from('checklist_instances').update({
       authored_by: headerForm.authored_by || null,
       date_performed: headerForm.date_performed || null,
       notes: headerForm.notes || null,
     }).eq('id', instance.id)
+    // On failure keep the header editor open with the entered values; don't apply
+    // the optimistic local update (which would make a failed save look saved).
+    if (reportError(error, 'save the checklist header')) { setSavingHeader(false); return }
     setSavingHeader(false)
     setEditingHeader(false)
     setInstance(i => i ? { ...i, ...headerForm, date_performed: headerForm.date_performed || null } : i)

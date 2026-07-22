@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import { useAuth } from '../contexts/AuthContext'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
@@ -168,7 +169,7 @@ export function EquipmentPage({ projectId }: Props) {
     if (!addForm.tag.trim() && !addForm.descriptor.trim()) return
     setSavingAdd(true)
     const maxSort = equipment.reduce((m, e) => Math.max(m, e.sort_order), 0)
-    const { data: newEquip } = await supabase
+    const { data: newEquip, error } = await supabase
       .from('equipment')
       .insert({
         project_id:     projectId,
@@ -183,6 +184,8 @@ export function EquipmentPage({ projectId }: Props) {
       })
       .select('id, equipment_type')
       .single()
+    // On failure keep the modal open so the user can retry; re-enable the button.
+    if (reportError(error, 'add the equipment')) { setSavingAdd(false); return }
 
     // Initialize field defs for this type if not yet done
     if (newEquip?.equipment_type) {
@@ -207,7 +210,7 @@ export function EquipmentPage({ projectId }: Props) {
       .eq('equipment_type', type)
       .order('sort_order')
     if (!firmDefs || firmDefs.length === 0) return
-    await supabase.from('project_equipment_field_defs').insert(
+    const { error } = await supabase.from('project_equipment_field_defs').insert(
       firmDefs.map((d: any) => ({
         project_id:     projectId,
         equipment_type: d.equipment_type,
@@ -217,6 +220,7 @@ export function EquipmentPage({ projectId }: Props) {
         sort_order:     d.sort_order,
       }))
     )
+    if (reportError(error, 'set up the field template')) return
     await fetchFieldDefs()
   }
 
@@ -225,7 +229,8 @@ export function EquipmentPage({ projectId }: Props) {
   async function deleteEquipment(id: string) {
     const eq = equipment.find(e => e.id === id)
     if (!confirm(`Delete ${eq?.tag ?? eq?.descriptor ?? 'this item'}? This also removes its Cx Index progress data and attachments.`)) return
-    await supabase.from('equipment').delete().eq('id', id)
+    const { error } = await supabase.from('equipment').delete().eq('id', id)
+    if (reportError(error, 'delete the equipment')) return
     setSelectedId(null)
     fetchEquipment()
   }
@@ -248,7 +253,7 @@ export function EquipmentPage({ projectId }: Props) {
 
   async function saveEdit(eq: Equipment) {
     setSavingEdit(true)
-    await supabase
+    const { error } = await supabase
       .from('equipment')
       .update({
         ...editValues,
@@ -256,6 +261,8 @@ export function EquipmentPage({ projectId }: Props) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', eq.id)
+    // On failure stay in edit mode so the user keeps their changes; re-enable Save.
+    if (reportError(error, 'save changes')) { setSavingEdit(false); return }
 
     // If equipment_type changed, ensure field defs exist for the new type
     if (editValues.equipment_type && editValues.equipment_type !== eq.equipment_type) {
@@ -280,18 +287,21 @@ export function EquipmentPage({ projectId }: Props) {
     setUploadingFile(true)
     const ext    = file.name.split('.').pop() ?? 'bin'
     const path   = `${equipId}/${Date.now()}.${ext}`
-    const { data: upload } = await supabase.storage
+    const { data: upload, error: uploadErr } = await supabase.storage
       .from('equipment-files')
       .upload(path, file, { contentType: file.type })
+    // Upload failed — don't insert a row that points at a nonexistent file.
+    if (reportError(uploadErr, 'upload the attachment')) { setUploadingFile(false); return }
     if (upload) {
       const { data: urlData } = supabase.storage.from('equipment-files').getPublicUrl(path)
-      await supabase.from('equipment_attachments').insert({
+      const { error: insertErr } = await supabase.from('equipment_attachments').insert({
         project_id:   projectId,
         equipment_id: equipId,
         filename:     file.name,
         file_type:    pendingFileType,
         storage_url:  urlData.publicUrl,
       })
+      if (reportError(insertErr, 'save the attachment')) { setUploadingFile(false); return }
       fetchAttachments()
     }
     setUploadingFile(false)
@@ -299,11 +309,14 @@ export function EquipmentPage({ projectId }: Props) {
 
   async function deleteAttachment(att: EquipmentAttachment) {
     if (!confirm(`Remove "${att.filename}"?`)) return
-    await supabase.from('equipment_attachments').delete().eq('id', att.id)
+    const { error } = await supabase.from('equipment_attachments').delete().eq('id', att.id)
+    if (reportError(error, 'delete the attachment')) return
     const marker = '/equipment-files/'
     const idx = att.storage_url.indexOf(marker)
     if (idx >= 0) {
-      await supabase.storage.from('equipment-files').remove([att.storage_url.slice(idx + marker.length)])
+      // Best-effort storage cleanup; the row is already gone, so don't block on it.
+      const { error: removeErr } = await supabase.storage.from('equipment-files').remove([att.storage_url.slice(idx + marker.length)])
+      if (removeErr) console.error('[equipment] storage cleanup failed:', removeErr)
     }
     fetchAttachments()
   }
@@ -313,7 +326,9 @@ export function EquipmentPage({ projectId }: Props) {
   async function saveFieldName(id: string, name: string) {
     const trimmed = name.trim()
     if (!trimmed) { setEditingFieldId(null); return }
-    await supabase.from('project_equipment_field_defs').update({ field_name: trimmed }).eq('id', id)
+    const { error } = await supabase.from('project_equipment_field_defs').update({ field_name: trimmed }).eq('id', id)
+    // Resync from the server so the UI doesn't show an unsaved rename.
+    if (reportError(error, 'rename the field')) { fetchFieldDefs(); return }
     setFieldDefs(prev => prev.map(f => f.id === id ? { ...f, field_name: trimmed } : f))
     setEditingFieldId(null)
   }
@@ -324,10 +339,12 @@ export function EquipmentPage({ projectId }: Props) {
     const swapIdx = dir === 'up' ? idx - 1 : idx + 1
     if (swapIdx < 0 || swapIdx >= group.length) return
     const a = group[idx], b = group[swapIdx]
-    await Promise.all([
+    const [resA, resB] = await Promise.all([
       supabase.from('project_equipment_field_defs').update({ sort_order: b.sort_order }).eq('id', a.id),
       supabase.from('project_equipment_field_defs').update({ sort_order: a.sort_order }).eq('id', b.id),
     ])
+    // Either update failing leaves the two rows' sort_order inconsistent — reload to resync.
+    if (reportError(resA.error ?? resB.error, 'reorder fields')) { fetchFieldDefs(); return }
     setFieldDefs(prev => {
       const next = prev.map(f => {
         if (f.id === a.id) return { ...f, sort_order: b.sort_order }
@@ -340,7 +357,9 @@ export function EquipmentPage({ projectId }: Props) {
 
   async function deleteField(id: string) {
     if (!confirm('Remove this field from the project template?')) return
-    await supabase.from('project_equipment_field_defs').delete().eq('id', id)
+    const { error } = await supabase.from('project_equipment_field_defs').delete().eq('id', id)
+    // Reload so a field that wasn't actually deleted stays visible.
+    if (reportError(error, 'delete the field')) { fetchFieldDefs(); return }
     setFieldDefs(prev => prev.filter(f => f.id !== id))
   }
 
@@ -349,7 +368,7 @@ export function EquipmentPage({ projectId }: Props) {
     if (!name) return
     const group = fieldDefs.filter(f => f.equipment_type === type && f.section === section)
     const maxSort = group.reduce((m, f) => Math.max(m, f.sort_order), 0)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('project_equipment_field_defs')
       .insert({
         project_id:     projectId,
@@ -361,6 +380,8 @@ export function EquipmentPage({ projectId }: Props) {
       })
       .select('*')
       .single()
+    // On failure keep the inline add row open with the user's input for retry.
+    if (reportError(error, 'add the field')) return
     if (data) setFieldDefs(prev => [...prev, data as ProjectEquipmentFieldDef])
     setAddingFieldSection(null)
     setNewFieldName('')

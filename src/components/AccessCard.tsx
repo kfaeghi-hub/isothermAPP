@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 
 // Project Access card (Overview tab, ADMIN-ONLY render — parent gates it).
 // Membership management is owner-only by design: leads run settings, owners
@@ -44,20 +45,23 @@ export function AccessCard({ projectId }: { projectId: string }) {
 
   async function addMember(profileId: string) {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('project_members').insert({
+    const { error } = await supabase.from('project_members').insert({
       project_id: projectId, profile_id: profileId, added_by: user?.id ?? null,
     })
+    if (reportError(error, 'add the member')) return
     setAdding(false)
     fetchAll()
   }
 
   async function toggleLead(m: MemberRow) {
-    await supabase.from('project_members').update({ is_lead: !m.is_lead }).eq('id', m.id)
+    const { error } = await supabase.from('project_members').update({ is_lead: !m.is_lead }).eq('id', m.id)
+    if (reportError(error, 'update the lead role')) return
     fetchAll()
   }
 
   async function removeMember(m: MemberRow) {
-    await supabase.from('project_members').delete().eq('id', m.id)
+    const { error } = await supabase.from('project_members').delete().eq('id', m.id)
+    if (reportError(error, 'remove the member')) return
     setConfirmRemove(null)
     fetchAll()
   }

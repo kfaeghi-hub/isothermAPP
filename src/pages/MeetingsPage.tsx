@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import { authedFetch, apiErrorMessage } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { Modal } from '../components/ui/Modal'
@@ -226,9 +227,10 @@ export function MeetingsPage({ projectId }: Props) {
       .eq('meeting_type_id', createForm.meeting_type_id).order('sort_order')
     let newTopics: MeetingTopic[] = []
     if ((defaults ?? []).length > 0) {
-      const { data: created } = await supabase.from('meeting_topics').insert(
+      const { data: created, error: topicsErr } = await supabase.from('meeting_topics').insert(
         (defaults ?? []).map(d => ({ meeting_id: mtg.id, title: d.title, sort_order: d.sort_order }))
       ).select('*')
+      if (reportError(topicsErr, 'copy the agenda topics')) { setCreating(false); return }
       newTopics = (created ?? []) as MeetingTopic[]
     }
 
@@ -245,20 +247,22 @@ export function MeetingsPage({ projectId }: Props) {
       const topicByTitle = new Map(newTopics.map(t => [t.title.trim().toLowerCase(), t.id]))
 
       let oldBusinessId: string | null = null
-      async function ensureOldBusiness(): Promise<string> {
+      async function ensureOldBusiness(): Promise<string | null> {
         if (oldBusinessId) return oldBusinessId
-        const { data: ob } = await supabase.from('meeting_topics')
+        const { data: ob, error: obErr } = await supabase.from('meeting_topics')
           .insert({ meeting_id: mtg!.id, title: 'Old Business', sort_order: -1 })
           .select('id').single()
-        oldBusinessId = ob!.id
-        return oldBusinessId!
+        if (reportError(obErr, 'create the Old Business topic') || !ob) return null
+        oldBusinessId = ob.id
+        return oldBusinessId
       }
 
       let sort = 0
       for (const it of priorItems) {
         const priorTitle = (priorTopics.get(it.topic_id) ?? '').trim().toLowerCase()
         const targetTopic = topicByTitle.get(priorTitle) ?? await ensureOldBusiness()
-        await supabase.from('meeting_items').insert({
+        if (!targetTopic) break   // Old Business topic couldn't be created (reported) — stop carry-forward
+        const { error: itemErr } = await supabase.from('meeting_items').insert({
           meeting_id: mtg.id,
           topic_id: targetTopic,
           item_number: it.item_number,          // construction convention: number never changes
@@ -271,6 +275,7 @@ export function MeetingsPage({ projectId }: Props) {
           linked_finding_id: it.linked_finding_id,
           sort_order: sort++,
         })
+        if (reportError(itemErr, 'carry forward an open item')) break
       }
     }
 
@@ -297,7 +302,7 @@ export function MeetingsPage({ projectId }: Props) {
   async function saveEdit() {
     if (!meeting) return
     setSavingEdit(true)
-    await supabase.from('meetings').update({
+    const { error } = await supabase.from('meetings').update({
       meeting_number: editForm.meeting_number,
       meeting_date: editForm.meeting_date,
       start_time: editForm.start_time || null,
@@ -305,6 +310,7 @@ export function MeetingsPage({ projectId }: Props) {
       prepared_by: editForm.prepared_by.trim() || null,
       next_meeting_date: editForm.next_meeting_date || null,
     }).eq('id', meeting.id)
+    if (reportError(error, 'save the meeting')) { setSavingEdit(false); return }
     setSavingEdit(false); setEditOpen(false)
     fetchMeetings()
   }
@@ -314,7 +320,7 @@ export function MeetingsPage({ projectId }: Props) {
   async function addAttendee(contactId: string) {
     if (!meeting) return
     const c = contacts.find(x => x.id === contactId)
-    await supabase.from('meeting_attendees').insert({
+    const { error } = await supabase.from('meeting_attendees').insert({
       meeting_id: meeting.id,
       contact_id: contactId,
       // Snapshots stamped at pick time — attendance records survive directory churn.
@@ -323,34 +329,39 @@ export function MeetingsPage({ projectId }: Props) {
       role_label: teamByContact[contactId] ?? null,
       sort_order: attendees.length,
     })
+    if (reportError(error, 'add the attendee')) return
     setAttendeeOpen(false); setAttendeeQuery('')
     fetchDetail(meeting.id)
   }
 
   async function addGuest() {
     if (!meeting || !guestForm.name.trim()) return
-    await supabase.from('meeting_attendees').insert({
+    const { error } = await supabase.from('meeting_attendees').insert({
       meeting_id: meeting.id,
       name_snapshot: guestForm.name.trim(),
       company_snapshot: guestForm.company.trim() || null,
       role_label: guestForm.role.trim() || null,
       sort_order: attendees.length,
     })
+    if (reportError(error, 'add the guest')) return
     setGuestOpen(false); setGuestForm({ name: '', company: '', role: '' })
     fetchDetail(meeting.id)
   }
 
   async function setAttendance(id: string, attendance: MeetingAttendee['attendance']) {
-    await supabase.from('meeting_attendees').update({ attendance }).eq('id', id)
+    const { error } = await supabase.from('meeting_attendees').update({ attendance }).eq('id', id)
+    if (reportError(error, 'update attendance')) return
     if (meeting) fetchDetail(meeting.id)
   }
 
   async function setAttendeeRole(id: string, role_label: string) {
-    await supabase.from('meeting_attendees').update({ role_label: role_label.trim() || null }).eq('id', id)
+    const { error } = await supabase.from('meeting_attendees').update({ role_label: role_label.trim() || null }).eq('id', id)
+    if (reportError(error, 'update the role') && meeting) fetchDetail(meeting.id)
   }
 
   async function removeAttendee(id: string) {
-    await supabase.from('meeting_attendees').delete().eq('id', id)
+    const { error } = await supabase.from('meeting_attendees').delete().eq('id', id)
+    if (reportError(error, 'remove the attendee')) return
     if (meeting) fetchDetail(meeting.id)
   }
 
@@ -362,16 +373,18 @@ export function MeetingsPage({ projectId }: Props) {
   async function addTopic() {
     if (!meeting || !newTopic.trim()) return
     const maxSort = topics.reduce((m, t) => Math.max(m, t.sort_order), -1)
-    await supabase.from('meeting_topics').insert({
+    const { error } = await supabase.from('meeting_topics').insert({
       meeting_id: meeting.id, title: newTopic.trim(), sort_order: maxSort + 1,
     })
+    if (reportError(error, 'add the topic')) return
     setNewTopic('')
     fetchDetail(meeting.id)
   }
 
   async function renameTopic(id: string, title: string) {
     if (!title.trim()) return
-    await supabase.from('meeting_topics').update({ title: title.trim() }).eq('id', id)
+    const { error } = await supabase.from('meeting_topics').update({ title: title.trim() }).eq('id', id)
+    if (reportError(error, 'rename the topic') && meeting) fetchDetail(meeting.id)
   }
 
   async function moveTopic(id: string, dir: -1 | 1) {
@@ -380,18 +393,20 @@ export function MeetingsPage({ projectId }: Props) {
     const swap = topics[idx + dir]
     if (!swap) return
     const a = topics[idx]
-    await Promise.all([
+    const [r1, r2] = await Promise.all([
       supabase.from('meeting_topics').update({ sort_order: swap.sort_order }).eq('id', a.id),
       supabase.from('meeting_topics').update({ sort_order: a.sort_order }).eq('id', swap.id),
     ])
-    fetchDetail(meeting.id)
+    reportError(r1.error ?? r2.error, 'reorder the topics')
+    fetchDetail(meeting.id)   // reconcile to server order (reverts a partial failure)
   }
 
   async function deleteTopic(t: MeetingTopic) {
     if (!meeting) return
     const n = items.filter(i => i.topic_id === t.id).length
     if (n > 0 && !confirm(`Delete topic "${t.title}" and its ${n} item(s)?`)) return
-    await supabase.from('meeting_topics').delete().eq('id', t.id)
+    const { error } = await supabase.from('meeting_topics').delete().eq('id', t.id)
+    if (reportError(error, 'delete the topic')) return
     fetchDetail(meeting.id)
   }
 
@@ -411,22 +426,25 @@ export function MeetingsPage({ projectId }: Props) {
   async function addItem(topicId: string) {
     if (!meeting) return
     const maxSort = items.reduce((m, i) => Math.max(m, i.sort_order), -1)
-    await supabase.from('meeting_items').insert({
+    const { error } = await supabase.from('meeting_items').insert({
       meeting_id: meeting.id, topic_id: topicId,
       item_number: nextItemNumber(),      // stamped once, never renumbered
       discussion: '',
       sort_order: maxSort + 1,
     })
+    if (reportError(error, 'add the item')) return
     fetchDetail(meeting.id)
   }
 
   async function updateItem(id: string, patch: Partial<MeetingItem>) {
-    await supabase.from('meeting_items').update(patch).eq('id', id)
+    const { error } = await supabase.from('meeting_items').update(patch).eq('id', id)
+    if (reportError(error, 'save the item')) { if (meeting) fetchDetail(meeting.id); return }
     setItems(list => list.map(i => i.id === id ? { ...i, ...patch } : i))
   }
 
   async function deleteItem(id: string) {
-    await supabase.from('meeting_items').delete().eq('id', id)
+    const { error } = await supabase.from('meeting_items').delete().eq('id', id)
+    if (reportError(error, 'delete the item')) return
     if (meeting) fetchDetail(meeting.id)
   }
 
@@ -460,7 +478,8 @@ export function MeetingsPage({ projectId }: Props) {
   async function deleteMeeting() {
     if (!confirmDelete) return
     setDeleting(true)
-    await supabase.from('meetings').delete().eq('id', confirmDelete)
+    const { error } = await supabase.from('meetings').delete().eq('id', confirmDelete)
+    if (reportError(error, 'delete the meeting')) { setDeleting(false); return }
     setDeleting(false); setConfirmDelete(null); setSelectedId(null)
     fetchMeetings()
   }

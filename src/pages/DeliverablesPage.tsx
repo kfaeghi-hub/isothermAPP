@@ -4,6 +4,7 @@
 
 import { Fragment, useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import {
@@ -63,10 +64,12 @@ export function DeliverablesPage({ projectId }: Props) {
     const j = i + dir
     if (j < 0 || j >= rows.length) return
     const other = rows[j]
-    await Promise.all([
+    const [a, b] = await Promise.all([
       supabase.from('project_deliverables').update({ sort_order: other.sort_order }).eq('id', row.id),
       supabase.from('project_deliverables').update({ sort_order: row.sort_order }).eq('id', other.id),
     ])
+    // Two independent writes — surface any error (incl. a partial swap) and reload to server truth.
+    reportError(a.error ?? b.error, 'reorder the deliverables')
     fetchAll()
   }
 

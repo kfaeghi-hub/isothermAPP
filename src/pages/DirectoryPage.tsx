@@ -7,6 +7,7 @@ import type {
 } from '../types/database'
 
 import { PHONE_TYPES, phoneLabel, primaryOf } from '../lib/contactInfo'
+import { reportError } from '../lib/mutationError'
 
 // ── Form state types ───────────────────────────────────────────────────────
 
@@ -213,7 +214,8 @@ export function DirectoryPage() {
 
     // Roles: delete-then-insert junction. DUAL-WRITE: legacy role text stays in
     // sync with role_type_id until the removal pass drops it.
-    await supabase.from('company_roles').delete().eq('company_id', companyId)
+    const { error: roleDelError } = await supabase.from('company_roles').delete().eq('company_id', companyId)
+    if (reportError(roleDelError, "update the company's roles")) { setSavingCompany(false); return }
     if (companyForm.roleTypeIds.length > 0) {
       const { error } = await supabase.from('company_roles').insert(
         companyForm.roleTypeIds.map(role_type_id => ({
@@ -226,7 +228,8 @@ export function DirectoryPage() {
     }
 
     // Trades: leaf junction, delete-then-insert is safe.
-    await supabase.from('company_trades').delete().eq('company_id', companyId)
+    const { error: tradeDelError } = await supabase.from('company_trades').delete().eq('company_id', companyId)
+    if (reportError(tradeDelError, "update the company's trades")) { setSavingCompany(false); return }
     if (companyForm.tradeIds.length > 0) {
       const { error } = await supabase.from('company_trades').insert(
         companyForm.tradeIds.map(trade_type_id => ({ company_id: companyId, trade_type_id })),
@@ -438,7 +441,8 @@ export function DirectoryPage() {
     }
 
     // Phones/emails are leaf rows (nothing references them): delete-then-insert.
-    await supabase.from('contact_phones').delete().eq('contact_id', contactId)
+    const { error: phoneDelError } = await supabase.from('contact_phones').delete().eq('contact_id', contactId)
+    if (reportError(phoneDelError, "update the contact's phone numbers")) { setSavingContact(false); return }
     if (phones.length > 0) {
       const { error } = await supabase.from('contact_phones').insert(
         phones.map(p => ({
@@ -448,7 +452,8 @@ export function DirectoryPage() {
       )
       if (error) { setContactError(error.message); setSavingContact(false); return }
     }
-    await supabase.from('contact_emails').delete().eq('contact_id', contactId)
+    const { error: emailDelError } = await supabase.from('contact_emails').delete().eq('contact_id', contactId)
+    if (reportError(emailDelError, "update the contact's emails")) { setSavingContact(false); return }
     if (emails.length > 0) {
       const { error } = await supabase.from('contact_emails').insert(
         emails.map(em => ({

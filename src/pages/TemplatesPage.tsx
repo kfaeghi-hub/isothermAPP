@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { reportError } from '../lib/mutationError'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/ui/Modal'
 import type {
@@ -304,7 +305,7 @@ export function TemplatesPage() {
   async function createTemplate() {
     if (!createForm.name.trim()) return
     setCreating(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('checklist_templates')
       .insert({
         name: createForm.name.trim(),
@@ -316,6 +317,7 @@ export function TemplatesPage() {
       .select('*')
       .single()
     setCreating(false)
+    if (reportError(error, 'create the template')) return
     if (data) {
       setCreateOpen(false)
       setCreateForm(EMPTY_TEMPLATE)
@@ -339,7 +341,7 @@ export function TemplatesPage() {
   async function saveEditTemplate() {
     if (!selectedId || !editForm.name.trim()) return
     setSaving(true)
-    await supabase.from('checklist_templates').update({
+    const { error } = await supabase.from('checklist_templates').update({
       name: editForm.name.trim(),
       type: editForm.type,
       equipment_type: editForm.equipment_type.trim() || null,
@@ -347,15 +349,17 @@ export function TemplatesPage() {
       revision_label: editForm.revision_label.trim() || null,
     }).eq('id', selectedId)
     setSaving(false)
+    if (reportError(error, 'save the template')) return
     setEditOpen(false)
     await fetchTemplates()
   }
 
   async function toggleActive() {
     if (!selectedTemplate) return
-    await supabase.from('checklist_templates')
+    const { error } = await supabase.from('checklist_templates')
       .update({ active: !selectedTemplate.active })
       .eq('id', selectedTemplate.id)
+    if (reportError(error, 'update the template')) return
     await fetchTemplates()
   }
 
@@ -366,20 +370,25 @@ export function TemplatesPage() {
     setDeleting(true)
     const { kind, id } = confirmDelete
     if (kind === 'template') {
-      await supabase.from('checklist_templates').delete().eq('id', id)
+      const { error } = await supabase.from('checklist_templates').delete().eq('id', id)
+      if (reportError(error, 'delete the template')) { setDeleting(false); return }
       setSelectedId(null)
       await fetchTemplates()
     } else if (kind === 'section') {
-      await supabase.from('checklist_template_sections').delete().eq('id', id)
+      const { error } = await supabase.from('checklist_template_sections').delete().eq('id', id)
+      if (reportError(error, 'delete the section')) { setDeleting(false); return }
       if (selectedId) fetchDetail(selectedId)
     } else if (kind === 'item') {
-      await supabase.from('checklist_template_items').delete().eq('id', id)
+      const { error } = await supabase.from('checklist_template_items').delete().eq('id', id)
+      if (reportError(error, 'delete the item')) { setDeleting(false); return }
       if (selectedId) fetchDetail(selectedId)
     } else if (kind === 'grid') {
-      await supabase.from('checklist_template_grids').delete().eq('id', id)
+      const { error } = await supabase.from('checklist_template_grids').delete().eq('id', id)
+      if (reportError(error, 'delete the grid')) { setDeleting(false); return }
       if (selectedId) fetchDetail(selectedId)
     } else if (kind === 'signoff') {
-      await supabase.from('checklist_template_signoffs').delete().eq('id', id)
+      const { error } = await supabase.from('checklist_template_signoffs').delete().eq('id', id)
+      if (reportError(error, 'delete the sign-off')) { setDeleting(false); return }
       if (selectedId) fetchDetail(selectedId)
     }
     setDeleting(false)
@@ -400,15 +409,17 @@ export function TemplatesPage() {
     setModalSaving(true)
     if (sectionModal.mode === 'create') {
       const nextOrder = sections.length > 0 ? Math.max(...sections.map(s => s.sort_order)) + 10 : 0
-      await supabase.from('checklist_template_sections').insert({
+      const { error } = await supabase.from('checklist_template_sections').insert({
         template_id: selectedId,
         title: sectionModal.form.title.trim(),
         sort_order: nextOrder,
       })
+      if (reportError(error, 'create the section')) { setModalSaving(false); return }
     } else {
-      await supabase.from('checklist_template_sections')
+      const { error } = await supabase.from('checklist_template_sections')
         .update({ title: sectionModal.form.title.trim() })
         .eq('id', sectionModal.editId!)
+      if (reportError(error, 'save the section')) { setModalSaving(false); return }
     }
     setModalSaving(false)
     setSectionModal(m => ({ ...m, open: false }))
@@ -448,11 +459,13 @@ export function TemplatesPage() {
     if (itemModal.mode === 'create') {
       const sectionItems = items.filter(i => i.section_id === itemModal.sectionId)
       const nextOrder = sectionItems.length > 0 ? Math.max(...sectionItems.map(i => i.sort_order)) + 10 : 0
-      await supabase.from('checklist_template_items').insert({
+      const { error } = await supabase.from('checklist_template_items').insert({
         ...payload, section_id: itemModal.sectionId!, sort_order: nextOrder,
       })
+      if (reportError(error, 'create the item')) { setModalSaving(false); return }
     } else {
-      await supabase.from('checklist_template_items').update(payload).eq('id', itemModal.editId!)
+      const { error } = await supabase.from('checklist_template_items').update(payload).eq('id', itemModal.editId!)
+      if (reportError(error, 'save the item')) { setModalSaving(false); return }
     }
     setModalSaving(false)
     setItemModal(m => ({ ...m, open: false }))
@@ -481,11 +494,13 @@ export function TemplatesPage() {
     if (gridModal.mode === 'create') {
       const sectionGrids = grids.filter(g => g.section_id === gridModal.sectionId)
       const nextOrder = sectionGrids.length > 0 ? Math.max(...sectionGrids.map(g => g.sort_order)) + 10 : 0
-      await supabase.from('checklist_template_grids').insert({
+      const { error } = await supabase.from('checklist_template_grids').insert({
         ...payload, section_id: gridModal.sectionId!, sort_order: nextOrder,
       })
+      if (reportError(error, 'create the grid')) { setModalSaving(false); return }
     } else {
-      await supabase.from('checklist_template_grids').update(payload).eq('id', gridModal.editId!)
+      const { error } = await supabase.from('checklist_template_grids').update(payload).eq('id', gridModal.editId!)
+      if (reportError(error, 'save the grid')) { setModalSaving(false); return }
     }
     setModalSaving(false)
     setGridModal(m => ({ ...m, open: false }))
@@ -506,15 +521,17 @@ export function TemplatesPage() {
     setModalSaving(true)
     if (signoffModal.mode === 'create') {
       const nextOrder = signoffs.length > 0 ? Math.max(...signoffs.map(s => s.sort_order)) + 10 : 0
-      await supabase.from('checklist_template_signoffs').insert({
+      const { error } = await supabase.from('checklist_template_signoffs').insert({
         template_id: selectedId,
         role_label: signoffModal.form.role_label.trim(),
         sort_order: nextOrder,
       })
+      if (reportError(error, 'create the sign-off')) { setModalSaving(false); return }
     } else {
-      await supabase.from('checklist_template_signoffs')
+      const { error } = await supabase.from('checklist_template_signoffs')
         .update({ role_label: signoffModal.form.role_label.trim() })
         .eq('id', signoffModal.editId!)
+      if (reportError(error, 'save the sign-off')) { setModalSaving(false); return }
     }
     setModalSaving(false)
     setSignoffModal(m => ({ ...m, open: false }))

@@ -452,7 +452,23 @@ cx_cell_values          → sparse progress cells: one row per (equipment × col
 9. FPT BAS/Mech (5) · 10. IST — Integrated Systems Testing (7, CAN/ULC-S1001)
 11. Turnover (8) · 12. Post-Construction (5)
 
-All project-referencing FKs use `ON DELETE CASCADE`. *(Corrected 2026-07-20: an older line here claimed Phase 1 ran dev-permissive RLS "until Phase 7" — real per-role RLS via `get_my_role()` has been live since Phase 1 completion; the dev allow-all policies were fully replaced.)*
+Every FK that references `projects.id` **directly** uses `ON DELETE CASCADE`, so a
+project delete removes its own children. *(Corrected 2026-07-22: an earlier version
+of this line generalized that to "all project-referencing FKs," which was wrong for
+one **grandchild** edge and caused a real bug. `checklist_instance_targets` sits two
+levels down and is reached by two independent cascade branches from a project —
+`projects → equipment` and `projects → checklist_instances → checklist_instance_targets`.
+Its `equipment_id → equipment` FK was `ON DELETE RESTRICT`; because Postgres doesn't
+order sibling cascade branches, the equipment branch could fire while the targets
+still existed, aborting the whole project delete with SQLSTATE 23503. The `equipment_id`
+FK is now `ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED` — the check runs at
+COMMIT, after all cascades complete, so a whole-project delete succeeds while a
+standalone equipment delete that would orphan a completed checklist's target still
+fails, preserving the frozen-record protection (rule 4). See
+`migrations/project-delete-fk-fix-migration.sql`.)* *(Corrected 2026-07-20: an older
+line here claimed Phase 1 ran dev-permissive RLS "until Phase 7" — real per-role RLS
+via `get_my_role()` has been live since Phase 1 completion; the dev allow-all policies
+were fully replaced.)*
 
 ### Conventions (MASTER-BRIEF rules 16–17)
 - Every new table carries `org_id uuid` (nullable, defaulted to the Isotherm org,

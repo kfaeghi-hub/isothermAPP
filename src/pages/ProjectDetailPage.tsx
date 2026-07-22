@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { reportError, reportWriteBlocked } from '../lib/mutationError'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
@@ -277,12 +278,16 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     const syncErr = await syncProjectClassifications(projectId, editSelections, classConfig.options)
     if (syncErr) { setSavingEdit(false); setEditError(`Classifications: ${syncErr}`); return }
 
-    // Sync project_trades: replace all with current selection
-    await supabase.from('project_trades').delete().eq('project_id', projectId)
+    // Sync project_trades: replace all with current selection. A failed delete
+    // must abort before the re-insert (otherwise the systems silently drop or
+    // the insert conflicts). Surface via the modal's own error slot.
+    const { error: delTradesErr } = await supabase.from('project_trades').delete().eq('project_id', projectId)
+    if (delTradesErr) { setSavingEdit(false); setEditError(`Systems: ${delTradesErr.message}`); return }
     if (editTradeIds.length > 0) {
-      await supabase.from('project_trades').insert(
+      const { error: insTradesErr } = await supabase.from('project_trades').insert(
         editTradeIds.map(trade_type_id => ({ project_id: projectId, trade_type_id }))
       )
+      if (insTradesErr) { setSavingEdit(false); setEditError(`Systems: ${insTradesErr.message}`); return }
     }
 
     setSavingEdit(false)
@@ -306,11 +311,12 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     const name = newTradeName.trim()
     if (!name) return
     const maxOrder = allTrades.reduce((m, t) => Math.max(m, t.sort_order), 0)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('trade_types')
       .insert({ name, sort_order: maxOrder + 1 })
       .select('*')
       .single()
+    if (reportError(error, 'add the system')) return
     if (data) {
       const trade = data as TradeType
       setAllTrades(prev => [...prev, trade])
@@ -321,7 +327,10 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   }
 
   async function changeStatus(status: 'active' | 'completed') {
-    await supabase.from('projects').update({ status }).eq('id', projectId)
+    // .select() so the C2 status-guard raising, or an RLS-filtered 0-row update,
+    // surfaces instead of silently looking like it worked.
+    const { data, error } = await supabase.from('projects').update({ status }).eq('id', projectId).select('id')
+    if (reportWriteBlocked({ data, error }, `mark this project ${status}`)) return
     fetchAll()
   }
 
@@ -341,7 +350,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
   async function deletePhase(phaseId: string) {
     if (!confirm('Remove this phase? It will be unlinked from any tagged findings.')) return
-    await supabase.from('project_phases').delete().eq('id', phaseId)
+    const { error } = await supabase.from('project_phases').delete().eq('id', phaseId)
+    if (reportError(error, 'remove the phase')) return
     fetchAll()
   }
 
@@ -363,7 +373,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   }
 
   async function removeFromDistribution(rowId: string) {
-    await supabase.from('project_distribution').delete().eq('id', rowId)
+    const { error } = await supabase.from('project_distribution').delete().eq('id', rowId)
+    if (reportError(error, 'remove the contact from distribution')) return
     fetchAll()
   }
 
