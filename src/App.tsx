@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import {
   LayoutGrid, FolderKanban, BookUser, FileStack, Tags, ShieldCheck, ClipboardList,
@@ -15,6 +15,9 @@ import { DirectoryPage } from './pages/DirectoryPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { ClassificationsPage } from './pages/ClassificationsPage'
 import { UsersPage } from './pages/UsersPage'
+
+// Public landing page — lazy-split so the authenticated app path pays nothing.
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
 
 // The contents rail: the standard's table of contents. Clause numbers are the
 // document's wayfinding (reference grammar, not decoration). `to` routes are
@@ -48,7 +51,24 @@ export default function App() {
   }
 
   if (loading) return <LoadingScreen />
-  if (!session) return <LoginPage />
+
+  // Unauthenticated: "/" is the public landing page; "/login" is the form; ANY
+  // other path renders the login form IN PLACE (URL untouched), so after
+  // sign-in the requested route mounts — deep-link-through-login, unchanged.
+  if (!session) {
+    return (
+      <BrowserRouter>
+        {/* fallback matches the hero's cover so the landing chunk paints without a flash */}
+        <Suspense fallback={<div className="min-h-screen bg-slate-900" />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<LoginPage />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    )
+  }
 
   // Logged in but profile row missing — user created in Supabase without a profile row
   if (!profile) {
@@ -82,8 +102,10 @@ export default function App() {
       <Shell profileName={profile.name} profileRole={profile.role}
         canConfig={canConfig} isSuper={isSuper} signOut={signOut}>
         <Routes>
-          {/* The dashboard is the firm's home; the client role never reaches it. */}
+          {/* The dashboard is the firm's home; the client role never reaches it.
+              Authenticated visitors go straight to work — no landing interstitial. */}
           <Route path="/" element={isClient ? <Navigate to="/projects" replace /> : <DashboardPage />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailRoute />} />
           <Route path="/directory" element={<DirectoryPage />} />

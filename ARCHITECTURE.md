@@ -60,6 +60,16 @@ src/
 ├── routes/ProjectDetailRoute.tsx  # /projects/:id wrapper — supplies companies to ProjectDetailPage
 │
 ├── pages/
+│   ├── landing/                # PUBLIC landing page (2026-07-22) — contained tree,
+│   │   ├── LandingPage.tsx     # lazy route chunk; no app component modified for it.
+│   │   ├── useReveal.ts        # IntersectionObserver scroll reveal (no motion lib)
+│   │   ├── landing.css         # landing-scoped keyframes incl. the isotherm-contour
+│   │   └── sections/           # drift signature; reduced-motion guarded.
+│   │       # Hero · Capabilities · Visual (ZZ-TEST-only screenshot plate,
+│   │       # regenerate after the UI punch-list session — see LandingPage.tsx
+│   │       # header) · Footer. 21st.dev used as STRUCTURAL reference only
+│   │       # (hero-minimalism rule-draw, grid-feature-cards layout) — fully
+│   │       # re-tokened, zero dependencies adopted (framer-motion/GSAP rejected).
 │   ├── LoginPage.tsx / ResetPasswordPage.tsx
 │   ├── DashboardPage.tsx       # HOME (/) — sections A·Now, B·Projects, C·Findings, D·Mine (Recharts)
 │   ├── ProjectsPage.tsx        # /projects — list, filters, create; navigates to /projects/:id
@@ -501,7 +511,10 @@ no-profile fallback → `<BrowserRouter>` shell. Route map:
 
 | Route | Renders | Notes |
 |---|---|---|
-| `/` | DashboardPage | HOME. `client` role → `<Navigate to="/projects">` — never reaches the dashboard |
+| `/` (unauthenticated) | LandingPage | public landing page (2026-07-22, as-built: docs/LANDING-PAGE-PROPOSAL.md); lazy-split chunk; CTA → `/login` |
+| `/login` | LoginPage · authenticated → `<Navigate to="/">` | the login form's real URL; `pw-config.loginAs` targets it |
+| any other path (unauthenticated) | LoginPage **in place** | URL untouched → after sign-in the requested route mounts (deep-link-through-login) |
+| `/` (authenticated) | DashboardPage | HOME — no landing interstitial. `client` role → `<Navigate to="/projects">` — never reaches the dashboard |
 | `/projects` | ProjectsPage | list; row click navigates |
 | `/projects/:projectId` | ProjectDetailRoute → ProjectDetailPage | active tab lives in `?tab=` (`issues`, `meetings`, `checklists`, `site_reports`, …) so dashboard rows and external links deep-link straight to a tab |
 | `/directory` `/templates` | pages | |
@@ -628,9 +641,16 @@ hairline grid, ink-colored text (never series-colored).
    `blue-*`, which is NOT remapped — an off-palette blue in the purple world.
 4. **`teal-400` = vermilion** via remap — works visually, but the class name lies;
    new code should use `vermilion-*`/`brand-*` names.
-5. **Orphans:** `.tbl-ruled` (defined, referenced nowhere), `LogoLockup` (exported,
-   never imported), stale `theme-color` meta `#062A1D` in index.html, and
-   cover-green-era prose in the index.css header comments.
+5. **Orphans:** `.tbl-ruled` (defined, referenced nowhere), stale `theme-color`
+   meta `#062A1D` in index.html, and cover-green-era prose in the index.css
+   header comments. (`LogoLockup` was on this list until 2026-07-22 — the
+   landing page is now its consumer.)
+7. **Document/app brand divergence (recorded 2026-07-22, §12):** generated
+   documents still render the navy `#1F3A5F` letterhead/table headers while the
+   app reads purple — decide whether the generators adopt the purple/vermilion
+   identity. Contained to doc-common's letterhead + CSS constants, but it
+   changes document output: report-regen needs a deliberate baseline reset, and
+   issued files stay as issued (rule 4).
 6. Contour watermark SVG path duplicated between `.contour-mark` (white) and
    `.contour-mark-ink` (purple) rather than shared.
 
@@ -712,6 +732,9 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
 - `pw-signoff-order.mjs` — records integrity: signoff render order stability
 - `pw-checklist-offline.mjs` — field-resilience acceptance (outbox, reconnect)
 - `pw-classification.mjs` — classification → deliverable composition via UI
+- `pw-landing.mjs` — public landing + routing: landing on unauthenticated `/`,
+  CTA → `/login`, no interstitial for authenticated users, reduced-motion
+  render, `/reset-password`, deep-link login-in-place
 - plus earlier-era flow scripts (`pw-team`, `pw-dates`, `pw-directory`, …)
 
 **Deploy-verification pattern (learned the hard way):** Vercel queues builds; a

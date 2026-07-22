@@ -855,6 +855,11 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 - **Break-glass / test-admin split** — dev.admin currently serves both the
   human break-glass role and scripted test seeding (.env); split before the firm
   scales past the three owners or real client data lands. (Recorded 2026-07-20.)
+- **Document/app brand divergence** — recorded 2026-07-22: generated documents
+  still render navy `#1F3A5F` letterhead/table headers while the app reads
+  purple/vermilion. Decide whether generators adopt the app identity; contained
+  to doc-common's letterhead + CSS constants, but changes document output —
+  report-regen needs a deliberate baseline reset; issued files stay as issued.
 - **site_reports.issued_at** — future addition; until then the dashboard's Recent
   Activity approximates with updated_at of generated reports, honestly labeled
   "report generated".

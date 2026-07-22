@@ -362,6 +362,14 @@ PUBLIC storage URLs — raw file-URL access stays open until the storage-privacy
 pass below, which now gets simpler: the auth helper can back signed-URL issuance
 from within already-authorized endpoints.
 
+**Document/app brand divergence (recorded 2026-07-22; decision pending).** The
+generated documents (reports, checklists, minutes) still render the navy
+`#1F3A5F` letterhead and table headers, so the firm reads purple in-app and navy
+on client-facing output. Decide whether the generators adopt the purple/vermilion
+identity. Contained to doc-common's letterhead + CSS constants (and
+generate-checklist's private copies), but it CHANGES DOCUMENT OUTPUT: report-regen
+needs a deliberate baseline reset, and issued files stay as issued (rule 4).
+
 **site_reports.issued_at (future addition).** Site reports have no issued
 timestamp; the dashboard's Recent Activity approximates with `updated_at` of
 generated reports, honestly labeled "report generated". Add the column (stamped on

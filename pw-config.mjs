@@ -53,9 +53,10 @@ export async function apiToken({ email, password }) {
   return data.session.access_token
 }
 
-/** Log in with explicit credentials and land on the home route. */
+/** Log in with explicit credentials and land on the home route.
+ *  Targets /login — unauthenticated "/" is the public landing page (2026-07-22). */
 export async function loginAs(page, { email, password }) {
-  await page.goto(BASE_URL)
+  await page.goto(`${BASE_URL}/login`)
   await page.locator('input[type="email"]').fill(email)
   await page.locator('input[type="password"]').fill(password)
   await page.getByRole('button', { name: 'Sign In' }).click()
