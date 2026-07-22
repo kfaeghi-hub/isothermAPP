@@ -1,6 +1,35 @@
 # MOBILE-AUDIT.md — Full mobile audit + fix wave plan
 
-**Status: AUDIT COMPLETE — wave plan PROPOSED, awaiting Tony's approval. No fixes made.**
+**Status: PLAN APPROVED — WAVE 1 SHIPPED (2026-07-22). Waves 2–3 pending.**
+
+## Wave 1 exit report
+
+Shipped as `1cb9940` (RC4 alone, per ruling — battery isolated it clean) then
+`7bdb2c8` (RC1/RC2/RC5/RC7 + Overview). Gates: five-width screenshot review
+(two defects caught and fixed in review: the fill-header action cluster
+crushing the title, and Overview's fixed col-spans forcing phantom grid
+tracks at one column) · full battery green · `npm run build` pre-push ·
+served-bundle verified.
+
+**Exit criteria:**
+- ✔ Create a finding (full-screen sheet modal, sticky Create button) at 375.
+- ✔ Fill checklist responses one-handed at 375 — stacked rows, inline unit
+  tags, 44 px targets.
+- ✔ **Offline path verified at 375 on production**: network disabled →
+  response queues → "Offline — 1 queued" banner fully on-screen and legible →
+  second entry queues → reconnect → "All changes saved". Evidence:
+  `out/w1/375-offline-banner.png`.
+- ✔ Equipment lookup and project Overview single-column.
+- ⚠ **Photo capture: HUMAN VERIFICATION OWED** — emulation cannot exercise
+  the camera. Tony tests finding-with-photo on a real phone before Wave 2
+  starts. Not claimed as passed.
+
+**Incidental finds during the battery gate:** ZZ-TEST team-matrix fixture
+carried leftovers from an older interrupted pw-team run (CxA + Architect
+assignments, a ZZT test role) — cleaned, suite green; pw-team is not
+re-entrant after a mid-run crash (fixture note, not a code defect).
+`pw-directory` had been broken since the router landed (sidebar buttons →
+NavLinks) — locators fixed, green.
 
 - Date: 2026-07-22
 - Method: Playwright device-emulation sweep of every surface at 375 (iPhone SE),

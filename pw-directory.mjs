@@ -21,7 +21,7 @@ const page = await context.newPage()
 await page.setViewportSize({ width: 1500, height: 1000 })
 
 await login(page)
-await page.getByRole('button', { name: 'Directory' }).click()
+await page.getByRole('link', { name: 'Directory' }).click()
 await page.waitForTimeout(1500)
 
 // ── 1. Company with everything ───────────────────────────────────────────────
@@ -97,7 +97,7 @@ await page.screenshot({ path: 'ss-dir-3-list.png' })
 // ── 4. Reload — persistence, not local state ─────────────────────────────────
 await page.reload()
 await page.waitForTimeout(3000)
-await page.getByRole('button', { name: 'Directory' }).click()
+await page.getByRole('link', { name: 'Directory' }).click()
 await page.waitForTimeout(1500)
 await page.locator('tr', { hasText: CT }).getByRole('button', { name: 'Edit' }).click({ force: true })
   .catch(async () => {
