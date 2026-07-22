@@ -35,7 +35,7 @@ export function LandingHero() {
            style={{ '--rise-i': 1 } as React.CSSProperties}>
           Isotherm Engineering · Cx System
         </p>
-        <h1 className="rise font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.02] tracking-[-0.02em] max-w-3xl"
+        <h1 className="rise font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.02] tracking-[-0.02em] max-w-5xl"
             style={{ '--rise-i': 2 } as React.CSSProperties}>
           Commissioning management,<br className="hidden sm:block" /> built by commissioning agents.
         </h1>
