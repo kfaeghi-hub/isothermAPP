@@ -132,7 +132,8 @@ Replace the wildcard with an origin check that echoes the request Origin only wh
 allowed, else omits the ACAO header entirely (browser blocks; non-browser callers
 unaffected):
 
-- `https://isotherm-app.vercel.app` (production)
+- `https://cx.isothermengineering.com` (production custom domain, added 2026-07-22)
+- `https://isotherm-app.vercel.app` (Vercel production URL)
 - `https://isotherm-app-isotherm.vercel.app` and
   `https://isotherm-app-git-master-isotherm.vercel.app` (standing Vercel aliases)
 - Preview deployments by pattern:

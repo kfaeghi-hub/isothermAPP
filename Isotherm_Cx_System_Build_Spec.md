@@ -13,7 +13,7 @@
 
 ## 1A. Build status (living — update as modules ship)
 
-### Phase 1 — COMPLETE (deployed to https://isotherm-app.vercel.app)
+### Phase 1 — COMPLETE (deployed to https://cx.isothermengineering.com; the isotherm-app.vercel.app URL still works)
 
 **Built, tested, committed:**
 - Scaffold (Vite + React + TS + Tailwind v4), Supabase wired (ca-central-1), project on local disk, GitHub repo connected, ARCHITECTURE.md in place.

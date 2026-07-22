@@ -11,7 +11,9 @@ export const TEST_PROJECT = 'ZZ-TEST — Do Not Use'
 /** Its equipment fixture. */
 export const TEST_EQUIPMENT = 'TEST-HP-1'
 
-export const BASE_URL = process.env.PW_BASE_URL ?? 'http://localhost:5173'
+// Production is the custom domain (cx.isothermengineering.com); the vercel.app
+// URL still works and can be passed via PW_BASE_URL as a fallback.
+export const BASE_URL = process.env.PW_BASE_URL ?? 'https://cx.isothermengineering.com'
 
 /** Credentials come from .env (gitignored). Never hardcode them. */
 export function credentials() {

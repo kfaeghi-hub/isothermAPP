@@ -68,7 +68,8 @@ review, alarm review, future live monitoring — creates, updates, or links to a
 
 ## 4. Current state
 
-Phase 1 complete and deployed (`isotherm-app.vercel.app`): companies/contacts directory
+Phase 1 complete and deployed (`cx.isothermengineering.com`, custom domain →
+Vercel; `isotherm-app.vercel.app` still works): companies/contacts directory
 with roles, projects, trades, Issues Log (findings, diary, photos, carry-forward rules,
 no renumbering), equipment/system register with tag glossary and spec/shop-drawing/
 nameplate sections, Cx Index (12 groups / 88 columns, per-project copies), site report

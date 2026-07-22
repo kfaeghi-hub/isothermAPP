@@ -30,7 +30,8 @@ export class AuthError extends Error {
 }
 
 const ORIGIN_ALLOWLIST = [
-  'https://isotherm-app.vercel.app',                    // production
+  'https://cx.isothermengineering.com',                 // production (custom domain)
+  'https://isotherm-app.vercel.app',                    // Vercel production URL
   'https://isotherm-app-isotherm.vercel.app',           // standing alias
   'https://isotherm-app-git-master-isotherm.vercel.app',// branch alias
   'http://localhost:5173',                              // Vite dev
