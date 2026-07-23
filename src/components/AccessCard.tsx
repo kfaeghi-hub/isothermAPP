@@ -11,6 +11,8 @@ interface MemberRow {
   id: string
   profile_id: string
   is_lead: boolean
+  added_by: string | null
+  added_by_name: string | null
   user_profiles: { id: string; name: string; role: string } | null
 }
 
@@ -30,7 +32,7 @@ export function AccessCard({ projectId }: { projectId: string }) {
     // would show an owner only their own row under RLS.
     const [mRes, pRes] = await Promise.all([
       supabase.from('project_members')
-        .select('id, profile_id, is_lead')
+        .select('id, profile_id, is_lead, added_by')
         .eq('project_id', projectId),
       supabase.rpc('list_internal_profiles'),
     ])
@@ -39,6 +41,7 @@ export function AccessCard({ projectId }: { projectId: string }) {
     setMembers(((mRes.data ?? []) as any[]).map(m => ({
       ...m,
       user_profiles: byId.get(m.profile_id) ?? null,
+      added_by_name: m.added_by ? (byId.get(m.added_by)?.name ?? null) : null,
     })))
     setProfiles(profs)
   }, [projectId])
@@ -97,18 +100,33 @@ export function AccessCard({ projectId }: { projectId: string }) {
       )}
 
       <div className="space-y-1.5">
-        {sorted.map(m => (
+        {sorted.map(m => {
+          // The auto-lead creator self-added at project creation (added_by = self).
+          const isCreator = !!m.added_by && m.added_by === m.profile_id
+          return (
           <div key={m.id} className="flex items-center gap-2 text-sm group">
-            <span className="text-gray-800">{m.user_profiles?.name ?? '(deleted user)'}</span>
-            <span className="text-[10px] text-gray-400 capitalize">
-              {m.user_profiles?.role === 'user' ? 'employee' : m.user_profiles?.role}
-            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-gray-800">{m.user_profiles?.name ?? '(deleted user)'}</span>
+                <span className="text-[10px] text-gray-400 capitalize">
+                  {m.user_profiles?.role === 'user' ? 'employee' : m.user_profiles?.role}
+                </span>
+                {isCreator && (
+                  <span className="text-[9px] font-semibold text-teal-700 bg-teal-50 rounded px-1 py-0.5">CREATOR</span>
+                )}
+              </div>
+              {(isCreator || m.added_by_name) && (
+                <p className="text-[10px] text-gray-400">
+                  {isCreator ? 'created this project' : `added by ${m.added_by_name}`}
+                </p>
+              )}
+            </div>
             {m.profile_id === profile?.id ? (
               // No one may change their OWN lead status (RLS members_update self-
               // exclusion) — show it as a static badge, not an actionable toggle.
               <span
                 title={m.is_lead ? 'Lead (you)' : 'Member (you)'}
-                className={`ml-auto text-[10px] font-semibold rounded px-1.5 py-0.5 ${
+                className={`flex-shrink-0 text-[10px] font-semibold rounded px-1.5 py-0.5 ${
                   m.is_lead ? 'bg-[#1F3A5F] text-white' : 'bg-gray-100 text-gray-500'
                 }`}>
                 {m.is_lead ? 'LEAD' : 'MEMBER'}
@@ -117,14 +135,14 @@ export function AccessCard({ projectId }: { projectId: string }) {
               <button
                 onClick={() => toggleLead(m)}
                 title={m.is_lead ? 'Lead — click to make member' : 'Member — click to make lead'}
-                className={`ml-auto text-[10px] font-semibold rounded px-1.5 py-0.5 transition-colors ${
+                className={`flex-shrink-0 text-[10px] font-semibold rounded px-1.5 py-0.5 transition-colors ${
                   m.is_lead ? 'bg-[#1F3A5F] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`}>
                 {m.is_lead ? 'LEAD' : 'MEMBER'}
               </button>
             )}
             {confirmRemove?.id === m.id ? (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => removeMember(m)}
                   className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white">Remove</button>
                 <button onClick={() => setConfirmRemove(null)}
@@ -132,14 +150,16 @@ export function AccessCard({ projectId }: { projectId: string }) {
               </span>
             ) : (
               <button onClick={() => setConfirmRemove(m)}
-                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100">×</button>
+                className="flex-shrink-0 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100">×</button>
             )}
           </div>
-        ))}
+          )
+        })}
         {members.length === 0 && <p className="text-xs text-gray-400">No members.</p>}
       </div>
-      <p className="text-[10px] text-gray-400 mt-3">
-        Members work the project; leads also edit its settings. Owners (admin/dev) see everything.
+      <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
+        Owners and admins can manage membership on projects they belong to. Leads can edit
+        project settings. No one can change their own membership.
       </p>
     </div>
   )

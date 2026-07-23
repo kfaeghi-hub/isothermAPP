@@ -13,6 +13,7 @@ import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ClassificationBadges } from '../components/ClassificationBadges'
 import { ProjectStatHeader } from '../components/ProjectStatHeader'
 import { AccessCard } from '../components/AccessCard'
+import { fetchDeliverables, isOverdue, type DeliverableRow } from '../lib/deliverables'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
@@ -532,6 +533,9 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
                 )}
               </div>
 
+              {/* Deliverables — compact summary; the full rollup lives in the Deliverables tab */}
+              <DeliverablesSummaryCard projectId={projectId} onOpen={() => setActiveTab('deliverables')} />
+
               {/* Access — beside Project Team, owner-only (§9.4a) */}
               {isOwner && <AccessCard projectId={projectId} />}
 
@@ -917,6 +921,52 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
           </div>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+/** #2 — compact deliverables summary on the project Overview. Total · assigned to me ·
+ *  overdue; the full by-assignee rollup and table live in the Deliverables tab. Uses
+ *  the same numeral/label language as the ProjectStatHeader. */
+function DeliverablesSummaryCard({ projectId, onOpen }: { projectId: string; onOpen: () => void }) {
+  const { profile } = useAuth()
+  const [rows, setRows] = useState<DeliverableRow[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchDeliverables(projectId).then(r => { if (alive) setRows(r) })
+    return () => { alive = false }
+  }, [projectId])
+
+  const total = rows?.length ?? 0
+  const mine = rows?.filter(r => !!r.assigned_to && r.assigned_to === profile?.name).length ?? 0
+  const overdue = rows?.filter(r => isOverdue(r.status, r.due_date)).length ?? 0
+
+  return (
+    <div className="card-tile bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Deliverables</h3>
+        <button onClick={onOpen} className="text-xs text-teal-700 hover:underline">View all →</button>
+      </div>
+      {rows === null ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : total === 0 ? (
+        <p className="text-sm text-gray-400">None tracked yet.</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <button onClick={onOpen} className="text-left group">
+            <p className="font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] text-gray-900">{total}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Total</p>
+          </button>
+          <button onClick={onOpen} className="text-left group">
+            <p className="font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] text-gray-900">{mine}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Assigned to Me</p>
+          </button>
+          <button onClick={onOpen} className="text-left group">
+            <p className={`font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] ${overdue ? 'text-rose-700' : 'text-gray-900'}`}>{overdue}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Overdue</p>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

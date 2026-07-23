@@ -216,14 +216,19 @@ export function DeliverablesPage({ projectId, canAssign = false }: Props) {
                       {r.notes && <div className="text-xs text-gray-400 truncate max-w-md">{r.notes}</div>}
                     </td>
                     <td className="px-2 py-1.5">
-                      <select value={r.status} onChange={e => setStatus(r, e.target.value as DeliverableStatus)}
-                        className={`text-[10px] font-bold rounded px-1.5 py-1 border-0 cursor-pointer ${STATUS_META[r.status].cls}`}
-                        title={[
-                          r.date_submitted ? `Submitted ${formatDate(r.date_submitted)}` : null,
-                          r.date_accepted ? `Accepted ${formatDate(r.date_accepted)}` : null,
-                        ].filter(Boolean).join(' · ') || undefined}>
-                        {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-                      </select>
+                      {/* Status as an intentional colored chip-dropdown (appearance-none +
+                          custom chevron) — the native select arrow read as dated. */}
+                      <div className="relative inline-block">
+                        <select value={r.status} onChange={e => setStatus(r, e.target.value as DeliverableStatus)}
+                          className={`appearance-none text-[11px] font-semibold rounded-md pl-2.5 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/40 ${STATUS_META[r.status].cls}`}
+                          title={[
+                            r.date_submitted ? `Submitted ${formatDate(r.date_submitted)}` : null,
+                            r.date_accepted ? `Accepted ${formatDate(r.date_accepted)}` : null,
+                          ].filter(Boolean).join(' · ') || undefined}>
+                          {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+                        </select>
+                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-500 opacity-70">▾</span>
+                      </div>
                     </td>
                     <td className="px-2 py-1.5 text-xs text-gray-600">{r.assigned_to ?? <span className="text-gray-300">—</span>}</td>
                     <td className="px-2 py-1.5 text-xs text-gray-600 whitespace-nowrap">
