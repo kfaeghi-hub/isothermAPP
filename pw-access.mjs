@@ -283,6 +283,24 @@ try {
   await adm.from('meetings').update({ status: 'issued' }).eq('id', probeMtg.id)
   await adm.from('project_members').insert({ project_id: P, profile_id: ownUser.id, is_lead: false })
 
+  // Self-exclusion (members-self-edit-guard, D1): no one may change their OWN
+  // membership row. This is the privilege-escalation hole — an owner-member could
+  // self-promote to lead — that the migration closes.
+  {
+    const { data } = await own.from('project_members').update({ is_lead: true })
+      .eq('project_id', P).eq('profile_id', ownUser.id).select('id')
+    check((data ?? []).length === 0, 'WALL: owner self-promote to lead on own membership row rejected (0 rows)')
+  }
+  {
+    // D1 is universal — even an admin cannot edit their own membership row.
+    const { data: { user: admUser } } = await adm.auth.getUser()
+    await adm.from('project_members').insert({ project_id: P, profile_id: admUser.id, is_lead: false })
+    const { data } = await adm.from('project_members').update({ is_lead: true })
+      .eq('project_id', P).eq('profile_id', admUser.id).select('id')
+    check((data ?? []).length === 0, 'D1: admin self-edit of own membership row rejected (0 rows)')
+    await adm.from('project_members').delete().eq('project_id', P).eq('profile_id', admUser.id)
+  }
+
   // Positive: full destructive rights within the member portfolio
   {
     const { data } = await own.from('findings').delete().eq('id', probeFnd2.id).select('id')

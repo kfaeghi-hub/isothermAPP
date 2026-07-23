@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
+import { useAuth } from '../contexts/AuthContext'
 
 // Project Access card (Overview tab, ADMIN-ONLY render — parent gates it).
 // Membership management is owner-only by design: leads run settings, owners
@@ -16,6 +17,7 @@ interface MemberRow {
 interface ProfileRow { id: string; name: string; role: string }
 
 export function AccessCard({ projectId }: { projectId: string }) {
+  const { profile } = useAuth()
   const [members, setMembers]   = useState<MemberRow[]>([])
   const [profiles, setProfiles] = useState<ProfileRow[]>([])
   const [adding, setAdding]     = useState(false)
@@ -101,14 +103,26 @@ export function AccessCard({ projectId }: { projectId: string }) {
             <span className="text-[10px] text-gray-400 capitalize">
               {m.user_profiles?.role === 'user' ? 'employee' : m.user_profiles?.role}
             </span>
-            <button
-              onClick={() => toggleLead(m)}
-              title={m.is_lead ? 'Lead — click to make member' : 'Member — click to make lead'}
-              className={`ml-auto text-[10px] font-semibold rounded px-1.5 py-0.5 transition-colors ${
-                m.is_lead ? 'bg-[#1F3A5F] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}>
-              {m.is_lead ? 'LEAD' : 'MEMBER'}
-            </button>
+            {m.profile_id === profile?.id ? (
+              // No one may change their OWN lead status (RLS members_update self-
+              // exclusion) — show it as a static badge, not an actionable toggle.
+              <span
+                title={m.is_lead ? 'Lead (you)' : 'Member (you)'}
+                className={`ml-auto text-[10px] font-semibold rounded px-1.5 py-0.5 ${
+                  m.is_lead ? 'bg-[#1F3A5F] text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                {m.is_lead ? 'LEAD' : 'MEMBER'}
+              </span>
+            ) : (
+              <button
+                onClick={() => toggleLead(m)}
+                title={m.is_lead ? 'Lead — click to make member' : 'Member — click to make lead'}
+                className={`ml-auto text-[10px] font-semibold rounded px-1.5 py-0.5 transition-colors ${
+                  m.is_lead ? 'bg-[#1F3A5F] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}>
+                {m.is_lead ? 'LEAD' : 'MEMBER'}
+              </button>
+            )}
             {confirmRemove?.id === m.id ? (
               <span className="flex items-center gap-1">
                 <button onClick={() => removeMember(m)}
