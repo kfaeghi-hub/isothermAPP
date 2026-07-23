@@ -706,7 +706,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
         {/* Deliverables */}
         {activeTab === 'deliverables' && (
-          <DeliverablesPage projectId={projectId} />
+          <DeliverablesPage projectId={projectId} canAssign={isOwner || isLead} />
         )}
       </div>
 

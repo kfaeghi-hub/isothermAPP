@@ -8,6 +8,8 @@ import {
   FINDING_AGED_DAYS, DRAFT_STALE_DAYS, CHECKLIST_STALE_DAYS,
   DELIVERABLE_OVERDUE_GRACE_DAYS, daysSince,
 } from './dashboardThresholds'
+import { isOverdue } from './deliverables'
+import type { DeliverableStatus } from '../types/database'
 
 // ── Shared per-project stats (portfolio card + project Overview header) ──────
 // ONE derivation path: the dashboard batches all projects, the Overview header
@@ -124,10 +126,23 @@ export interface ActivityRow {
 }
 
 export interface MineItem {
-  section: 'finding' | 'meeting' | 'report' | 'checklist' | 'deliverable'
+  // Deliverables were removed here — they now have their own richer surface
+  // (My Deliverables widget); My Items covers findings/meetings/reports/checklists.
+  section: 'finding' | 'meeting' | 'report' | 'checklist'
   projectId: string
   label: string
   tab: string
+}
+
+export interface DeliverableItem {
+  id: string
+  projectId: string
+  name: string
+  status: DeliverableStatus
+  assignedTo: string | null
+  dueDate: string | null
+  notes: string | null
+  overdue: boolean
 }
 
 export interface DashboardData {
@@ -140,6 +155,8 @@ export interface DashboardData {
   bySystem: Array<{ system: string; count: number }>
   responsible: RespGroup[]
   mine: MineItem[]
+  outstandingDeliverables: DeliverableItem[]   // cross-project, RLS-scoped (governors' widget)
+  myDeliverables: DeliverableItem[]            // assigned to the current user (name convention)
   activity: ActivityRow[]
 }
 
@@ -165,7 +182,7 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     supabase.from('project_team_assignments').select('id, project_id, company_id, companies(name, abbreviation), company_role_types(name, abbreviation)'),
     supabase.from('project_classifications').select('project_id, dimension_id, option_id'),
     supabase.from('project_deliverables')
-      .select('id, project_id, template_id, name, status, assigned_to, due_date, deliverable_templates(name)')
+      .select('id, project_id, template_id, name, status, assigned_to, due_date, notes, deliverable_templates(name)')
       .not('status', 'in', '(submitted,accepted)'),
   ])
 
@@ -320,7 +337,7 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     ...g, projectCount: new Set(g.items.map(i => i.projectId)).size,
   })).sort((a, b) => (a.matched === b.matched ? b.count - a.count : a.matched ? -1 : 1))
 
-  // ── D9 mine ─────────────────────────────────────────────────────────────
+  // ── D9 mine (findings / meetings / reports / checklists — NOT deliverables) ─
   const mine: MineItem[] = [
     ...openFindings.filter(f => f.identified_by === profileName).map(f => ({
       section: 'finding' as const, projectId: f.project_id,
@@ -338,13 +355,22 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
       section: 'checklist' as const, projectId: c.project_id,
       label: `${c.source_template_name_snapshot} (in progress)`, tab: 'checklists',
     })),
-    // Deliverables assigned by profile name (§12 convention); already filtered
-    // to non-submitted/accepted at the query.
-    ...deliverables.filter(d => d.assigned_to === profileName).map(d => ({
-      section: 'deliverable' as const, projectId: d.project_id,
-      label: `${d.displayName} (${String(d.status).replace('_', ' ')})`, tab: 'deliverables',
-    })),
   ]
+
+  // ── D: deliverables (the query already limits to non-submitted/accepted, i.e.
+  //     the "outstanding" set). Overdue rule shared with the queue via isOverdue. ─
+  const deliverableItems: DeliverableItem[] = deliverables.map(d => ({
+    id: d.id, projectId: d.project_id, name: d.displayName, status: d.status as DeliverableStatus,
+    assignedTo: d.assigned_to ?? null, dueDate: d.due_date ?? null, notes: d.notes ?? null,
+    overdue: isOverdue(d.status as DeliverableStatus, d.due_date ?? null),
+  }))
+  // Governors' cross-project view: overdue first, then soonest due, then project.
+  const outstandingDeliverables = [...deliverableItems].sort((a, b) =>
+    (a.overdue === b.overdue ? 0 : a.overdue ? -1 : 1)
+    || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
+    || a.projectId.localeCompare(b.projectId))
+  // Reciprocal "mine" — same profile-name convention as My Items used to use.
+  const myDeliverables = outstandingDeliverables.filter(d => d.assignedTo === profileName)
 
   // ── D10 recent activity (derived — no events table) ────────────────────
   const activity: ActivityRow[] = [
@@ -366,6 +392,7 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
       overdueItems: overdue.length,
       avgDaysToClose,
     },
-    queue, projectStats, selections, trend, bySystem, responsible, mine, activity,
+    queue, projectStats, selections, trend, bySystem, responsible, mine,
+    outstandingDeliverables, myDeliverables, activity,
   }
 }

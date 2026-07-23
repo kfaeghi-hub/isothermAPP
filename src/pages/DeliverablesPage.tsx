@@ -9,14 +9,16 @@ import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import {
   fetchDeliverables, composeDelta, applyCompose, statusDates, displayName,
-  STATUS_ORDER, STATUS_META, type DeliverableRow,
+  rollupByAssignee, STATUS_ORDER, STATUS_META, type DeliverableRow,
 } from '../lib/deliverables'
 import type { DeliverableStatus, DeliverableTemplate } from '../types/database'
 import { formatDate } from '../lib/format'
 
-interface Props { projectId: string }
+// canAssign (admin/owner/lead) gates the assignee field only — matching the
+// guard_deliverable_assignee trigger. Members still edit status/dates/notes.
+interface Props { projectId: string; canAssign?: boolean }
 
-export function DeliverablesPage({ projectId }: Props) {
+export function DeliverablesPage({ projectId, canAssign = false }: Props) {
   const [rows, setRows] = useState<DeliverableRow[]>([])
   const [loading, setLoading] = useState(true)
   const [memberNames, setMemberNames] = useState<string[]>([])
@@ -36,12 +38,23 @@ export function DeliverablesPage({ projectId }: Props) {
   const [composing, setComposing] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    const [rowsData, profRes] = await Promise.all([
+    const [rowsData, mRes, pRes] = await Promise.all([
       fetchDeliverables(projectId),
-      supabase.from('user_profiles').select('name').order('name'),
+      supabase.from('project_members').select('profile_id').eq('project_id', projectId),
+      supabase.rpc('list_internal_profiles'),
     ])
     setRows(rowsData)
-    setMemberNames(((profRes.data ?? []) as any[]).map(p => p.name as string).filter(Boolean))
+    // This project's members, resolved to names via the DEFINER RPC (mirrors
+    // AccessCard). A direct user_profiles read returns only the caller's own row
+    // under RLS — that was the empty-picker bug. Free text still allowed (D2).
+    const memberIds = new Set(((mRes.data ?? []) as any[]).map(m => m.profile_id as string))
+    setMemberNames(
+      ((pRes.data ?? []) as any[])
+        .filter(p => memberIds.has(p.id))
+        .map(p => p.name as string)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    )
     setLoading(false)
   }, [projectId])
   useEffect(() => { fetchAll() }, [fetchAll])
@@ -153,6 +166,8 @@ export function DeliverablesPage({ projectId }: Props) {
         </div>
       </div>
 
+      <AssigneeRollupCard rows={rows} />
+
       {rows.length === 0 ? (
         <div className="bg-white rounded-md border border-gray-200">
           <EmptyState>
@@ -228,12 +243,18 @@ export function DeliverablesPage({ projectId }: Props) {
                         <div className="grid grid-cols-4 gap-3 max-w-2xl">
                           <div>
                             <label className="block text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Assigned to</label>
-                            <input list="member-names" value={r.assigned_to ?? ''}
-                              onChange={e => setRows(rs => rs.map(x => x.id === r.id ? { ...x, assigned_to: e.target.value } : x))}
-                              onBlur={e => patch(r.id, { assigned_to: e.target.value.trim() || null })}
-                              placeholder="Profile name…"
-                              title="Matched by profile name on the dashboard (same convention as My Items)"
-                              className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-teal-400" />
+                            {canAssign ? (
+                              <input list="member-names" value={r.assigned_to ?? ''}
+                                onChange={e => setRows(rs => rs.map(x => x.id === r.id ? { ...x, assigned_to: e.target.value } : x))}
+                                onBlur={e => patch(r.id, { assigned_to: e.target.value.trim() || null })}
+                                placeholder="Project member…"
+                                title="This project's members (owner/lead assigns). Free text allowed for external parties."
+                                className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-teal-400" />
+                            ) : (
+                              <p className="text-xs text-gray-600 px-2 py-1.5" title="Only an owner or project lead can assign deliverables.">
+                                {r.assigned_to ?? <span className="text-gray-300">—</span>}
+                              </p>
+                            )}
                           </div>
                           <div>
                             <label className="block text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Due date</label>
@@ -347,6 +368,55 @@ export function DeliverablesPage({ projectId }: Props) {
           </div>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+/** #3a — the project-scoped sibling of the dashboard responsible-party rollup:
+ *  this project's deliverables grouped by assignee (total · overdue · status split). */
+function AssigneeRollupCard({ rows }: { rows: DeliverableRow[] }) {
+  const groups = rollupByAssignee(rows)
+  if (groups.length === 0) return null
+  return (
+    <div className="card-tile bg-white rounded-xl border border-gray-200 mb-4 overflow-hidden overflow-x-auto">
+      <div className="px-4 py-2.5 border-b border-gray-200 flex items-baseline gap-2.5">
+        <h3 className="font-display text-xs font-bold text-gray-900 uppercase tracking-[0.08em]">By Assignee</h3>
+        <span className="font-mono text-[10px] text-gray-400">{groups.length}</span>
+      </div>
+      <table className="w-full text-xs min-w-[520px]">
+        <thead>
+          <tr className="text-left text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
+            <th className="px-4 py-2">Assignee</th>
+            <th className="px-2 py-2 w-16">Total</th>
+            <th className="px-2 py-2 w-20">Overdue</th>
+            <th className="px-2 py-2">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map(g => (
+            <tr key={g.name} className="border-b border-gray-50">
+              <td className="px-4 py-2">
+                <span className={g.assigned ? 'text-gray-800' : 'text-gray-400 italic'}>{g.name}</span>
+              </td>
+              <td className="px-2 py-2 font-mono text-gray-700">{g.total}</td>
+              <td className="px-2 py-2">
+                {g.overdue > 0
+                  ? <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-rose-50 text-rose-700">{g.overdue}</span>
+                  : <span className="text-gray-300 font-mono">0</span>}
+              </td>
+              <td className="px-2 py-2">
+                <div className="flex flex-wrap gap-1">
+                  {STATUS_ORDER.filter(s => g.split[s] > 0).map(s => (
+                    <span key={s} className={`text-[9px] font-bold rounded px-1.5 py-0.5 ${STATUS_META[s].cls}`}>
+                      {g.split[s]} {STATUS_META[s].label}
+                    </span>
+                  ))}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

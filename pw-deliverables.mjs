@@ -2,7 +2,7 @@
 //   compose-from-classification run TWICE (idempotency), status walk with
 //   date_closed-pattern stamping, ad-hoc add (one-of CHECK), Envelope
 //   activate→compose 6-row delta→deactivate, overdue row in the Attention
-//   Queue + My Items as dev.test. Self-cleaning; ZZ-TEST family only.
+//   Queue + My Deliverables as dev.test. Self-cleaning; ZZ-TEST family only.
 //
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-deliverables.mjs
 
@@ -160,7 +160,8 @@ if (!live) { await browser.close(); process.exit(1) }
   await page.waitForTimeout(2000)
   check(await page.getByText('DELIVERABLE').count() > 0, 'Attention Queue shows a DELIVERABLE row')
   check(await page.getByText(`${ADHOC_NAME} overdue`).count() > 0, 'overdue deliverable named in the queue')
-  check(await page.locator('a', { hasText: ADHOC_NAME }).count() > 0, 'My Items lists the Dev-Test-assigned deliverable')
+  check(await page.locator('[data-testid="my-deliverables"]').getByText(ADHOC_NAME).count() > 0,
+    'My Deliverables widget lists the Dev-Test-assigned deliverable')
   await page.screenshot({ path: 'ss-deliv-2-dashboard.png' })
 }
 

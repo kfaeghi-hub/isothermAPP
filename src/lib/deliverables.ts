@@ -3,6 +3,7 @@
 // editable afterwards, cleared on regression.
 
 import { supabase } from './supabase'
+import { daysSince, DELIVERABLE_OVERDUE_GRACE_DAYS } from './dashboardThresholds'
 import type { DeliverableStatus, DeliverableTemplate } from '../types/database'
 
 export interface DeliverableRow {
@@ -29,6 +30,49 @@ export const STATUS_META: Record<DeliverableStatus, { label: string; cls: string
   in_progress: { label: 'In Progress', cls: 'bg-sky-50 text-sky-700' },
   submitted:   { label: 'Submitted',   cls: 'bg-amber-50 text-amber-700' },
   accepted:    { label: 'Accepted',    cls: 'bg-green-50 text-green-700' },
+}
+
+// ── Assignee rollup (project-scoped widget + shared shape) ───────────────────
+// A deliverable is overdue when it is past its due date by more than the grace
+// AND not yet submitted/accepted — the same rule the dashboard queue uses.
+export function isOverdue(status: DeliverableStatus, dueDate: string | null): boolean {
+  if (status === 'submitted' || status === 'accepted') return false
+  const late = daysSince(dueDate)
+  return late !== null && late > DELIVERABLE_OVERDUE_GRACE_DAYS
+}
+
+export interface AssigneeRollup {
+  name: string        // assignee name, or 'Unassigned' for the null bucket
+  assigned: boolean   // false = the unassigned bucket (rendered muted)
+  total: number
+  overdue: number
+  split: Record<DeliverableStatus, number>
+}
+
+/** Group deliverable rows by assignee, with an overdue count and a per-status split. */
+export function rollupByAssignee(
+  rows: Array<Pick<DeliverableRow, 'assigned_to' | 'status' | 'due_date'>>,
+): AssigneeRollup[] {
+  const map = new Map<string, AssigneeRollup>()
+  for (const r of rows) {
+    const key = r.assigned_to ?? ''
+    let g = map.get(key)
+    if (!g) {
+      g = {
+        name: r.assigned_to ?? 'Unassigned', assigned: !!r.assigned_to,
+        total: 0, overdue: 0,
+        split: { not_started: 0, in_progress: 0, submitted: 0, accepted: 0 },
+      }
+      map.set(key, g)
+    }
+    g.total++
+    g.split[r.status]++
+    if (isOverdue(r.status, r.due_date)) g.overdue++
+  }
+  // Assigned buckets first, then most-overdue, then largest, then name.
+  return [...map.values()].sort((a, b) =>
+    (a.assigned === b.assigned ? 0 : a.assigned ? -1 : 1)
+    || b.overdue - a.overdue || b.total - a.total || a.name.localeCompare(b.name))
 }
 
 export async function fetchDeliverables(projectId: string): Promise<DeliverableRow[]> {

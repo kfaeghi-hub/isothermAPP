@@ -3,14 +3,15 @@
 //   C · Findings (trend, by system, responsible rollup)   D · Mine (my items, activity)
 // All reads, zero writes; thresholds come from dashboardThresholds only.
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Cell, Legend,
   CartesianGrid,
 } from 'recharts'
 import { CHART } from '../lib/chartTheme'
-import { fetchDashboard, type DashboardData, type RespGroup } from '../lib/dashboardData'
+import { fetchDashboard, type DashboardData, type RespGroup, type DeliverableItem } from '../lib/dashboardData'
+import { STATUS_META } from '../lib/deliverables'
 import { fetchClassificationConfig, type ClassificationConfig } from '../lib/classifications'
 import { ClassificationBadges } from '../components/ClassificationBadges'
 import { useAuth } from '../contexts/AuthContext'
@@ -60,6 +61,7 @@ export function DashboardPage() {
   }
 
   const projName = (id: string) => data.projects.find(p => p.id === id)?.name ?? '?'
+  const isGovernor = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
   const actives = data.projects.filter(p => p.status === 'active')
     .sort((a, b) => (a.finish_date ?? '9999').localeCompare(b.finish_date ?? '9999'))
 
@@ -350,10 +352,12 @@ export function DashboardPage() {
         </section>
 
         {/* ── D · Mine ────────────────────────────────────────────────── */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 rise" style={{ '--rise-i': 3 } as React.CSSProperties}>
+        <section className="space-y-4 rise" style={{ '--rise-i': 3 } as React.CSSProperties}>
+          <MyDeliverablesCard items={data.myDeliverables} projName={projName} profileName={profile?.name} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="my-items">
             <div className="border-b border-gray-200">
-              <ClauseHead n="7" title="My Items" />
+              <ClauseHead n="8" title="My Items" />
               <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400" title="Matched by your profile name against identified_by / prepared_by / authored_by — the existing text conventions.">
                 Matched by name · {profile?.name}
               </p>
@@ -374,7 +378,7 @@ export function DashboardPage() {
           </div>
 
           <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="recent-activity">
-            <ClauseHead n="8" title="Recent Activity" />
+            <ClauseHead n="9" title="Recent Activity" />
             <div className="divide-y divide-gray-50">
               {data.activity.map((a, i) => (
                 <div key={i} className="flex items-center gap-2 px-4 py-2 text-xs">
@@ -390,7 +394,15 @@ export function DashboardPage() {
               )}
             </div>
           </div>
+          </div>
         </section>
+
+        {/* ── E · Outstanding Deliverables — governors only (§3b, clause 10) ── */}
+        {isGovernor && (
+          <section className="rise" style={{ '--rise-i': 4 } as React.CSSProperties}>
+            <OutstandingDeliverablesCard items={data.outstandingDeliverables} projName={projName} />
+          </section>
+        )}
       </div>
     </div>
   )
@@ -454,5 +466,134 @@ function RespRow({ group, expanded, onToggle, projName }: {
         </tr>
       ))}
     </>
+  )
+}
+
+/** Deliverable status chip — single source of truth (STATUS_META). */
+function StatusChip({ status }: { status: DeliverableItem['status'] }) {
+  const m = STATUS_META[status]
+  return <span className={`text-[9px] font-bold rounded px-1.5 py-0.5 whitespace-nowrap ${m.cls}`}>{m.label}</span>
+}
+
+/** Due date, flagged rose when overdue (same treatment as the attention queue). */
+function DueCell({ due, overdue }: { due: string | null; overdue: boolean }) {
+  if (!due) return <span className="text-gray-300">—</span>
+  return overdue
+    ? <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-rose-50 text-rose-700 whitespace-nowrap">{formatDate(due)}</span>
+    : <span className="text-gray-600 font-mono whitespace-nowrap">{formatDate(due)}</span>
+}
+
+/** #3c — the current user's assigned, still-outstanding deliverables (name convention). */
+function MyDeliverablesCard({ items, projName, profileName }: {
+  items: DeliverableItem[]; projName: (id: string) => string; profileName?: string
+}) {
+  return (
+    <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="my-deliverables">
+      <div className="border-b border-gray-200">
+        <ClauseHead n="7" title="My Deliverables" extra={String(items.length)} />
+        <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400">Assigned to you · {profileName}</p>
+      </div>
+      {items.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-gray-400 text-center">No deliverables assigned to you.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[640px]">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                <th className="px-4 py-2">Deliverable</th>
+                <th className="px-2 py-2 w-40">Project</th>
+                <th className="px-2 py-2 w-28">Status</th>
+                <th className="px-2 py-2 w-28">Due</th>
+                <th className="px-2 py-2">Notes</th>
+                <th className="px-4 py-2 w-14" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(d => (
+                <tr key={d.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="px-4 py-2 text-gray-800 truncate max-w-[16rem]">{d.name}</td>
+                  <td className="px-2 py-2 text-gray-500 truncate max-w-[10rem]">{projName(d.projectId)}</td>
+                  <td className="px-2 py-2"><StatusChip status={d.status} /></td>
+                  <td className="px-2 py-2"><DueCell due={d.dueDate} overdue={d.overdue} /></td>
+                  <td className="px-2 py-2 text-gray-400 truncate max-w-[12rem]">{d.notes ?? ''}</td>
+                  <td className="px-4 py-2 text-right">
+                    <Link to={`/projects/${d.projectId}?tab=deliverables`} className="text-teal-700 hover:underline">Open</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** #3b — governors' cross-project "who owes me what," grouped by project.
+ *  Scoping is automatic: the dashboard query runs under RLS, so an owner only
+ *  ever sees their member projects here. */
+function OutstandingDeliverablesCard({ items, projName }: {
+  items: DeliverableItem[]; projName: (id: string) => string
+}) {
+  // Group by project, preserving the incoming overdue-first ordering within each.
+  const byProject: Array<[string, DeliverableItem[]]> = []
+  const idx = new Map<string, DeliverableItem[]>()
+  for (const d of items) {
+    let arr = idx.get(d.projectId)
+    if (!arr) { arr = []; idx.set(d.projectId, arr); byProject.push([d.projectId, arr]) }
+    arr.push(d)
+  }
+  return (
+    <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="outstanding-deliverables">
+      <div className="border-b border-gray-200">
+        <ClauseHead n="10" title="Outstanding Deliverables" extra={String(items.length)} />
+        <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400">
+          Across your projects · assignee · due · notes — overdue flagged. Scoped to your memberships.
+        </p>
+      </div>
+      {items.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-gray-400 text-center">Nothing outstanding across your projects.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[720px]">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                <th className="px-4 py-2">Deliverable</th>
+                <th className="px-2 py-2 w-40">Assignee</th>
+                <th className="px-2 py-2 w-28">Status</th>
+                <th className="px-2 py-2 w-28">Due</th>
+                <th className="px-2 py-2">Notes</th>
+                <th className="px-4 py-2 w-14" />
+              </tr>
+            </thead>
+            <tbody>
+              {byProject.map(([pid, ds]) => (
+                <Fragment key={pid}>
+                  <tr className="bg-gray-50/70" data-testid="outstanding-project">
+                    <td colSpan={6} className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      {projName(pid)}
+                    </td>
+                  </tr>
+                  {ds.map(d => (
+                    <tr key={d.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="px-4 py-2 text-gray-800 truncate max-w-[16rem]">{d.name}</td>
+                      <td className="px-2 py-2 text-gray-600 truncate max-w-[10rem]">
+                        {d.assignedTo ?? <span className="text-gray-300 italic">unassigned</span>}
+                      </td>
+                      <td className="px-2 py-2"><StatusChip status={d.status} /></td>
+                      <td className="px-2 py-2"><DueCell due={d.dueDate} overdue={d.overdue} /></td>
+                      <td className="px-2 py-2 text-gray-400 truncate max-w-[12rem]">{d.notes ?? ''}</td>
+                      <td className="px-4 py-2 text-right">
+                        <Link to={`/projects/${d.projectId}?tab=deliverables`} className="text-teal-700 hover:underline">Open</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   )
 }
