@@ -13,7 +13,7 @@ import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ClassificationBadges } from '../components/ClassificationBadges'
 import { ProjectStatHeader } from '../components/ProjectStatHeader'
 import { AccessCard } from '../components/AccessCard'
-import { fetchDeliverables, isOverdue, type DeliverableRow } from '../lib/deliverables'
+import { fetchDeliverables, isOverdue, rollupByAssignee, type DeliverableRow } from '../lib/deliverables'
 import { Modal } from '../components/ui/Modal'
 import { IssuesLogPage } from './IssuesLogPage'
 import { CxIndexPage } from './CxIndexPage'
@@ -536,6 +536,12 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               {/* Deliverables — compact summary; the full rollup lives in the Deliverables tab */}
               <DeliverablesSummaryCard projectId={projectId} onOpen={() => setActiveTab('deliverables')} />
 
+              {/* Outstanding by assignee — owners/leads of this project track who owes what.
+                  Assignee-first (the project is already given). Coexists with the summary. */}
+              {(isOwner || isLead) && (
+                <OutstandingByAssigneeCard projectId={projectId} onOpen={() => setActiveTab('deliverables')} />
+              )}
+
               {/* Access — beside Project Team, owner-only (§9.4a) */}
               {isOwner && <AccessCard projectId={projectId} />}
 
@@ -965,6 +971,51 @@ function DeliverablesSummaryCard({ projectId, onOpen }: { projectId: string; onO
             <p className={`font-mono text-[24px] font-medium leading-none tabular-nums tracking-[-0.02em] ${overdue ? 'text-rose-700' : 'text-gray-900'}`}>{overdue}</p>
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500 mt-1.5 group-hover:text-standard-600 transition-colors">Overdue</p>
           </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** #2 Part A — the tracker's view on Overview: this project's outstanding
+ *  deliverables grouped by assignee (name · overdue · count). Assignee-first
+ *  because the project is already given. Owners/leads only; links to the tab. */
+function OutstandingByAssigneeCard({ projectId, onOpen }: { projectId: string; onOpen: () => void }) {
+  const [rows, setRows] = useState<DeliverableRow[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchDeliverables(projectId).then(r => { if (alive) setRows(r) })
+    return () => { alive = false }
+  }, [projectId])
+
+  // Outstanding = not yet submitted/accepted; group the rest by assignee.
+  const groups = rows
+    ? rollupByAssignee(rows.filter(r => r.status !== 'submitted' && r.status !== 'accepted'))
+    : []
+
+  return (
+    <div className="card-tile bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Outstanding by Assignee</h3>
+        <button onClick={onOpen} className="text-xs text-teal-700 hover:underline">View all →</button>
+      </div>
+      {rows === null ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : groups.length === 0 ? (
+        <p className="text-sm text-gray-400">Nothing outstanding.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {groups.map(g => (
+            <button key={g.name} onClick={onOpen} className="w-full flex items-center gap-2 text-sm text-left">
+              <span className={`truncate ${g.assigned ? 'text-gray-800' : 'text-gray-400 italic'}`}>{g.name}</span>
+              <span className="ml-auto flex items-center gap-2 flex-shrink-0">
+                {g.overdue > 0 && (
+                  <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-rose-50 text-rose-700">{g.overdue} overdue</span>
+                )}
+                <span className="font-mono text-xs text-gray-600">{g.total}</span>
+              </span>
+            </button>
+          ))}
         </div>
       )}
     </div>

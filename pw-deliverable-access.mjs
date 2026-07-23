@@ -141,6 +141,28 @@ try {
   }
   await browser.close()
 
+  // ── #2 lead visibility: a LEAD (non-governor) must see the Outstanding
+  //     Deliverables panel for the project(s) they lead — not just owners/admins.
+  //     dev.test is role 'user'; make them a lead of ZZ-TEST and verify in-browser.
+  await adm.from('project_members').upsert(
+    { project_id: ZZ, profile_id: empUser.id, is_lead: true }, { onConflict: 'project_id,profile_id' })
+  {
+    const lb = await chromium.launch()
+    const lp = await lb.newPage()
+    await lp.setViewportSize({ width: 1500, height: 1000 })
+    await lp.goto(`${BASE_URL}/login`)
+    await lp.locator('input[type="email"]').fill(process.env.email)
+    await lp.locator('input[type="password"]').fill(process.env.password)
+    await lp.getByRole('button', { name: 'Sign In' }).click()
+    await lp.waitForTimeout(3500)
+    check(await lp.locator('[data-testid="outstanding-deliverables"]').count() === 1,
+      '#2 a LEAD (non-governor) sees the Outstanding Deliverables panel')
+    const leadHeaders = (await lp.locator('[data-testid="outstanding-project"]').allInnerTexts()).map(h => h.trim())
+    check(leadHeaders.length > 0 && leadHeaders.every(h => h.startsWith('ZZ-TEST')),
+      `#2 lead panel scoped to led project(s) only (${leadHeaders.join(' | ') || 'empty'})`)
+    await lb.close()
+  }
+
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
 } finally {

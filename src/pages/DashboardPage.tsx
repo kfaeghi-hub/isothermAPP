@@ -42,10 +42,10 @@ export function DashboardPage() {
 
   useEffect(() => {
     let alive = true
-    Promise.all([fetchDashboard(profile?.name ?? ''), fetchClassificationConfig()])
+    Promise.all([fetchDashboard(profile?.name ?? '', profile?.id), fetchClassificationConfig()])
       .then(([d, c]) => { if (alive) { setData(d); setConfig(c) } })
     return () => { alive = false }
-  }, [profile?.name])
+  }, [profile?.name, profile?.id])
 
   if (!data) return <div className="p-8 text-sm text-gray-400">Loading dashboard…</div>
 
@@ -397,10 +397,16 @@ export function DashboardPage() {
           </div>
         </section>
 
-        {/* ── E · Outstanding Deliverables — governors only (§3b, clause 10) ── */}
-        {isGovernor && (
+        {/* ── E · Outstanding Deliverables (clause 10) — the tracker's view.
+            Governors see it across all their visible projects; a lead sees it for
+            the projects they lead. Grouped project-first (portfolio context). ── */}
+        {(isGovernor || data.myLeadProjectIds.length > 0) && (
           <section className="rise" style={{ '--rise-i': 4 } as React.CSSProperties}>
-            <OutstandingDeliverablesCard items={data.outstandingDeliverables} projName={projName} />
+            <OutstandingDeliverablesCard
+              items={isGovernor
+                ? data.outstandingDeliverables
+                : data.outstandingDeliverables.filter(d => data.myLeadProjectIds.includes(d.projectId))}
+              projName={projName} />
           </section>
         )}
       </div>

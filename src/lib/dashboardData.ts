@@ -155,14 +155,15 @@ export interface DashboardData {
   bySystem: Array<{ system: string; count: number }>
   responsible: RespGroup[]
   mine: MineItem[]
-  outstandingDeliverables: DeliverableItem[]   // cross-project, RLS-scoped (governors' widget)
+  outstandingDeliverables: DeliverableItem[]   // cross-project, RLS-scoped
   myDeliverables: DeliverableItem[]            // assigned to the current user (name convention)
+  myLeadProjectIds: string[]                   // projects the viewer leads (scopes the panel for a lead)
   activity: ActivityRow[]
 }
 
 const monthKey = (d: string) => d.slice(0, 7)
 
-export async function fetchDashboard(profileName: string): Promise<DashboardData> {
+export async function fetchDashboard(profileName: string, profileId?: string): Promise<DashboardData> {
   const now = Date.now()
   const todayISO = new Date().toISOString().slice(0, 10)
   const d90 = new Date(now - 90 * 86_400_000).toISOString().slice(0, 10)
@@ -170,7 +171,7 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     const d = new Date(); d.setMonth(d.getMonth() - 5); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
   })()
 
-  const [pRes, fRes, miRes, mRes, srRes, ciRes, taRes, pcRes, pdRes] = await Promise.all([
+  const [pRes, fRes, miRes, mRes, srRes, ciRes, taRes, pcRes, pdRes, pmRes] = await Promise.all([
     supabase.from('projects').select('id, name, com_number, status, start_date, finish_date, created_at, companies(name)'),
     supabase.from('findings').select('id, project_id, number, title, status, date_raised, date_closed, category, created_at, identified_by, responsible_party_id, contacts(company_id, companies(name, abbreviation))'),
     supabase.from('meeting_items')
@@ -184,6 +185,11 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     supabase.from('project_deliverables')
       .select('id, project_id, template_id, name, status, assigned_to, due_date, notes, deliverable_templates(name)')
       .not('status', 'in', '(submitted,accepted)'),
+    // The viewer's own memberships — to scope the Outstanding panel to the projects
+    // they lead (a non-governor lead sees only their led projects, not every project
+    // they happen to be a member of).
+    supabase.from('project_members').select('project_id, is_lead')
+      .eq('profile_id', profileId ?? '00000000-0000-0000-0000-000000000000'),
   ])
 
   const one = <T,>(v: T | T[] | null | undefined): T | null => Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
@@ -371,6 +377,7 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
     || a.projectId.localeCompare(b.projectId))
   // Reciprocal "mine" — same profile-name convention as My Items used to use.
   const myDeliverables = outstandingDeliverables.filter(d => d.assignedTo === profileName)
+  const myLeadProjectIds = ((pmRes.data ?? []) as any[]).filter(r => r.is_lead).map(r => r.project_id as string)
 
   // ── D10 recent activity (derived — no events table) ────────────────────
   const activity: ActivityRow[] = [
@@ -393,6 +400,6 @@ export async function fetchDashboard(profileName: string): Promise<DashboardData
       avgDaysToClose,
     },
     queue, projectStats, selections, trend, bySystem, responsible, mine,
-    outstandingDeliverables, myDeliverables, activity,
+    outstandingDeliverables, myDeliverables, myLeadProjectIds, activity,
   }
 }
