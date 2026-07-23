@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
+import { Combobox } from '../components/ui/Combobox'
 import {
   fetchDeliverables, composeDelta, applyCompose, statusDates, displayName,
   rollupByAssignee, STATUS_ORDER, STATUS_META, type DeliverableRow,
@@ -249,10 +250,13 @@ export function DeliverablesPage({ projectId, canAssign = false }: Props) {
                           <div>
                             <label className="block text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Assigned to</label>
                             {canAssign ? (
-                              <input list="member-names" value={r.assigned_to ?? ''}
-                                onChange={e => setRows(rs => rs.map(x => x.id === r.id ? { ...x, assigned_to: e.target.value } : x))}
-                                onBlur={e => patch(r.id, { assigned_to: e.target.value.trim() || null })}
+                              <Combobox
+                                value={r.assigned_to ?? ''}
+                                options={memberNames}
+                                onChange={v => setRows(rs => rs.map(x => x.id === r.id ? { ...x, assigned_to: v } : x))}
+                                onCommit={v => patch(r.id, { assigned_to: v.trim() || null })}
                                 placeholder="Project member…"
+                                ariaLabel="Assigned to"
                                 title="This project's members (owner/lead assigns). Free text allowed for external parties."
                                 className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-teal-400" />
                             ) : (
@@ -296,9 +300,6 @@ export function DeliverablesPage({ projectId, canAssign = false }: Props) {
           </table>
         </div>
       )}
-      <datalist id="member-names">
-        {memberNames.map(n => <option key={n} value={n} />)}
-      </datalist>
 
       {/* Compose preview */}
       <Modal title="Compose from classification" open={composePreview !== null} onClose={() => setComposePreview(null)}>

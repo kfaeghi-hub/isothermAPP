@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
+import { Combobox } from '../components/ui/Combobox'
 import type { Equipment } from '../types/database'
 
 // ── Local types ──────────────────────────────────────────────────────────────
@@ -918,18 +919,14 @@ export function CxIndexPage({ projectId }: Props) {
               {/* Category */}
               <div>
                 <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Category</label>
-                <input
+                <Combobox
                   value={addEquipForm.category}
-                  onChange={e => setAddEquipForm(f => ({ ...f, category: e.target.value }))}
+                  options={[...new Set(equipment.map(e => e.category).filter(Boolean))] as string[]}
+                  onChange={v => setAddEquipForm(f => ({ ...f, category: v }))}
                   placeholder="e.g. PUMPS · AHU · VAV BOXES"
-                  list="existing-categories"
+                  ariaLabel="Category"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-100"
                 />
-                <datalist id="existing-categories">
-                  {[...new Set(equipment.map(e => e.category).filter(Boolean))].map(c => (
-                    <option key={c!} value={c!} />
-                  ))}
-                </datalist>
               </div>
 
               {/* Tag + Descriptor */}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
+import { Combobox } from '../components/ui/Combobox'
 import { useAuth } from '../contexts/AuthContext'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
@@ -883,23 +884,23 @@ export function EquipmentPage({ projectId }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Category</label>
-                  <input value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}
+                  <Combobox
+                    value={addForm.category}
+                    options={categories.filter(Boolean) as string[]}
+                    onChange={v => setAddForm(f => ({ ...f, category: v }))}
                     placeholder="AIR HANDLING UNITS"
-                    list="existing-cats"
+                    ariaLabel="Category"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
-                  <datalist id="existing-cats">
-                    {categories.filter(Boolean).map(c => <option key={c} value={c} />)}
-                  </datalist>
                 </div>
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Field Template Type</label>
-                  <input value={addForm.equipment_type} onChange={e => setAddForm(f => ({ ...f, equipment_type: e.target.value }))}
+                  <Combobox
+                    value={addForm.equipment_type}
+                    options={['heat_pump','boiler','pump','ahu','erv','fan','ats','generator','chiller','cooling_tower','fcu','vav']}
+                    onChange={v => setAddForm(f => ({ ...f, equipment_type: v }))}
                     placeholder="ahu, pump, boiler…"
-                    list="known-types"
+                    ariaLabel="Field Template Type"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-teal-400" />
-                  <datalist id="known-types">
-                    {['heat_pump','boiler','pump','ahu','erv','fan','ats','generator','chiller','cooling_tower','fcu','vav'].map(t => <option key={t} value={t} />)}
-                  </datalist>
                 </div>
               </div>
 

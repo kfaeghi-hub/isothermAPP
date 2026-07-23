@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { reportError, reportWriteBlocked } from '../lib/mutationError'
+import { Combobox } from '../components/ui/Combobox'
 import { formatDate, formatDateRange } from '../lib/format'
 import {
   fetchClassificationConfig, validateRequired,
@@ -655,19 +656,14 @@ export function ProjectsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Address</label>
-              <input
-                type="text"
+              <Combobox
                 value={form.address}
-                onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                list="project-address-suggestions"
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                options={[...new Set(projects.map(p => p.address).filter(Boolean))] as string[]}
+                onChange={v => setForm(f => ({ ...f, address: v }))}
                 placeholder="e.g. 1750 Finch Ave E, Toronto ON"
+                ariaLabel="Address"
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               />
-              <datalist id="project-address-suggestions">
-                {[...new Set(projects.map(p => p.address).filter(Boolean))].map(a => (
-                  <option key={a as string} value={a as string} />
-                ))}
-              </datalist>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Client</label>
@@ -829,18 +825,16 @@ export function ProjectsPage() {
               </div>
             )}
             <div className="flex gap-2">
-              <input
-                type="text"
+              <Combobox
                 value={form.phaseInput}
-                onChange={e => setForm(f => ({ ...f, phaseInput: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPhase() } }}
-                list="project-phase-suggestions"
+                options={phaseNames}
+                onChange={v => setForm(f => ({ ...f, phaseInput: v }))}
+                onEnter={addPhase}
                 placeholder="e.g. Phase 1 — Mechanical"
-                className="flex-1 border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                ariaLabel="Phase name"
+                wrapperClassName="flex-1"
+                className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               />
-              <datalist id="project-phase-suggestions">
-                {phaseNames.map(n => <option key={n} value={n} />)}
-              </datalist>
               <button
                 onClick={addPhase}
                 className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
