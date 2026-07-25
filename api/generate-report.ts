@@ -419,12 +419,20 @@ export default async function handler(req: any, res: any) {
     const { data: findings } = await fQ
 
     // Download photos as Buffers; embed as base64 data URIs so HTML is self-contained.
+    // storage_url is a bucket-relative path (storage privacy pass) — service-role
+    // download works against private buckets. Legacy full-URL rows (pre-migration)
+    // still fetch directly.
     const photoBuffers = new Map<string, Buffer>()
     for (const f of findings ?? []) {
       for (const ph of f.finding_photos ?? []) {
         try {
-          const r = await fetch(ph.storage_url)
-          if (r.ok) photoBuffers.set(ph.id, Buffer.from(await r.arrayBuffer()))
+          if (ph.storage_url?.startsWith('http')) {
+            const r = await fetch(ph.storage_url)
+            if (r.ok) photoBuffers.set(ph.id, Buffer.from(await r.arrayBuffer()))
+          } else if (ph.storage_url) {
+            const { data } = await supabase.storage.from('finding-photos').download(ph.storage_url)
+            if (data) photoBuffers.set(ph.id, Buffer.from(await data.arrayBuffer()))
+          }
         } catch { /* skip unloadable photos */ }
       }
     }

@@ -5,6 +5,7 @@ import { authedFetch, apiErrorMessage } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
+import { openStoredFile } from '../lib/fileUrl'
 import { FindingPicker, type PickerFinding } from '../components/FindingPicker'
 import { useAuth } from '../contexts/AuthContext'
 import type { Meeting, MeetingType, MeetingTopic, MeetingAttendee, MeetingItem } from '../types/database'
@@ -561,10 +562,11 @@ export function MeetingsPage({ projectId }: Props) {
                 <h3 className="text-sm font-semibold text-gray-900">#{meeting.meeting_number}</h3>
                 {meeting.status === 'issued' && meeting.pdf_url && (
                   <>
-                    <a href={meeting.pdf_url} target="_blank" rel="noopener noreferrer"
-                      className="text-[11px] text-teal-700 hover:underline">PDF</a>
-                    <a href={meeting.storage_url ?? '#'} target="_blank" rel="noopener noreferrer"
-                      className="text-[11px] text-teal-700 hover:underline">DOCX</a>
+                    {/* Signed-URL open (storage privacy pass) — stored values are paths */}
+                    <button onClick={() => openStoredFile(meeting.pdf_url, { table: 'meetings', id: meeting.id, kind: 'pdf' })}
+                      className="text-[11px] text-teal-700 hover:underline">PDF</button>
+                    <button onClick={() => openStoredFile(meeting.storage_url, { table: 'meetings', id: meeting.id, kind: 'docx' })}
+                      className="text-[11px] text-teal-700 hover:underline">DOCX</button>
                   </>
                 )}
               </div>

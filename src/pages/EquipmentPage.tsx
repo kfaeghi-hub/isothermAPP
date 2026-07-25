@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { Combobox } from '../components/ui/Combobox'
+import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
@@ -294,13 +295,14 @@ export function EquipmentPage({ projectId }: Props) {
     // Upload failed — don't insert a row that points at a nonexistent file.
     if (reportError(uploadErr, 'upload the attachment')) { setUploadingFile(false); return }
     if (upload) {
-      const { data: urlData } = supabase.storage.from('equipment-files').getPublicUrl(path)
+      // storage_url persists the bucket-relative PATH (storage privacy pass) —
+      // opens go through api/get-file-url signed URLs.
       const { error: insertErr } = await supabase.from('equipment_attachments').insert({
         project_id:   projectId,
         equipment_id: equipId,
         filename:     file.name,
         file_type:    pendingFileType,
-        storage_url:  urlData.publicUrl,
+        storage_url:  path,
       })
       if (reportError(insertErr, 'save the attachment')) { setUploadingFile(false); return }
       fetchAttachments()
@@ -312,11 +314,13 @@ export function EquipmentPage({ projectId }: Props) {
     if (!confirm(`Remove "${att.filename}"?`)) return
     const { error } = await supabase.from('equipment_attachments').delete().eq('id', att.id)
     if (reportError(error, 'delete the attachment')) return
+    // storage_url is a bucket-relative path (legacy rows carried a full URL — slice those).
     const marker = '/equipment-files/'
     const idx = att.storage_url.indexOf(marker)
-    if (idx >= 0) {
+    const storagePath = idx >= 0 ? att.storage_url.slice(idx + marker.length) : att.storage_url
+    if (storagePath) {
       // Best-effort storage cleanup; the row is already gone, so don't block on it.
-      const { error: removeErr } = await supabase.storage.from('equipment-files').remove([att.storage_url.slice(idx + marker.length)])
+      const { error: removeErr } = await supabase.storage.from('equipment-files').remove([storagePath.split('?')[0]])
       if (removeErr) console.error('[equipment] storage cleanup failed:', removeErr)
     }
     fetchAttachments()
@@ -660,14 +664,12 @@ export function EquipmentPage({ projectId }: Props) {
                     <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium shrink-0">
                       {FILE_TYPE_LABELS[att.file_type] ?? att.file_type}
                     </span>
-                    <a
-                      href={att.storage_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 text-teal-700 hover:text-teal-900 truncate"
+                    <button
+                      onClick={() => openStoredFile(att.storage_url, { table: 'equipment_attachments', id: att.id })}
+                      className="flex-1 text-left text-teal-700 hover:text-teal-900 truncate"
                     >
                       {att.filename}
-                    </a>
+                    </button>
                     <button
                       onClick={() => deleteAttachment(att)}
                       className="text-gray-300 hover:text-red-500 shrink-0"

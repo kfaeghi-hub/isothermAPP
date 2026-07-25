@@ -1281,22 +1281,27 @@ export default async function handler(req: any, res: any) {
     const base  = `${instance.project_id}/${instance_id}/${mode === 'blank' ? `blank-${audience}` : mode}`
     const pdfUp = await store.upload(`${base}.pdf`, pdfBuffer, { contentType: 'application/pdf', upsert: true })
     if (pdfUp.error) return res.status(500).json({ error: pdfUp.error.message })
-    let rawDocxUrl: string | null = null
+    let signedDocxUrl: string | null = null
     if (docxBuffer) {
       const docxUp = await store.upload(`${base}.docx`, docxBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         upsert: true,
       })
       if (docxUp.error) return res.status(500).json({ error: docxUp.error.message })
-      rawDocxUrl = store.getPublicUrl(`${base}.docx`).data.publicUrl
+      const { data: dSig, error: dErr } = await store.createSignedUrl(`${base}.docx`, 600)
+      if (dErr) return res.status(500).json({ error: dErr.message })
+      signedDocxUrl = dSig.signedUrl
     }
 
-    const ts = Date.now()
-    const { data: { publicUrl: rawPdfUrl } } = store.getPublicUrl(`${base}.pdf`)
+    // Checklist outputs are ephemeral (nothing persisted) — the response carries
+    // short-lived signed URLs directly (storage privacy pass; 10-minute expiry).
+    // Signed URLs are unique per mint, so the old cache-buster is obsolete.
+    const { data: pSig, error: pErr } = await store.createSignedUrl(`${base}.pdf`, 600)
+    if (pErr) return res.status(500).json({ error: pErr.message })
 
     return res.status(200).json({
-      pdf_url:     `${rawPdfUrl}?t=${ts}`,
-      storage_url: rawDocxUrl ? `${rawDocxUrl}?t=${ts}` : null,
+      pdf_url:     pSig.signedUrl,
+      storage_url: signedDocxUrl,
       stats: {
         units: responseTargets.length, nameplate_rows: expectedNpRows, fallback: usedFallback,
         render_mode: renderMode ?? 'standard', docx: !!docxBuffer,

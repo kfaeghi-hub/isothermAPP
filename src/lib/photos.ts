@@ -49,16 +49,17 @@ export async function uploadFindingPhoto(findingId: string, file: File): Promise
       .upload(path, blob, { contentType: 'image/jpeg' })
     if (uploadErr || !uploaded) return { ok: false, error: uploadErr?.message ?? 'Upload failed' }
 
-    const { data: { publicUrl } } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(uploaded.path)
-
+    // storage_url persists the bucket-relative PATH (storage privacy pass) —
+    // renders batch-sign via api/get-file-url; the doc generator downloads
+    // service-role. No public URL is minted anywhere anymore.
     const { error: rowErr } = await supabase.from('finding_photos').insert({
       finding_id: findingId,
-      storage_url: publicUrl,
+      storage_url: uploaded.path,
       caption: file.name,
     })
     if (rowErr) return { ok: false, error: rowErr.message }
 
-    return { ok: true, url: publicUrl }
+    return { ok: true, url: uploaded.path }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Upload failed' }
   }

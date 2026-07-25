@@ -156,7 +156,12 @@ export async function toDocx(html: string): Promise<Buffer> {
   return Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
 }
 
-// ── Storage upload + cache-busted public URLs ─────────────────────────────────
+// ── Storage upload — returns bucket-relative PATHS (storage privacy pass) ─────
+// The DB persists paths, never URLs: signed URLs expire, so storing them is
+// wrong by construction. Consumers mint short-lived signed URLs on demand via
+// api/get-file-url. Signing works on public buckets too, so this code deploys
+// ahead of the private flip. Cache-busting is obsolete: every signed URL is
+// unique per mint, and `upsert: true` overwrites in place.
 
 export async function uploadDocPair(
   storage: any, basePath: string, docxBuffer: Buffer, pdfBuffer: Buffer,
@@ -174,9 +179,6 @@ export async function uploadDocPair(
   if (docxUp.error ?? pdfUp.error)
     return { error: (docxUp.error ?? pdfUp.error).message }
 
-  // Cache-bust so browsers always serve the freshly generated file.
-  const ts = Date.now()
-  const { data: { publicUrl: rawDocxUrl } } = storage.getPublicUrl(`${basePath}.docx`)
-  const { data: { publicUrl: rawPdfUrl  } } = storage.getPublicUrl(`${basePath}.pdf`)
-  return { storage_url: `${rawDocxUrl}?t=${ts}`, pdf_url: `${rawPdfUrl}?t=${ts}` }
+  // Same keys as before, but the values are now bucket-relative paths.
+  return { storage_url: `${basePath}.docx`, pdf_url: `${basePath}.pdf` }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../lib/format'
 import { uploadFindingPhoto } from '../lib/photos'
+import { getFindingPhotoUrls } from '../lib/fileUrl'
 import { reportError } from '../lib/mutationError'
 import { Modal } from '../components/ui/Modal'
 import { EquipmentPicker, type PickerEquipment } from '../components/EquipmentPicker'
@@ -108,6 +109,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   // Detail panel
   const [diary, setDiary]               = useState<FindingDiaryEntry[]>([])
   const [photos, setPhotos]             = useState<FindingPhoto[]>([])
+  const [photoUrls, setPhotoUrls]       = useState<Record<string, string>>({})  // id → signed URL
   const [newEntry, setNewEntry]         = useState('')
   const [addingEntry, setAddingEntry]   = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -190,7 +192,18 @@ export function IssuesLogPage({ projectId, phases }: Props) {
         .order('uploaded_at', { ascending: true }),
     ])
     setDiary((dRes.data ?? []) as FindingDiaryEntry[])
-    setPhotos((pRes.data ?? []) as FindingPhoto[])
+    const photoRows = (pRes.data ?? []) as FindingPhoto[]
+    setPhotos(photoRows)
+    // Signed render URLs (storage privacy pass): storage_url is a path — one
+    // batch round-trip signs every photo (60-min expiry). Legacy full-URL rows
+    // pass through inside the endpoint. Best-effort: a failure leaves the map
+    // empty and the img falls back to the stored value.
+    if (photoRows.some(p => p.storage_url && !p.storage_url.startsWith('http'))) {
+      try { setPhotoUrls(await getFindingPhotoUrls(findingId)) }
+      catch (e) { console.error('[photos] signing failed:', e); setPhotoUrls({}) }
+    } else {
+      setPhotoUrls({})
+    }
   }, [])
 
   useEffect(() => { fetchFindings(); fetchContacts(); fetchProjectTrades(); fetchEquipment() }, [fetchFindings, fetchContacts, fetchProjectTrades, fetchEquipment])
@@ -287,11 +300,13 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     // Delete DB record first — source of truth for UI visibility
     const { error } = await supabase.from('finding_photos').delete().eq('id', photo.id)
     if (reportError(error, 'delete the photo')) { setDeletingPhotoId(null); return }
-    // Then remove from Storage (best-effort; orphaned files are preferable to broken UI state)
+    // Then remove from Storage (best-effort; orphaned files are preferable to broken UI state).
+    // storage_url is a bucket-relative path; legacy rows carried a full URL — slice those.
     const marker = '/finding-photos/'
     const idx = photo.storage_url.indexOf(marker)
-    if (idx >= 0) {
-      await supabase.storage.from('finding-photos').remove([photo.storage_url.slice(idx + marker.length)])
+    const path = (idx >= 0 ? photo.storage_url.slice(idx + marker.length) : photo.storage_url).split('?')[0]
+    if (path) {
+      await supabase.storage.from('finding-photos').remove([path])
     }
     setDeletingPhotoId(null)
     setConfirmDeletePhotoId(null)
@@ -356,12 +371,13 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       .select('storage_url')
       .eq('finding_id', findingId)
 
-    // Delete storage files (best-effort — orphaned files < broken DB state)
+    // Delete storage files (best-effort — orphaned files < broken DB state).
+    // storage_url is a bucket-relative path; legacy rows carried a full URL.
     if (photoRows && photoRows.length > 0) {
       const marker = '/finding-photos/'
       const paths = photoRows
-        .map(p => { const i = p.storage_url.indexOf(marker); return i >= 0 ? p.storage_url.slice(i + marker.length) : null })
-        .filter((p): p is string => p !== null)
+        .map(p => { const i = p.storage_url.indexOf(marker); return (i >= 0 ? p.storage_url.slice(i + marker.length) : p.storage_url).split('?')[0] })
+        .filter((p): p is string => !!p)
       if (paths.length > 0) await supabase.storage.from('finding-photos').remove(paths)
     }
 
@@ -745,13 +761,13 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                     ) : (
                       <>
                         <a
-                          href={photo.storage_url}
+                          href={photoUrls[photo.id] ?? photo.storage_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           title={photo.caption ?? undefined}
                         >
                           <img
-                            src={photo.storage_url}
+                            src={photoUrls[photo.id] ?? photo.storage_url}
                             alt={photo.caption ?? 'Finding photo'}
                             className="w-24 h-24 object-cover rounded border border-gray-200 group-hover:opacity-80 transition-opacity cursor-zoom-in"
                           />

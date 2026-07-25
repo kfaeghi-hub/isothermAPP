@@ -4,6 +4,7 @@ import { reportError } from '../lib/mutationError'
 import { authedFetch, apiErrorMessage } from '../lib/api'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
+import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import type { SiteReport, DocRegisterItem } from '../types/database'
 
@@ -270,12 +271,12 @@ export function SiteReportsPage({ projectId }: Props) {
                     </p>
                     <div className="flex items-center gap-4 mt-2">
                       {r.storage_url && (
-                        <a href={r.storage_url} download
-                          className="text-sm text-teal-700 font-medium py-1">.docx</a>
+                        <button onClick={() => openStoredFile(r.storage_url, { table: 'site_reports', id: r.id, kind: 'docx' })}
+                          className="text-sm text-teal-700 font-medium py-1">.docx</button>
                       )}
                       {r.pdf_url && (
-                        <a href={r.pdf_url} target="_blank" rel="noreferrer"
-                          className="text-sm text-teal-700 font-medium py-1">PDF</a>
+                        <button onClick={() => openStoredFile(r.pdf_url, { table: 'site_reports', id: r.id, kind: 'pdf' })}
+                          className="text-sm text-teal-700 font-medium py-1">PDF</button>
                       )}
                       <span className="ml-auto flex items-center gap-1.5">
                         <button onClick={() => generateReport(r.id)} disabled={isGenerating}
@@ -341,24 +342,22 @@ export function SiteReportsPage({ projectId }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          {/* Signed-URL open (storage privacy pass) — the stored value is a path */}
                           {r.storage_url && (
-                            <a
-                              href={r.storage_url}
-                              download
+                            <button
+                              onClick={() => openStoredFile(r.storage_url, { table: 'site_reports', id: r.id, kind: 'docx' })}
                               className="text-xs text-teal-700 hover:text-teal-900 hover:underline font-medium"
                             >
                               .docx
-                            </a>
+                            </button>
                           )}
                           {r.pdf_url && (
-                            <a
-                              href={r.pdf_url}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              onClick={() => openStoredFile(r.pdf_url, { table: 'site_reports', id: r.id, kind: 'pdf' })}
                               className="text-xs text-teal-700 hover:text-teal-900 hover:underline font-medium"
                             >
                               PDF
-                            </a>
+                            </button>
                           )}
                         </div>
                       </td>
