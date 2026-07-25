@@ -180,6 +180,31 @@ try {
       check(status === 403, `client calling generate-report → 403 (${status})`)
     }
   }
+  // ANONYMOUS callers cannot even INVOKE the DEFINER RPCs (migration
+  // portal_rpc_grants). This needs its own leg precisely because the original
+  // `revoke ... from anon` did NOT work — Postgres grants EXECUTE to PUBLIC by
+  // default and anon inherits it, so anon could call all six. Nothing leaked
+  // (portal_can_view fails closed on a null auth.uid()), but the zero-rows was
+  // doing the work the revoke claimed to do. Asserting the ERROR, not the row
+  // count — a row count would pass either way and prove nothing.
+  {
+    const anon = mk()
+    const RPCS = [['portal_projects', undefined], ['portal_findings', { pid: ZZ }],
+      ['portal_finding_photos', { pid: ZZ }], ['portal_documents', { pid: ZZ }],
+      ['portal_stats', { pid: ZZ }], ['portal_team', { pid: ZZ }],
+      ['portal_can_view', { pid: ZZ }], ['is_portal_member', { pid: ZZ }]]
+    const reachable = []
+    for (const [fn, args] of RPCS) {
+      const { error } = await anon.rpc(fn, args)
+      if (error?.code !== '42501') reachable.push(fn)
+    }
+    check(reachable.length === 0,
+      `anonymous callers cannot invoke ANY portal RPC${reachable.length ? ` — REACHABLE: ${reachable.join(', ')}` : ' (8/8 → 42501)'}`)
+    // The positive half: the same call, authenticated, is permitted — so the
+    // 42501 above is the grant and not a broken function.
+    const { error: staffErr } = await emp.rpc('portal_findings', { pid: ZZ })
+    check(!staffErr, 'PAIR: the identical call succeeds for an authenticated caller')
+  }
 
   // ── 5 · Invite flow — mail asserted zero ────────────────────────────────
   const inv = await post(adm, '/api/portal-invite', { project_id: ZZ, email: INVITE_EMAIL })

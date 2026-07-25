@@ -198,6 +198,16 @@ PROJECT (belongs to a CLIENT, or standalone)
 DASHBOARD (BUILT — pure READ layer over everything above; no tables of its own except
   the dashboard_checklist_coverage view. Zero writes by design.)
 
+EXTERNAL PROJECT PORTAL (Part A BUILT 2026-07-25 — a SECOND, parallel access world
+  over the same rows. Two tables of its own; touches nothing above it.)
+  └─ PORTAL_MEMBERS (project + profile — the external visibility wall. Deliberately
+       NOT project_members: is_project_member() has no role condition, so an
+       external account there would be a full member under the existing policies.)
+  └─ PORTAL_INVITES (email + SHA-256 token HASH + expiry/redeemed/revoked stamps;
+       the raw token exists only in the link)
+  Reads are six SECURITY DEFINER RPCs, never base-table RLS — RLS cannot filter
+  COLUMNS, and the external register must exclude identified_by. Zero writes.
+
 TEMPLATE LIBRARY (firm-level, reusable across all projects)
   └─ CHECKLIST TEMPLATE per equipment type (Heat Pump IVC, Boiler IVC, ATS, Pump, AHU …)
   └─ FPT TEMPLATE per system type
@@ -334,7 +344,7 @@ never workflow**: inline-adds and all content work stay member-open.
 | **Developer** | ALL projects | technical/config (recorded exception E5) |
 | **Owner** | **member projects only** — identical scoping to employees | within member projects: everything admin can do, incl. membership management and all hard-deletes (`owner_member()` split); plus firm-level writes (templates, vocabularies, classifications). Never user/role management or `orgs` writes |
 | **User** ("Employee") | member projects only | content work: findings, checklists, reports, equipment, meetings. Leads (is_lead) additionally edit project settings |
-| **Client** *(future portal)* | nothing — appears in ZERO policies | read-only portal later |
+| **Client** ("External") | nothing internal — appears in ZERO internal policies, still literally true | read-only external portal (Part A BUILT 2026-07-25): the projects it holds a `portal_members` row for, through six SECURITY DEFINER RPCs. No writes anywhere |
 
 **Destructive concentration:** project delete/complete (C2 status-guard trigger),
 hard-delete findings/equipment, delete ANY checklist instance incl. completed,
@@ -344,6 +354,47 @@ may delete their OWN unissued drafts (own-drafts rule, name-text matched).
 trap: INSERT..RETURNING evaluates SELECT policy before the trigger — the app uses
 client-generated ids). `list_internal_profiles()` (SECURITY DEFINER, caller-gated
 inside) feeds membership pickers without exposing emails or client rows.
+
+**The external access world (Part A, BUILT 2026-07-25 — full record:
+`docs/PORTAL-PROPOSAL.md`, as-built detail: ARCHITECTURE "External project
+portal").** A SECOND wall beside the one above, deliberately sharing no machinery
+with it:
+
+- **`portal_members`, not `project_members`.** The two never mix. `is_project_member()`
+  carries no role condition, so an external account placed in `project_members`
+  would satisfy every existing membership policy — read *and* write. Proven live
+  before building. Because nothing internal reads `portal_members`, not one
+  existing policy changed meaning in this build.
+- **Reads are six SECURITY DEFINER RPCs** (`portal_projects`, `portal_findings`,
+  `portal_finding_photos`, `portal_documents`, `portal_stats`, `portal_team`),
+  each gated on `portal_can_view(pid)` and returning a **fixed column whitelist**.
+  RLS was not an option: it filters rows, not columns, and the external register
+  must carry `title/description/category/area/corrective_action/status/dates/
+  responsible_company` while excluding `identified_by` and `origin`. Base tables
+  keep NO client policy at all, so a direct query returns zero rows — the RPC is
+  the only door. **`finding_diaries` has no client policy and no RPC** — internal
+  working notes are structurally unreachable, not merely hidden.
+- **Issued-only lives in SQL, not the UI:** `site_reports.storage_url IS NOT NULL`
+  and `meetings.status = 'issued'` are inside the RPC *and* re-checked in
+  `api/get-file-url` before a URL is signed. Photos return IDs only — never a
+  storage path.
+- **`requireProjectAccess` now requires a STAFF role explicitly** (it previously
+  admitted any membership row regardless of role); external callers go through
+  `requirePortalAccess`, which additionally refuses `equipment_attachments`
+  outright and refuses any unissued row.
+- **Invites:** `api/portal-invite` (owner/lead of that project) mints a 32-byte
+  token, stores only its SHA-256 hash, and answers with a copy-link. Delivery is
+  behind `PORTAL_INVITES_LIVE`, read in exactly one function so the whole flow is
+  testable with mail impossible. `api/portal-redeem` is unauthenticated, answers
+  identically for invalid/expired/revoked/already-redeemed (no existence oracle),
+  creates the account with `email_confirm: true` so Supabase's own mailer stays
+  silent, and refuses to demote an existing internal account. **Revocation is
+  removing the `portal_members` row** — instant and total.
+- **Route separation:** the portal renders OUTSIDE `Shell`, and a `client` hitting
+  any internal route is redirected to `/portal`. Before this build a client
+  rendered the entire internal shell with RLS-emptied data. Internal staff may
+  open `/portal` deliberately — that is the owner/lead "view as client" preview,
+  and the RPCs return the client's view either way.
 
 ---
 
@@ -599,9 +650,11 @@ owner and bypass RLS). Zero writes. Client role never reaches the route.
 - **Equipment status** — verified vs. in-progress.
 
 **External project portal** (Phase 3 — REFRAMED 2026-07-25; was "client dashboard").
-A filtered, simplified, read-only view of the official record. Same engine as the
-internal dashboard + the client lens of §6A; built on the Client role (already
-implemented) — mostly a permission/presentation layer over surfaces that exist.
+**Part A — the access boundary — BUILT 2026-07-25 (§3.3).** Part B (the design
+world) follows. A filtered, simplified, read-only view of the official record.
+Same engine as the internal dashboard + the client lens of §6A; built on the
+Client role (already implemented) — mostly a permission/presentation layer over
+surfaces that exist.
 
 - **Audience: the whole external project team**, not just the client — client PM,
   GC, contractors, consultants; effectively the project's distribution list /
@@ -612,6 +665,15 @@ implemented) — mostly a permission/presentation layer over surfaces that exist
   the same RLS predicates already scope per project. **No raw tokenized share
   links** — every view is an identity, attributable and revocable by removing the
   membership row.
+  > **⚠ CORRECTION (2026-07-25, Part A as-built).** `project_members` is **wrong**
+  > and the line is kept only as the record of what was planned. The row goes in a
+  > separate **`portal_members`** table. `is_project_member()` has no role
+  > condition, so a `client` in `project_members` would have been a full member
+  > under the existing policies — read and write; proven live (all 20 ZZ-TEST
+  > findings with internal columns, 239 instances, 266 equipment rows, an accepted
+  > findings INSERT). Reads are six SECURITY DEFINER RPCs, not RLS, because RLS
+  > cannot filter columns. Everything else in this bullet — invite-link, real
+  > account, no share links, revocation — holds exactly as written. See §3.3.
 - **Visible (official record only):** issues-log register columns, ISSUED site
   reports, ISSUED meeting minutes, progress stats.
   **Excluded:** finding diaries, anything in draft, the Deliverables tab, the
@@ -788,7 +850,7 @@ The slice that proves the model and is genuinely usable:
 14. **Status & Action Summary module** (§6A) — cross-cutting outstanding-items view with by-contractor / internal / client lenses and PDF/Word/Excel export.
 15. Data import (contacts, equipment, past projects).
 16. Meetings/minutes; OPR/BOD/Cx Plan/Systems Manual/Final Report generation.
-17. **External project portal** (reframed 2026-07-25 — was "client portal"): read-only official record (issues-log register, issued reports, issued minutes, progress stats) for the whole external project team, via invite-link → scoped `client` account + project membership. Built on the client-lens summary; see §6B for the access model, the exclusion list, and the open whole-register-vs-per-company decision — the OCx foundation.
+17. **External project portal** (reframed 2026-07-25 — was "client portal"): read-only official record (issues-log register, issued reports, issued minutes, progress stats) for the whole external project team, via invite-link → scoped `client` account + project membership. Built on the client-lens summary; see §6B for the access model, the exclusion list, and the open whole-register-vs-per-company decision — the OCx foundation. **Part A (the access boundary) BUILT 2026-07-25** — see §3.3 and ARCHITECTURE "External project portal"; membership is `portal_members`, NOT `project_members` (correction recorded in §6B). Part B (the design world) follows.
 18. MBCx/OCx monitoring layer (recurring-revenue offering).
 
 ---

@@ -343,6 +343,21 @@ tokenized share links: every view is an identity, so access is attributable and
 revocable by removing the membership row. An invite that becomes an account is
 also what makes per-company filtering possible later (see the open decision).
 
+> **⚠ CORRECTION (2026-07-25, Part A as-built).** The paragraph above is wrong on
+> one load-bearing point and is kept only as the record of what was believed. The
+> external account gets a row in a **separate `portal_members` table, NEVER
+> `project_members`**. Reason, proven live before building: `is_project_member()`
+> carries **no role condition**, so a `client` with a `project_members` row would
+> have been admitted by the *existing* policy set as a full member — read AND
+> write, every table, every column. The probe returned all 20 ZZ-TEST findings
+> with internal columns, 239 checklist instances, 266 equipment rows, and an
+> **accepted findings INSERT**. `portal_members` has zero blast radius: no
+> existing policy, predicate, or endpoint changes meaning, and "the client role
+> appears in zero policies" stays literally true. Reads go through six SECURITY
+> DEFINER RPCs, not RLS, because **RLS cannot filter columns** and the register
+> must exclude `identified_by`. See ARCHITECTURE "External project portal" for
+> the as-built model.
+
 **Visibility — the official record only.** In scope: the issues-log register
 columns, ISSUED site reports, ISSUED meeting minutes, progress stats. Explicitly
 excluded: finding diaries (internal working notes), anything in draft, the

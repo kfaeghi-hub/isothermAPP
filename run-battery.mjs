@@ -38,6 +38,7 @@ const SUITES = [
   'pw-meetings',
   'pw-pfc-verify',
   'pw-photo-capture',
+  'pw-portal',
   'pw-project-delete',
   'pw-signoff-order',
   'pw-storage-privacy',

@@ -150,6 +150,14 @@ $function$;
 
 -- Execute rights: authenticated callers only. The body's portal_can_view() gate
 -- is the real authorization; this just keeps anon out.
+--
+-- ⚠ THESE EIGHT LINES DO NOT WORK. Kept as applied, superseded by
+-- portal-rpc-grants-migration.sql. Postgres grants EXECUTE on a new function to
+-- PUBLIC, and anon inherits it — revoking anon's own grant leaves the PUBLIC
+-- grant in place, so anon could still invoke all six RPCs (verified live; they
+-- returned zero rows only because portal_can_view() fails closed on a null
+-- auth.uid()). The fix revokes from PUBLIC and grants to authenticated. Read
+-- this as the warning it is: `revoke ... from anon` alone never locks a function.
 revoke all on function public.portal_projects()             from anon;
 revoke all on function public.portal_findings(uuid)         from anon;
 revoke all on function public.portal_finding_photos(uuid)   from anon;

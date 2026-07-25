@@ -565,7 +565,9 @@ no-profile fallback → `<BrowserRouter>` shell. Route map:
 | `/` (unauthenticated) | LandingPage | public landing page (2026-07-22, as-built: docs/LANDING-PAGE-PROPOSAL.md); lazy-split chunk; CTA → `/login` |
 | `/login` | LoginPage · authenticated → `<Navigate to="/">` | the login form's real URL; `pw-config.loginAs` targets it |
 | any other path (unauthenticated) | LoginPage **in place** | URL untouched → after sign-in the requested route mounts (deep-link-through-login) |
-| `/` (authenticated) | DashboardPage | HOME — no landing interstitial. `client` role → `<Navigate to="/projects">` — never reaches the dashboard |
+| `/` (authenticated) | DashboardPage | HOME — no landing interstitial. `client` role → `<Navigate to="/portal">` (2026-07-25) — never reaches the dashboard, or any internal route |
+| `/portal/accept?token=…` | PortalAccept | **pre-router bypass** beside `/reset-password` — the invitee has no account yet, so nothing assuming a session may run first |
+| `/portal/*` (authenticated) | PortalApp (lazy) | **rendered OUTSIDE `Shell`** — no internal chrome exists in this world. Staff may open it deliberately: that is the "view as client" preview |
 | `/projects` | ProjectsPage | list; row click navigates |
 | `/projects/:projectId` | ProjectDetailRoute → ProjectDetailPage | active tab lives in `?tab=` (`issues`, `meetings`, `checklists`, `site_reports`, …) so dashboard rows and external links deep-link straight to a tab |
 | `/directory` `/templates` | pages | |
@@ -576,6 +578,104 @@ no-profile fallback → `<BrowserRouter>` shell. Route map:
 Sidebar items are `<NavLink>`s. `vercel.json` rewrites all non-`api/` paths to
 `index.html` (SPA). Historical note: before the router the app had exactly one URL —
 nothing could break when it landed; the full Playwright battery re-ran green as the gate.
+
+The internal routes now live under a single `path="*"` element that is the
+`isClient ? <Navigate to="/portal"> : <Shell>…</Shell>` fork, with `/portal/*`
+matched **before** it. Route separation is UX and defence in depth — the RPCs and
+`portal_members` are the actual enforcement (see below).
+
+---
+
+## External project portal — the security model (Part A, as-built 2026-07-25)
+
+Full record: `docs/PORTAL-PROPOSAL.md`. Gate: `pw-portal.mjs` (49 assertions).
+
+**The finding that shaped it.** The recorded plan was `client` role + a
+`project_members` row. That does not hold: `is_project_member(pid)` is
+
+```sql
+select exists (select 1 from project_members where project_id = pid and profile_id = auth.uid())
+```
+
+— **no role condition**. An external account in `project_members` would satisfy
+every existing membership policy, read *and* write. Proven live on ZZ-TEST before
+any code was written: all 20 findings including internal columns, every
+site-report status, 239 checklist instances, 266 equipment rows, and an
+**accepted findings INSERT**. Tables that returned zero rows were *empty*, not
+protected — an important distinction that a naive probe would have reported as
+safety.
+
+### Two tables, zero blast radius
+
+| Table | Columns of consequence | Policies |
+|---|---|---|
+| `portal_members` | `project_id`, `profile_id`, `invited_by`, `invited_at`, `accepted_at`, `company_id` (hook for later per-company filtering), `org_id` (rule 17), `UNIQUE(project_id, profile_id)` | `pm_select`: own rows **OR** admin/dev **OR** `owner_member(project_id)` **OR** `is_project_lead(project_id)` · `pm_insert`/`pm_update`: admin/dev OR owner_member OR lead (update also `profile_id <> auth.uid()`, mirroring `members_update`'s self-exclusion) · `pm_delete`: the same staff set with **no** self-exclusion, so revocation can never be blocked |
+| `portal_invites` | `email`, `token_hash` (unique), `expires_at` (default +7d), `redeemed_at`, `revoked_at`, `org_id` | `pi_*`: staff only. **No client or anon policy of any kind** — an external account cannot read the invite table it came through |
+
+Nothing internal reads either table, so **no existing policy, predicate, or
+endpoint changed meaning in this build**, and "the client role appears in zero
+internal policies" remains literally true.
+
+### Reads: SECURITY DEFINER RPCs, because RLS cannot filter columns
+
+Every RPC is `security definer stable`, gated on
+`portal_can_view(pid) = is_portal_member(pid) or is_admin_or_dev() or is_project_member(pid)`
+(the last two admit staff, which is what makes "view as client" work), and
+`revoke all … from anon`.
+
+| RPC | Returns | The deliberate exclusions |
+|---|---|---|
+| `portal_projects()` | the caller's portal projects: id, name, com_number, client_name, status | no internal notes, no cross-project anything |
+| `portal_findings(pid)` | `finding_id, number, title, description, category, building_area, corrective_action, status, date_raised, date_closed, responsible_company` | **no `identified_by`** (which internal engineer raised it) and **no `origin`** |
+| `portal_finding_photos(pid)` | photo **IDs**, finding_id, caption, uploaded_at | **never a storage path** — the URL must be minted through the signing endpoint, which re-checks membership |
+| `portal_documents(pid)` | union of `site_reports WHERE storage_url IS NOT NULL` and `meetings WHERE status = 'issued'` | drafts cannot appear; the issued test is **in the SQL**, not the UI |
+| `portal_stats(pid)` | aggregates only (checklist totals, open/closed counts, phases) | never the underlying rows |
+| `portal_team(pid)` | company, role, contact name for **this project's** team | not the Directory — the firm's 261 contacts are unreachable by construction |
+
+**`finding_diaries` has no client policy and no RPC.** Internal working notes are
+structurally unreachable, not merely un-surfaced. Same for equipment, checklists,
+deliverables, contacts, companies — verified as direct-query-returns-zero *paired
+with* the RPC returning data, so the zero proves a wall rather than an empty table.
+
+### Files: two gates before a URL is signed
+
+`api/get-file-url` branches on role. Staff → `requireProjectAccess`, which now
+**requires a staff role explicitly** (`admin|developer|owner|user`) — it previously
+admitted any membership row regardless of role, which was the same latent hole.
+External → `requirePortalAccess` (portal membership, or staff preview) **plus**:
+`equipment_attachments` refused outright; `site_reports` refused when
+`storage_url IS NULL`; `meetings` refused when `status <> 'issued'`. The issued
+test therefore exists twice, independently.
+
+### Invite lifecycle
+
+1. `POST /api/portal-invite` — owner or lead **of that project** (enforced in code:
+   the service role bypasses RLS, so the check cannot be left to policy). A 32-byte
+   token is generated; only `sha256(token)` is stored. Response carries the
+   copy-link, `expires_at`, `mail_attempted`, `delivery_enabled`.
+2. **Delivery** is behind `PORTAL_INVITES_LIVE`, read in **exactly one function**,
+   `deliverInvite()`. Nothing else in the flow consults it, so the entire invite
+   path is testable with mail structurally impossible. Unset/false → `{attempted:
+   false}` and the copy-link is the permanent delivery mechanism.
+3. `POST /api/portal-redeem` — unauthenticated. Looks up by hash; answers
+   **identically** (400 `INVALID`) for invalid, expired, revoked, and
+   already-redeemed, so it is not an existence oracle. Creates the account with
+   `email_confirm: true` — which is what keeps **Supabase's own mailer** silent, a
+   second channel the feature flag does not control. Refuses to demote an existing
+   internal account. Inserts `portal_members` first, stamps `redeemed_at` only
+   after membership lands.
+4. **Revocation is deleting the `portal_members` row** — instant, total, and
+   independent of the invite record.
+
+**Go-live checklist (before the first real external user):**
+- [ ] Set `PORTAL_INVITES_LIVE` and wire the send path (until then, copy-link).
+- [ ] **Review Supabase Auth's own mail templates** as a client will see them —
+      password reset in particular. That mailer is a second channel, not covered
+      by `PORTAL_INVITES_LIVE`; redemption only suppresses the confirmation mail.
+- [ ] Decide whole-register vs per-company visibility (the `company_id` hook on
+      `portal_members` exists for the latter).
+- [ ] Resolve the navy-documents / purple-app brand split (§12) — external users
+      see both in one session.
 
 ---
 
