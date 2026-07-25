@@ -37,6 +37,7 @@ const SUITES = [
   'pw-generate-auth',
   'pw-meetings',
   'pw-pfc-verify',
+  'pw-photo-capture',
   'pw-project-delete',
   'pw-signoff-order',
   'pw-storage-privacy',
