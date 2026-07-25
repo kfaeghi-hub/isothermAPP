@@ -39,7 +39,9 @@ try {
   await modal.getByRole('button').filter({ hasText: 'TEST-AHU-2' }).first().click()
   await page.waitForTimeout(400)
   await modal.getByRole('button', { name: 'Create Checklist' }).click()
-  await page.waitForTimeout(3000)
+  // count() doesn't auto-wait — anchor on the first control appearing (fetchDetail
+  // latency varies with data volume; a fixed sleep flaked 2026-07-24), THEN count.
+  await page.locator('[data-testid^="copy-into-"]').first().waitFor({ timeout: 20000 })
   check(await page.locator('[data-testid^="copy-into-"]').count() === 2,
     'detail open: per-unit Copy from… controls present (2 columns)')
 
