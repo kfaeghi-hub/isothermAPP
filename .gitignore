@@ -56,3 +56,8 @@ site-report-*.pdf
 
 # Editor/backup debris
 *.bak
+
+# Impeccable design hook: share the reviewable ignore config, not the
+# per-session dedup cache or per-developer overrides.
+.impeccable/hook.cache.json
+.impeccable/config.local.json

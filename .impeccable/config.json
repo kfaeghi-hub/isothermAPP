@@ -1,0 +1,18 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/pages/ChecklistsPage.tsx",
+          "src/pages/IssuesLogPage.tsx"
+        ],
+        "createdAt": "2026-07-25T14:20:27.340Z",
+        "reason": "Dispositioned intentional 2026-07-24: semantic status-color pairs (Issues Log OPEN/CLOSED badge; checklist pass/fail toggles) — the gray half is the deliberate inactive/closed state"
+      }
+    ]
+  }
+}
