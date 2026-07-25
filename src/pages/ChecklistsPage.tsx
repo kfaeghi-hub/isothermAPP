@@ -132,6 +132,15 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const [findingError, setFindingError]   = useState<string | null>(null)
   // Photos captured in the modal, uploaded once the finding row exists.
   const [findingPhotos, setFindingPhotos] = useState<File[]>([])
+  // Two inputs: capture="environment" must live on its own element — a single
+  // input cannot offer both the rear camera and the gallery.
+  const photoCameraRef  = useRef<HTMLInputElement>(null)
+  const photoGalleryRef = useRef<HTMLInputElement>(null)
+  function addFindingPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''   // same file can be re-picked after removal
+    if (files.length) setFindingPhotos(p => [...p, ...files])
+  }
 
   // ── Multi-unit fill efficiency ────────────────────────────────────────────
   // Bulk copies can trip several N/fail items at once and the finding modal is
@@ -1671,24 +1680,44 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                   className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
               </div>
             </div>
-            {/* Photo capture — `capture="environment"` opens the rear camera straight from
-                the phone, which is the whole point: photograph the defect where you find it. */}
+            {/* Two entries (field finding, 2026-07-25). This surface previously carried
+                capture="environment" on its ONLY input, so it went straight to the rear
+                camera — right for photographing a defect in place, but it left no route
+                to the gallery. Now: "Take Photo" keeps the direct-camera behaviour,
+                "Upload Photo" reaches gallery/files (and keeps multi-select; `multiple`
+                is meaningless alongside capture). Desktop ignores capture, so the camera
+                button is mobile-only. Both feed the same findingPhotos queue. */}
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                 Photos
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={e => {
-                  const files = Array.from(e.target.files ?? [])
-                  e.target.value = ''
-                  if (files.length) setFindingPhotos(p => [...p, ...files])
-                }}
-                className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-gray-200 file:text-xs file:font-medium file:bg-gray-50 file:text-gray-600 hover:file:bg-gray-100"
-              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => photoCameraRef.current?.click()}
+                  className="lg:hidden min-h-[44px] flex items-center gap-1.5 text-xs font-medium border border-gray-200 rounded px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Take Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => photoGalleryRef.current?.click()}
+                  className="min-h-[44px] flex items-center gap-1.5 text-xs font-medium border border-gray-200 rounded px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Upload Photo
+                </button>
+              </div>
+              <input ref={photoCameraRef} type="file" accept="image/*" capture="environment"
+                className="hidden" onChange={addFindingPhotos} />
+              <input ref={photoGalleryRef} type="file" accept="image/*" multiple
+                className="hidden" onChange={addFindingPhotos} />
               {findingPhotos.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {findingPhotos.map((f, i) => (

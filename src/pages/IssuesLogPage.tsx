@@ -116,6 +116,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
   const [confirmDeletePhotoId, setConfirmDeletePhotoId] = useState<string | null>(null)
   const [deletingPhotoId, setDeletingPhotoId]           = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Separate camera input: `capture="environment"` must live on its own element —
+  // one input cannot offer both the rear camera and the gallery.
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   // Create modal
   const [createOpen, setCreateOpen]     = useState(false)
@@ -785,7 +788,29 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                   </div>
                 ))}
 
-                {/* Upload button */}
+                {/* Two entries (field finding, 2026-07-25): "Take Photo" carries
+                    capture="environment" so the phone opens the rear camera directly —
+                    photograph the defect where you stand — while "Upload Photo" reaches
+                    the gallery/files. Desktop browsers ignore capture, so the camera
+                    tile is mobile-only rather than a second tile doing the same thing.
+                    Both feed the identical handlePhotoUpload path. */}
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="lg:hidden w-24 h-24 rounded border-2 border-dashed border-gray-200 hover:border-teal-400 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-teal-600 transition-colors disabled:opacity-40"
+                >
+                  {uploadingPhoto ? (
+                    <span className="text-[10px]">Uploading…</span>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="text-[10px]">Take Photo</span>
+                    </>
+                  )}
+                </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingPhoto}
@@ -798,10 +823,18 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <span className="text-[10px]">Add Photo</span>
+                      <span className="text-[10px] leading-tight text-center">Upload Photo</span>
                     </>
                   )}
                 </button>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
                 <input
                   ref={fileInputRef}
                   type="file"
