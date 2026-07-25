@@ -870,6 +870,31 @@ This tracks IST progress at the equipment/system level within the same matrix. N
 Test-created projects use ZZ-TEST-prefixed unique names. Credentials come from
 `.env` (`node --env-file=.env <script>`) — never hardcoded.
 
+### THE NAMED RULE: prove the mechanism, never the silence
+
+**An assertion that would also pass if the feature did not exist proves nothing.**
+Every negative must be paired with the positive that shows the mechanism is live,
+and the assertion must land on the *mechanism's own signal* — not on an absence
+that has many possible causes. Learned three times, at three different layers:
+
+| Layer | The silence that lied | What the assertion had to become |
+|---|---|---|
+| **Policy** (RLS) | "the client reads 0 rows from `equipment`" — the table was simply **empty**, not protected. A probe reporting that as safety would have been wrong on every populated table. | Pair each 0-row read with the same read succeeding through the sanctioned path, so the 0 proves a wall rather than an empty table. Prove writes with a real INSERT. |
+| **Data** (Supabase writes) | RLS-blocked UPDATE/DELETE returns **success with 0 rows affected** — identical to a legitimate no-op. | Assert the affected-row count, not the absence of an error (`reportWriteBlocked`). |
+| **Function grants** | `revoke … from anon` on the portal RPCs looked like a lock and was **inert** (PUBLIC still granted EXECUTE; anon inherits it). The calls returned 0 rows only because `portal_can_view()` fails closed — the fail-safe was doing the control's job. | Assert the **error code** (`42501`), not the row count. A row count passes whether or not the grant exists. |
+
+Corollaries that follow from it:
+- A test that cannot fail is a comment. Before adding a check, ask what would have
+  to break for it to go red — if nothing plausible would, rewrite it.
+- Verify a fix by *reintroducing the bug* and watching the check fail. (Done for
+  the `api/` typecheck: the `user.id`/`user.userId` bug was put back and failed at
+  both call sites.) Do it on a rolled-back probe when the change is destructive.
+- Deploy-verified means the SERVED bundle carries the change (see below), not that
+  a deployment says READY.
+- An unexplained count is a finding until explained. Investigate the number; do not
+  round it off. (239 vs 238 was a deliberately-maintained fixture; 242 vs 239 was a
+  second fixture project the tracked figure never included. Both were real answers.)
+
 The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
 - `pw-report-regen.mjs` — regeneration byte-clean diff (the gate for any change
   near the report path; before/after capture, normalized-text compare)
@@ -927,7 +952,7 @@ deployment state. A gate run against a stale bundle is void — re-run and say s
 
 **Current status (Phase 1):** all formats are already portable.
 - DB: standard PostgreSQL via Supabase (pg_dump-compatible at any time)
-- Photos: stored as standard JPEG files in Supabase Storage; `finding_photos.storage_url` holds the full public URL — files are retrievable independently of the app
+- Photos: stored as standard JPEG files in Supabase Storage. Since the privacy pass (2026-07-24) `finding_photos.storage_url` holds a **bucket-relative path**, not a public URL, and the buckets are private — retrieval is a signed URL (`api/get-file-url`) or the service key. Portability is unchanged: the objects are ordinary JPEGs and a service-key bulk download needs no app code
 - No proprietary binary formats, no opaque blobs, no vendor-specific encodings
 
 **What NOT to do (enforce this as new features are built):**

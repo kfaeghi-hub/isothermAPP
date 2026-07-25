@@ -37,7 +37,15 @@ const rows = async <T,>(fn: string, args?: Record<string, unknown>): Promise<T[]
   return (data ?? []) as T[]
 }
 
+/** The LIST: projects this account is an external member of. Staff get none —
+ *  a staff account holds no portal_members row, which is correct. */
 export const getPortalProjects = () => rows<PortalProject>('portal_projects')
+
+/** The HEADER of one project the caller is already permitted to view. Separate
+ *  from the list on purpose: this one admits the staff preview (it gates on
+ *  portal_can_view), so the hero has a name to render in both worlds. */
+export const getPortalProject = async (pid: string): Promise<PortalProject | null> =>
+  (await rows<PortalProject>('portal_project', { pid }))[0] ?? null
 export const getPortalFindings = (pid: string) => rows<PortalFinding>('portal_findings', { pid })
 export const getPortalPhotos   = (pid: string) => rows<PortalPhoto>('portal_finding_photos', { pid })
 export const getPortalDocuments = (pid: string) => rows<PortalDocument>('portal_documents', { pid })

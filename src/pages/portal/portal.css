@@ -1,0 +1,82 @@
+/* Portal-scoped styles — src/pages/portal/ only (containment rule, the landing
+   precedent followed exactly). Nothing here leaks into the internal app.
+ *
+ * THE CONCEPT: the portal is the THIRD cover surface (login, landing, portal).
+ * Cover purple is the ground; the project record sits on PAPER inside it — a
+ * document laid on the standard's cover. That contrast is the whole idea, so
+ * the paper panels carry NO shadow: on cover, separation is the paper itself
+ * plus a hairline. Elevation would make them feel like app widgets.
+ *
+ * Motion: the app's print-flat vocabulary (120-150ms) plus exactly two GSAP
+ * moments (hero reveal, stat counters), both with a first-class reduced path.
+ */
+
+/* ── Cover ground ──────────────────────────────────────────────────────── */
+.pt-cover { background: var(--color-cover); }
+
+/* The hero band's contour: the firm's namesake, cropped into a short band.
+   preserveAspectRatio="slice" does the cropping; this holds it still (the
+   landing's drift belongs to a page you look at, not one you read).
+   0.55 puts the band's strongest stroke (0.14) at ~7.7% — under DESIGN.md's
+   8% ceiling with room to spare. */
+.pt-contour { opacity: 0.55; }
+
+/* The empty-state mark carries its own low stroke opacities (0.08 max, i.e.
+   exactly the ceiling), so it must NOT also take the band's dimmer — stacking
+   both landed it near 4% and it read as a blank slab. Caught by looking. */
+.pt-contour-mark { opacity: 1; }
+
+/* ── The record panel: paper on cover ──────────────────────────────────── */
+.pt-panel {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Register: the document's own table grammar ────────────────────────── */
+.pt-register { border-collapse: collapse; width: 100%; }
+.pt-register thead th {
+  border-bottom: 2px solid var(--color-ink-display);   /* heavy head rule */
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-display);
+  text-align: left;
+  padding: 0 12px 8px;
+  white-space: nowrap;
+}
+.pt-register tbody td {
+  border-bottom: 1px solid var(--color-rule);
+  padding: 11px 12px;
+  vertical-align: top;
+}
+.pt-register tbody tr:last-child td { border-bottom: 0; }
+.pt-register tbody tr { transition: background-color 130ms ease-out; }
+.pt-register tbody tr:hover { background: var(--color-brand-50); }
+
+/* Sortable heads: the whole cell is the target, and it says so on focus. */
+.pt-sort {
+  display: inline-flex; align-items: center; gap: 4px;
+  cursor: pointer; background: none; border: 0; padding: 0;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  color: inherit;
+}
+.pt-sort:hover { color: var(--color-brand-600); }
+
+/* ── Reveal: the ONE authored entrance, per surface ────────────────────── */
+.pt-reveal { will-change: transform, opacity; }
+
+/* ── Coarse pointers: reduce, never drop (gate 3) ──────────────────────── */
+@media (pointer: coarse) {
+  .pt-register tbody tr:hover { background: transparent; }
+  .pt-row-card:hover { border-color: var(--color-rule); }
+}
+
+/* ── Reduced motion: belt-and-braces. The render paths already branch in
+      JS (decided once at mount); this catches any animated class that
+      survives a code path we didn't anticipate. ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pt-reveal { transform: none !important; opacity: 1 !important; }
+  .pt-panel, .pt-row-card, .pt-register tbody tr { transition: none !important; }
+}

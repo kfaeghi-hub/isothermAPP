@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Eye } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { reportError, reportWriteBlocked } from '../lib/mutationError'
 import { useAuth } from '../contexts/AuthContext'
@@ -544,6 +545,24 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
 
               {/* Access — beside Project Team, owner-only (§9.4a) */}
               {isOwner && <AccessCard projectId={projectId} />}
+
+              {/* View as client — the external portal's preview entry point.
+                  The portal admits staff deliberately (portal_can_view() accepts
+                  is_project_member), but portal_projects() is membership-driven,
+                  so a staff account has no external project LIST — this link is
+                  how the preview is actually reached. Owners and leads only:
+                  they are the roles that manage the external roster (9.4a). */}
+              {(isOwner || isLead) && (
+                <a href={`/portal/${projectId}`} target="_blank" rel="noopener noreferrer"
+                   className="card-tile bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3
+                              hover:border-standard-600 transition-colors group">
+                  <Eye size={16} strokeWidth={1.75} className="text-gray-400 group-hover:text-standard-600 flex-shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-900">View as client</span>
+                    <span className="block text-xs text-gray-400">The external project record for this project</span>
+                  </span>
+                </a>
+              )}
 
               {/* Phases */}
               <div className="card-tile bg-white rounded-xl border border-gray-200 p-4">

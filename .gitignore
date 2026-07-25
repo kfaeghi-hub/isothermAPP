@@ -61,3 +61,4 @@ site-report-*.pdf
 # per-session dedup cache or per-developer overrides.
 .impeccable/hook.cache.json
 .impeccable/config.local.json
+.shots/

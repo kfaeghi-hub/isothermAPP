@@ -66,8 +66,18 @@ paths with the official SVG artwork when the source file is provided.
   authored moment per surface (e.g. drawer slide); nothing springy.
 
 **Signature:** the isotherm contour mark — fine concentric contour lines (SVG,
-the firm's namesake) — appears ONLY on the login cover and empty states, as a
+the firm's namesake) — appears ONLY on **cover surfaces** and empty states, as a
 watermark at ≤8% opacity. Everywhere else the world stays austere.
+
+> **Amended 2026-07-25 (deliberately, ruling 9.9), with the external project
+> portal.** The rule previously said "the login cover". There are now three
+> cover surfaces — login, the public landing, and the portal hero — and the mark
+> is the firm's namesake, so it belongs on all of them rather than on whichever
+> one happened to exist when the rule was written. The constraint that actually
+> matters is unchanged and still binding: **≤8% opacity, `aria-hidden`,
+> `pointer-events-none`, never on a paper surface except an empty state.** Paper
+> stays austere. Widening this rule again needs the same deliberate amendment,
+> not a precedent argument from this one.
 
 **Responsive:** below lg the cover collapses: a document-header top bar
 (cover green, wordmark, section title, menu button) with a slide-over contents

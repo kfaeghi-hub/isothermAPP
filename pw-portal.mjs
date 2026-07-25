@@ -107,6 +107,18 @@ try {
     const { data } = await cli.rpc('portal_team', { pid: ZZ })
     check(Array.isArray(data), `portal_team returns rows (${data?.length ?? 0})`)
   }
+  // portal_project(pid) — the single-project header read, added in Part B.
+  // Gated on portal_can_view (so the staff preview has a name to render),
+  // NOT on membership. Both halves asserted: the invited project resolves,
+  // a non-invited one returns nothing through the same function.
+  {
+    const { data } = await cli.rpc('portal_project', { pid: ZZ })
+    check((data ?? []).length === 1 && typeof data[0].name === 'string' && data[0].name.length > 0,
+      `portal_project returns the project header ("${data?.[0]?.name ?? 'NONE'}")`)
+    const { data: other } = await cli.rpc('portal_project', { pid: probeProjectId })
+    check((other ?? []).length === 0,
+      'PAIR: portal_project returns nothing for a NON-invited project')
+  }
 
   // ── 3 · ISSUED-ONLY: the pairing that proves the filter is real ─────────
   const { data: docs } = await cli.rpc('portal_documents', { pid: ZZ })
@@ -192,14 +204,15 @@ try {
     const RPCS = [['portal_projects', undefined], ['portal_findings', { pid: ZZ }],
       ['portal_finding_photos', { pid: ZZ }], ['portal_documents', { pid: ZZ }],
       ['portal_stats', { pid: ZZ }], ['portal_team', { pid: ZZ }],
-      ['portal_can_view', { pid: ZZ }], ['is_portal_member', { pid: ZZ }]]
+      ['portal_can_view', { pid: ZZ }], ['is_portal_member', { pid: ZZ }],
+      ['portal_project', { pid: ZZ }]]
     const reachable = []
     for (const [fn, args] of RPCS) {
       const { error } = await anon.rpc(fn, args)
       if (error?.code !== '42501') reachable.push(fn)
     }
     check(reachable.length === 0,
-      `anonymous callers cannot invoke ANY portal RPC${reachable.length ? ` — REACHABLE: ${reachable.join(', ')}` : ' (8/8 → 42501)'}`)
+      `anonymous callers cannot invoke ANY portal RPC${reachable.length ? ` — REACHABLE: ${reachable.join(', ')}` : ` (${RPCS.length}/${RPCS.length} → 42501)`}`)
     // The positive half: the same call, authenticated, is permitted — so the
     // 42501 above is the grant and not a broken function.
     const { error: staffErr } = await emp.rpc('portal_findings', { pid: ZZ })
@@ -284,7 +297,26 @@ try {
     const body = await page.locator('body').innerText()
     check(!/Directory/.test(body) && !/Templates/.test(body),
       'PAIR: no internal nav (Directory/Templates) in the portal shell')
-    check(/Project Record|projects|Issues register/i.test(body), '…while the portal itself renders')
+    // The positive half has to be SPECIFIC. The old form matched /projects/i,
+    // which would pass on almost any authenticated page — it proved nothing.
+    // Assert the portal's own clause grammar instead: all four sections.
+    const clauses = ['Progress', 'Issues register', 'Documents', 'Project team']
+    const missing = clauses.filter(c => !new RegExp(c, 'i').test(body))
+    check(missing.length === 0,
+      `…while all four portal sections render${missing.length ? ` — MISSING: ${missing.join(', ')}` : ' (01–04)'}`)
+
+    // The hero H1 must be the PROJECT NAME. Guards a real regression: while
+    // portal_projects() was the header's source, a viewer with no membership
+    // row rendered the em-dash fallback at display scale — a white bar where
+    // the project name belongs. portal_project(pid) fixed it; this keeps it
+    // fixed. Asserting the name, not "an h1 exists".
+    const h1 = (await page.locator('h1').first().innerText().catch(() => '')).trim()
+    check(h1.length > 1 && h1 !== '—', `hero H1 carries the project name ("${h1}")`)
+
+    // Counters must never render a fake zero for a project with no checklists:
+    // a null reading is an em-dash, and the count-up animation must skip it.
+    const progress = await page.locator('header').innerText().catch(() => '')
+    check(/CHECKLISTS COMPLETE/i.test(progress), 'progress instrument renders in the hero')
     await page.goto(`${BASE_URL}/projects`)
     await page.waitForTimeout(2500)
     check(page.url().includes('/portal'), `internal route /projects redirects to the portal (${page.url().replace(BASE_URL, '')})`)

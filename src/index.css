@@ -64,6 +64,20 @@
   --color-standard-900: #24204a;
   --color-standard-950: #181536;
 
+  /* Conformance semantics under SEMANTIC names. Same hexes as the remapped
+     stock green, amber and sky scales below — these are aliases, not new
+     colours. Added 2026-07-25 for the portal: ruling 9.8 says new code uses
+     semantic names, and there were none for conformance state, so "zero stray
+     scales" was literally unreachable. The rest of the app keeps working
+     through the stock names; migrate opportunistically, never in bulk. */
+  --color-conform-50: #e9f3ec;     /* closed / verified field */
+  --color-conform-600: #1e7a4e;
+  --color-conform-700: #166141;
+  --color-pending-50: #fbf3e1;     /* in progress / awaiting */
+  --color-pending-700: #8a5400;
+  --color-steel-50: #edf1f6;       /* informational, no judgement */
+  --color-steel-700: #375672;
+
   /* Vermilion (the mark's heat — signal/attention family) */
   --color-vermilion-50: #fcebe7;
   --color-vermilion-400: #f2704f;
