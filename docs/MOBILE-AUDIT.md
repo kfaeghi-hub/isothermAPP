@@ -1,7 +1,21 @@
 # MOBILE-AUDIT.md — Full mobile audit + fix wave plan
 
-**Status: ALL THREE WAVES SHIPPED (2026-07-22). One open item: photo capture
-remains HUMAN-VERIFICATION-OWED (Tony's real-phone test).**
+**Status: CLOSED (2026-07-24).** All three waves shipped; Wave 3 as-built
+re-verified with data on 2026-07-24 and its one residual item completed:
+- **Classifications editor input spacing** — the `1ebce6d` overflow treatment made
+  the six tables scroll but the `w-full` inputs still compressed with their cells;
+  dimension names truncated ("Project L"). Fixed with `max-lg:`-scoped min-widths
+  on the nine text inputs (9rem names/labels, 14rem descriptions) so intrinsic
+  table width drives the scroll. Verified at 375/393/412/768; 1440 byte-identical.
+- **Access card re-verified at 375 WITH the 2026-07-23 attribution content**
+  (CREATOR chip, "added by" sublines, legibility note) — the Wave 3 verification
+  predated that layout. Clean: full-width, badges reachable, sublines legible.
+- Users stacked cards and the Cx Index swipe hint + pinned tag column re-confirmed
+  with data (6 users; 266-item/88-column ZZ-TEST matrix).
+
+**Sole carried item: photo capture remains HUMAN-VERIFICATION-OWED (Tony's
+real-phone test). Everything else in this document is done. The simplified
+mobile Cx matrix stays §6C roadmap by ruling — not owed here.**
 
 ## Wave 3 exit report
 

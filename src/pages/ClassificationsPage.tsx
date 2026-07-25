@@ -319,7 +319,7 @@ export function ClassificationsPage() {
             {dimensions.map(d => (
               <tr key={d.id} className={`border-b border-gray-100 ${selectedDimId === d.id ? 'bg-teal-50/40' : ''}`}>
                 <td className="py-1.5 pr-3">
-                  <input defaultValue={d.name} className={`${inputCls} w-full`}
+                  <input defaultValue={d.name} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                     onBlur={e => { const v = e.target.value.trim(); if (v && v !== d.name) updateRow('classification_dimensions', d.id, { name: v }) }} />
                 </td>
                 <td className="py-1.5 pr-3">
@@ -388,15 +388,15 @@ export function ClassificationsPage() {
                 <>
                   <tr key={o.id} className="border-b border-gray-100">
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={o.label} className={`${inputCls} w-full`}
+                      <input defaultValue={o.label} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                         onBlur={e => { const v = e.target.value.trim(); if (v && v !== o.label) updateRow('classification_options', o.id, { label: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={o.group_label ?? ''} className={`${inputCls} w-full`}
+                      <input defaultValue={o.group_label ?? ''} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                         onBlur={e => { const v = e.target.value.trim() || null; if (v !== o.group_label) updateRow('classification_options', o.id, { group_label: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={o.description ?? ''} className={`${inputCls} w-full`}
+                      <input defaultValue={o.description ?? ''} className={`${inputCls} w-full max-lg:min-w-[14rem]`}
                         onBlur={e => { const v = e.target.value.trim() || null; if (v !== o.description) updateRow('classification_options', o.id, { description: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
@@ -487,7 +487,7 @@ export function ClassificationsPage() {
                 {systems.map(s => (
                   <tr key={s.id} className="border-b border-gray-100">
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={s.name} className={`${inputCls} w-full`}
+                      <input defaultValue={s.name} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                         onBlur={e => { const v = e.target.value.trim(); if (v && v !== s.name) updateRow('trade_types', s.id, { name: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
@@ -544,7 +544,7 @@ export function ClassificationsPage() {
                 {companyRoles.map(r => (
                   <tr key={r.id} className="border-b border-gray-100">
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={r.name} className={`${inputCls} w-full`}
+                      <input defaultValue={r.name} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                         onBlur={e => { const v = e.target.value.trim(); if (v && v !== r.name) updateRow('company_role_types', r.id, { name: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
@@ -612,7 +612,7 @@ export function ClassificationsPage() {
                     <React.Fragment key={mt.id}>
                       <tr className={`border-b border-gray-100 ${expanded ? 'bg-teal-50/40' : ''}`}>
                         <td className="py-1.5 pr-3">
-                          <input defaultValue={mt.name} className={`${inputCls} w-full`}
+                          <input defaultValue={mt.name} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                             onBlur={e => { const v = e.target.value.trim(); if (v && v !== mt.name) updateRow('meeting_types', mt.id, { name: v }) }} />
                         </td>
                         <td className="py-1.5 pr-3">
@@ -704,11 +704,11 @@ export function ClassificationsPage() {
                 {templates.map(t => (
                   <tr key={t.id} className="border-b border-gray-100">
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={t.name} className={`${inputCls} w-full`}
+                      <input defaultValue={t.name} className={`${inputCls} w-full max-lg:min-w-[9rem]`}
                         onBlur={e => { const v = e.target.value.trim(); if (v && v !== t.name) updateRow('deliverable_templates', t.id, { name: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
-                      <input defaultValue={t.description ?? ''} className={`${inputCls} w-full`}
+                      <input defaultValue={t.description ?? ''} className={`${inputCls} w-full max-lg:min-w-[14rem]`}
                         onBlur={e => { const v = e.target.value.trim() || null; if (v !== t.description) updateRow('deliverable_templates', t.id, { description: v }) }} />
                     </td>
                     <td className="py-1.5 pr-3">
