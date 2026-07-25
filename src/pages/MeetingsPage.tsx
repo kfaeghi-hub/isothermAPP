@@ -27,7 +27,7 @@ interface AttendeeRow extends MeetingAttendee {
 }
 
 const TYPE_COLORS: Record<number, string> = {
-  0: 'bg-teal-50 text-teal-700', 1: 'bg-blue-50 text-blue-700', 2: 'bg-violet-50 text-violet-700',
+  0: 'bg-teal-50 text-teal-700', 1: 'bg-sky-50 text-sky-700', 2: 'bg-violet-50 text-violet-700',
   3: 'bg-amber-50 text-amber-700', 4: 'bg-rose-50 text-rose-700', 5: 'bg-emerald-50 text-emerald-700',
   6: 'bg-slate-100 text-slate-600', 7: 'bg-gray-100 text-gray-500',
 }

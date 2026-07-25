@@ -18,7 +18,7 @@ import type {
 
 const TYPE_LABELS: Record<ChecklistType, string> = { ivc: 'IVC', pfc: 'PFC', fpt: 'FPT' }
 const TYPE_COLORS: Record<ChecklistType, string> = {
-  ivc: 'bg-blue-50 text-blue-700',
+  ivc: 'bg-sky-50 text-sky-700',
   pfc: 'bg-violet-50 text-violet-700',
   fpt: 'bg-orange-50 text-orange-700',
 }
@@ -1487,7 +1487,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                     }}
                     className="w-full text-left flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-50 transition-colors">
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                      eq.kind === 'system' ? 'bg-slate-100 text-slate-600' : 'bg-blue-50 text-blue-600'
+                      eq.kind === 'system' ? 'bg-slate-100 text-slate-600' : 'bg-sky-50 text-sky-700'
                     }`}>{eq.kind === 'system' ? 'SYS' : 'EQ'}</span>
                     <span className="text-xs font-medium text-gray-700">{eq.tag ?? eq.descriptor ?? eq.id}</span>
                     {eq.tag && eq.descriptor && <span className="text-xs text-gray-400 truncate">{eq.descriptor}</span>}
@@ -1509,7 +1509,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                       <div key={t.equipment_id} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded border border-gray-200">
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                           t.role === 'primary' ? 'bg-teal-50 text-teal-700'
-                          : t.role === 'tested_unit' ? 'bg-blue-50 text-blue-700'
+                          : t.role === 'tested_unit' ? 'bg-sky-50 text-sky-700'
                           : 'bg-gray-100 text-gray-500'
                         }`}>{t.role}</span>
                         <span className="text-xs text-gray-700 flex-1">{eq?.tag ?? eq?.descriptor ?? t.equipment_id}</span>

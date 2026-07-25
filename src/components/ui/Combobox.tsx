@@ -107,6 +107,10 @@ export function Combobox({
                 onMouseDown={e => e.preventDefault()}
                 onMouseEnter={() => setHighlight(i)}
                 onClick={() => pick(o)}
+                // impeccable-disable gray-on-color — ruled intentional (Tony,
+                // 2026-07-24): gray-700 on the near-white teal-50 hover tint is
+                // the app's established picker option-row pattern (EquipmentPicker/
+                // FindingPicker); contrast is ample.
                 className={`w-full text-left px-3 py-1.5 text-xs truncate ${
                   i === highlight ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-teal-50'
                 } ${o === value ? 'font-medium' : ''}`}

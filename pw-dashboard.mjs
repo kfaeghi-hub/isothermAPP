@@ -42,8 +42,14 @@ await cleanup()
 
 // ── Seed ────────────────────────────────────────────────────────────────────
 const { data: recurType } = await sb.from('meeting_types').select('id').eq('name', 'Recurring Cx Meeting').single()
+// Deterministic seat pick: the old unordered .limit(1) + a hardcoded company
+// assertion went flaky the moment heap order changed (caught 2026-07-24). Take
+// the oldest seat and assert on ITS company name, whatever it is.
 const { data: basSeat } = await sb.from('project_team_assignments')
-  .select('id, contact_id, company_id').eq('project_id', ZZ).limit(1).single()
+  .select('id, contact_id, company_id, companies(name)')
+  .eq('project_id', ZZ).order('created_at', { ascending: true }).limit(1).single()
+const seatCompany = (Array.isArray(basSeat.companies) ? basSeat.companies[0] : basSeat.companies)?.name
+if (!seatCompany) { console.error('ZZ-TEST has no team seat with a company — seed the matrix first'); process.exit(1) }
 
 // 1 · meeting with an overdue open item, matrix-attributed (issued → seeded as admin;
 //     dev.test still SEES it as a ZZ-TEST member)
@@ -138,8 +144,8 @@ try {
 
   // Responsible rollup: matrix item + finding land in ONE company-keyed group
   const resp = page.locator('[data-testid="responsible-table"]')
-  const groupRow = resp.locator('tr', { hasText: 'Automated Logic Controls' }).first()
-  check(await groupRow.count() === 1, 'responsible rollup groups by company via the matrix')
+  const groupRow = resp.locator('tr', { hasText: seatCompany }).first()
+  check(await groupRow.count() === 1, `responsible rollup groups by company via the matrix (${seatCompany})`)
   const groupCells = await groupRow.innerText()
   check(/\b2\b/.test(groupCells), `group unions the meeting item AND the finding (got: ${groupCells.replace(/\s+/g, ' ')})`)
   await groupRow.click()

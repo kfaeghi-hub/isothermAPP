@@ -1,9 +1,10 @@
 /* THE LIVING STANDARD — design tokens (DESIGN.md is the contract).
  *
  * THESIS: the app is the firm's own living standard — CSA/ASHRAE document
- * grammar as an operating surface. Cover (green) → contents → inside pages
- * (paper, ink, ruled tables). It refuses the generic admin-dashboard shell.
- * OWN-WORLD: cover green #062A1D→#176844 actions; paper #FBFAF7; ink #1C2420;
+ * grammar as an operating surface. Cover (brand purple) → contents → inside
+ * pages (paper, ink, ruled tables). It refuses the generic admin-dashboard shell.
+ * OWN-WORLD (brand-pinned 2026-07-22): cover purple #181536, actions purple
+ * #443C8F, heat/deviation vermilion #E8432D; paper #FBFAF8; ink #23222C;
  * hairline rules; conformance marks (green/amber/red/steel); Archivo +
  * Spline Sans Mono; sharp radii; print-flat motion.
  * STORY: an engineer opens the firm's standard, reads the state of the
@@ -14,9 +15,10 @@
  * seed 84078ac6 (impeccable concept-seed, mode operate).
  *
  * The Tailwind STOCK scales below are deliberately REMAPPED (teal→standard
- * green, slate-900→cover, grays→paper/ink) so every legacy utility in the
- * codebase inherits the world without per-file edits. New code should prefer
- * the semantic names; the remap is the migration bridge.
+ * purple, teal-400→vermilion, slate-900→cover, grays→paper/ink) so every
+ * legacy utility in the codebase inherits the world without per-file edits.
+ * New code should prefer the semantic names (brand-*, vermilion-*); the remap
+ * is the migration bridge.
  */
 
 @import "tailwindcss";
@@ -159,7 +161,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Focus: a drafting-pen ring in standard green, visible on paper and cover. */
+/* Focus: a drafting-pen ring in brand purple, visible on paper and cover. */
 :focus-visible {
   outline: 2px solid var(--color-standard-500);
   outline-offset: 1px;
@@ -168,14 +170,6 @@ body {
 ::selection {
   background: var(--color-standard-200);
   color: var(--color-ink-display);
-}
-
-/* Ruled-table grammar: heavy head rule, hairline rows. Opt-in per table. */
-.tbl-ruled thead tr {
-  border-bottom: 2px solid var(--color-ink);
-}
-.tbl-ruled tbody tr {
-  border-bottom: 1px solid var(--color-rule);
 }
 
 /* Readings align in columns: every mono figure is tabular. (typography) */

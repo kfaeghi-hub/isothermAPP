@@ -6,7 +6,7 @@ import type { ClassificationDimension, ClassificationOption } from '../types/dat
 import type { ClassificationSelections } from '../lib/classifications'
 
 const DIMENSION_BADGE: Record<string, string> = {
-  'Project Lifecycle':    'bg-blue-50 text-blue-700',
+  'Project Lifecycle':    'bg-sky-50 text-sky-700',
   'Sustainable Programs': 'bg-green-50 text-green-700',
 }
 const FALLBACK_BADGE = 'bg-slate-100 text-slate-600'

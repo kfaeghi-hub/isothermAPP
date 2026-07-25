@@ -23,7 +23,7 @@ function slugify(s: string): string {
 
 const TYPE_LABELS: Record<ChecklistType, string> = { ivc: 'IVC', pfc: 'PFC', fpt: 'FPT' }
 const TYPE_COLORS: Record<ChecklistType, string> = {
-  ivc: 'bg-blue-50 text-blue-700',
+  ivc: 'bg-sky-50 text-sky-700',
   pfc: 'bg-violet-50 text-violet-700',
   fpt: 'bg-orange-50 text-orange-700',
 }
@@ -773,7 +773,7 @@ export function TemplatesPage() {
                                       <div className="flex items-center gap-2 mb-0.5">
                                         <span className={`text-[10px] font-semibold rounded px-1 py-0.5 flex-shrink-0 ${
                                           item.status_type === 'yn_nr_na'
-                                            ? 'bg-blue-50 text-blue-600'
+                                            ? 'bg-sky-50 text-sky-700'
                                             : 'bg-orange-50 text-orange-600'
                                         }`}>
                                           {item.status_type === 'yn_nr_na' ? 'Y/N' : 'P/F'}

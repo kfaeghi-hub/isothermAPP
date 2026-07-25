@@ -361,7 +361,7 @@ export function ProjectsPage() {
               >
                 <span className="capitalize">{s}</span>
                 <span className={`text-[11px] font-normal tabular-nums px-1.5 py-0.5 rounded-full ${
-                  section === s ? 'bg-teal-50 text-teal-600' : 'bg-gray-100 text-gray-500'
+                  section === s ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-600'
                 }`}>
                   {count}
                 </span>

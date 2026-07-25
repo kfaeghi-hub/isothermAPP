@@ -170,7 +170,7 @@ export function DeliverablesPage({ projectId, canAssign = false }: Props) {
       <AssigneeRollupCard rows={rows} />
 
       {rows.length === 0 ? (
-        <div className="bg-white rounded-md border border-gray-200">
+        <div className="card-tile bg-white rounded-xl border border-gray-200">
           <EmptyState>
             <p className="text-sm font-medium text-gray-600 mb-1">No deliverables tracked yet</p>
             <p className="text-sm text-gray-400 max-w-md mx-auto mb-4">

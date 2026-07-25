@@ -73,18 +73,16 @@ export default function App() {
   // Logged in but profile row missing — user created in Supabase without a profile row
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center"
-           style={{ background: 'linear-gradient(160deg, #eef2f7 0%, #dce6f0 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center bg-white rounded-xl shadow-lg px-10 py-8 max-w-sm">
-          <p className="text-sm font-semibold mb-2" style={{ color: '#1F3A5F' }}>
+          <p className="text-sm font-semibold mb-2 text-gray-900">
             Account setup incomplete
           </p>
-          <p className="text-xs mb-5" style={{ color: '#6B7A8F' }}>
+          <p className="text-xs mb-5 text-gray-500">
             Your account exists but has no profile. Contact your administrator.
           </p>
           <button onClick={signOut}
-                  className="text-xs px-4 py-2 rounded text-white"
-                  style={{ background: '#1F3A5F' }}>
+                  className="text-xs px-4 py-2 rounded text-white bg-standard-600 hover:bg-standard-700 transition-colors">
             Sign out
           </button>
         </div>
@@ -223,12 +221,10 @@ function Shell({ profileName, profileRole, canConfig, isSuper, signOut, children
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center"
-         style={{ background: 'linear-gradient(160deg, #eef2f7 0%, #dce6f0 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
-        <div className="w-8 h-8 border-2 rounded-full animate-spin mx-auto mb-3"
-             style={{ borderColor: '#1F3A5F', borderTopColor: 'transparent' }} />
-        <p className="text-sm" style={{ color: '#6B7A8F' }}>Loading…</p>
+        <div className="w-8 h-8 border-2 border-standard-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm text-gray-500">Loading…</p>
       </div>
     </div>
   )
