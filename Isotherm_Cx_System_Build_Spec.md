@@ -119,7 +119,7 @@ FPT) starts from those three documents.**
 startup-type decision), FPT module + campaign (PARKED post-rollout; S03
 Balancing-Report ruling flagged), then Phase 3 remainder — reminders/aging, Status
 & Action Summary (§6A), data import (contacts, equipment), long-form documents
-(Cx Plan, OPR, BOD, Systems Manual, Final Report), client portal, MBCx/OCx.
+(Cx Plan, OPR, BOD, Systems Manual, Final Report), external project portal, MBCx/OCx.
 Canonical queue: MASTER-BRIEF §10.
 
 ### Master Phase 6 — AI Trend-Log Verification (SPEC'D — see docs/BAS-SPEC.md)
@@ -141,7 +141,7 @@ This system replaces that with one connected application built around a single p
 
 > **The project-level issues log is the backbone. Every activity — site visits, IVC, PFC, FPT — feeds findings into it. Every report reads from it. Equipment, systems, and deliverables all hang off the project, and findings carry forward across reports until closed.**
 
-The result: faster report generation, no double-entry, real progress tracking (the Cx Index), enforced LEED deliverable sets, and a foundation for a future client portal and recurring-revenue ongoing-commissioning (OCx) services.
+The result: faster report generation, no double-entry, real progress tracking (the Cx Index), enforced LEED deliverable sets, and a foundation for a future external project portal and recurring-revenue ongoing-commissioning (OCx) services.
 
 ---
 
@@ -572,7 +572,7 @@ Build note: this is a Phase 2/3 module (needs the issues log, Cx Index, and deli
 
 ---
 
-## 6B. Project dashboards (internal half BUILT 2026-07; client portal later)
+## 6B. Project dashboards (internal half BUILT 2026-07; external project portal later)
 
 **BUILT — the internal Dashboard is the app's home (`/`):** four sections — A·Now
 (stat chips: active projects, open findings, overdue action items, avg
@@ -591,14 +591,40 @@ header shares the same derivation as the cards. Recharts only; thresholds in
 `dashboard_checklist_coverage` view (**security_invoker** — views otherwise run as
 owner and bypass RLS). Zero writes. Client role never reaches the route.
 
-**Original planning notes (kept for the client-portal half):**
+**Original planning notes (kept for the portal half):**
 - **Cx Index progress** — overall % complete + per-discipline breakdown (mech/elec/BAS/plumbing/IST), donut or bar.
 - **Issues summary** — open vs. closed counts; findings by category/trade; findings by responsible party (who owes most); aging (how long open).
 - **Deliverables status** — complete vs. outstanding (esp. valuable on LEED projects).
 - **Activity over time** — findings opened vs. closed per week (is the project converging?).
 - **Equipment status** — verified vs. in-progress.
 
-**Client dashboard** (Phase 3, portal): a filtered, simplified, read-only version of the same dashboard — clients see progress and open items, not internal detail. Same engine as the internal dashboard + the client lens of §6A; built on the Client role (already implemented). Mostly a permission/presentation layer over the internal dashboard.
+**External project portal** (Phase 3 — REFRAMED 2026-07-25; was "client dashboard").
+A filtered, simplified, read-only view of the official record. Same engine as the
+internal dashboard + the client lens of §6A; built on the Client role (already
+implemented) — mostly a permission/presentation layer over surfaces that exist.
+
+- **Audience: the whole external project team**, not just the client — client PM,
+  GC, contractors, consultants; effectively the project's distribution list /
+  team matrix. The old "client portal" framing understated it and biased the
+  design toward one owner-facing status page.
+- **Access: invite-link → real scoped account** (`client` role + a
+  `project_members` row). The existing membership machinery extends unchanged;
+  the same RLS predicates already scope per project. **No raw tokenized share
+  links** — every view is an identity, attributable and revocable by removing the
+  membership row.
+- **Visible (official record only):** issues-log register columns, ISSUED site
+  reports, ISSUED meeting minutes, progress stats.
+  **Excluded:** finding diaries, anything in draft, the Deliverables tab, the
+  internal Dashboard, the Directory, anything cross-project. Rule of thumb: a
+  frozen issued artifact or a register column may go external; working state may not.
+- **OPEN DECISION (recorded, not resolved):** for contractor accounts —
+  whole-register visibility vs per-company filtering (a contractor sees only
+  findings assigned to their company). Decide at build time against a real roster;
+  the team matrix already supplies the finding → company mapping either way.
+- **Trigger unchanged:** build when the first named external user exists.
+- **Activates the document/app brand decision** (§12 navy `#1F3A5F` documents vs
+  the purple app) — external users see app and documents together, so the split
+  stops being an internal-only cosmetic question.
 
 **Tech:** React + a charting library (e.g. Recharts, already compatible with the stack). The work is choosing the right metrics (hence "after real use"), not the charting itself.
 
@@ -757,12 +783,12 @@ The slice that proves the model and is genuinely usable:
 11. LEED-conditional **required-deliverables tracking**.
 12. **File attachments** (upload/download) + full Developer role.
 
-### Phase 3 — Intelligence, scale, portal
+### Phase 3 — Intelligence, scale, external project portal
 13. Reminders/aging notifications.
 14. **Status & Action Summary module** (§6A) — cross-cutting outstanding-items view with by-contractor / internal / client lenses and PDF/Word/Excel export.
 15. Data import (contacts, equipment, past projects).
 16. Meetings/minutes; OPR/BOD/Cx Plan/Systems Manual/Final Report generation.
-17. **Client portal** (read-only project status + open issues; built on the client-lens summary) — the OCx foundation.
+17. **External project portal** (reframed 2026-07-25 — was "client portal"): read-only official record (issues-log register, issued reports, issued minutes, progress stats) for the whole external project team, via invite-link → scoped `client` account + project membership. Built on the client-lens summary; see §6B for the access model, the exclusion list, and the open whole-register-vs-per-company decision — the OCx foundation.
 18. MBCx/OCx monitoring layer (recurring-revenue offering).
 
 ---
@@ -809,7 +835,7 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 6. ~~**Equipment List**~~ — DONE. Shared single source with Cx Index; type-specific editable fields in Spec/Shop-Dwg/Installed sections (§4.0); tag glossary with autocomplete; file attachments per equipment.
 7. ~~**Site reports**~~ — DONE. PDF (Puppeteer + @sparticuz/chromium-min via Vercel serverless `api/generate-report.ts`) + DOCX (html-to-docx same function). Letterhead, distribution, narrative, documentation register, issues log with photos; footer via Puppeteer `displayHeaderFooter` to prevent row clipping at page breaks.
 8. ~~**Auth/roles**~~ — DONE. Supabase Auth; branded login / forgot-password / reset-password; AuthContext; four roles; per-role RLS on 38 tables via `get_my_role()` SECURITY DEFINER.
-9. **Phase 2/3 in order (§10):** template library → checklist instances (confirmed auto-findings) → FPT → LEED deliverables → file attachments → reminders → Action Summary → data import → client portal → MBCx/OCx.
+9. **Phase 2/3 in order (§10):** template library → checklist instances (confirmed auto-findings) → FPT → LEED deliverables → file attachments → reminders → Action Summary → data import → external project portal → MBCx/OCx.
 
 ---
 
@@ -832,7 +858,11 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 - ~~Exact PDF generation approach~~ — RESOLVED: Puppeteer + @sparticuz/chromium-min on Vercel serverless; DOCX via html-to-docx same function (shared via api/_shared/doc-common.ts).
 - Whether phases get their own deliverable sets or just tag findings/notes.
 - Photo/file storage limits and reminder thresholds (tunable later; dashboard thresholds live in src/lib/dashboardThresholds.ts).
-- Client portal scope (status only, or issue-level visibility) — phase 3.
+- ~~Client portal scope (status only, or issue-level visibility)~~ — **settled
+  2026-07-25** by the external-project-portal reframe (§6B): issue-level, but
+  register columns only, plus issued reports/minutes and progress stats. The one
+  question still open there is whole-register vs per-company visibility for
+  contractor accounts.
 - Data-import specifics for the TDSB Excel and Outlook contacts.
 
 **Open items register (canonical list: MASTER-BRIEF §12; verified 2026-07-22):**
@@ -855,11 +885,15 @@ Build in order; each step is a focused Claude Code session. Keep the issues-log 
 - **Break-glass / test-admin split** — dev.admin currently serves both the
   human break-glass role and scripted test seeding (.env); split before the firm
   scales past the three owners or real client data lands. (Recorded 2026-07-20.)
-- **Document/app brand divergence** — recorded 2026-07-22: generated documents
-  still render navy `#1F3A5F` letterhead/table headers while the app reads
+- **Document/app brand divergence** — recorded 2026-07-22; **ACTIVATES WITH THE
+  EXTERNAL PROJECT PORTAL** (§6B / Phase 3 item 17): generated documents still
+  render navy `#1F3A5F` letterhead/table headers while the app reads
   purple/vermilion. Decide whether generators adopt the app identity; contained
   to doc-common's letterhead + CSS constants, but changes document output —
   report-regen needs a deliberate baseline reset; issued files stay as issued.
+  Internal-only today; the moment external users read the portal and its
+  documents in one session the split is client-visible, so it is decided as part
+  of that phase rather than after it.
 - **site_reports.issued_at** — future addition; until then the dashboard's Recent
   Activity approximates with updated_at of generated reports, honestly labeled
   "report generated".

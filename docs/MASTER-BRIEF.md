@@ -225,7 +225,7 @@ alarm dashboard. Recurring-revenue product.
 
 **Phase 11 — Multi-Tenant Commercial SaaS.** Org/tenant isolation (groundwork already
 in place via rule 17), role-per-org, tenant-aware storage paths, audit logs, billing,
-client portal, export controls, retention policies. Product tracks: Cx OS for CxA firms;
+external project portal, export controls, retention policies. Product tracks: Cx OS for CxA firms;
 AI BAS trend review per project; owner monitoring; portfolio assistant. Competitive
 note: the Cx-OS-for-firms track enters an established field (CxAlloy, Facility Grid,
 BlueRithm); the AI trend-review wedge is the differentiated product — lead with it.
@@ -323,8 +323,49 @@ The real queue now:
 Only after the checklist track's remaining campaigns land do the low-risk AI
 phases begin (Phase 4 onward; Phase 6 build order is BAS-SPEC §11).
 
-Only after the checklist track lands do the low-risk AI phases begin (Phase 4 onward;
-Phase 6 build order is BAS-SPEC §11).
+### Roadmap reframe — the EXTERNAL PROJECT PORTAL (recorded 2026-07-25)
+
+What earlier versions of this brief and the Build Spec call the **"client portal"
+is renamed the external project portal**, and the audience widens with it. Not a
+build task yet — recorded so the design isn't re-derived from the old framing.
+
+**Audience.** The whole external project team, not just the client: client PM, GC,
+contractors, consultants — effectively the people already on the project's
+distribution list / team matrix. "Client portal" understated it and pushed the
+design toward a single owner-facing status page; the real need is one shared
+external view of the official record.
+
+**Access model.** Invite-link → **real scoped account**: the `client` role plus a
+`project_members` row. The existing membership machinery extends unchanged — the
+same RLS predicates (`is_project_member`, the owner-tier wall, the members_update
+self-exclusion) already scope everything per project. Explicitly **NOT** raw
+tokenized share links: every view is an identity, so access is attributable and
+revocable by removing the membership row. An invite that becomes an account is
+also what makes per-company filtering possible later (see the open decision).
+
+**Visibility — the official record only.** In scope: the issues-log register
+columns, ISSUED site reports, ISSUED meeting minutes, progress stats. Explicitly
+excluded: finding diaries (internal working notes), anything in draft, the
+Deliverables tab, the internal Dashboard, the Directory, and anything
+cross-project. The rule of thumb: if it is a frozen, issued artifact or a
+register column, it can be external; if it is working state, it cannot.
+
+**OPEN DECISION — recorded, not resolved.** For contractor accounts: whole-register
+visibility (every contractor sees all findings on the project) versus per-company
+filtering (a contractor sees only findings assigned to their company). Whole-register
+matches how a site meeting actually runs and avoids a filtering rule to maintain;
+per-company is tighter but needs a defensible mapping from finding →
+responsible company, which the team matrix already provides. Decide at build time
+with a real project's roster in front of you — not now.
+
+**Trigger unchanged:** build when the first named external user exists. No
+speculative build; the portal is a permission/presentation layer over surfaces
+that already exist, so it stays cheap to defer.
+
+**Dependency that activates with this phase:** the document/app brand divergence
+below (navy `#1F3A5F` documents vs purple app) stops being cosmetic the moment
+external users see both the app and its generated documents in one session —
+decide it as part of this phase, not after.
 
 ## 11. Final destination
 
@@ -363,13 +404,17 @@ PUBLIC storage URLs — raw file-URL access stays open until the storage-privacy
 pass below, which now gets simpler: the auth helper can back signed-URL issuance
 from within already-authorized endpoints.
 
-**Document/app brand divergence (recorded 2026-07-22; decision pending).** The
-generated documents (reports, checklists, minutes) still render the navy
-`#1F3A5F` letterhead and table headers, so the firm reads purple in-app and navy
-on client-facing output. Decide whether the generators adopt the purple/vermilion
-identity. Contained to doc-common's letterhead + CSS constants (and
-generate-checklist's private copies), but it CHANGES DOCUMENT OUTPUT: report-regen
-needs a deliberate baseline reset, and issued files stay as issued (rule 4).
+**Document/app brand divergence (recorded 2026-07-22; decision pending —
+ACTIVATES WITH THE EXTERNAL PROJECT PORTAL, §10).** The generated documents
+(reports, checklists, minutes) still render the navy `#1F3A5F` letterhead and
+table headers, so the firm reads purple in-app and navy on client-facing output.
+Decide whether the generators adopt the purple/vermilion identity. Contained to
+doc-common's letterhead + CSS constants (and generate-checklist's private
+copies), but it CHANGES DOCUMENT OUTPUT: report-regen needs a deliberate baseline
+reset, and issued files stay as issued (rule 4). Today only the firm sees both
+identities; once external users read the portal and its documents side by side,
+the split becomes visible to clients — so this decision rides with that phase
+rather than trailing it.
 
 **site_reports.issued_at (future addition).** Site reports have no issued
 timestamp; the dashboard's Recent Activity approximates with `updated_at` of
