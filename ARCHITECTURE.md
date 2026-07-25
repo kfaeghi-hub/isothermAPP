@@ -667,15 +667,20 @@ test therefore exists twice, independently.
 4. **Revocation is deleting the `portal_members` row** — instant, total, and
    independent of the invite record.
 
-**Go-live checklist (before the first real external user):**
-- [ ] Set `PORTAL_INVITES_LIVE` and wire the send path (until then, copy-link).
-- [ ] **Review Supabase Auth's own mail templates** as a client will see them —
-      password reset in particular. That mailer is a second channel, not covered
-      by `PORTAL_INVITES_LIVE`; redemption only suppresses the confirmation mail.
-- [ ] Decide whole-register vs per-company visibility (the `company_id` hook on
-      `portal_members` exists for the latter).
-- [ ] Resolve the navy-documents / purple-app brand split (§12) — external users
-      see both in one session.
+**Go-live: `docs/PORTAL-GOLIVE.md`** is the runbook — ordered steps, each with its
+own verification, none of it performed. Do not keep a second copy of the list here;
+it will drift. Summary of what it covers: flip `PORTAL_INVITES_LIVE` (and the fact
+that `deliverInvite()` has no transport yet, so the flag alone sends nothing) → one
+rehearsal invite to Tony's own address → **the Supabase Auth-mailer review** (a
+second channel the flag does not gate; password reset is never suppressed) → invite
+rendering on a real phone → first-invitee criteria → cleanup, including the one
+`pw-portal` assertion that is *expected* to fail once the flag is live.
+
+Two decisions to make before that day, tracked elsewhere:
+- Whole-register vs per-company visibility (the `company_id` hook on
+  `portal_members` exists for the latter).
+- The navy-documents / purple-app split — one-pager at
+  `docs/DOCUMENT-IDENTITY-DECISION.md`, undecided by design.
 
 ---
 
