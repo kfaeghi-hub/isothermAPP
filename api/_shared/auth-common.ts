@@ -74,11 +74,21 @@ export async function requireUser(req: any, service: SupabaseClient): Promise<{ 
   return { userId: data.user.id }
 }
 
+/** Internal roles. `client` is deliberately absent — mirrors is_staff() in SQL. */
+const STAFF_ROLES = ['admin', 'developer', 'owner', 'user']
+
 /**
- * Step 4 — authorization. admin/developer pass everywhere (is_admin_or_dev());
- * everyone else must hold a project_members row for THIS project
- * (is_project_member — no role condition, so owners ride membership too).
+ * Step 4 — authorization for INTERNAL surfaces. admin/developer pass everywhere;
+ * every other STAFF role must hold a project_members row for THIS project.
  * Throws AuthError(403) otherwise.
+ *
+ * EXPLICIT STAFF REQUIREMENT (portal build, 2026-07-25). Previously this checked
+ * membership with no role condition, so a `client` holding a project_members row
+ * would have passed — and every generate-* endpoint would have regenerated
+ * documents for an external account. The portal keeps clients out of
+ * project_members entirely (they live in portal_members), so this is defence in
+ * depth: even if such a row ever appeared, endpoints refuse. External callers go
+ * through requirePortalAccess instead.
  */
 export async function requireProjectAccess(
   service: SupabaseClient,
@@ -88,6 +98,7 @@ export async function requireProjectAccess(
   const { data: profile } = await service
     .from('user_profiles').select('role').eq('id', userId).maybeSingle()
   if (!profile) throw new AuthError(403, 'No access to this project')
+  if (!STAFF_ROLES.includes(profile.role)) throw new AuthError(403, 'No access to this project')
   if (profile.role === 'admin' || profile.role === 'developer')
     return { userId, role: profile.role }
   const { data: member } = await service
@@ -96,3 +107,37 @@ export async function requireProjectAccess(
   if (!member) throw new AuthError(403, 'No access to this project')
   return { userId, role: profile.role }
 }
+
+/**
+ * External authorization — the portal's mirror of requireProjectAccess.
+ * The caller must hold a portal_members row for THIS project. Staff are admitted
+ * too (the owner/lead "View as client" preview reads the same surfaces).
+ * Returns the caller's role so the caller can apply role-specific restrictions.
+ */
+export async function requirePortalAccess(
+  service: SupabaseClient,
+  userId: string,
+  projectId: string,
+): Promise<{ userId: string; role: string }> {
+  const { data: profile } = await service
+    .from('user_profiles').select('role').eq('id', userId).maybeSingle()
+  if (!profile) throw new AuthError(403, 'No access to this project')
+  if (profile.role === 'admin' || profile.role === 'developer')
+    return { userId, role: profile.role }
+
+  const { data: portal } = await service
+    .from('portal_members').select('id')
+    .eq('project_id', projectId).eq('profile_id', userId).maybeSingle()
+  if (portal) return { userId, role: profile.role }
+
+  // Staff who are internal members of the project may preview the portal.
+  if (STAFF_ROLES.includes(profile.role)) {
+    const { data: member } = await service
+      .from('project_members').select('id')
+      .eq('project_id', projectId).eq('profile_id', userId).maybeSingle()
+    if (member) return { userId, role: profile.role }
+  }
+  throw new AuthError(403, 'No access to this project')
+}
+
+export const isStaffRole = (role: string) => STAFF_ROLES.includes(role)

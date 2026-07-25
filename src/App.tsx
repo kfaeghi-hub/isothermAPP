@@ -15,9 +15,13 @@ import { DirectoryPage } from './pages/DirectoryPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { ClassificationsPage } from './pages/ClassificationsPage'
 import { UsersPage } from './pages/UsersPage'
+import { PortalAccept } from './pages/portal/PortalAccept'
 
 // Public landing page — lazy-split so the authenticated app path pays nothing.
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
+// External project portal — its own world, lazy-split the same way. Deliberately
+// NEVER rendered inside Shell: no internal chrome may exist around it.
+const PortalApp = lazy(() => import('./pages/portal/PortalApp'))
 
 // The contents rail: the standard's table of contents. Clause numbers are the
 // document's wayfinding (reference grammar, not decoration). `to` routes are
@@ -48,6 +52,13 @@ export default function App() {
   // Password-reset link always resolves here regardless of auth state
   if (window.location.pathname === '/reset-password') {
     return <ResetPasswordPage />
+  }
+
+  // Invite redemption resolves here regardless of auth state too — the invitee
+  // has no account yet, so nothing that assumes a session may run first (same
+  // pre-router bypass precedent as /reset-password).
+  if (window.location.pathname === '/portal/accept') {
+    return <PortalAccept />
   }
 
   if (loading) return <LoadingScreen />
@@ -97,22 +108,45 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Shell profileName={profile.name} profileRole={profile.role}
-        canConfig={canConfig} isSuper={isSuper} signOut={signOut}>
-        <Routes>
-          {/* The dashboard is the firm's home; the client role never reaches it.
-              Authenticated visitors go straight to work — no landing interstitial. */}
-          <Route path="/" element={isClient ? <Navigate to="/projects" replace /> : <DashboardPage />} />
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:projectId" element={<ProjectDetailRoute />} />
-          <Route path="/directory" element={<DirectoryPage />} />
-          <Route path="/templates" element={<TemplatesPage />} />
-          <Route path="/classifications" element={canConfig ? <ClassificationsPage /> : <Navigate to="/" replace />} />
-          <Route path="/users" element={isSuper ? <UsersPage /> : <Navigate to="/" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Shell>
+      <Routes>
+        {/* ── The external world ────────────────────────────────────────────
+            Deliberately OUTSIDE Shell: an external user must never see internal
+            chrome. Internal roles may open it too — that IS the owner/lead
+            "View as client" preview (the RPCs admit staff; the data is the
+            client's view either way). Route separation is UX; the SECURITY
+            DEFINER RPCs and portal_members are the enforcement. */}
+        <Route path="/portal/*" element={
+          <Suspense fallback={<div className="min-h-screen bg-[var(--color-cover)]" />}>
+            <PortalApp />
+          </Suspense>
+        } />
+
+        {/* ── The internal world ────────────────────────────────────────────
+            A client role never reaches ANY of it: every internal path redirects
+            to the portal. (Before this build a client rendered the full internal
+            shell — sidebar, Dashboard/Projects/Directory/Templates nav — with
+            RLS-emptied data. That is what ends here.) */}
+        <Route path="*" element={
+          isClient ? <Navigate to="/portal" replace /> : (
+            <Shell profileName={profile.name} profileRole={profile.role}
+              canConfig={canConfig} isSuper={isSuper} signOut={signOut}>
+              <Routes>
+                {/* The dashboard is the firm's home; authenticated visitors go
+                    straight to work — no landing interstitial. */}
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/:projectId" element={<ProjectDetailRoute />} />
+                <Route path="/directory" element={<DirectoryPage />} />
+                <Route path="/templates" element={<TemplatesPage />} />
+                <Route path="/classifications" element={canConfig ? <ClassificationsPage /> : <Navigate to="/" replace />} />
+                <Route path="/users" element={isSuper ? <UsersPage /> : <Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Shell>
+          )
+        } />
+      </Routes>
     </BrowserRouter>
   )
 }

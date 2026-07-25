@@ -14,7 +14,9 @@
 // documents 10 min (click-to-open), photos 60 min (inline render).
 // Legacy full-URL values (pre-migration rows) pass through unchanged.
 import { createClient } from '@supabase/supabase-js'
-import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
+import {
+  applyCors, requireUser, requireProjectAccess, requirePortalAccess, isStaffRole, AuthError,
+} from './_shared/auth-common.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -31,6 +33,39 @@ const DOC_TABLES: Record<string, DocTable> = {
   site_reports:          { bucket: 'site-reports',    columns: { docx: 'storage_url', pdf: 'pdf_url' }, expiry: DOC_EXPIRY },
   meetings:              { bucket: 'meeting-minutes', columns: { docx: 'storage_url', pdf: 'pdf_url' }, expiry: DOC_EXPIRY },
   equipment_attachments: { bucket: 'equipment-files', columns: { docx: 'storage_url', pdf: 'storage_url', file: 'storage_url' }, expiry: DOC_EXPIRY },
+}
+
+/**
+ * Authorize one file request. Staff take the internal path unchanged. EXTERNAL
+ * (portal) callers must hold a portal_members row AND the row must be an ISSUED
+ * artifact — the issued test lives here and in the RPCs, never in the UI:
+ *   site_reports  issued ⇔ storage_url IS NOT NULL  (the existing convention,
+ *                 already the definition used by the sr_delete policy)
+ *   meetings      issued ⇔ status = 'issued'
+ *   equipment_attachments  NOT a portal surface at all — refused outright
+ *   finding_photos  allowed: photos are part of the distributed record
+ * `row` is the service-role row; it is never returned to the caller.
+ */
+async function authorizeFile(
+  service: any, userId: string, table: string, row: any, projectId: string,
+): Promise<void> {
+  const { data: profile } = await service
+    .from('user_profiles').select('role').eq('id', userId).maybeSingle()
+  if (!profile) throw new AuthError(403, 'No access to this project')
+
+  if (isStaffRole(profile.role)) {
+    await requireProjectAccess(service, userId, projectId)
+    return
+  }
+
+  // External caller.
+  await requirePortalAccess(service, userId, projectId)
+  if (table === 'equipment_attachments')
+    throw new AuthError(403, 'Not available in the portal')
+  if (table === 'site_reports' && !row?.storage_url)
+    throw new AuthError(403, 'This document has not been issued')
+  if (table === 'meetings' && row?.status !== 'issued')
+    throw new AuthError(403, 'This document has not been issued')
 }
 
 export default async function handler(req: any, res: any) {
@@ -62,7 +97,7 @@ export default async function handler(req: any, res: any) {
       const { data: finding } = await supabase.from('findings')
         .select('project_id').eq('id', photos[0].finding_id).single()
       if (!finding) return res.status(404).json({ error: 'not found' })
-      await requireProjectAccess(supabase, user.userId, finding.project_id)
+      await authorizeFile(supabase, user.userId, 'finding_photos', null, finding.project_id)
 
       const urls: Record<string, string> = {}
       for (const p of photos) {
@@ -83,10 +118,11 @@ export default async function handler(req: any, res: any) {
     const column = spec.columns[(kind as string) ?? 'docx']
     if (!column) return res.status(400).json({ error: 'unsupported kind' })
 
-    const { data: row } = await supabase.from(table)
-      .select(`project_id, ${column}`).eq('id', id).single()
+    // select('*') so the issued test can read status / storage_url regardless of
+    // which `kind` was asked for. Service-role row; never returned to the caller.
+    const { data: row } = await supabase.from(table).select('*').eq('id', id).single()
     if (!row) return res.status(404).json({ error: 'not found' })
-    await requireProjectAccess(supabase, user.userId, (row as any).project_id)
+    await authorizeFile(supabase, user.userId, table as string, row, (row as any).project_id)
 
     const stored = (row as any)[column] as string | null
     if (!stored) return res.status(404).json({ error: 'no file for this row' })
