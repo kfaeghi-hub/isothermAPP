@@ -62,7 +62,7 @@ export default async function handler(req: any, res: any) {
       const { data: finding } = await supabase.from('findings')
         .select('project_id').eq('id', photos[0].finding_id).single()
       if (!finding) return res.status(404).json({ error: 'not found' })
-      await requireProjectAccess(supabase, user.id, finding.project_id)
+      await requireProjectAccess(supabase, user.userId, finding.project_id)
 
       const urls: Record<string, string> = {}
       for (const p of photos) {
@@ -86,7 +86,7 @@ export default async function handler(req: any, res: any) {
     const { data: row } = await supabase.from(table)
       .select(`project_id, ${column}`).eq('id', id).single()
     if (!row) return res.status(404).json({ error: 'not found' })
-    await requireProjectAccess(supabase, user.id, (row as any).project_id)
+    await requireProjectAccess(supabase, user.userId, (row as any).project_id)
 
     const stored = (row as any)[column] as string | null
     if (!stored) return res.status(404).json({ error: 'no file for this row' })
