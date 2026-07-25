@@ -12,6 +12,15 @@
         ],
         "createdAt": "2026-07-25T14:20:27.340Z",
         "reason": "Dispositioned intentional 2026-07-24: semantic status-color pairs (Issues Log OPEN/CLOSED badge; checklist pass/fail toggles) — the gray half is the deliberate inactive/closed state"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/components/ui/Combobox.tsx"
+        ],
+        "createdAt": "2026-07-25T14:29:37.302Z",
+        "reason": "Dispositioned intentional 2026-07-24: picker option-row pattern (gray-700 on the near-white teal-50 hover tint), shared with EquipmentPicker/FindingPicker"
       }
     ]
   }
