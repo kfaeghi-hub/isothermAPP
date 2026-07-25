@@ -39,6 +39,7 @@ const SUITES = [
   'pw-pfc-verify',
   'pw-project-delete',
   'pw-signoff-order',
+  'pw-storage-privacy',
   'pw-team',
 ]
 

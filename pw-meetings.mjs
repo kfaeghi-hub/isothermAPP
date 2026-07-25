@@ -7,7 +7,7 @@
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
 import { inflateRawSync } from 'node:zlib'
-import { login, openTestProject } from './pw-config.mjs'
+import { login, openTestProject, credentials, signedFileUrl } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 
@@ -111,7 +111,9 @@ try {
 
   const { data: mtg1 } = await sb.from('meetings').select('id, storage_url, issued_at').eq('project_id', ZZ).single()
   check(!!mtg1?.issued_at, 'issued_at stamped')
-  const docx = Buffer.from(await (await fetch(mtg1.storage_url)).arrayBuffer())
+  // storage_url is a bucket-relative path (storage privacy pass) — sign to fetch.
+  const docxUrl = await signedFileUrl(credentials(), { table: 'meetings', id: mtg1.id, kind: 'docx' })
+  const docx = Buffer.from(await (await fetch(docxUrl)).arrayBuffer())
   const txt = docxXml(docx).replace(/<[^>]+>/g, ' ')
   check(txt.includes('MEETING MINUTES — Recurring Cx Meeting #1'), 'doc: title line')
   check(txt.includes('REVIEW OF PREVIOUS MINUTES'), 'doc: navy topic band (uppercase)')

@@ -336,14 +336,14 @@ Operating System + AI BAS Intelligence Layer.
 
 ## 12. Open items (pre-client-rollout register)
 
-**Storage privacy hardening (REQUIRED before real client rollout / client portal).**
-All document buckets (site-reports, meeting-minutes, finding-photos, checklists,
-equipment-files) are public with unguessable URLs, mirroring the original pattern —
-tolerable for an internal tool with no client eyes, not the posture for client-facing
-use. The fix is one batched hardening pass: convert all document storage to private
-buckets + signed URLs across every download link (site report links, minutes links,
-finding photo renders, checklist document links, equipment attachments) in a single
-change, not bucket-by-bucket drift.
+**Storage privacy hardening — ✅ CLOSED 2026-07-24.** All five document buckets
+(site-reports, meeting-minutes, finding-photos, checklists, equipment-files) are now
+PRIVATE; the DB stores bucket-relative paths and every download link / photo render
+mints a short-lived signed URL through the row-anchored `api/get-file-url` endpoint
+(documents 10 min, photos 60 min). Executed as the single batched pass this item
+required, staged: path+signing code deployed and verified against still-public
+buckets first, private flip last. Gate suite `pw-storage-privacy.mjs` (in the
+battery); details in ARCHITECTURE §Storage and docs/STORAGE-PRIVACY-PROPOSAL.md.
 
 **No migration history (recorded 2026-07-22).** Schema was applied via the Supabase
 Management API across the build; only three DDL files exist in `migrations/` (see

@@ -55,6 +55,23 @@ export async function apiToken({ email, password }) {
   return data.session.access_token
 }
 
+/**
+ * Mint a signed URL the way the app does (storage privacy pass, 2026-07-24).
+ * DB columns store bucket-relative paths; suites that need to fetch a generated
+ * document go through the row-anchored endpoint like every other consumer.
+ */
+export async function signedFileUrl(creds, ref) {
+  const token = await apiToken(creds)
+  const r = await fetch(`${BASE_URL}/api/get-file-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(ref),
+  })
+  const body = await r.json().catch(() => ({}))
+  if (!r.ok || !body.url) throw new Error(`get-file-url failed (${r.status}): ${body.error ?? ''}`)
+  return body.url
+}
+
 /** Log in with explicit credentials and land on the home route.
  *  Targets /login — unauthenticated "/" is the public landing page (2026-07-22). */
 export async function loginAs(page, { email, password }) {
