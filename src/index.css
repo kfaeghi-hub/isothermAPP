@@ -117,15 +117,17 @@
   --color-gray-100: #efeeec;
   --color-gray-200: #e0dfe6;    /* hairline rule */
   --color-gray-300: #c6c5cd;
-  /* ⚠ 2026-07-25: the note here used to read "4.6:1 on white". That was WRONG
-     and had never been measured — the real figures are 4.23:1 on white and
-     4.05:1 on paper (#fbfaf8, the actual app ground), so this step has never
-     met WCAG AA 4.5:1 for normal text anywhere it is used. Left AT ITS CURRENT
-     VALUE deliberately: re-tinting it changes muted text on every surface in
-     the app, which is a judged change, not a drive-by one. It is on the UI-debt
-     list. #73727e would clear 4.54:1 on paper if we take it. New code should
-     use gray-500 (5.03:1 on paper) for text that must be read; the portal does. */
-  --color-gray-400: #7b7a85;
+  /* Muted text. MEASURED 2026-07-25 (never assume a ratio — state it):
+       #73727e  →  4.54:1 on paper #fbfaf8  ·  4.74:1 on white #ffffff
+     Both clear WCAG AA (4.5:1) for normal text. Paper is the binding ground —
+     it is the app's actual page colour and the darker of the two.
+     WAS #7b7a85, carrying the note "4.6:1 on white". That figure was never
+     measured and was wrong: the real values were 4.23:1 on white and 4.05:1 on
+     paper, so this step failed AA everywhere it was used — and it is the muted
+     default across 366 call sites in 22 files. Re-tinted deliberately as its
+     own pass (UI-debt item 0) rather than per-file, because one token is the
+     only honest fix for 366 sites. */
+  --color-gray-400: #73727e;
   --color-gray-500: #6c6b76;
   --color-gray-600: #4d4c56;
   --color-gray-700: #35343e;
