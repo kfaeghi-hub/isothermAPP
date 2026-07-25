@@ -99,7 +99,7 @@ export function Register({ findings, photos }: {
             {/* ── Filters ─────────────────────────────────────────────────── */}
             <div className="flex flex-wrap items-end gap-x-6 gap-y-3 px-4 sm:px-5 pt-4 pb-4 border-b border-rule">
               <fieldset>
-                <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1.5">Status</legend>
+                <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1.5">Status</legend>
                 <div className="flex">
                   {(['all', 'open', 'closed'] as Status[]).map((s, i) => (
                     <button key={s} onClick={() => setStatus(s)} aria-pressed={status === s}
@@ -116,7 +116,7 @@ export function Register({ findings, photos }: {
 
               {categories.length > 1 && (
                 <div>
-                  <label htmlFor="pt-cat" className="block font-mono text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1.5">
+                  <label htmlFor="pt-cat" className="block font-mono text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1.5">
                     System
                   </label>
                   <select id="pt-cat" value={category} onChange={e => setCategory(e.target.value)}
@@ -160,7 +160,7 @@ export function Register({ findings, photos }: {
                               {f.description && <p className="mt-1 text-[13px] text-gray-500 max-w-prose">{f.description}</p>}
                               {f.corrective_action && (
                                 <p className="mt-1.5 text-[13px] text-gray-500 max-w-prose">
-                                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400 mr-1.5">Action</span>
+                                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-500 mr-1.5">Action</span>
                                   {f.corrective_action}
                                 </p>
                               )}
@@ -168,14 +168,14 @@ export function Register({ findings, photos }: {
                             </td>
                             <td className="text-[13px] text-gray-500">
                               {f.category ?? '—'}
-                              {f.building_area && <span className="block text-gray-400">{f.building_area}</span>}
+                              {f.building_area && <span className="block text-gray-500">{f.building_area}</span>}
                             </td>
                             <td className="text-[13px] text-gray-500">{f.responsible_company ?? '—'}</td>
                             <td className="font-mono text-[12px] text-gray-500">{f.date_raised ?? '—'}</td>
                             <td>
                               <Chip tone={isClosed(f) ? 'closed' : 'open'}>{isClosed(f) ? 'Closed' : 'Open'}</Chip>
                               {isClosed(f) && f.date_closed && (
-                                <span className="block mt-1 font-mono text-[11px] text-gray-400">{f.date_closed}</span>
+                                <span className="block mt-1 font-mono text-[11px] text-gray-500">{f.date_closed}</span>
                               )}
                             </td>
                           </tr>
@@ -192,14 +192,14 @@ export function Register({ findings, photos }: {
                     return (
                       <li key={f.finding_id} className="pt-row-card px-4 sm:px-5 py-4">
                         <div className="flex items-baseline gap-2 flex-wrap">
-                          <span className="font-mono text-[12px] text-gray-400">{f.number ?? '—'}</span>
+                          <span className="font-mono text-[12px] text-gray-500">{f.number ?? '—'}</span>
                           <Chip tone={isClosed(f) ? 'closed' : 'open'}>{isClosed(f) ? 'Closed' : 'Open'}</Chip>
                         </div>
                         <p className="mt-1.5 font-medium text-ink-display">{f.title ?? '(untitled)'}</p>
                         {f.description && <p className="mt-1 text-[13px] text-gray-500">{f.description}</p>}
                         {f.corrective_action && (
                           <p className="mt-1.5 text-[13px] text-gray-500">
-                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400 mr-1.5">Action</span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-500 mr-1.5">Action</span>
                             {f.corrective_action}
                           </p>
                         )}
@@ -260,7 +260,7 @@ function SortHead({ label, k, sort, onSort, className }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-400">{label}</dt>
+      <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">{label}</dt>
       <dd className="text-gray-600 mt-0.5">{children}</dd>
     </div>
   )

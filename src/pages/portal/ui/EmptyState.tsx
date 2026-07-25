@@ -13,7 +13,7 @@ export function EmptyState({ headline, line }: { headline: string; line: string 
       <PortalContour variant="mark" />
       <div className="relative">
         <p className="font-display text-base font-bold text-ink-display">{headline}</p>
-        <p className="mt-1.5 text-sm text-gray-400 max-w-sm mx-auto">{line}</p>
+        <p className="mt-1.5 text-sm text-gray-500 max-w-sm mx-auto">{line}</p>
       </div>
     </div>
   )

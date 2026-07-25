@@ -789,6 +789,16 @@ containment is.
 
 ### Known UI debt (recorded 2026-07-22 — flagged, deliberately not yet fixed)
 
+0. **`gray-400` has never met WCAG AA (found 2026-07-25, portal Part B).** The
+   token carried the comment "4.6:1 on white". Measured, it is **4.23:1 on white
+   and 4.05:1 on the app's actual paper ground `#fbfaf8`** — under the 4.5:1
+   floor for normal text, everywhere it is used, and it is used for muted text
+   across the app. The comment was corrected in place; **the colour was not
+   touched**, because re-tinting it changes muted text on every surface and that
+   is a judged change, not a drive-by one. `#73727e` clears 4.54:1 on paper if we
+   take it. The portal uses `gray-500` (5.03:1) and contains no `gray-400` text.
+   *Decide this one deliberately — it is the largest single a11y item on the list.*
+
 1. **Legacy navy `#1F3A5F` hardcodes survive the repin:** App.tsx loading/error
    screens (fully off-token inline styles), AccessCard LEAD badge,
    ProjectDetailPage tag badge, UsersPage/TeamPage role badges, and

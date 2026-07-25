@@ -22,7 +22,7 @@ export function Team({ team }: { team: PortalTeamRow[] }) {
           <ul className="divide-y divide-rule">
             {team.map((t, i) => (
               <li key={i} className="px-4 sm:px-5 py-3 flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-gray-400 w-12 flex-shrink-0">
+                <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-gray-500 w-12 flex-shrink-0">
                   {t.role_abbr ?? '—'}
                 </span>
                 <span className="font-medium text-ink-display min-w-0 flex-1">{t.company_name ?? '—'}</span>

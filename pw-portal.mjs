@@ -313,10 +313,15 @@ try {
     const h1 = (await page.locator('h1').first().innerText().catch(() => '')).trim()
     check(h1.length > 1 && h1 !== '—', `hero H1 carries the project name ("${h1}")`)
 
-    // Counters must never render a fake zero for a project with no checklists:
-    // a null reading is an em-dash, and the count-up animation must skip it.
-    const progress = await page.locator('header').innerText().catch(() => '')
-    check(/CHECKLISTS COMPLETE/i.test(progress), 'progress instrument renders in the hero')
+    // The instrument's three readings, by their labels. (An earlier form of
+    // this check used locator('header') — there are TWO headers, the chrome and
+    // the hero, so it was a strict-mode violation that resolved to empty string
+    // and failed. Which is the point: it failed loudly instead of passing on a
+    // technicality.)
+    const readings = ['Checklists complete', 'Open issues', 'Issues resolved']
+    const absent = readings.filter(r => !new RegExp(r, 'i').test(body))
+    check(absent.length === 0,
+      `progress instrument renders all three readings${absent.length ? ` — MISSING: ${absent.join(', ')}` : ''}`)
     await page.goto(`${BASE_URL}/projects`)
     await page.waitForTimeout(2500)
     check(page.url().includes('/portal'), `internal route /projects redirects to the portal (${page.url().replace(BASE_URL, '')})`)

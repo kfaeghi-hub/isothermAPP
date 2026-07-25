@@ -66,7 +66,7 @@ export function PortalAccept() {
           </div>
         ) : (
           <div className="pt-panel px-6 py-7">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-gray-400">Project access</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-gray-500">Project access</p>
             <h1 className="font-display text-xl font-bold tracking-tight text-ink-display mt-1.5">
               Set up your account
             </h1>
@@ -121,11 +121,11 @@ function Field({ label, hint, children }: {
 }) {
   return (
     <label className="block">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1.5">
+      <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1.5">
         {label}
       </span>
       {children}
-      {hint && <span className="block mt-1 text-[11px] text-gray-400">{hint}</span>}
+      {hint && <span className="block mt-1 text-[11px] text-gray-500">{hint}</span>}
     </label>
   )
 }

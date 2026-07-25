@@ -44,12 +44,12 @@ export function Documents({ docs }: { docs: PortalDocument[] }) {
             {docs.map(d => (
               <li key={`${d.kind}-${d.row_id}`}
                 className="px-4 sm:px-5 py-4 flex items-start gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
-                <FileText size={18} strokeWidth={1.75} className="text-gray-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                <FileText size={18} strokeWidth={1.75} className="text-gray-500 mt-0.5 flex-shrink-0" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-ink-display">{d.label}</p>
                   <p className="mt-1 flex items-center gap-2 flex-wrap">
                     <Chip tone={d.kind === 'site_report' ? 'info' : 'brand'}>{KIND[d.kind]}</Chip>
-                    {d.doc_date && <span className="font-mono text-[11px] text-gray-400">{d.doc_date}</span>}
+                    {d.doc_date && <span className="font-mono text-[11px] text-gray-500">{d.doc_date}</span>}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
