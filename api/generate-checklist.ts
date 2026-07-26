@@ -7,6 +7,12 @@ import HTMLtoDOCX from 'html-to-docx'
 // Auth is the ONE shared import this endpoint takes — its render pipeline stays
 // deliberately independent of doc-common (landscape + per-mode footers).
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
+// ...and the document PALETTE. This file keeps its own CSS body, landscape page
+// setup, per-mode footers and `tbody.keep` pagination rules — those are genuinely
+// different and merging them would risk pagination. Only the VALUES are shared
+// (identity ruling, 2026-07-26): 25 of the old 104 hex literals lived in this
+// file's private copies, which is why "change doc-common and you're done" was false.
+import { DOC, DOC_SEMANTIC } from './_shared/doc-common.js'
 
 const CHROMIUM_PACK_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
@@ -52,8 +58,8 @@ function stClass(status: string | null | undefined): string {
 function stInline(status: string | null | undefined): string {
   if (!status) return ''
   const s = status.toLowerCase()
-  if (s === 'y' || s === 'pass') return 'color:#1E8449;font-weight:bold;'
-  if (s === 'n' || s === 'fail') return 'color:#C0392B;font-weight:bold;'
+  if (s === 'y' || s === 'pass') return `color:${DOC_SEMANTIC.RECORDED};font-weight:bold;`
+  if (s === 'n' || s === 'fail') return `color:${DOC_SEMANTIC.OUTSTANDING};font-weight:bold;`
   return 'color:#888888;'
 }
 
@@ -217,40 +223,40 @@ const CSS = `
   .page { padding: 0 46px; }
 
   .firm { text-align: center; }
-  .firm h1 { color: #1F3A5F; font-size: 18pt; font-weight: 700; letter-spacing: 0.5px; }
+  .firm h1 { color: ${DOC.INK}; font-size: 18pt; font-weight: 700; letter-spacing: 0.5px; }
   .firm .addr { font-size: 8pt; color: #555; margin-top: 2px; }
-  .brandrule { height: 3px; background: #1F3A5F; margin: 8px 0 0; border-radius: 2px; }
+  .brandrule { height: 3px; background: ${DOC.BAND}; margin: 8px 0 0; border-radius: 2px; }
 
   .title-legend { display: table; width: 100%; margin-top: 10px; }
   .tl-title { display: table-cell; vertical-align: middle; }
-  .tl-legend { display: table-cell; vertical-align: top; border: 1px solid #C9D2DD; border-radius: 4px; padding: 6px 10px; background: #F6F8FB; font-size: 7.5pt; color: #333; white-space: nowrap; }
-  .cl-name { font-size: 11pt; font-weight: 700; color: #1F3A5F; }
+  .tl-legend { display: table-cell; vertical-align: top; border: 1px solid ${DOC.BORDER}; border-radius: 4px; padding: 6px 10px; background: ${DOC.ZEBRA}; font-size: 7.5pt; color: #333; white-space: nowrap; }
+  .cl-name { font-size: 11pt; font-weight: 700; color: ${DOC.INK}; }
   .cl-sub { font-size: 8pt; color: #666; margin-top: 1px; }
-  .lg-hdr { font-weight: 700; color: #1F3A5F; margin-bottom: 3px; }
+  .lg-hdr { font-weight: 700; color: ${DOC.INK}; margin-bottom: 3px; }
 
   .blank-notice { background: #FFF9C4; border: 1px solid #F59E0B; padding: 5px 10px; margin: 8px 0; font-size: 8pt; font-weight: 700; color: #92400E; border-radius: 4px; }
 
-  h2.sec { color: #1F3A5F; font-size: 10.5pt; font-weight: 700; margin: 14px 0 5px; padding-bottom: 3px; border-bottom: 2px solid #1F3A5F; page-break-after: avoid; break-after: avoid; }
+  h2.sec { color: ${DOC.INK}; font-size: 10.5pt; font-weight: 700; margin: 14px 0 5px; padding-bottom: 3px; border-bottom: 2px solid ${DOC.INK}; page-break-after: avoid; break-after: avoid; }
 
   table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 4px; font-size: 8.5pt; }
   thead { display: table-header-group; }
-  thead th { background: #1F3A5F; color: #fff; font-weight: 600; text-align: center; padding: 5px 6px; font-size: 8pt; border: 1px solid #1F3A5F; word-wrap: break-word; }
+  thead th { background: ${DOC.BAND}; color: #fff; font-weight: 600; text-align: center; padding: 5px 6px; font-size: 8pt; border: 1px solid ${DOC.INK}; word-wrap: break-word; }
   thead th.lh { text-align: left; }
-  tbody td { padding: 5px 6px; border: 1px solid #DDE3EA; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
-  tbody tr:nth-child(even) td { background: #F6F8FB; }
+  tbody td { padding: 5px 6px; border: 1px solid ${DOC.RULE}; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+  tbody tr:nth-child(even) td { background: ${DOC.ZEBRA}; }
   tr { page-break-inside: avoid; break-inside: avoid; }
   /* PAGINATION RULE: a section band and its first item row live in tbody.keep —
      unbreakable, so a band can never strand as the last element on a page. */
   tbody.keep { page-break-inside: avoid; break-inside: avoid; }
 
   /* Header block — bordered, two columns, matching the real form */
-  .hdr-tbl td { padding: 7px 10px; border: 1px solid #C9D2DD; vertical-align: top; font-size: 8.5pt; background: #fff !important; }
+  .hdr-tbl td { padding: 7px 10px; border: 1px solid ${DOC.BORDER}; vertical-align: top; font-size: 8.5pt; background: #fff !important; }
   .hdr-lbl { color: #6B7280; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.3px; }
-  .hdr-val { font-weight: 600; color: #1F3A5F; }
-  .hdr-line { border-bottom: 1px solid #B8C2CE; display: inline-block; min-width: 55%; height: 11px; }
+  .hdr-val { font-weight: 600; color: ${DOC.INK}; }
+  .hdr-line { border-bottom: 1px solid ${DOC.BORDER}; display: inline-block; min-width: 55%; height: 11px; }
 
-  .th-unit { background: #2C5282 !important; font-size: 8pt; }
-  .th-sub  { background: #3D6A9F !important; font-size: 7pt; }
+  .th-unit { background: ${DOC.BAND_UNIT} !important; font-size: 8pt; }
+  .th-sub  { background: ${DOC.BAND_SUB} !important; font-size: 7pt; }
   .np-label { text-align: left !important; font-size: 7.5pt; }
   .np-val  { text-align: center; font-size: 8pt; }
   /* Not-applicable cell (field not defined for this section): shaded, NO text —
@@ -263,13 +269,13 @@ const CSS = `
   body.mode-blank tbody tr:nth-child(even) td.np-blocked,
   body.mode-blank .np-blocked { background: #E8EBEF !important; }
 
-  .sec-row td { background: #DDE3EA !important; font-weight: 700; font-size: 7.5pt; color: #1F3A5F; text-transform: uppercase; padding: 4px 8px; border-color: #C9D2DD; }
+  .sec-row td { background: ${DOC.RULE} !important; font-weight: 700; font-size: 7.5pt; color: ${DOC.INK}; text-transform: uppercase; padding: 4px 8px; border-color: ${DOC.BORDER}; }
 
   .st-cell { text-align: center; font-weight: 600; }
-  .st-y  { color: #1E8449; }
-  .st-n  { color: #C0392B; }
+  .st-y  { color: ${DOC_SEMANTIC.RECORDED}; }
+  .st-n  { color: ${DOC_SEMANTIC.OUTSTANDING}; }
   .st-nr { color: #888; }
-  .fnd   { display: block; font-size: 6.5pt; color: #C0392B; font-weight: 700; margin-top: 1px; }
+  .fnd   { display: block; font-size: 6.5pt; color: ${DOC_SEMANTIC.OUTSTANDING}; font-weight: 700; margin-top: 1px; }
   .hint  { font-style: italic; font-size: 7.5pt; color: #888; margin-top: 2px; }
 
   .so-role { font-weight: 600; font-size: 8.5pt; }
@@ -427,7 +433,7 @@ function buildCheckTableHtml(d: DocData): string {
     ${colgroup([12, 88])}
     <thead><tr><th class="lh">Finding</th><th class="lh">Title</th></tr></thead>
     <tbody>${findings.map(f =>
-      `<tr><td style="font-weight:700;color:#C0392B;">#${esc(f.number ?? '?')}</td><td>${esc(f.title ?? '')}</td></tr>`
+      `<tr><td style="font-weight:700;color:${DOC_SEMANTIC.OUTSTANDING};">#${esc(f.number ?? '?')}</td><td>${esc(f.title ?? '')}</td></tr>`
     ).join('\n')}</tbody>
   </table>`
 
@@ -501,7 +507,7 @@ function buildCheckTableHtml(d: DocData): string {
 const CT_CSS = `
   @page { size: letter landscape; }
   .ct { table-layout: fixed; width: 100%; }
-  .ct-band { background: #DCE6F1; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 2px; border: 1px solid #B9C6D6; }
+  .ct-band { background: ${DOC.BAND_TINT}; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 2px; border: 1px solid ${DOC.BORDER}; }
   .ct-col { vertical-align: bottom; padding: 3px 2px; border: 1px solid #ccc; background: #F2F5F8; }
   .ct-num { font-size: 9pt; font-weight: 700; }
   .ct-lbl { font-size: 6.4pt; font-weight: 600; line-height: 1.25; word-wrap: break-word; }
@@ -647,7 +653,7 @@ function buildChecklistHtml(d: DocData): string {
     ${colgroup([12, 88])}
     <thead><tr><th class="lh">Finding</th><th class="lh">Title</th></tr></thead>
     <tbody>${findings.map(f =>
-      `<tr><td style="font-weight:700;color:#C0392B;">#${esc(f.number ?? '?')}</td><td>${esc(f.title ?? '')}</td></tr>`
+      `<tr><td style="font-weight:700;color:${DOC_SEMANTIC.OUTSTANDING};">#${esc(f.number ?? '?')}</td><td>${esc(f.title ?? '')}</td></tr>`
     ).join('\n')}</tbody>
   </table>`
 
@@ -776,17 +782,17 @@ function buildChecklistDocxHtml(d: DocData): string {
   const nUnits = responseTargets.length
 
   const T    = 'style="width:100%;border-collapse:collapse;font-size:8.5pt;"'
-  const TH   = 'style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid #1F3A5F;font-size:8pt;"'
-  const THL  = 'style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;text-align:left;padding:5px 6px;border:1px solid #1F3A5F;font-size:8pt;"'
-  const THUN = 'style="background-color:#2C5282;color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid #2C5282;font-size:8pt;"'
-  const THSB = 'style="background-color:#3D6A9F;color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid #3D6A9F;font-size:7pt;"'
+  const TH   = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid ${DOC.INK};font-size:8pt;"`
+  const THL  = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;text-align:left;padding:5px 6px;border:1px solid ${DOC.INK};font-size:8pt;"`
+  const THUN = `style="background-color:${DOC.BAND_UNIT};color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid ${DOC.BAND_UNIT};font-size:8pt;"`
+  const THSB = `style="background-color:${DOC.BAND_SUB};color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid ${DOC.BAND_SUB};font-size:7pt;"`
   // Blank mode drops zebra striping: fillable cells must be clean white so the
   // only grey on the page is the not-applicable shade.
   const zebra = mode === 'completed'
   const td   = (i: number, extra = '') =>
-    `style="padding:5px 6px;border:1px solid #DDE3EA;vertical-align:top;font-size:8pt;${zebra && i % 2 === 1 ? 'background-color:#F6F8FB;' : ''}${extra}"`
-  const tdBlocked = 'style="padding:5px 6px;border:1px solid #DDE3EA;background-color:#E8EBEF;font-size:8pt;"'
-  const tdSec = 'style="background-color:#DDE3EA;font-weight:bold;font-size:7.5pt;color:#1F3A5F;text-transform:uppercase;padding:4px 8px;border:1px solid #C9D2DD;"'
+    `style="padding:5px 6px;border:1px solid ${DOC.RULE};vertical-align:top;font-size:8pt;${zebra && i % 2 === 1 ? `background-color:${DOC.ZEBRA};` : ''}${extra}"`
+  const tdBlocked = `style="padding:5px 6px;border:1px solid ${DOC.RULE};background-color:#E8EBEF;font-size:8pt;"`
+  const tdSec = `style="background-color:${DOC.RULE};font-weight:bold;font-size:7.5pt;color:${DOC.INK};text-transform:uppercase;padding:4px 8px;border:1px solid ${DOC.BORDER};"`
 
   const unitTag = (t: any) => esc(t.equipment?.tag ?? t.equipment?.descriptor ?? '?')
 
@@ -831,7 +837,7 @@ function buildChecklistDocxHtml(d: DocData): string {
           const st  = mode === 'blank' ? null : (responseMap[rKey(item.id, t.id)]?.status ?? null)
           const fnd = mode === 'blank' ? null : findingMap[rKey(item.id, t.id)]
           const fndHtml = fnd
-            ? `<br><span style="font-size:6.5pt;color:#C0392B;font-weight:bold;">&rarr; #${esc(fnd.number ?? '?')}</span>`
+            ? `<br><span style="font-size:6.5pt;color:${DOC_SEMANTIC.OUTSTANDING};font-weight:bold;">&rarr; #${esc(fnd.number ?? '?')}</span>`
             : ''
           const label = st ? esc(stLabel(st)) : dashOrInline(mode, '')
           return `<td ${td(rowIdx, 'text-align:center;font-weight:bold;' + stInline(st))}>${label}${fndHtml}</td>`
@@ -901,7 +907,7 @@ function buildChecklistDocxHtml(d: DocData): string {
 <table ${T}>
   <thead><tr><th ${THL}>Finding</th><th ${THL}>Title</th></tr></thead>
   <tbody>${findings.map((f, i) =>
-    `<tr><td ${td(i, 'font-weight:bold;color:#C0392B;')}>#${esc(f.number ?? '?')}</td><td ${td(i)}>${esc(f.title ?? '')}</td></tr>`
+    `<tr><td ${td(i, `font-weight:bold;color:${DOC_SEMANTIC.OUTSTANDING};`)}>#${esc(f.number ?? '?')}</td><td ${td(i)}>${esc(f.title ?? '')}</td></tr>`
   ).join('\n')}</tbody>
 </table>`
 
@@ -918,7 +924,7 @@ function buildChecklistDocxHtml(d: DocData): string {
   }).join('\n')
 
   // Header block
-  const line = '<span style="color:#B8C2CE;">__________________________</span>'
+  const line = `<span style="color:${DOC.BORDER};">__________________________</span>`
   const rightRows = mode === 'blank'
     ? (audience === 'field'
         ? [['Name', line], ['Company', `<strong>Isotherm Engineering Ltd.</strong>`], ['Email', line], ['Phone', line], ['Date', line]]
@@ -947,8 +953,8 @@ function buildChecklistDocxHtml(d: DocData): string {
 <html><head><meta charset="utf-8">
 <style>
   body { font-family: Arial, sans-serif; font-size: 9.5pt; color: #222; }
-  h1 { color: #1F3A5F; font-size: 18pt; font-weight: bold; text-align: center; margin: 0; }
-  h2 { color: #1F3A5F; font-size: 10.5pt; font-weight: bold; margin: 14px 0 5px; }
+  h1 { color: ${DOC.INK}; font-size: 18pt; font-weight: bold; text-align: center; margin: 0; }
+  h2 { color: ${DOC.INK}; font-size: 10.5pt; font-weight: bold; margin: 14px 0 5px; }
   p { margin: 3px 0; }
 </style>
 </head>
@@ -959,17 +965,17 @@ function buildChecklistDocxHtml(d: DocData): string {
 
 ${mode === 'blank' && audience === 'contractor' ? `<p style="background-color:#FFF9C4;border:1px solid #F59E0B;padding:5px 10px;font-size:8pt;font-weight:bold;color:#92400E;margin:8px 0;">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</p>` : ''}
 
-<p style="font-size:12pt;font-weight:bold;color:#1F3A5F;margin-top:10px;">${esc(instance.source_template_name_snapshot)}</p>
+<p style="font-size:12pt;font-weight:bold;color:${DOC.INK};margin-top:10px;">${esc(instance.source_template_name_snapshot)}</p>
 <p style="font-size:8pt;color:#666;">${esc(instance.source_template_type_snapshot?.toUpperCase())} &nbsp;&bull;&nbsp; ${esc(modeSubtitle)}</p>
 
-<p style="font-size:8pt;color:#333;border:1px solid #C9D2DD;background-color:#F6F8FB;padding:5px 8px;margin:8px 0;">
-  <strong style="color:#1F3A5F;">LEGEND:</strong> ${legendLines(instance).map(esc).join(' &nbsp;·&nbsp; ')}
+<p style="font-size:8pt;color:#333;border:1px solid ${DOC.BORDER};background-color:${DOC.ZEBRA};padding:5px 8px;margin:8px 0;">
+  <strong style="color:${DOC.INK};">LEGEND:</strong> ${legendLines(instance).map(esc).join(' &nbsp;·&nbsp; ')}
 </p>
 
 <table ${T} style="width:100%;border-collapse:collapse;margin-top:10px;">
   <tbody><tr>
-    <td style="padding:7px 10px;border:1px solid #C9D2DD;vertical-align:top;">${leftHtml}</td>
-    <td style="padding:7px 10px;border:1px solid #C9D2DD;vertical-align:top;">${rightHtml}</td>
+    <td style="padding:7px 10px;border:1px solid ${DOC.BORDER};vertical-align:top;">${leftHtml}</td>
+    <td style="padding:7px 10px;border:1px solid ${DOC.BORDER};vertical-align:top;">${rightHtml}</td>
   </tr></tbody>
 </table>
 

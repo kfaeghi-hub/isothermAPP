@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   esc, isoShort, isoLong, isFilenameCaption, toBase64, primaryEmail,
   BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
+  DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 
@@ -28,18 +29,18 @@ const CSS = `${BASE_CSS}
   .none      { font-style: italic; color: #888; font-size: 9.5pt; margin-top: 4px; }
 
   /* status */
-  .st-out { color: #C0392B; font-weight: 600; }
-  .st-rec { color: #1E8449; font-weight: 600; }
+  .st-out { color: ${DOC_SEMANTIC.OUTSTANDING}; font-weight: 600; }
+  .st-rec { color: ${DOC_SEMANTIC.RECORDED}; font-weight: 600; }
   .st-na  { color: #888; }
 
   /* issues table */
   table.issues th.num { width: 6%;  text-align: center; }
   table.issues th.act { width: 14%; text-align: center; }
-  table.issues td.num { text-align: center; font-weight: 700; color: #1F3A5F; }
+  table.issues td.num { text-align: center; font-weight: 700; color: ${DOC.INK}; }
   table.issues td.act { text-align: center; font-weight: 600; color: #444; }
 
   /* finding content */
-  .cat    { font-weight: 700; color: #1F3A5F; font-size: 9.5pt; display: block; margin-bottom: 4px; }
+  .cat    { font-weight: 700; color: ${DOC.INK}; font-size: 9.5pt; display: block; margin-bottom: 4px; }
   .cattag { font-size: 8pt; color: #999; display: block; margin-top: -2px; margin-bottom: 6px; }
   .dentry { margin-bottom: 7px; }
   .ddate  { font-style: italic; color: #8A93A0; font-size: 8.5pt; }
@@ -48,7 +49,7 @@ const CSS = `${BASE_CSS}
   .floc   { font-size: 8pt; color: #8A93A0; margin: -2px 0 4px 0; }
   .fdesc  { margin: 2px 0 6px 0; }
   .fcorr  { font-size: 8.5pt; margin: 4px 0 2px 0; }
-  .fcorr .lbl { font-weight: 700; color: #1F3A5F; }
+  .fcorr .lbl { font-weight: 700; color: ${DOC.INK}; }
   tr.closed .fcorr .lbl { color: #777; }
   .photo-grid { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px 0; }
   .photo-grid-item { display: flex; flex-direction: column; align-items: flex-start; }
@@ -57,7 +58,7 @@ const CSS = `${BASE_CSS}
   .closeddate { font-style: italic; font-size: 8.5pt; color: #888; margin-top: 6px; }
 
   /* closed rows */
-  tr.closed td         { background: #E3E3E3 !important; color: #777; }
+  tr.closed td         { background: ${DOC_SEMANTIC.CLOSED_FILL} !important; color: #777; }
   tr.closed .cat       { color: #777; }
   tr.closed td.num     { color: #777; }
   tr.closed td.act     { color: #777; }
@@ -220,9 +221,9 @@ function buildDocxHtml(
   distribution: any[], findings: any[],
   photoBuffers: Map<string, Buffer>,
 ): string {
-  const TH = 'style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid #1F3A5F;font-size:9pt;"'
+  const TH = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid ${DOC.INK};font-size:9pt;"`
   const td  = (i: number, extra = '') =>
-    `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;${i%2===1 ? 'background-color:#F6F8FB;' : ''}${extra}"`
+    `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;${i%2===1 ? `background-color:${DOC.ZEBRA};` : ''}${extra}"`
 
   const distRows = distribution.map((r: any, i: number) => {
     const c  = Array.isArray(r.contacts)  ? r.contacts[0]  : r.contacts
@@ -262,12 +263,12 @@ function buildDocxHtml(
     const responsible = fCompany?.abbreviation ?? fContact?.trade ?? '—'
     const headingText = f.title || f.category
     const hasTitle    = !!(f.title)
-    const rowBg       = closed ? '#E3E3E3' : (rowIdx % 2 === 1 ? '#F6F8FB' : '#ffffff')
-    const rowFg       = closed ? '#777777' : '#222222'
+    const rowBg       = closed ? `${DOC_SEMANTIC.CLOSED_FILL}` : (rowIdx % 2 === 1 ? `${DOC.ZEBRA}` : '#ffffff')
+    const rowFg       = closed ? `${DOC_SEMANTIC.CLOSED_TEXT}` : '#222222'
 
-    const tdBase = `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;background-color:${rowBg};color:${rowFg};"`
-    const tdNum  = `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${closed ? '#777' : '#1F3A5F'};"`
-    const tdAct  = `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${rowFg};"`
+    const tdBase = `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;background-color:${rowBg};color:${rowFg};"`
+    const tdNum  = `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${closed ? `${DOC_SEMANTIC.CLOSED_TEXT}` : `${DOC.INK}`};"`
+    const tdAct  = `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${rowFg};"`
 
     const diaryHtml = entries.map((e: any) =>
       `<p style="margin:4px 0;"><em style="color:#8A93A0;font-size:8.5pt;">${esc(isoShort(e.entry_date))}</em><br>${esc(e.body ?? '')}</p>`
@@ -302,12 +303,12 @@ function buildDocxHtml(
     const descHtml = f.description
       ? `<p style="margin:2px 0 6px 0;">${esc(f.description)}</p>` : ''
     const corrHtml = f.corrective_action
-      ? `<p style="margin:4px 0 2px 0;font-size:8.5pt;"><strong style="color:${closed ? '#777' : '#1F3A5F'};">Corrective action:</strong> ${esc(f.corrective_action)}</p>` : ''
+      ? `<p style="margin:4px 0 2px 0;font-size:8.5pt;"><strong style="color:${closed ? `${DOC_SEMANTIC.CLOSED_TEXT}` : `${DOC.INK}`};">Corrective action:</strong> ${esc(f.corrective_action)}</p>` : ''
 
     return `<tr>
       <td ${tdNum}>${esc(f.number)}${closedTag}</td>
       <td ${tdBase}>
-        <strong style="color:${closed ? '#777' : '#1F3A5F'};font-size:9.5pt;">${esc(headingText)}</strong>
+        <strong style="color:${closed ? `${DOC_SEMANTIC.CLOSED_TEXT}` : `${DOC.INK}`};font-size:9.5pt;">${esc(headingText)}</strong>
         ${hasTitle ? `<br><span style="font-size:8pt;color:#999;">${esc(f.category)}</span>` : ''}
         ${locationHtml}${descHtml}${diaryHtml}${photosHtml}${corrHtml}
       </td>
@@ -324,7 +325,7 @@ function buildDocxHtml(
 <head><meta charset="utf-8">
 <style>
   body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #222; }
-  h2   { color: #1F3A5F; font-size: 12pt; font-weight: bold; margin: 20px 0 7px 0; }
+  h2   { color: ${DOC.INK}; font-size: 12pt; font-weight: bold; margin: 20px 0 7px 0; }
   table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 4px; }
   p { margin: 4px 0; }
 </style>
@@ -333,16 +334,16 @@ function buildDocxHtml(
 
 ${FIRM_HEADER_DOCX}
 
-<table style="width:100%;border:1px solid #C9D2DD;border-collapse:collapse;margin-top:14px;font-size:9.5pt;">
+<table style="width:100%;border:1px solid ${DOC.BORDER};border-collapse:collapse;margin-top:14px;font-size:9.5pt;">
   <tr>
-    <td style="padding:9px 13px;border:1px solid #C9D2DD;vertical-align:middle;">
+    <td style="padding:9px 13px;border:1px solid ${DOC.BORDER};vertical-align:middle;">
       <div><span style="color:#777;font-size:8.5pt;">Project:</span> <strong>${esc(project.name)}</strong></div>
       <div><span style="color:#777;font-size:8.5pt;">Reference:</span> <strong>${esc(project.com_number ?? '—')}</strong></div>
     </td>
-    <td style="padding:9px 13px;border:1px solid #C9D2DD;text-align:center;background-color:#F4F7FB;vertical-align:middle;">
-      <strong style="color:#1F3A5F;font-size:11pt;">Cx Site Note #${esc(report.report_number)}</strong>
+    <td style="padding:9px 13px;border:1px solid ${DOC.BORDER};text-align:center;background-color:${DOC.ZEBRA};vertical-align:middle;">
+      <strong style="color:${DOC.INK};font-size:11pt;">Cx Site Note #${esc(report.report_number)}</strong>
     </td>
-    <td style="padding:9px 13px;border:1px solid #C9D2DD;vertical-align:middle;">
+    <td style="padding:9px 13px;border:1px solid ${DOC.BORDER};vertical-align:middle;">
       <div><span style="color:#777;font-size:8.5pt;">Date:</span> <strong>${esc(isoShort(report.report_date))}</strong></div>
       <div><span style="color:#777;font-size:8.5pt;">By:</span> <strong>${esc(report.authored_by)}</strong></div>
     </td>

@@ -17,6 +17,70 @@ import HTMLtoDOCX from 'html-to-docx'
 export const CHROMIUM_PACK_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
 
+// ── DOCUMENT IDENTITY PALETTE ─────────────────────────────────────────────────
+//
+// Converged to the brand purple/vermilion identity 2026-07-26 (Tony's ruling,
+// Option A of docs/DOCUMENT-IDENTITY-DECISION.md). Before this, the generators
+// rendered navy #1F3A5F and carried 104 hex literals across four files, 25 of
+// them in generate-checklist.ts's private copies. Those literals are gone: this
+// object is the single place the documents' identity is defined.
+//
+// Rule 4 consequence, accepted with the ruling: files already ISSUED stay
+// exactly as issued. A project mid-flight will permanently hold navy documents
+// issued before this date and purple ones after. That mixed set is intentional.
+//
+// NOTE FOR ANY FUTURE CHANGE: no automated gate catches colour. pw-report-regen
+// strips every tag and compares visible TEXT, so a palette edit is invisible to
+// it — which is why it needed no baseline reset, and why it will not protect
+// you. Change these values only with a visual pass over one of each document
+// type, PDF and DOCX.
+export const DOC = {
+  /** The identity. Letterhead, section headings and their underline, numeric
+   *  cells, field labels, the brand rule. Was navy #1F3A5F. */
+  INK: '#443C8F',
+  /** Solid fills that carry WHITE text: table heads, minutes topic bands,
+   *  checklist section bands. Same hex as INK by design — one identity, two
+   *  roles; kept separate so a future tweak can move one without the other. */
+  BAND: '#443C8F',
+  /** Checklist UNIT header band — the second level of its three-deep header. */
+  BAND_UNIT: '#5D55AF',
+  /** Checklist SUB header band — the third level. */
+  BAND_SUB: '#7F78CB',
+  /** Light band fills that carry INK text: checklist category bands, the
+   *  minutes action-summary group rows. */
+  BAND_TINT: '#E3E1F5',
+  /** Structural borders: project header, legend box, checklist header table,
+   *  signature rules, band borders. */
+  BORDER: '#CFCCE0',
+  /** Table body cell borders — lighter than BORDER, the hairline weight. */
+  RULE: '#E1DEEB',
+  /** Even-row striping and light panel washes (the project-header mid cell). */
+  ZEBRA: '#F7F6FC',
+} as const
+
+// ── DOCUMENT SEMANTICS — deliberately NOT part of the identity ────────────────
+//
+// These survived the convergence unchanged, and that was a decision, not an
+// oversight. DO NOT fold them into DOC above.
+//   · The closed-finding band says CLOSED, not PASSED. Recolouring it to
+//     conformance green would smuggle a semantic change in with a palette one.
+//   · Outstanding/recorded and the meeting item statuses are conformance
+//     meaning. The app keeps semantic colour separate from brand for the same
+//     reason.
+//   · VERMILION IS STRUCTURAL-NEVER. It may be a small accent; it may never be
+//     a band fill or a rule. BT.601 luma 113.8 against navy's 54.1 and purple's
+//     71.9 — it does not survive the greyscale printing these documents get on
+//     site. The amber below is the accent slot, and it predates the ruling.
+export const DOC_SEMANTIC = {
+  CLOSED_FILL: '#E3E3E3',
+  CLOSED_TEXT: '#777777',
+  OUTSTANDING: '#C0392B',
+  RECORDED: '#1E8449',
+  ITEM_OPEN: '#B7791F',
+  ITEM_CLOSED: '#888888',
+  ITEM_INFO: '#2B6CB0',
+} as const
+
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 export function esc(s: unknown): string {
@@ -61,29 +125,29 @@ export const BASE_CSS = `
 
   /* letterhead */
   .firm { text-align: center; }
-  .firm h1 { color: #1F3A5F; font-size: 19pt; letter-spacing: 0.5px; font-weight: 700; }
+  .firm h1 { color: ${DOC.INK}; font-size: 19pt; letter-spacing: 0.5px; font-weight: 700; }
   .firm .addr { font-size: 8.5pt; color: #555; margin-top: 2px; }
-  .brandrule { height: 3px; background: #1F3A5F; margin: 9px 0 0 0; border-radius: 2px; }
+  .brandrule { height: 3px; background: ${DOC.BAND}; margin: 9px 0 0 0; border-radius: 2px; }
 
   /* project header */
-  .phead { display: table; width: 100%; margin-top: 14px; border: 1px solid #C9D2DD; border-radius: 4px; overflow: hidden; }
+  .phead { display: table; width: 100%; margin-top: 14px; border: 1px solid ${DOC.BORDER}; border-radius: 4px; overflow: hidden; }
   .phead .cell { display: table-cell; padding: 9px 13px; vertical-align: middle; font-size: 9.5pt; }
   .phead .left  { width: 40%; }
-  .phead .mid   { width: 28%; text-align: center; background: #F4F7FB; border-left: 1px solid #C9D2DD; border-right: 1px solid #C9D2DD; }
+  .phead .mid   { width: 28%; text-align: center; background: ${DOC.ZEBRA}; border-left: 1px solid ${DOC.BORDER}; border-right: 1px solid ${DOC.BORDER}; }
   .phead .right { width: 32%; }
   .phead .label { color: #777; font-size: 8.5pt; }
   .phead .val   { font-weight: 600; }
-  .phead .note  { color: #1F3A5F; font-weight: 700; font-size: 11pt; }
+  .phead .note  { color: ${DOC.INK}; font-weight: 700; font-size: 11pt; }
 
   /* section headings */
-  h2.sec { color: #1F3A5F; font-size: 12pt; font-weight: 700; margin: 20px 0 7px 0; padding-bottom: 3px; border-bottom: 2px solid #1F3A5F; page-break-after: avoid; break-after: avoid; }
+  h2.sec { color: ${DOC.INK}; font-size: 12pt; font-weight: 700; margin: 20px 0 7px 0; padding-bottom: 3px; border-bottom: 2px solid ${DOC.INK}; page-break-after: avoid; break-after: avoid; }
 
   /* tables */
   table { width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 9.5pt; }
   thead { display: table-header-group; }
-  thead th { background: #1F3A5F; color: #fff; font-weight: 600; text-align: left; padding: 6px 10px; font-size: 9pt; border: 1px solid #1F3A5F; }
-  tbody td { padding: 6px 10px; border: 1px solid #DDE3EA; vertical-align: top; }
-  tbody tr:nth-child(even) td { background: #F6F8FB; }
+  thead th { background: ${DOC.BAND}; color: #fff; font-weight: 600; text-align: left; padding: 6px 10px; font-size: 9pt; border: 1px solid ${DOC.INK}; }
+  tbody td { padding: 6px 10px; border: 1px solid ${DOC.RULE}; vertical-align: top; }
+  tbody tr:nth-child(even) td { background: ${DOC.ZEBRA}; }
   tr { page-break-inside: avoid; break-inside: avoid; }
 `
 
@@ -96,7 +160,7 @@ export const FIRM_HEADER_PDF = `<div class="firm">
   </div>
   <div class="brandrule"></div>`
 
-export const FIRM_HEADER_DOCX = `<h1 style="color:#1F3A5F;font-size:19pt;font-weight:bold;text-align:center;margin:0;">ISOTHERM ENGINEERING LTD.</h1>
+export const FIRM_HEADER_DOCX = `<h1 style="color:${DOC.INK};font-size:19pt;font-weight:bold;text-align:center;margin:0;">ISOTHERM ENGINEERING LTD.</h1>
 <p style="text-align:center;font-size:8.5pt;color:#555;margin:2px 0;">95 Mural Street, Suite 600, Richmond Hill, ON, L4B 3G2 &nbsp;&bull;&nbsp; Ph 905-822-2430 &nbsp;&bull;&nbsp; info@isothermengineering.com</p>`
 
 // ── PDF via Puppeteer + @sparticuz/chromium-min ────────────────────────────────

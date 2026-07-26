@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   esc, isoShort, BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
+  DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 
@@ -74,19 +75,19 @@ function groupOpenByResponsible(d: MinutesData) {
 // ── PDF HTML ───────────────────────────────────────────────────────────────────
 
 const CSS = `${BASE_CSS}
-  .doctitle { text-align: center; color: #1F3A5F; font-size: 13pt; font-weight: 700; margin-top: 12px; letter-spacing: 0.4px; }
+  .doctitle { text-align: center; color: ${DOC.INK}; font-size: 13pt; font-weight: 700; margin-top: 12px; letter-spacing: 0.4px; }
   .meta td { text-align: center; font-size: 9pt; }
   .meta .lbl { color: #777; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.3px; display: block; }
-  .band td { background: #1F3A5F !important; color: #fff; font-weight: 700; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.3px; padding: 5px 10px; border-color: #1F3A5F; }
+  .band td { background: ${DOC.BAND} !important; color: #fff; font-weight: 700; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.3px; padding: 5px 10px; border-color: ${DOC.INK}; }
   .noitems td { font-style: italic; color: #999; }
-  td.inum { text-align: center; font-weight: 700; color: #1F3A5F; white-space: nowrap; }
+  td.inum { text-align: center; font-weight: 700; color: ${DOC.INK}; white-space: nowrap; }
   td.st { text-align: center; font-weight: 700; }
-  .st-open { color: #B7791F; } .st-closed { color: #888; } .st-info { color: #2B6CB0; }
+  .st-open { color: ${DOC_SEMANTIC.ITEM_OPEN}; } .st-closed { color: ${DOC_SEMANTIC.ITEM_CLOSED}; } .st-info { color: ${DOC_SEMANTIC.ITEM_INFO}; }
   tr.item-closed td { color: #888; background: #EFEFEF !important; }
-  .flink { display: block; font-size: 8pt; color: #B7791F; margin-top: 2px; }
-  .carr { color: #B7791F; font-weight: 400; }
+  .flink { display: block; font-size: 8pt; color: ${DOC_SEMANTIC.ITEM_OPEN}; margin-top: 2px; }
+  .carr { color: ${DOC_SEMANTIC.ITEM_OPEN}; font-weight: 400; }
   .dist { font-size: 8.5pt; color: #666; margin-top: 4px; }
-  .asum-group td { background: #E8EDF4 !important; font-weight: 700; color: #1F3A5F; }
+  .asum-group td { background: ${DOC.BAND_TINT} !important; font-weight: 700; color: ${DOC.INK}; }
   tbody.keep { page-break-inside: avoid; break-inside: avoid; }
 `
 
@@ -208,8 +209,8 @@ function buildPdfHtml(d: MinutesData): string {
 
 function buildDocxHtml(d: MinutesData): string {
   const m = d.meeting
-  const TH = 'style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid #1F3A5F;font-size:9pt;"'
-  const td = (extra = '') => `style="padding:6px 10px;border:1px solid #DDE3EA;vertical-align:top;${extra}"`
+  const TH = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid ${DOC.INK};font-size:9pt;"`
+  const td = (extra = '') => `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;${extra}"`
 
   const attendeeRows = groupAttendees(d).map(([role, rows]) =>
     rows.map((a: any, i: number) => `<tr>
@@ -227,7 +228,7 @@ function buildDocxHtml(d: MinutesData): string {
 
   const topicsHtml = d.topics.map(topic => {
     const its = d.itemsByTopic.get(topic.id) ?? []
-    const band = `<tr><td colspan="5" style="background-color:#1F3A5F;color:#ffffff;font-weight:bold;font-size:9.5pt;padding:5px 10px;border:1px solid #1F3A5F;">${esc(topic.title).toUpperCase()}</td></tr>`
+    const band = `<tr><td colspan="5" style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;font-size:9.5pt;padding:5px 10px;border:1px solid ${DOC.INK};">${esc(topic.title).toUpperCase()}</td></tr>`
     const rows = its.length === 0
       ? `<tr><td colspan="5" ${td('font-style:italic;color:#999;')}>No items — reviewed, nothing arising.</td></tr>`
       : its.map(it => {
@@ -235,11 +236,11 @@ function buildDocxHtml(d: MinutesData): string {
           const bg = closed ? 'background-color:#EFEFEF;color:#888;' : ''
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr>
-            <td ${td(`text-align:center;font-weight:bold;${bg}${closed ? '' : 'color:#1F3A5F;'}`)}>${esc(it.item_number)}${it.carried_from_item_id ? ' ↺' : ''}</td>
-            <td ${td(bg)}>${esc(it.discussion)}${fl ? `<br><span style="font-size:8pt;color:#B7791F;">${esc(fl)}</span>` : ''}</td>
+            <td ${td(`text-align:center;font-weight:bold;${bg}${closed ? '' : `color:${DOC.INK};`}`)}>${esc(it.item_number)}${it.carried_from_item_id ? ' ↺' : ''}</td>
+            <td ${td(bg)}>${esc(it.discussion)}${fl ? `<br><span style="font-size:8pt;color:${DOC_SEMANTIC.ITEM_OPEN};">${esc(fl)}</span>` : ''}</td>
             <td ${td(bg)}>${esc(d.respLabel(it))}</td>
             <td ${td(`text-align:center;${bg}`)}>${esc(isoShort(it.due_date))}</td>
-            <td ${td(`text-align:center;font-weight:bold;${bg || (it.status === 'open' ? 'color:#B7791F;' : 'color:#2B6CB0;')}`)}>${statusLabel(it.status)}</td>
+            <td ${td(`text-align:center;font-weight:bold;${bg || (it.status === 'open' ? `color:${DOC_SEMANTIC.ITEM_OPEN};` : `color:${DOC_SEMANTIC.ITEM_INFO};`)}`)}>${statusLabel(it.status)}</td>
           </tr>`
         }).join('\n')
     return `${band}\n${rows}`
@@ -251,9 +252,9 @@ function buildDocxHtml(d: MinutesData): string {
     : `<table style="width:100%;border-collapse:collapse;font-size:9.5pt;">
         <thead><tr><th ${TH} style="text-align:center;">Item #</th><th ${TH}>Action</th><th ${TH} style="text-align:center;">Due</th></tr></thead>
         <tbody>${asumGroups.map(([label, its]) => {
-          const grow = `<tr><td colspan="3" style="background-color:#E8EDF4;font-weight:bold;color:#1F3A5F;padding:5px 10px;border:1px solid #DDE3EA;">${esc(label)} — ${its.map((i: any) => i.item_number).join(', ')}</td></tr>`
+          const grow = `<tr><td colspan="3" style="background-color:${DOC.BAND_TINT};font-weight:bold;color:${DOC.INK};padding:5px 10px;border:1px solid ${DOC.RULE};">${esc(label)} — ${its.map((i: any) => i.item_number).join(', ')}</td></tr>`
           const rows = its.map((it: any) => `<tr>
-            <td ${td('text-align:center;font-weight:bold;color:#1F3A5F;')}>${esc(it.item_number)}</td>
+            <td ${td(`text-align:center;font-weight:bold;color:${DOC.INK};`)}>${esc(it.item_number)}</td>
             <td ${td()}>${esc(truncate(it.discussion, 90))}</td>
             <td ${td('text-align:center;')}>${esc(isoShort(it.due_date))}</td>
           </tr>`).join('\n')
@@ -266,7 +267,7 @@ function buildDocxHtml(d: MinutesData): string {
 <head><meta charset="utf-8">
 <style>
   body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #222; }
-  h2   { color: #1F3A5F; font-size: 12pt; font-weight: bold; margin: 20px 0 7px 0; }
+  h2   { color: ${DOC.INK}; font-size: 12pt; font-weight: bold; margin: 20px 0 7px 0; }
   table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 4px; }
   p { margin: 4px 0; }
 </style>
@@ -275,18 +276,18 @@ function buildDocxHtml(d: MinutesData): string {
 
 ${FIRM_HEADER_DOCX}
 
-<p style="text-align:center;color:#1F3A5F;font-size:13pt;font-weight:bold;margin:12px 0 0 0;">MEETING MINUTES — ${esc(d.typeName)} #${esc(m.meeting_number)}</p>
+<p style="text-align:center;color:${DOC.INK};font-size:13pt;font-weight:bold;margin:12px 0 0 0;">MEETING MINUTES — ${esc(d.typeName)} #${esc(m.meeting_number)}</p>
 
-<table style="width:100%;border:1px solid #C9D2DD;border-collapse:collapse;margin-top:14px;font-size:9.5pt;">
+<table style="width:100%;border:1px solid ${DOC.BORDER};border-collapse:collapse;margin-top:14px;font-size:9.5pt;">
   <tr>
-    <td style="padding:9px 13px;border:1px solid #C9D2DD;vertical-align:middle;">
+    <td style="padding:9px 13px;border:1px solid ${DOC.BORDER};vertical-align:middle;">
       <div><span style="color:#777;font-size:8.5pt;">Project:</span> <strong>${esc(d.project.name)}</strong></div>
       <div><span style="color:#777;font-size:8.5pt;">Reference:</span> <strong>${esc(d.project.com_number ?? '—')}</strong></div>
     </td>
-    <td style="padding:9px 13px;border:1px solid #C9D2DD;text-align:center;background-color:#F4F7FB;vertical-align:middle;">
-      <strong style="color:#1F3A5F;font-size:11pt;">${esc(d.typeName)} #${esc(m.meeting_number)}</strong>
+    <td style="padding:9px 13px;border:1px solid ${DOC.BORDER};text-align:center;background-color:${DOC.ZEBRA};vertical-align:middle;">
+      <strong style="color:${DOC.INK};font-size:11pt;">${esc(d.typeName)} #${esc(m.meeting_number)}</strong>
     </td>
-    <td style="padding:9px 13px;border:1px solid #C9D2DD;vertical-align:middle;">
+    <td style="padding:9px 13px;border:1px solid ${DOC.BORDER};vertical-align:middle;">
       <div><span style="color:#777;font-size:8.5pt;">Date:</span> <strong>${esc(isoShort(m.meeting_date))}</strong></div>
       <div><span style="color:#777;font-size:8.5pt;">Prepared by:</span> <strong>${esc(m.prepared_by ?? '—')}</strong></div>
     </td>
