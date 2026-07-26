@@ -174,6 +174,48 @@ keep `requireProjectAccess` unchanged in meaning for staff.
 
 ## 4. Invite flow, `PORTAL_INVITES_LIVE`, and revocation
 
+> **⚠ AMENDED 2026-07-26 — share links are now permitted, deliberately.**
+> The "no raw tokenized share links" rule above was the right default and remains
+> the default: **invite-with-account is still the primary mode**, and anyone who
+> needs to be on the record gets an account.
+>
+> **What changed.** For a read-only external viewer — a GC PM who needs to read the
+> issues register once before a site meeting — requiring account creation is
+> friction that gets the portal not-used. A second, lighter mode is worth the
+> tradeoff, provided the tradeoff is stated rather than glossed.
+>
+> **The tradeoff, stated:** a share link is attributable to the LINK, not to a
+> person. Anyone holding the URL is that link. It can be forwarded, pasted into a
+> group chat, or screenshotted, and we will not know who looked. That is the cost,
+> and it is why share links are the secondary mode and not the default.
+>
+> **The guardrails, all mandatory and all shipped:**
+> - **Individually revocable** (`revoked_at`), same pattern as invites. Revocation
+>   is immediate and total.
+> - **Server-enforced expiry**, evaluated inside `portal_link_project()` — the one
+>   function that may ever evaluate it — never in the UI. Presets only
+>   (`1d|1w|1m|1y|never`, default 1 month); the client cannot supply a timestamp,
+>   or a crafted request would set year 9999 and bypass the Never confirmation.
+> - **"Never" requires a distinct confirmation** and renders as a MARK, not a date,
+>   in the access card, so it is visible on any later audit.
+> - **Identical whitelists.** A link visitor reads through the same column lists as
+>   an account because they are literally the same SQL — one inner function in
+>   `portal_internal`, two named gates. Every NEVER exclusion holds identically: no
+>   finding diaries, no drafts, no deliverables, no equipment, no Directory,
+>   nothing cross-project. `pw-portal` compares the two paths field-by-field.
+> - **The team card is identical to account mode** (ruling D3). Team composition is
+>   already part of the distributed record — minutes attendees, distribution lists
+>   — so withholding it from a link would be a difference without a security
+>   rationale, and forking the whitelist to achieve it is exactly the drift the
+>   single-implementation design exists to prevent.
+> - **No write path exists**, asserted rather than assumed: anon PostgREST insert
+>   denied, anon RPC 42501, generate-* refusing a link token, and no Supabase
+>   client on the link page at all.
+> - **Link creation sends nothing.** It is inherently copy-paste, so the mail
+>   posture is untouched and link mode can go live with no mailer at all.
+
+
+
 **Mechanism — DECISION 9.3.** Recommend a **custom token table + endpoint** over the
 Supabase admin invite API:
 - revocation before redemption is a row update we own (`revoked_at`); the admin invite

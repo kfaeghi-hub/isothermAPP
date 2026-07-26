@@ -10,6 +10,43 @@ Everything below assumes Part A + Part B are deployed and the battery is green.
 
 ---
 
+## §0A. Going live with LINKS ONLY — no mailer required
+
+**This path precedes everything below and can be taken today.** A share link is
+inherently copy-paste: `api/portal-share-link` sends nothing and never reads
+`PORTAL_INVITES_LIVE`. So the entire email question — steps 1 through 4 — is
+irrelevant if the first external user gets a link rather than an account.
+
+That is a legitimate way to go live, and for a read-only viewer it is arguably
+the better one. What you give up: the view is attributable to the link, not the
+person.
+
+- [ ] **0A.1** Run pre-flight P1 and P2 below (they cost nothing and apply here too).
+- [ ] **0A.2** On a real project you own or lead, open the **Client / External
+      Access** card → **Create link**. Give it a label naming the recipient
+      ("For Bird PM") so the list stays legible six months from now.
+- [ ] **0A.3** Take the default **1 month** expiry for a first link. Do not reach
+      for Never on a first outing — a link you have to re-issue is a smaller
+      problem than one you forget exists.
+- [ ] **0A.4** Copy the link and open it yourself first, **on a phone**, in a
+      private window. You should see the record with no sign-in and no internal
+      chrome, and the header should read "View only".
+- [ ] **0A.5** Send it to the recipient by whatever channel you already use.
+- [ ] **0A.6** Check the card a day later: `last opened` and the view count tell
+      you whether it was used. If it was never opened, chase the person, not the
+      software.
+
+*Verification:* the link opens for you on a phone with no session; the card shows
+a view count above zero after the recipient confirms they looked; and revoking it
+in the card makes it stop working immediately — **test that revocation once, on
+your own link, before you rely on it.**
+
+*When to prefer an account instead:* the person needs to be on the record, will
+be referenced in minutes, or will be looking repeatedly over months. Links are
+for a look; accounts are for a relationship.
+
+---
+
 ## Pre-flight (do these first, they cost nothing)
 
 - [ ] **P1. Confirm the boundary still holds.** `node --env-file=.env pw-portal.mjs`

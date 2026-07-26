@@ -667,6 +667,109 @@ test therefore exists twice, independently.
 4. **Revocation is deleting the `portal_members` row** — instant, total, and
    independent of the invite record.
 
+
+### Link mode — view-only access with no account (2026-07-26)
+
+The **secondary** access mode. Invite-with-account remains primary; a share link
+is for a read-only viewer for whom account creation is friction that gets the
+portal not-used. Full record: `docs/PORTAL-ACCESS-UI-PROPOSAL.md`, amendment in
+MASTER-BRIEF §10 / Build Spec §6B / PORTAL-PROPOSAL §4.
+
+**The cost, stated where it will be read:** a share link is attributable to the
+LINK, not to a person. Anyone holding the URL is that link.
+
+#### One whitelist, two gates
+
+The column lists live in **`portal_internal`**, a schema with `USAGE` revoked from
+`public`, `anon` and `authenticated`. Nothing reaches those functions except the
+gated wrappers, which are `SECURITY DEFINER` and run as the function owner.
+
+```
+portal_internal.findings_rows(pid)          <- the ONLY place the column list exists
+   |                                    |
+public.portal_findings(pid)          portal_link_bundle(tok)
+  gate: portal_can_view(pid)           gate: portal_link_project(tok)
+  (authenticated)                      (service_role; the API endpoint)
+```
+
+Schema isolation rather than function-level revokes, because a `revoke ... from
+anon` alone is not a lock — PUBLIC still holds the grant (learned the hard way in
+`portal-rpc-grants-migration.sql`). Verified by privilege, not by "the call
+failed": `has_schema_privilege(anon,'portal_internal','USAGE') = false`.
+
+`pw-portal` compares the two paths **field-by-field** for findings, documents,
+team, photos and stats. That leg fails the moment they diverge, which is the
+entire reason the lists were moved.
+
+#### The single expiry evaluator
+
+`portal_link_project(tok)` is the ONLY function permitted to evaluate expiry or
+revocation, in either mode, for data or for files:
+
+```sql
+select project_id from portal_share_links
+ where token_hash = encode(extensions.digest(coalesce(tok,''),'sha256'),'hex')
+   and revoked_at is null
+   and (expires_at is null or expires_at > now())   -- NULL = never
+```
+
+`NULL means never` is a footgun: `expires_at < now()` silently invalidates every
+permanent link and `expires_at > now()` silently validates none of them. Making
+this function the sole evaluator is the mitigation, and the column comment says so.
+It answers NULL for invalid, expired, revoked and unknown alike — one shape, no
+existence oracle.
+
+#### `portal_share_links`
+
+Separate from `portal_invites` on the 9.1(a) argument: an invite is a single-use
+secret that becomes an account; a link is a standing credential used many times,
+forever if asked. RLS is staff-only (admin/dev · `owner_member` · `is_project_lead`,
+D6/9.4a) with **no client and no anon policy** — a link holder can never read the
+link table. `expires_at` NULL = never; `last_viewed_at`/`view_count` (D5) make the
+link attributable to *itself*, which is the only accountability available when it
+is not attributable to a person.
+
+**Expiry presets are derived server-side** (`1d|1w|1m|1y|never`, default 1 month)
+by `portal_share_link_create`. The endpoint does not accept a client timestamp: a
+crafted request would set year 9999 and bypass the "Never requires a distinct
+confirmation" rule, which is a UI control and therefore no control at all alone.
+
+#### Files under link mode
+
+`api/get-file-url` takes `{link_token, ...}` with no Authorization header. It:
+
+1. validates the token **before any row lookup** — 404-before-403 would let a
+   completely unauthenticated caller distinguish "this id exists" from "it does
+   not" across every table the endpoint serves;
+2. resolves the project **from the token**, never from the request;
+3. refuses when the row's project differs from the token's;
+4. applies `refuseUnlessIssued()` — **shared verbatim with the account path**, so
+   the issued-only test exists in exactly two places (that function and
+   `portal_internal.document_rows`) and gained no third copy.
+
+A valid token asking for a missing row answers **403, not 404**. Staff keep their
+404: useful diagnostics for a caller who is already authorized.
+
+#### No write path — three walls, all asserted
+
+1. `anon` has no policy on any portal table (PostgREST insert → 42501).
+2. `anon` has no EXECUTE on any portal function (RPC → 42501, asserted by **error
+   code**, never by row count).
+3. `generate-*` refuse a link token (401).
+
+Plus a structural one: **the link page constructs no Supabase client at all**
+(`src/lib/portalLink.ts` talks only to `/api/portal-link` and
+`/api/get-file-url`). The channel does not exist.
+
+#### Route
+
+`/portal/link/:token`, pre-router like `/portal/accept`, and before the loading
+gate — there is no session to wait for, and a signed-in staff member opening a
+link should see what the recipient sees. Carries `noindex` and `no-referrer` as
+both meta tags (removed on unmount) and response headers. No sign-out, no project
+switcher, no name: there is no identity to show.
+
+
 **Go-live: `docs/PORTAL-GOLIVE.md`** is the runbook — ordered steps, each with its
 own verification, none of it performed. Do not keep a second copy of the list here;
 it will drift. Summary of what it covers: flip `PORTAL_INVITES_LIVE` (and the fact

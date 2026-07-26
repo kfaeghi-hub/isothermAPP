@@ -343,6 +343,47 @@ tokenized share links: every view is an identity, so access is attributable and
 revocable by removing the membership row. An invite that becomes an account is
 also what makes per-company filtering possible later (see the open decision).
 
+> **⚠ AMENDED 2026-07-26 — share links are now permitted, deliberately.**
+> The "no raw tokenized share links" rule above was the right default and remains
+> the default: **invite-with-account is still the primary mode**, and anyone who
+> needs to be on the record gets an account.
+>
+> **What changed.** For a read-only external viewer — a GC PM who needs to read the
+> issues register once before a site meeting — requiring account creation is
+> friction that gets the portal not-used. A second, lighter mode is worth the
+> tradeoff, provided the tradeoff is stated rather than glossed.
+>
+> **The tradeoff, stated:** a share link is attributable to the LINK, not to a
+> person. Anyone holding the URL is that link. It can be forwarded, pasted into a
+> group chat, or screenshotted, and we will not know who looked. That is the cost,
+> and it is why share links are the secondary mode and not the default.
+>
+> **The guardrails, all mandatory and all shipped:**
+> - **Individually revocable** (`revoked_at`), same pattern as invites. Revocation
+>   is immediate and total.
+> - **Server-enforced expiry**, evaluated inside `portal_link_project()` — the one
+>   function that may ever evaluate it — never in the UI. Presets only
+>   (`1d|1w|1m|1y|never`, default 1 month); the client cannot supply a timestamp,
+>   or a crafted request would set year 9999 and bypass the Never confirmation.
+> - **"Never" requires a distinct confirmation** and renders as a MARK, not a date,
+>   in the access card, so it is visible on any later audit.
+> - **Identical whitelists.** A link visitor reads through the same column lists as
+>   an account because they are literally the same SQL — one inner function in
+>   `portal_internal`, two named gates. Every NEVER exclusion holds identically: no
+>   finding diaries, no drafts, no deliverables, no equipment, no Directory,
+>   nothing cross-project. `pw-portal` compares the two paths field-by-field.
+> - **The team card is identical to account mode** (ruling D3). Team composition is
+>   already part of the distributed record — minutes attendees, distribution lists
+>   — so withholding it from a link would be a difference without a security
+>   rationale, and forking the whitelist to achieve it is exactly the drift the
+>   single-implementation design exists to prevent.
+> - **No write path exists**, asserted rather than assumed: anon PostgREST insert
+>   denied, anon RPC 42501, generate-* refusing a link token, and no Supabase
+>   client on the link page at all.
+> - **Link creation sends nothing.** It is inherently copy-paste, so the mail
+>   posture is untouched and link mode can go live with no mailer at all.
+
+
 > **⚠ CORRECTION (2026-07-25, Part A as-built).** The paragraph above is wrong on
 > one load-bearing point and is kept only as the record of what was believed. The
 > external account gets a row in a **separate `portal_members` table, NEVER
@@ -391,6 +432,30 @@ connection → continuous monitoring → AI operator assistant. Category: Commis
 Operating System + AI BAS Intelligence Layer.
 
 ## 12. Open items (pre-client-rollout register)
+
+**Portal access UI + share-link mode — ✅ CLOSED 2026-07-26.** Part A shipped the
+invite backend with no front door; the Client / External Access card is now the
+management surface (owner/lead, 9.4a), and it absorbed the standalone
+"View as client" tile.
+
+**A second, lighter access mode was added and it AMENDS a Part A rule.** "No raw
+share links ever" was correct as a default and remains the default —
+invite-with-account is still primary. But for a read-only viewer, requiring
+account creation is friction that gets the portal not-used. The cost is stated
+rather than glossed: **a share link is attributable to the LINK, not to a person.**
+
+Guardrails, all shipped and all tested: individually revocable; server-enforced
+expiry inside the single evaluator `portal_link_project()`; presets only
+(default 1 month) so no client timestamp can bypass the Never confirmation;
+"Never" needs a distinct confirmation and renders as a mark, not a date; identical
+column whitelists, because both modes call the same `portal_internal` functions
+and `pw-portal` compares them field-by-field; no write path, asserted by error
+code across three walls; and **link creation sends nothing**, so link mode can go
+live with no mailer at all.
+
+Full record: `docs/PORTAL-ACCESS-UI-PROPOSAL.md` (rulings D1–D7), ARCHITECTURE
+"Link mode", `docs/PORTAL-GOLIVE.md` §0A.
+
 
 **Document identity — ✅ CLOSED 2026-07-26.** The generated documents (site
 reports, checklists, meeting minutes) rendered navy `#1F3A5F` while the app and
