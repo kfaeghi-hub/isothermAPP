@@ -71,7 +71,8 @@ try {
   async function run(base, tag) {
     console.log(`\n${tag} — ${base}`)
     for (const [kind, path, body, table, rowId] of JOBS) {
-      const r = await fetch(`${base}${path}`, { method: 'POST', headers, body: JSON.stringify(body) })
+      const h2 = base === PREMERGE ? { ...headers, Cookie: `_vercel_jwt=${process.env.PREMERGE_JWT}` } : headers
+      const r = await fetch(`${base}${path}`, { method: 'POST', headers: h2, body: JSON.stringify(body) })
       const b = await r.json().catch(() => ({}))
       if (!r.ok) { console.log(`  FAIL ${kind}: ${r.status} ${b.error ?? ''}`); continue }
       const urls = table
