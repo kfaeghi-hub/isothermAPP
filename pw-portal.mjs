@@ -464,8 +464,9 @@ try {
         if (!eq) check(false, 'no ZZ-TEST equipment row to hang an attachment on')
         else {
           const { data: att, error: attErr } = await adm.from('equipment_attachments').insert({
-            project_id: ZZ, equipment_id: eq.id, kind: 'shop_drawing',
-            file_name: 'ZZ-LINK-refusal-probe.pdf', storage_url: 'fake/zz-link-probe.pdf',
+            project_id: ZZ, equipment_id: eq.id,
+            filename: 'ZZ-LINK-refusal-probe.pdf', file_type: 'shop_drawing',
+            storage_url: 'fake/zz-link-probe.pdf',
           }).select('id').single()
           if (attErr) check(false, `could not seed an attachment: ${attErr.message}`)
           else {
