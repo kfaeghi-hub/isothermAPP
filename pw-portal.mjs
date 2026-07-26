@@ -54,11 +54,13 @@ const post = async (c, path, body) => {
   return { status: r.status, body: await r.json().catch(() => ({})) }
 }
 
-let probeProjectId = null, draftReportId = null, inviteIds = []
+let probeProjectId = null, draftReportId = null, inviteIds = [], linkIds = []
 
 async function cleanup() {
   await adm.from('portal_members').delete().eq('profile_id', clientUser.id)
   if (draftReportId) await adm.from('site_reports').delete().eq('id', draftReportId)
+  for (const id of linkIds) await adm.from('portal_share_links').delete().eq('id', id)
+  await adm.from('portal_share_links').delete().ilike('label', 'ZZ-LINK%')
   if (probeProjectId) await adm.from('projects').delete().eq('id', probeProjectId)
   for (const id of inviteIds) await adm.from('portal_invites').delete().eq('id', id)
   await adm.from('portal_invites').delete().ilike('email', 'zz-portal-%@zz-test.example')
@@ -281,6 +283,214 @@ try {
   {
     const r = await post(emp, '/api/portal-invite', { project_id: probeProjectId, email: 'zz-nope@zz-test.example' })
     check(r.status === 403, `non-member employee cannot invite on another project (${r.status})`)
+  }
+
+
+  // == 7 . SHARE-LINK MODE ===================================================
+  // The amended access mode (2026-07-26). Every leg pairs its negative with the
+  // positive that proves the mechanism is live -- a link that "returns nothing"
+  // would also return nothing if the whole feature were broken.
+  {
+    const mkLink = async (label, expires) => {
+      const r = await post(adm, '/api/portal-share-link', { project_id: ZZ, label, expires })
+      if (r.status !== 200) return null
+      linkIds.push(r.body.link_id)
+      return { id: r.body.link_id, url: r.body.link_url, token: r.body.link_url.split('/portal/link/')[1] }
+    }
+    const openLink = async (tok) => {
+      const r = await fetch(`${BASE_URL}/api/portal-link`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tok }),
+      })
+      return { status: r.status, body: await r.json().catch(() => ({})), headers: r.headers }
+    }
+    const signViaLink = async (tok, body) => {
+      const r = await fetch(`${BASE_URL}/api/get-file-url`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link_token: tok, ...body }),
+      })
+      return { status: r.status, body: await r.json().catch(() => ({})) }
+    }
+
+    const live = await mkLink('ZZ-LINK live', '1m')
+    check(!!live, `share link created (${live ? 'ok' : 'FAILED'})`)
+
+    // -- POSITIVE: the link opens and carries the record --------------------
+    const opened = await openLink(live.token)
+    check(opened.status === 200, `valid link opens (${opened.status})`)
+    check((opened.body.findings ?? []).length > 0,
+      `link bundle carries the register (${(opened.body.findings ?? []).length} findings)`)
+    check(!!opened.body.project?.name,
+      `link bundle carries the project header ("${opened.body.project?.name}")`)
+
+    // -- THE ANTI-DRIFT TEST: field-by-field against ACCOUNT mode -----------
+    // This is the leg that fails the moment the two paths diverge, which is the
+    // entire reason the column lists were moved into portal_internal.
+    {
+      const { data: acctF } = await cli.rpc('portal_findings', { pid: ZZ })
+      const linkF = opened.body.findings ?? []
+      const acctCols = Object.keys(acctF?.[0] ?? {}).sort().join(',')
+      const linkCols = Object.keys(linkF[0] ?? {}).sort().join(',')
+      check(acctCols === linkCols && acctCols.length > 0,
+        acctCols === linkCols
+          ? `ANTI-DRIFT findings columns identical account vs link (${acctCols.split(',').length} fields)`
+          : `ANTI-DRIFT findings columns DIVERGED\n      account: ${acctCols}\n      link:    ${linkCols}`)
+      check(!linkCols.includes('identified_by') && !linkCols.includes('origin'),
+        'link register excludes identified_by and origin, exactly as account mode does')
+
+      for (const [name, rpc, arr] of [
+        ['documents', 'portal_documents', opened.body.documents],
+        ['team', 'portal_team', opened.body.team],
+        ['photos', 'portal_finding_photos', opened.body.photos],
+      ]) {
+        const { data: a } = await cli.rpc(rpc, { pid: ZZ })
+        const ac = Object.keys(a?.[0] ?? {}).sort().join(',')
+        const lc = Object.keys((arr ?? [])[0] ?? {}).sort().join(',')
+        check(ac === lc, `ANTI-DRIFT ${name} columns identical account vs link${ac === lc ? '' : ` (${ac} | ${lc})`}`)
+      }
+      const { data: aStats } = await cli.rpc('portal_stats', { pid: ZZ })
+      check(Object.keys(aStats?.[0] ?? {}).sort().join(',') === Object.keys(opened.body.stats ?? {}).sort().join(','),
+        'ANTI-DRIFT stats columns identical account vs link')
+    }
+
+    // -- Expiry: NEGATIVE paired with the SAME link working before ----------
+    {
+      const tmp = await mkLink('ZZ-LINK expiring', '1d')
+      const before = await openLink(tmp.token)
+      check(before.status === 200, `PAIR: link works before expiry (${before.status})`)
+      await adm.from('portal_share_links')
+        .update({ expires_at: new Date(Date.now() - 86400000).toISOString() }).eq('id', tmp.id)
+      const after = await openLink(tmp.token)
+      check(after.status === 403, `EXPIRED link rejected (${after.status}) - same token that just worked`)
+    }
+
+    // -- Revocation: NEGATIVE paired with the SAME link working before ------
+    {
+      const tmp = await mkLink('ZZ-LINK revoking', '1m')
+      const before = await openLink(tmp.token)
+      check(before.status === 200, `PAIR: link works before revocation (${before.status})`)
+      await adm.from('portal_share_links')
+        .update({ revoked_at: new Date().toISOString() }).eq('id', tmp.id)
+      const after = await openLink(tmp.token)
+      check(after.status === 403, `REVOKED link rejected (${after.status}) - same token that just worked`)
+    }
+
+    // -- NEVER expires is HONORED: the NULL footgun, tested directly --------
+    {
+      const never = await mkLink('ZZ-LINK never', 'never')
+      const { data: row } = await adm.from('portal_share_links')
+        .select('expires_at').eq('id', never.id).single()
+      check(row?.expires_at === null, 'never-preset stores NULL expiry (not a far-future date)')
+      const r = await openLink(never.token)
+      check(r.status === 200, `NEVER-expiring link honored (${r.status})`)
+    }
+
+    // -- A link for project A cannot read project B ------------------------
+    // Non-vacuous: give B real data FIRST, so "sees nothing" means a wall and
+    // not an empty project.
+    {
+      const { data: seeded } = await adm.from('findings').insert({
+        project_id: probeProjectId, number: '1',
+        title: 'ZZ-LINK cross-project canary', status: 'open',
+      }).select('id').single()
+      check(!!seeded, 'PAIR: project B seeded with a canary finding to leak')
+
+      const r = await openLink(live.token)
+      const titles = (r.body.findings ?? []).map(f => f.title)
+      check(!titles.includes('ZZ-LINK cross-project canary'),
+        'link for project A cannot read project B (canary absent)')
+      check(r.body.project?.project_id === ZZ,
+        `link bundle scoped to its own project (${r.body.project?.project_id === ZZ ? 'ZZ-TEST' : r.body.project?.project_id})`)
+
+      const { data: bReport } = await adm.from('site_reports').insert({
+        project_id: probeProjectId, report_number: 'ZZ-LINK-B', site_visit_date: '2026-07-26',
+        report_date: '2026-07-26', authored_by: 'Dev Admin', storage_url: 'fake/path.docx',
+      }).select('id').single()
+      const fr = await signViaLink(live.token, { table: 'site_reports', id: bReport.id, kind: 'docx' })
+      check(fr.status === 403, `link for A cannot sign a file on B (${fr.status})`)
+      await adm.from('site_reports').delete().eq('id', bReport.id)
+      await adm.from('findings').delete().eq('id', seeded.id)
+    }
+
+    // -- THE THREE WALLS behind "no write path", asserted by ERROR CODE -----
+    {
+      const anon = mk()
+      const ins = await anon.from('findings').insert({
+        project_id: ZZ, number: '999', title: 'ZZ-LINK write probe', status: 'open',
+      })
+      check(!!ins.error, `WALL 1 anon PostgREST insert denied (${ins.error?.code ?? 'NO ERROR - IT WROTE'})`)
+
+      const rpc = await anon.rpc('portal_findings', { pid: ZZ })
+      check(rpc.error?.code === '42501',
+        `WALL 2 anon cannot EXECUTE the portal RPCs (${rpc.error?.code ?? 'REACHED'}) - error code, not row count`)
+
+      const gen = await fetch(`${BASE_URL}/api/generate-report`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link_token: live.token, report_id: draftReportId }),
+      })
+      check(gen.status === 401 || gen.status === 403,
+        `WALL 3 generate-report refuses a link token (${gen.status})`)
+
+      const anonLinks = await anon.from('portal_share_links').select('id')
+      const staffLinks = await adm.from('portal_share_links').select('id').eq('project_id', ZZ)
+      check((anonLinks.data ?? []).length === 0 && (staffLinks.data ?? []).length > 0,
+        `PAIR: link table opaque to anon (${(anonLinks.data ?? []).length}) while staff read it (${(staffLinks.data ?? []).length})`)
+    }
+
+    // -- Files through link auth: ISSUED 200, DRAFT 403 --------------------
+    {
+      const issued = (opened.body.documents ?? []).find(d => d.kind === 'site_report' && d.has_pdf)
+      if (!issued) check(false, 'no issued site report in the link bundle to test the positive leg')
+      else {
+        const r = await signViaLink(live.token, { table: 'site_reports', id: issued.row_id, kind: 'pdf' })
+        check(r.status === 200 && !!r.body.url, `link signs an ISSUED document (${r.status})`)
+        if (r.body.url) {
+          const f = await fetch(r.body.url)
+          check(f.ok, `link-signed URL actually fetches (${f.status})`)
+        }
+      }
+      const dr = await signViaLink(live.token, { table: 'site_reports', id: draftReportId, kind: 'docx' })
+      check(dr.status === 403 && /not been issued/i.test(dr.body.error ?? ''),
+        `link signing a DRAFT -> 403 (${dr.body.error ?? dr.status})`)
+
+      const ea = await signViaLink(live.token, { table: 'equipment_attachments', id: draftReportId })
+      check(ea.status === 403, `link cannot reach equipment_attachments (${ea.status})`)
+    }
+
+    // -- Garbage tokens answer identically: no oracle ----------------------
+    for (const [name, tok] of [['garbage', 'not-a-real-token-at-all'], ['single-char', 'x']]) {
+      const r = await openLink(tok)
+      check(r.status === 403, `${name} token rejected identically (${r.status})`)
+    }
+
+    // -- noindex, asserted rather than assumed -----------------------------
+    check(/noindex/i.test(opened.headers.get('x-robots-tag') ?? ''),
+      `link endpoint sends X-Robots-Tag noindex ("${opened.headers.get('x-robots-tag')}")`)
+
+    // -- D5 telemetry actually increments ----------------------------------
+    {
+      const { data: before } = await adm.from('portal_share_links')
+        .select('view_count').eq('id', live.id).single()
+      await openLink(live.token)
+      const { data: after } = await adm.from('portal_share_links')
+        .select('view_count, last_viewed_at').eq('id', live.id).single()
+      check(after.view_count > before.view_count && !!after.last_viewed_at,
+        `view telemetry increments (${before.view_count} -> ${after.view_count})`)
+    }
+
+    // -- Non-owner/lead cannot create a link (D6 / 9.4a) -------------------
+    {
+      const r = await post(emp, '/api/portal-share-link', {
+        project_id: probeProjectId, label: 'ZZ-LINK denied', expires: '1d',
+      })
+      check(r.status === 403, `non-member employee cannot create a link on another project (${r.status})`)
+    }
+
+    // -- Section cleanup, proven --------------------------------------------
+    for (const id of linkIds) await adm.from('portal_share_links').delete().eq('id', id)
+    linkIds = []
+    const { data: leftLinks } = await adm.from('portal_share_links').select('id')
+    check((leftLinks ?? []).length === 0, `self-clean: share links removed (${(leftLinks ?? []).length} left)`)
   }
 
   // ── 6 · Route separation (browser, as dev.client) ───────────────────────
