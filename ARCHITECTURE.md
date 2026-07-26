@@ -913,6 +913,54 @@ Corollaries that follow from it:
   round it off. (239 vs 238 was a deliberately-maintained fixture; 242 vs 239 was a
   second fixture project the tracked figure never included. Both were real answers.)
 
+### The refactor corollary: a green build proves SYNTAX, not OUTPUT
+
+**A refactor that changes how strings are BUILT is only proven at the output
+layer.** Type-checking tells you the program compiles; it says nothing about what
+the program emits. Where the two diverge, the compiler is silent and confident.
+
+The 2026-07-26 palette consolidation is the case to remember. Replacing hex
+literals with `${DOC.INK}` tokens hit **24 sites where the literal sat inside a
+SINGLE-QUOTED string**. Single quotes do not interpolate, so those became the
+literal characters `${DOC.INK}` — perfectly valid TypeScript, `tsc` clean, and it
+would have printed that text into every generated document. **The build was green
+with the bug present, twice.**
+
+So, for any refactor of string construction — template-literal conversions,
+i18n/token extraction, CSS-in-JS moves, query builders, log formatters:
+
+- **Assert on the artifact, not the compile.** Generate real output and grep it
+  for the token syntax that must never appear (`${`, `{{`, `%s`, `:param`). One
+  line, and it is the only check that can actually fail here.
+- **Detect with a parser-aware scan, not grep.** Two attempts to find these by
+  grep were wrong: a multi-line template literal carries a backtick only on its
+  opening line, so "line has `${` but no backtick" reported false positives
+  everywhere. What worked was scanning single-quote PAIRS within each line
+  (single-quoted strings cannot span lines) — and the detector that found the 24
+  sites then performed the fix, so nothing outside a real match could be touched.
+- **Count what you converted and re-run the detector to zero.** "24 found,
+  24 converted, detector now reports 0" is a proof; "looks right" is not.
+
+### Ops: harness cleanup belongs in `finally`, never as a trailing statement
+
+Any script that SEEDS fixture rows must remove them in a `finally` block. Cleanup
+written as the last statement of the happy path is skipped by every throw above
+it — and a harness crashes precisely when something unexpected happened, which is
+exactly when you least want fixtures left behind.
+
+Learned by leaking two meetings onto ZZ-TEST from a harness whose cleanup was the
+final line: an unrelated `ERR_INVALID_URL` aborted the run after the seed. The
+same rule already holds for the `pw-*` suites (they clean in `finally` or with a
+best-effort catch) — it applies to one-off harnesses too, which are the ones most
+likely to crash because they are written once and never hardened.
+
+Two habits that go with it:
+- **Clean unconditionally and by ID**, not "if a flag was set" and not "the most
+  recent row" — a time-scoped or id-scoped delete cannot eat a standing fixture.
+- **Assert the resting state after cleanup** and print it (`meetings table total:
+  0 (must be 0)`). A cleanup that silently did nothing looks identical to one that
+  worked.
+
 The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
 - `pw-report-regen.mjs` — regeneration diff (the gate for any change near the
   report path; before/after capture, normalized-text compare).
