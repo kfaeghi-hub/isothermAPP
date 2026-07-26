@@ -684,9 +684,9 @@ surfaces that exist.
   findings assigned to their company). Decide at build time against a real roster;
   the team matrix already supplies the finding → company mapping either way.
 - **Trigger unchanged:** build when the first named external user exists.
-- **Activates the document/app brand decision** (§12 navy `#1F3A5F` documents vs
-  the purple app) — external users see app and documents together, so the split
-  stops being an internal-only cosmetic question.
+- **Document/app brand decision — RESOLVED 2026-07-26** (was "activates with this
+  phase"). The documents converged to brand purple; the palette lives in `DOC` in
+  `api/_shared/doc-common.ts`. Record: `docs/DOCUMENT-IDENTITY-DECISION.md`.
 
 **Tech:** React + a charting library (e.g. Recharts, already compatible with the stack). The work is choosing the right metrics (hence "after real use"), not the charting itself.
 

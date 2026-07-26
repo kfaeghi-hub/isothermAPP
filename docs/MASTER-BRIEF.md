@@ -377,10 +377,10 @@ with a real project's roster in front of you — not now.
 speculative build; the portal is a permission/presentation layer over surfaces
 that already exist, so it stays cheap to defer.
 
-**Dependency that activates with this phase:** the document/app brand divergence
-below (navy `#1F3A5F` documents vs purple app) stops being cosmetic the moment
-external users see both the app and its generated documents in one session —
-decide it as part of this phase, not after.
+**Document/app brand divergence — RESOLVED 2026-07-26.** This used to read as a
+dependency that *activates with this phase*. It activated, it was decided, and the
+language is retired so it stops re-opening itself: the generated documents now
+carry the brand purple identity. See §12 and `docs/DOCUMENT-IDENTITY-DECISION.md`.
 
 ## 11. Final destination
 
@@ -391,6 +391,36 @@ connection → continuous monitoring → AI operator assistant. Category: Commis
 Operating System + AI BAS Intelligence Layer.
 
 ## 12. Open items (pre-client-rollout register)
+
+**Document identity — ✅ CLOSED 2026-07-26.** The generated documents (site
+reports, checklists, meeting minutes) rendered navy `#1F3A5F` while the app and
+the external portal render brand purple `#443C8F`. The portal made the split
+client-visible — an invited PM opens a purple project record and downloads a navy
+PDF from it in the same minute — so the question stopped being cosmetic.
+
+**Ruled: converge (Option A).** Decided against rendered evidence, not on paper:
+one of each document type generated in both identities from the same source rows
+through the same pipeline, plus the closed-finding band and a BT.601 greyscale
+print preview (contractors print these in mono on site). Record:
+`docs/DOCUMENT-IDENTITY-DECISION.md`. Shipped `cf83ed1`.
+
+What came with the ruling, all binding:
+- **The palette is in ONE place** — `DOC` in `api/_shared/doc-common.ts`. The 104
+  hex literals that used to be spread across four generator files are gone,
+  including the 25 that lived in `generate-checklist.ts`'s private copies. The
+  consolidation shipped in the same commit as the palette, deliberately.
+- **Conformance colour is not brand.** `DOC_SEMANTIC` fences off the
+  closed-finding grey band, outstanding/recorded, and the meeting-item statuses.
+  The closed band says CLOSED, not PASSED.
+- **Vermilion is structural-never in documents** — accent only. BT.601 luma 113.8
+  against purple's 71.9; it does not survive greyscale printing.
+- **Issued files stay frozen (rule 4).** Projects mid-flight permanently hold navy
+  documents issued before 2026-07-26 and purple ones after. That mixed era was
+  accepted as part of the ruling — it is not a defect to clean up later.
+- **No automated gate catches colour.** `pw-report-regen` compares visible text,
+  not bytes, so no baseline reset was needed *and* no gate protects the palette.
+  Style changes are proven by looking. (Two docs previously claimed a byte-clean
+  reset was required; both are corrected.)
 
 **Storage privacy hardening — ✅ CLOSED 2026-07-24.** All five document buckets
 (site-reports, meeting-minutes, finding-photos, checklists, equipment-files) are now

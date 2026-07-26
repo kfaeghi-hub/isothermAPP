@@ -90,6 +90,19 @@ drawer. Content is never narrower than the viewport minus 32px gutters.
   tables or ruled row lists.
 - Playwright contract: roles, text labels, and data-testids are load-bearing —
   restyle around them.
-- Generated documents (PDF/DOCX) keep their own print identity (navy firm
-  header) — out of scope for this world until Tony asks.
+- Generated documents (PDF/DOCX) **share this world's identity** as of
+  2026-07-26 (ruling: `docs/DOCUMENT-IDENTITY-DECISION.md`). They were navy
+  `#1F3A5F`; the external portal made the split client-visible — an invited PM
+  opened a purple record and downloaded a navy PDF in the same minute — so the
+  documents converged to brand purple. The palette lives in ONE place,
+  `DOC` in `api/_shared/doc-common.ts`; never hardcode a document colour again.
+  Three constraints came with the ruling and are binding:
+  - **Conformance colour is not brand.** `DOC_SEMANTIC` keeps the closed-record
+    grey band, outstanding/recorded, and the meeting-item statuses out of the
+    identity. The closed band says CLOSED, not PASSED.
+  - **Vermilion is structural-never in documents** — accent only, never a band
+    fill or a rule. BT.601 luma 113.8 vs purple's 71.9: it does not survive the
+    greyscale printing these get on site.
+  - **Issued files are frozen (rule 4).** Projects mid-flight hold both eras
+    permanently. That is intended, not a defect to clean up.
 - Icons: lucide-react, 16–18px, stroke 1.75–2, currentColor. Never emoji.

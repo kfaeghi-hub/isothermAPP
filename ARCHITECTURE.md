@@ -821,12 +821,15 @@ containment is.
    meta `#062A1D` in index.html, and cover-green-era prose in the index.css
    header comments. (`LogoLockup` was on this list until 2026-07-22 — the
    landing page is now its consumer.)
-7. **Document/app brand divergence (recorded 2026-07-22, §12):** generated
-   documents still render the navy `#1F3A5F` letterhead/table headers while the
-   app reads purple — decide whether the generators adopt the purple/vermilion
-   identity. Contained to doc-common's letterhead + CSS constants, but it
-   changes document output: report-regen needs a deliberate baseline reset, and
-   issued files stay as issued (rule 4).
+7. ~~**Document/app brand divergence**~~ — **CLOSED 2026-07-26.** Converged to
+   the brand purple identity (Tony's ruling, Option A of
+   `docs/DOCUMENT-IDENTITY-DECISION.md`, shipped in `cf83ed1`). The 104 hex
+   literals across the four generators are gone: `DOC` in `doc-common` is now the
+   single definition, and `DOC_SEMANTIC` fences off the conformance colours that
+   deliberately did NOT move. Issued files stay as issued (rule 4), so projects
+   mid-flight permanently hold both eras — accepted with the ruling.
+   *The old entry claimed report-regen needed a deliberate baseline reset. It did
+   not — see the Testing section. No reset was performed.*
 6. Contour watermark SVG path duplicated between `.contour-mark` (white) and
    `.contour-mark-ink` (purple) rather than shared.
 
@@ -911,8 +914,14 @@ Corollaries that follow from it:
   second fixture project the tracked figure never included. Both were real answers.)
 
 The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
-- `pw-report-regen.mjs` — regeneration byte-clean diff (the gate for any change
-  near the report path; before/after capture, normalized-text compare)
+- `pw-report-regen.mjs` — regeneration diff (the gate for any change near the
+  report path; before/after capture, normalized-text compare).
+  **It compares VISIBLE TEXT, not bytes** — `word/document.xml` with every tag
+  stripped. Two consequences, both learned the hard way in the 2026-07-26 palette
+  convergence: a style-only change passes it untouched and needs **no baseline
+  reset**; and it will **not catch a colour error for you**. Nothing automated
+  will. Style changes are proven by looking at one of each document type, PDF and
+  DOCX. Manual, argument-taking, deliberately outside the battery.
 - `pw-checklist-docs.mjs` — four-deliverable checklist content audit. PDF checks
   use real pdf.js text extraction (upgraded 2026-07-22 from an ASCII flate probe
   that kept two checks permanently yellow — green means green). Canonical

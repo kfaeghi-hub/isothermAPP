@@ -428,11 +428,22 @@ Spec §6B + §12, ARCHITECTURE UI-debt item 7).
   issued after the switch**. That mixed set is permanent and visible to clients.
   Options: (i) accept the mixed era (recommended — rule 4 is not negotiable),
   (ii) delay the switch to a project boundary so any one project is single-era.
-- **Test consequence:** `pw-report-regen` compares regenerated output byte-for-byte
+- **Test consequence:** ~~`pw-report-regen` compares regenerated output byte-for-byte
   against a stored baseline. The switch **intentionally** changes output, so it needs a
-  deliberate baseline reset recorded as such — not a silent re-baseline.
-- **Recommendation:** converge to purple, accept the mixed era, reset the regen
-  baseline in the same commit, record the date in §12.
+  deliberate baseline reset recorded as such — not a silent re-baseline.~~
+  > **⚠ CORRECTED 2026-07-26. The struck text is wrong and was never checked.**
+  > `pw-report-regen` does **not** compare bytes. It extracts `word/document.xml`,
+  > strips every tag (`.replace(/<[^>]+>/g, ' ')`) and compares **visible text**.
+  > Colours live in style attributes — inside tags — so a colour-only change is
+  > invisible to it. **No baseline reset was needed and none was performed.**
+  > The flip side is the part that matters going forward: that gate would not have
+  > caught a colour *mistake* either. Nothing automated does. The palette is
+  > therefore proven visually, and `DOC` in `doc-common` carries that warning.
+- **Recommendation:** converge to purple, accept the mixed era, ~~reset the regen
+  baseline in the same commit,~~ record the date in §12.
+  > **RULED 2026-07-26: converge (Option A).** Shipped in `cf83ed1` with the
+  > palette consolidation folded in. Full record:
+  > `docs/DOCUMENT-IDENTITY-DECISION.md`.
 
 ## 18. (b) Abuse posture — authenticated but untrusted
 
