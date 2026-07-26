@@ -30,9 +30,13 @@ const numOf = (f: PortalFinding) => {
   return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n
 }
 
-export function Register({ findings, photos }: {
+export function Register({ findings, photos, getPhotoUrls = getPortalPhotoUrls }: {
   findings: PortalFinding[]
   photos: PortalPhoto[]
+  /** How to mint signed photo URLs. Defaults to account mode; link mode injects
+   *  its token-carrying equivalent. ONE component serves both worlds — forking it
+   *  is how two registers drift into showing different columns. */
+  getPhotoUrls?: (findingId: string) => Promise<Record<string, string>>
 }) {
   const [status, setStatus] = useState<Status>('all')
   const [category, setCategory] = useState('all')
@@ -65,7 +69,7 @@ export function Register({ findings, photos }: {
   async function openPhotos(f: PortalFinding) {
     const list = byFinding.get(f.finding_id) ?? []
     if (!list.length) return
-    const urls = await getPortalPhotoUrls(f.finding_id)
+    const urls = await getPhotoUrls(f.finding_id)
     const ordered = list.map(p => urls[p.photo_id]).filter(Boolean)
     if (ordered.length) setViewer({ urls: ordered, i: 0, caption: list[0].caption })
   }

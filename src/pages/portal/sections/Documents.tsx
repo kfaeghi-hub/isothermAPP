@@ -13,13 +13,18 @@ import { EmptyState } from '../ui/EmptyState'
 
 const KIND = { site_report: 'Site report', meeting: 'Minutes' } as const
 
-export function Documents({ docs }: { docs: PortalDocument[] }) {
+export function Documents({ docs, onOpen = openPortalDocument }: {
+  docs: PortalDocument[]
+  /** How to open a document. Defaults to account mode; link mode injects its
+   *  token-carrying equivalent. The ISSUED test is server-side in both. */
+  onOpen?: (doc: PortalDocument, kind: 'docx' | 'pdf') => Promise<void>
+}) {
   const [busy, setBusy] = useState<string | null>(null)
 
   async function open(doc: PortalDocument, kind: 'pdf' | 'docx') {
     const key = `${doc.kind}-${doc.row_id}-${kind}`
     setBusy(key)
-    try { await openPortalDocument(doc, kind) } finally { setBusy(null) }
+    try { await onOpen(doc, kind) } finally { setBusy(null) }
   }
 
   return (

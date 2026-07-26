@@ -16,6 +16,7 @@ import { TemplatesPage } from './pages/TemplatesPage'
 import { ClassificationsPage } from './pages/ClassificationsPage'
 import { UsersPage } from './pages/UsersPage'
 import { PortalAccept } from './pages/portal/PortalAccept'
+import { PortalLink } from './pages/portal/PortalLink'
 
 // Public landing page — lazy-split so the authenticated app path pays nothing.
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
@@ -59,6 +60,13 @@ export default function App() {
   // pre-router bypass precedent as /reset-password).
   if (window.location.pathname === '/portal/accept') {
     return <PortalAccept />
+  }
+
+  // Share links resolve here regardless of auth state, and BEFORE the loading
+  // gate: a link visitor has no session to wait for, and a signed-in staff member
+  // opening a link should see what the recipient sees, not their own portal.
+  if (window.location.pathname.startsWith('/portal/link/')) {
+    return <PortalLink />
   }
 
   if (loading) return <LoadingScreen />
