@@ -46,6 +46,21 @@ const DOC_TABLES: Record<string, DocTable> = {
  *   finding_photos  allowed: photos are part of the distributed record
  * `row` is the service-role row; it is never returned to the caller.
  */
+/**
+ * The EXTERNAL refusals — what an outside viewer may never sign, regardless of
+ * how they authenticated. Shared verbatim by the account path and the link path
+ * so the issued-only test gains no third copy: it exists in the RPC
+ * (portal_internal.document_rows) and here, and nowhere else.
+ */
+function refuseUnlessIssued(table: string, row: any): void {
+  if (table === 'equipment_attachments')
+    throw new AuthError(403, 'Not available in the portal')
+  if (table === 'site_reports' && !row?.storage_url)
+    throw new AuthError(403, 'This document has not been issued')
+  if (table === 'meetings' && row?.status !== 'issued')
+    throw new AuthError(403, 'This document has not been issued')
+}
+
 async function authorizeFile(
   service: any, userId: string, table: string, row: any, projectId: string,
 ): Promise<void> {
@@ -58,14 +73,35 @@ async function authorizeFile(
     return
   }
 
-  // External caller.
+  // External caller with an account.
   await requirePortalAccess(service, userId, projectId)
-  if (table === 'equipment_attachments')
-    throw new AuthError(403, 'Not available in the portal')
-  if (table === 'site_reports' && !row?.storage_url)
-    throw new AuthError(403, 'This document has not been issued')
-  if (table === 'meetings' && row?.status !== 'issued')
-    throw new AuthError(403, 'This document has not been issued')
+  refuseUnlessIssued(table, row)
+}
+
+/**
+ * LINK MODE — the caller has no session at all; the token IS the credential.
+ * The DB re-derives the project from the token (portal_link_project is the only
+ * evaluator of expiry/revocation), so this endpoint never tells the database
+ * which project to read. Then the SAME external refusals apply.
+ */
+async function authorizeFileByLink(
+  service: any, token: string, table: string, row: any, projectId: string,
+): Promise<void> {
+  const { data: granted, error } = await service.rpc('portal_link_project', { tok: token })
+  // A validation FAILURE must fail closed, not open: if the check could not be
+  // performed, the caller is not authorized. AuthError only carries 401/403, and
+  // 403 is the right answer here anyway — indistinguishable from a bad token,
+  // which keeps the one-shape rule intact.
+  if (error) {
+    console.error('portal_link_project failed:', error)
+    throw new AuthError(403, 'This link is not valid')
+  }
+  // One shape for invalid / expired / revoked / unknown — no existence oracle.
+  if (!granted) throw new AuthError(403, 'This link is not valid')
+  // The row must belong to the project the TOKEN grants — a valid link for
+  // project A must never sign a file on project B.
+  if (granted !== projectId) throw new AuthError(403, 'This link is not valid')
+  refuseUnlessIssued(table, row)
 }
 
 export default async function handler(req: any, res: any) {
@@ -74,8 +110,17 @@ export default async function handler(req: any, res: any) {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   try {
-    const user = await requireUser(req, supabase)
-    const { table, id, kind, finding_id } = req.body ?? {}
+    const { table, id, kind, finding_id, link_token } = req.body ?? {}
+
+    // Link mode carries no Authorization header at all, so requireUser must not
+    // run — it would 401 before the token was ever considered. `authorize` below
+    // closes over whichever mode applies; every call site is unchanged.
+    const linkMode = typeof link_token === 'string' && link_token.length > 0
+    const user = linkMode ? null : await requireUser(req, supabase)
+    const authorize = (t: string, row: any, projectId: string) =>
+      linkMode
+        ? authorizeFileByLink(supabase, link_token, t, row, projectId)
+        : authorizeFile(supabase, user!.userId, t, row, projectId)
 
     // ── finding_photos: single or batch, project via the parent finding ──────
     if (table === 'finding_photos') {
@@ -97,7 +142,7 @@ export default async function handler(req: any, res: any) {
       const { data: finding } = await supabase.from('findings')
         .select('project_id').eq('id', photos[0].finding_id).single()
       if (!finding) return res.status(404).json({ error: 'not found' })
-      await authorizeFile(supabase, user.userId, 'finding_photos', null, finding.project_id)
+      await authorize('finding_photos', null, finding.project_id)
 
       const urls: Record<string, string> = {}
       for (const p of photos) {
@@ -122,7 +167,7 @@ export default async function handler(req: any, res: any) {
     // which `kind` was asked for. Service-role row; never returned to the caller.
     const { data: row } = await supabase.from(table).select('*').eq('id', id).single()
     if (!row) return res.status(404).json({ error: 'not found' })
-    await authorizeFile(supabase, user.userId, table as string, row, (row as any).project_id)
+    await authorize(table as string, row, (row as any).project_id)
 
     const stored = (row as any)[column] as string | null
     if (!stored) return res.status(404).json({ error: 'no file for this row' })
