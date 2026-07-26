@@ -117,6 +117,23 @@ export default async function handler(req: any, res: any) {
     // closes over whichever mode applies; every call site is unchanged.
     const linkMode = typeof link_token === 'string' && link_token.length > 0
     const user = linkMode ? null : await requireUser(req, supabase)
+
+    // In link mode, validate the TOKEN BEFORE any row is looked up. Order
+    // matters: the row lookup 404s on an unknown id, and 404-before-403 would
+    // let a completely unauthenticated caller distinguish "this id exists" from
+    // "it does not" across every table this endpoint serves. UUIDs make that
+    // unguessable in practice, but an oracle reachable with no credential at all
+    // is not one to leave standing. An invalid token now gets nowhere near a
+    // lookup, and a VALID token with a missing row answers 403, not 404 — one
+    // shape, same as everything else in link mode.
+    if (linkMode) {
+      const { data: granted, error } = await supabase.rpc('portal_link_project', { tok: link_token })
+      if (error || !granted) throw new AuthError(403, 'This link is not valid')
+    }
+    const notFound = (res: any) => linkMode
+      ? res.status(403).json({ error: 'This link is not valid' })
+      : res.status(404).json({ error: 'not found' })
+
     const authorize = (t: string, row: any, projectId: string) =>
       linkMode
         ? authorizeFileByLink(supabase, link_token, t, row, projectId)
@@ -133,7 +150,7 @@ export default async function handler(req: any, res: any) {
       } else if (id) {
         const { data } = await supabase.from('finding_photos')
           .select('id, storage_url, finding_id').eq('id', id).single()
-        if (!data) return res.status(404).json({ error: 'not found' })
+        if (!data) return notFound(res)
         photos = [data]
       } else {
         return res.status(400).json({ error: 'id or finding_id required' })
@@ -141,7 +158,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: finding } = await supabase.from('findings')
         .select('project_id').eq('id', photos[0].finding_id).single()
-      if (!finding) return res.status(404).json({ error: 'not found' })
+      if (!finding) return notFound(res)
       await authorize('finding_photos', null, finding.project_id)
 
       const urls: Record<string, string> = {}
@@ -166,7 +183,7 @@ export default async function handler(req: any, res: any) {
     // select('*') so the issued test can read status / storage_url regardless of
     // which `kind` was asked for. Service-role row; never returned to the caller.
     const { data: row } = await supabase.from(table).select('*').eq('id', id).single()
-    if (!row) return res.status(404).json({ error: 'not found' })
+    if (!row) return notFound(res)
     await authorize(table as string, row, (row as any).project_id)
 
     const stored = (row as any)[column] as string | null

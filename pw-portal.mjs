@@ -453,8 +453,50 @@ try {
       check(dr.status === 403 && /not been issued/i.test(dr.body.error ?? ''),
         `link signing a DRAFT -> 403 (${dr.body.error ?? dr.status})`)
 
-      const ea = await signViaLink(live.token, { table: 'equipment_attachments', id: draftReportId })
-      check(ea.status === 403, `link cannot reach equipment_attachments (${ea.status})`)
+      // equipment_attachments is refused OUTRIGHT for external callers. This
+      // needs a REAL row: the first version of this leg passed a site_reports id,
+      // which 404s on the missing row before the refusal ever runs -- it would
+      // have passed identically with the refusal deleted. There are no
+      // equipment_attachments rows on ZZ-TEST at rest, so the suite makes one.
+      {
+        const { data: eq } = await adm.from('equipment')
+          .select('id').eq('project_id', ZZ).limit(1).maybeSingle()
+        if (!eq) check(false, 'no ZZ-TEST equipment row to hang an attachment on')
+        else {
+          const { data: att, error: attErr } = await adm.from('equipment_attachments').insert({
+            project_id: ZZ, equipment_id: eq.id, kind: 'shop_drawing',
+            file_name: 'ZZ-LINK-refusal-probe.pdf', storage_url: 'fake/zz-link-probe.pdf',
+          }).select('id').single()
+          if (attErr) check(false, `could not seed an attachment: ${attErr.message}`)
+          else {
+            // PAIR: staff CAN reach it, so the client refusal is a wall and not
+            // a missing row.
+            const staff = await post(emp, '/api/get-file-url', {
+              table: 'equipment_attachments', id: att.id, kind: 'file',
+            })
+            check(staff.status === 200 || staff.status === 500,
+              `PAIR: staff reach the attachment row (${staff.status})`)
+            const ea = await signViaLink(live.token, { table: 'equipment_attachments', id: att.id, kind: 'file' })
+            check(ea.status === 403 && /Not available in the portal/i.test(ea.body.error ?? ''),
+              `link cannot reach equipment_attachments (${ea.body.error ?? ea.status})`)
+            const acct = await post(cli, '/api/get-file-url', {
+              table: 'equipment_attachments', id: att.id, kind: 'file',
+            })
+            check(acct.status === 403, `account-mode client also refused equipment_attachments (${acct.status})`)
+            await adm.from('equipment_attachments').delete().eq('id', att.id)
+          }
+        }
+      }
+
+      // A VALID link asking for an id that does not exist must answer 403, not
+      // 404 -- otherwise an unauthenticated caller can distinguish "this id
+      // exists" from "it does not" across every table this endpoint serves.
+      {
+        const ghost = await signViaLink(live.token, {
+          table: 'site_reports', id: '00000000-0000-0000-0000-000000000000', kind: 'pdf',
+        })
+        check(ghost.status === 403, `link mode is not an id-existence oracle (${ghost.status}, must be 403 not 404)`)
+      }
     }
 
     // -- Garbage tokens answer identically: no oracle ----------------------
