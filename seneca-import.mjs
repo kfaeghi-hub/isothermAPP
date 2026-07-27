@@ -316,6 +316,137 @@ if (stage === 'findings') {
   console.log(`  closed with a source date: ${(stamped ?? []).length - nulls} · left NULL (undated in source): ${nulls}`)
 }
 
+// ── Correction batch + type minting ─────────────────────────────────────────
+if (stage === 'corrections') {
+  // MINT FIRST — the FK on equipment.equipment_type means a correction to a type
+  // that does not exist yet is rejected, not silently applied.
+  const MINT = [
+    { key: 'humidifier',    name: 'Humidifier',                        sort_order: 20 },
+    { key: 'radiant_panel', name: 'Radiant Panel',                     sort_order: 21 },
+    { key: 'panel',         name: 'Panel (Electrical Distribution)',   sort_order: 22 },
+  ]
+  for (const t of MINT) {
+    const { data: has } = await sb.from('equipment_types').select('key').eq('key', t.key).maybeSingle()
+    if (!has) {
+      const { error } = await sb.from('equipment_types').insert(t)
+      if (error) { console.error(`mint ${t.key} failed: ${error.message}`); process.exit(1) }
+      console.log(`  minted type: ${t.key} (${t.name}) — zero field defs, renders the fallback nameplate`)
+    } else console.log(`  type already present: ${t.key}`)
+  }
+
+  const batch = await getBatch({
+    entity: 'equipment:corrections',
+    sourceFile: 'ruling/2026-07-27 correction batch',
+    revision: 'C1-C6 + RP ruling',
+    expected: 19,
+    note:
+      'OWNER CORRECTIONS, ruled by the CxA of record. Rows keep the import_batch_id of the batch '
+      + 'that CREATED them — creation provenance is not overwritten by a later edit — and this row '
+      + 'records what changed, from what, and why. Original source readings preserved here: '
+      + 'HU-AHU-1..5 were auto-typed ahu because the tag string contains "AHU" (they are humidifiers '
+      + 'SERVING those AHUs); HU-DOAS-1/2A/2B were NULL — one family now has one answer, humidifier. '
+      + '"Fire Pump Disconnect/ATS" was auto-typed pump because the tag contains "pump"; it is an '
+      + 'electrical disconnect and transfer switch -> ats. WSHP-01 -> heat_pump. DOAS-1/2 -> ahu '
+      + '(packaged-AC precedent). RP-2C1/2EC1/2UC1 -> panel; source descriptor already said '
+      + '"Receptacle Panel". '
+      + 'RP-01/RP-02: source Equip.List lists them TWICE, under section header "PUMPS" (rows 52-53) '
+      + 'AND under "AIR HANDLING UNIT" (rows 99-100), both with no type and no descriptor. Neither '
+      + 'is correct. The project\'s own Radiant-PNLs.xlsx is titled "RADIANT PANEL SCHEDULE" and '
+      + 'lists RP-01 and RP-02 with hydronic data (SIGMA SLC, USGPM, mean water temp 120F, ft.H2O) '
+      + '-- so the correction is SOURCE-BACKED, not merely ruled. Type -> radiant_panel, category '
+      + 'corrected to "RADIANT PANEL SCHEDULE". A known-wrong source value corrected by the CxA of '
+      + 'record is a data fix, not a provenance violation; the original source reading is recorded '
+      + 'in this note.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  const FIX = [
+    { tags: ['HU-AHU-1','HU-AHU-2','HU-AHU-3','HU-AHU-4','HU-AHU-5',
+             'HU-DOAS-1','HU-DOAS-2A','HU-DOAS-2B'], set: { equipment_type: 'humidifier' } },
+    { tags: ['Fire Pump Disconnect/ATS'], set: { equipment_type: 'ats' } },
+    { tags: ['WSHP-01'],                  set: { equipment_type: 'heat_pump' } },
+    { tags: ['DOAS-1','DOAS-2'],          set: { equipment_type: 'ahu' } },
+    { tags: ['RP-01','RP-02'],            set: { equipment_type: 'radiant_panel',
+                                                 category: 'RADIANT PANEL SCHEDULE' } },
+  ]
+  let touched = 0
+  for (const f of FIX) {
+    const { data, error } = await sb.from('equipment')
+      .update(f.set).eq('project_id', proj.id).in('tag', f.tags).select('tag')
+    if (error) { console.error(`correction failed (${f.tags[0]}…): ${error.message}`); process.exit(1) }
+    touched += data.length
+    check(data.length === f.tags.length,
+      `${JSON.stringify(f.set)} → ${data.length} of ${f.tags.length} rows`)
+  }
+
+  // RECEPTACLE PANELS BY THE SOURCE'S OWN DESCRIPTOR, not by a tag list.
+  // The ruling named RP-2C1/2EC1/2UC1 because the audit's family regex grouped
+  // only bare RP-<digit> tags; RP-GC1, RP-PHT1 and the rest formed their own
+  // families and never surfaced. The register actually holds 26 rows whose
+  // SOURCE DESCRIPTOR is literally "Receptacle Panel" — identical class,
+  // identical evidence. Matching on the descriptor applies the ruling
+  // consistently instead of leaving 23 identical rows untyped beside 3 typed.
+  {
+    const { data, error } = await sb.from('equipment')
+      .update({ equipment_type: 'panel' })
+      .eq('project_id', proj.id).ilike('descriptor', '%receptacle panel%')
+      .is('equipment_type', null).select('tag')
+    if (error) { console.error(`receptacle panel correction failed: ${error.message}`); process.exit(1) }
+    touched += data.length
+    console.log(`  PASS  receptacle panels typed by source descriptor → ${data.length} further rows `
+      + `(ruling named 3; the register holds 26 of the same class)`)
+  }
+  await sb.from('import_batches').update({ rows_created: touched }).eq('id', batch.id)
+
+  // ── The sweep: clearly-electrical rows still untyped go to the QUEUE ───────
+  // Not decided unilaterally. The queue is the only path to a new type.
+  const { data: untyped } = await sb.from('equipment')
+    .select('tag, category, descriptor').eq('project_id', proj.id)
+    .is('equipment_type', null).eq('category', 'ELECTRICAL')
+  const fams = new Map()
+  for (const e of untyped ?? []) {
+    const fam = (e.descriptor || e.tag).replace(/[-_ ]*\d.*$/, '').trim() || e.tag
+    if (!fams.has(fam)) fams.set(fam, [])
+    fams.get(fam).push(e.tag)
+  }
+  let queued = 0
+  for (const [fam, tags] of fams) {
+    const { data: seen } = await sb.from('proposed_equipment_types')
+      .select('id').eq('project_id', proj.id).eq('observed_name', fam).maybeSingle()
+    if (seen) continue
+    const { error } = await sb.from('proposed_equipment_types').insert({
+      project_id: proj.id, observed_name: fam,
+      proposed_key: fam.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) || null,
+      evidence: { sample_tags: tags.slice(0, 6), count: tags.length,
+                  category: 'ELECTRICAL', source: 'Seneca 257889 backfill — stage 3 equipment' },
+    })
+    if (error) { console.error(`queue insert failed (${fam}): ${error.message}`); process.exit(1) }
+    queued++
+  }
+  console.log(`\n  proposed types queued for ratification: ${queued} (from ${(untyped ?? []).length} untyped ELECTRICAL rows)`)
+
+  // ── The gate: re-run the consistency sweep ────────────────────────────────
+  const { data: all } = await sb.from('equipment')
+    .select('tag, category, equipment_type, descriptor').eq('project_id', proj.id)
+  const disagreements = []
+  for (const e of all ?? []) {
+    const t = e.equipment_type, tag = e.tag.toUpperCase(), d = (e.descriptor || '').toUpperCase()
+    // A type that contradicts the tag's own family, or a descriptor that
+    // contradicts the type. Only assertions the earlier audit actually raised.
+    if (/^HU-/.test(tag) && t !== 'humidifier') disagreements.push(`${e.tag}: HU- family but type ${t}`)
+    if (/DISCONNECT/i.test(tag) && t === 'pump') disagreements.push(`${e.tag}: disconnect typed pump`)
+    if (/RECEPTACLE PANEL/.test(d) && t !== 'panel') disagreements.push(`${e.tag}: Receptacle Panel but type ${t}`)
+    if (/^RP-0/.test(tag) && t !== 'radiant_panel') disagreements.push(`${e.tag}: radiant panel but type ${t}`)
+    if (/VAV BOX/.test(d) && t !== 'vav') disagreements.push(`${e.tag}: VAV BOX but type ${t}`)
+    if (/^DOAS-/.test(tag) && t !== 'ahu') disagreements.push(`${e.tag}: DOAS but type ${t}`)
+    if (/^WSHP/.test(tag) && t !== 'heat_pump') disagreements.push(`${e.tag}: WSHP but type ${t}`)
+  }
+  console.log('')
+  check(disagreements.length === 0,
+    `consistency sweep — disagreements: ${disagreements.length}`
+    + (disagreements.length ? '\n      ' + disagreements.slice(0, 8).join('\n      ') : ''))
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? 'PASS — counts reconciled, batch coverage complete.'
                            : `FAIL — ${failures} check(s) failed.`)

@@ -1387,6 +1387,48 @@ generalised; that document grew to 26 ratified rules exactly this way.
 
 ---
 
+## The equipment taxonomy learns — ratified, never auto-minted
+
+`equipment_types` is firm vocabulary as **rows**, mirroring `trade_types` /
+`company_role_types`. Before this, the "vocabulary" was a hardcoded array inside
+`EquipmentPage` plus whatever keys happened to have field-def rows — so a new
+type needed a code change, and the taxonomy could not learn from a project.
+
+- **`equipment.equipment_type` keeps its text key**, now FK'd to
+  `equipment_types.key`. Existing keys and their field-def sets are unchanged.
+- **A type may carry zero field defs.** It renders the fallback nameplate until
+  defs are invested; the `vav` set remains the bar for a rich type. Minting is
+  one row, not a 26-field commitment.
+- **`proposed_equipment_types` is the ratification queue** — the corrections
+  pipeline applied to vocabulary. Equipment fitting no type lands with
+  `equipment_type` NULL and its family arrives in the queue for **mint / map /
+  dismiss** in `/classifications`.
+- **Imports never mint, and this is structural, not advisory.** The FK rejects an
+  unknown type outright — proven on ZZ-TEST: inserting equipment with a
+  non-existent type raises `foreign_key_violation`.
+
+### Never auto-type from a tag string
+
+**Tag prefixes are not unique across disciplines.** On Seneca 257889, `RP` is a
+**radiant panel** on the mechanical drawings and a **receptacle panel** on the
+electrical drawings — same project, same register. String matching on tags also
+produced `HU-AHU-1` (a humidifier *serving* AHU-1) typed `ahu`, and
+`Fire Pump Disconnect/ATS` typed `pump`. Both survived a passing import and were
+caught only by an audit sweep afterwards.
+
+An importer may **suggest**; only ratification assigns. The queue is the sole
+path from "unrecognised equipment" to "a type in the vocabulary".
+
+A corollary that cost a gate failure: **when a ruling names specific rows, check
+whether the register holds more of the same class.** The Seneca ruling named
+three receptacle panels because the audit's family regex had split the rest into
+separate families; the register actually held 26 identical rows carrying the
+source descriptor "Receptacle Panel". Correcting by the source's own descriptor
+applied the ruling consistently — correcting by the named tag list would have
+left 23 identical rows untyped beside 3 typed.
+
+---
+
 ## Import provenance — `import_batches`
 
 Rows that were **backfilled from documents** rather than created in the app carry

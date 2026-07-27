@@ -38,6 +38,9 @@ export function ClassificationsPage() {
   const [showSystems, setShowSystems]     = useState(false)
   const [showCompanyRoles, setShowCompanyRoles] = useState(false)
   const [showMeetingTypes, setShowMeetingTypes] = useState(false)
+  const [equipTypes, setEquipTypes] = useState<any[]>([])
+  const [proposedTypes, setProposedTypes] = useState<any[]>([])
+  const [showEquipTypes, setShowEquipTypes] = useState(false)
   const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null)
 
   const [newDimName, setNewDimName] = useState('')
@@ -49,6 +52,8 @@ export function ClassificationsPage() {
   const [newRoleAbbr, setNewRoleAbbr] = useState('')
   const [newTypeName, setNewTypeName] = useState('')
   const [newTopicTitle, setNewTopicTitle] = useState('')
+  const [newEquipKey, setNewEquipKey] = useState('')
+  const [newEquipName, setNewEquipName] = useState('')
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
@@ -56,8 +61,10 @@ export function ClassificationsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    const [dRes, oRes, tRes, mRes, sRes, crRes, mtRes, dtRes] = await Promise.all([
+    const [dRes, etRes, ptRes, oRes, tRes, mRes, sRes, crRes, mtRes, dtRes] = await Promise.all([
       supabase.from('classification_dimensions').select('*').order('sort_order'),
+      supabase.from('equipment_types').select('*').order('sort_order'),
+      supabase.from('proposed_equipment_types').select('*').order('created_at'),
       supabase.from('classification_options').select('*').order('sort_order'),
       supabase.from('deliverable_templates').select('*').order('sort_order'),
       supabase.from('option_deliverable_defaults').select('option_id, template_id'),
@@ -69,6 +76,8 @@ export function ClassificationsPage() {
     const firstErr = dRes.error ?? oRes.error ?? tRes.error ?? mRes.error ?? sRes.error ?? crRes.error ?? mtRes.error ?? dtRes.error
     if (firstErr) { setError(firstErr.message); setLoading(false); return }
     setDimensions((dRes.data ?? []) as ClassificationDimension[])
+    setEquipTypes(etRes.data ?? [])
+    setProposedTypes(ptRes.data ?? [])
     setOptions((oRes.data ?? []) as ClassificationOption[])
     setTemplates((tRes.data ?? []) as DeliverableTemplate[])
     setSystems((sRes.data ?? []) as TradeType[])
@@ -292,6 +301,61 @@ export function ClassificationsPage() {
 
   const selectedDim = dimensions.find(d => d.id === selectedDimId) ?? null
   const dimOptions = selectedDim ? options.filter(o => o.dimension_id === selectedDim.id) : []
+  // ── Equipment-type vocabulary + ratification ───────────────────────────────
+  const proposedQueue = proposedTypes.filter(q => q.status === 'proposed')
+  const [defCounts, setDefCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    // Field-def counts are shown so "zero defs" is visible rather than implied —
+    // a type with none is legitimate, and the admin should see which those are.
+    void (async () => {
+      const { data } = await supabase.from('equipment_type_field_defs').select('equipment_type')
+      const c: Record<string, number> = {}
+      for (const r of (data ?? [])) c[(r as any).equipment_type] = (c[(r as any).equipment_type] ?? 0) + 1
+      setDefCounts(c)
+    })()
+  }, [equipTypes.length])
+
+  /** Keys are the join key for equipment rows AND field-def sets, so they are
+   *  normalised once here rather than trusted from free typing. */
+  const normaliseKey = (v: string) =>
+    v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40)
+
+  async function addEquipType() {
+    const key = normaliseKey(newEquipKey)
+    const name = newEquipName.trim() || key
+    if (!key) return
+    if (equipTypes.some(t => t.key === key)) { alert(`Type "${key}" already exists.`); return }
+    const maxOrder = equipTypes.reduce((m, t) => Math.max(m, t.sort_order ?? 0), 0)
+    const { error } = await supabase.from('equipment_types')
+      .insert({ key, name, sort_order: maxOrder + 1 })
+    if (error) { alert(error.message); return }
+    setNewEquipKey(''); setNewEquipName('')
+    await fetchAll()
+  }
+
+  async function resolveProposal(q: any, patch: Record<string, unknown>) {
+    const { error } = await supabase.from('proposed_equipment_types')
+      .update({ ...patch, ratified_at: new Date().toISOString() }).eq('id', q.id)
+    if (error) { alert(error.message); return }
+    await fetchAll()
+  }
+
+  async function mintFromProposal(q: any) {
+    const key = normaliseKey(q.proposed_key || q.observed_name)
+    if (!key) return
+    if (!equipTypes.some(t => t.key === key)) {
+      const maxOrder = equipTypes.reduce((m, t) => Math.max(m, t.sort_order ?? 0), 0)
+      const { error } = await supabase.from('equipment_types')
+        .insert({ key, name: q.observed_name, sort_order: maxOrder + 1 })
+      if (error) { alert(error.message); return }
+    }
+    await resolveProposal(q, { status: 'minted', resolved_type: key })
+  }
+
+  const mapProposal  = (q: any, key: string) => resolveProposal(q, { status: 'mapped', resolved_type: key })
+  const dismissProposal = (q: any) => resolveProposal(q, { status: 'dismissed' })
+
   const inputCls = 'border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500'
 
   return (
@@ -577,6 +641,120 @@ export function ClassificationsPage() {
                 placeholder="Abbr." className={`${inputCls} w-20 font-mono`} />
               <button onClick={addCompanyRole} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Add</button>
             </div>
+          </>
+        )}
+      </section>
+
+      {/* ── Equipment Types + the ratification queue ─────────────────────── */}
+      {/* THE TAXONOMY LEARNS. Types are rows, not a hardcoded list and not a
+          migration. A type may carry ZERO field defs — it renders the fallback
+          nameplate until defs are invested; minting is one row, not a 26-field
+          commitment. Nothing here is ever auto-minted: unmatched equipment met
+          during an import lands with type NULL and its family arrives in the
+          queue below for mint / map / dismiss. */}
+      <section>
+        <button onClick={() => setShowEquipTypes(s => !s)} className="text-sm font-semibold text-gray-800 hover:text-teal-700">
+          Equipment Types ({equipTypes.length}){proposedQueue.length > 0 && (
+            <span className="ml-2 text-[10px] font-bold text-amber-700 bg-amber-50 rounded px-1.5 py-0.5">
+              {proposedQueue.length} PROPOSED
+            </span>
+          )} {showEquipTypes ? '▾' : '▸'}
+        </button>
+        {showEquipTypes && (
+          <>
+            <p className="text-xs text-gray-400 mt-1 mb-3">
+              The key is what equipment rows store and what field-def sets join on — renaming a key
+              is a data migration, so change the label, not the key. A type with no field defs is
+              valid and renders the basic nameplate.
+            </p>
+            <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <th className="py-1.5 pr-3 w-36">Key</th>
+                  <th className="py-1.5 pr-3">Label</th>
+                  <th className="py-1.5 pr-3 w-20">Field defs</th>
+                  <th className="py-1.5 pr-3 w-16">Order</th>
+                  <th className="py-1.5 pr-3 w-16">Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipTypes.map(t => (
+                  <tr key={t.id} className="border-b border-gray-100">
+                    <td className="py-1.5 pr-3 font-mono text-gray-500">{t.key}</td>
+                    <td className="py-1.5 pr-3">
+                      <input defaultValue={t.name} className={`${inputCls} w-full max-lg:min-w-[10rem]`}
+                        onBlur={e => { const v = e.target.value.trim(); if (v && v !== t.name) updateRow('equipment_types', t.id, { name: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3 text-gray-400">{defCounts[t.key] ?? 0}</td>
+                    <td className="py-1.5 pr-3">
+                      <input type="number" defaultValue={t.sort_order} className={`${inputCls} w-14`}
+                        onBlur={e => { const v = Number(e.target.value); if (v !== t.sort_order) updateRow('equipment_types', t.id, { sort_order: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3 text-center">
+                      <input type="checkbox" checked={t.active}
+                        onChange={e => updateRow('equipment_types', t.id, { active: e.target.checked })} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex gap-2 mt-2">
+              <input value={newEquipKey} onChange={e => setNewEquipKey(e.target.value)}
+                placeholder="key (e.g. humidifier)" className={`${inputCls} w-48 font-mono`} />
+              <input value={newEquipName} onChange={e => setNewEquipName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addEquipType()}
+                placeholder="Label" className={`${inputCls} w-56`} />
+              <button onClick={addEquipType} className="text-xs bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800">Mint</button>
+            </div>
+
+            {/* ── The queue ───────────────────────────────────────────────── */}
+            <h4 className="text-xs font-semibold text-gray-700 mt-6 mb-1">
+              Proposed types — awaiting ratification ({proposedQueue.length})
+            </h4>
+            <p className="text-xs text-gray-400 mb-3">
+              Raised where an import or manual entry met equipment fitting no existing type. Those
+              rows carry <span className="font-mono">NULL</span> until you rule. Imports never mint.
+            </p>
+            {proposedQueue.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">Nothing awaiting ratification.</p>
+            ) : (
+              <table className="w-full text-xs border-collapse max-lg:block max-lg:overflow-x-auto">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                    <th className="py-1.5 pr-3">Observed</th>
+                    <th className="py-1.5 pr-3 w-16">Rows</th>
+                    <th className="py-1.5 pr-3">Sample tags</th>
+                    <th className="py-1.5 w-64">Ratify</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proposedQueue.map(q => (
+                    <tr key={q.id} className="border-b border-gray-100 align-top">
+                      <td className="py-1.5 pr-3 text-gray-800">{q.observed_name}</td>
+                      <td className="py-1.5 pr-3 text-gray-500">{q.evidence?.count ?? '—'}</td>
+                      <td className="py-1.5 pr-3 font-mono text-[10px] text-gray-400">
+                        {(q.evidence?.sample_tags ?? []).slice(0, 4).join(', ')}
+                      </td>
+                      <td className="py-1.5">
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <button onClick={() => mintFromProposal(q)}
+                            className="text-[11px] bg-teal-700 text-white rounded px-2 py-0.5 hover:bg-teal-800">Mint</button>
+                          <select defaultValue="" className={`${inputCls} w-32`}
+                            onChange={e => { if (e.target.value) mapProposal(q, e.target.value) }}>
+                            <option value="">Map to…</option>
+                            {equipTypes.filter(t => t.active).map(t => (
+                              <option key={t.key} value={t.key}>{t.key}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => dismissProposal(q)}
+                            className="text-[11px] text-gray-400 hover:text-red-600">Dismiss</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </>
         )}
       </section>

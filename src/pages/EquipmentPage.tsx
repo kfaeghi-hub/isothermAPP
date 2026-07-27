@@ -65,6 +65,11 @@ export function EquipmentPage({ projectId }: Props) {
   const [equipment, setEquipment]     = useState<Equipment[]>([])
   const [glossary, setGlossary]       = useState<EquipmentTagGlossary[]>([])
   const [fieldDefs, setFieldDefs]     = useState<ProjectEquipmentFieldDef[]>([])
+  // The type vocabulary is DATA, not a literal. It used to be a hardcoded array
+  // right here in the JSX, so a type could not be added without a code change —
+  // which meant the taxonomy could not learn from a project. Now it is rows in
+  // equipment_types, minted by ratification in the admin screen.
+  const [typeKeys, setTypeKeys]       = useState<string[]>([])
   const [attachments, setAttachments] = useState<EquipmentAttachment[]>([])
   const [selectedId, setSelectedId]   = useState<string | null>(null)
   const [loading, setLoading]         = useState(true)
@@ -202,6 +207,14 @@ export function EquipmentPage({ projectId }: Props) {
     await Promise.all([fetchEquipment(), fetchFieldDefs()])
     setSelectedId(newEquip?.id ?? null)
   }
+
+  const fetchTypeVocabulary = useCallback(async () => {
+    const { data } = await supabase.from('equipment_types')
+      .select('key').eq('active', true).order('sort_order')
+    setTypeKeys((data ?? []).map((t: any) => t.key))
+  }, [])
+
+  useEffect(() => { void fetchTypeVocabulary() }, [fetchTypeVocabulary])
 
   async function ensureFieldDefs(type: string) {
     const existing = fieldDefs.filter(f => f.equipment_type === type)
@@ -898,7 +911,7 @@ export function EquipmentPage({ projectId }: Props) {
                   <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Field Template Type</label>
                   <Combobox
                     value={addForm.equipment_type}
-                    options={['heat_pump','boiler','pump','ahu','erv','fan','ats','generator','chiller','cooling_tower','fcu','vav']}
+                    options={typeKeys}
                     onChange={v => setAddForm(f => ({ ...f, equipment_type: v }))}
                     placeholder="ahu, pump, boiler…"
                     ariaLabel="Field Template Type"
