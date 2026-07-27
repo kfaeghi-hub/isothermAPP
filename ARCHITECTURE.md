@@ -1064,6 +1064,45 @@ Two habits that go with it:
   0 (must be 0)`). A cleanup that silently did nothing looks identical to one that
   worked.
 
+### Ops: sanitise storage object keys, and read an "RLS error" on a write twice
+
+**Supabase rejects `#`, parentheses and other characters in storage object keys —
+and reports the rejection as `new row violates row-level security policy`.** That
+message sends you into the policy catalog hunting for a permissions problem that
+is actually in the filename. It cost an hour on the Seneca import, where
+`257889-SenecaHWC-SDrev#1.1-AHUs_DOAS(2025-11-13).pdf` "failed RLS" while the
+file beside it uploaded fine under the same policy, as the same user, in the same
+loop.
+
+Two rules follow:
+
+- **Sanitise the key before upload, centrally** — in the one upload helper, not at
+  each call site, so a new caller cannot reintroduce it.
+- **On an RLS error from a storage write, check the key for illegal characters
+  BEFORE touching policies.** If a sibling object succeeded under the same policy
+  and user, the policy is not the problem.
+
+Related: buckets differ in who may write them. `cx-plans`, `equipment-files` and
+`finding-photos` carry `is_staff()` client policies; **`meeting-minutes`,
+`site-reports` and `checklists` carry none by design** — the app writes those
+server-side with the service role (`api/generate-minutes.ts` and the report
+generators). A tool that needs to write them uses the service role, the way the
+app does. **Widening a production bucket policy to suit a one-off import is the
+wrong trade.**
+
+### Ops: set document references on every run, not only on insert
+
+An importer that writes `storage_url` / `pdf_url` **only in its insert branch**
+leaves whatever is already there when the row exists — and something may well be.
+On the Seneca import, issuing the meeting in the UI between two runs called
+`generate-minutes`, which wrote an app-**generated** .docx/.pdf pair over both
+columns; the next run left them, because its insert branch never ran.
+
+The assertion missed it too: `check(!!row.pdf_url)` passed on a file the stage had
+not written. **A non-null check is not a correctness check** — assert the exact
+value you intended to write, or the green light means "something is there", which
+is the one thing you already knew.
+
 ### Ops: a tool that writes to a real project carries a resolve-and-refuse guard
 
 The test harness is guarded one way — `pw-config` forbids touching anything except

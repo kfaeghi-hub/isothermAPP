@@ -826,6 +826,335 @@ if (stage === 'misc') {
   check(ahu.length === 5, `AIR HANDLING UNIT is now ${ahu.length} — every row an AHU`)
 }
 
+const FILES = './samples/seneca-import/_files'
+
+// Buckets whose objects the app itself writes SERVER-SIDE with the service role:
+// they carry no client storage policy by design (api/generate-minutes.ts and the
+// report/checklist generators own them). An import writes them the same way the
+// app does rather than widening a production policy to suit a one-off.
+const SERVER_WRITTEN = new Set(['meeting-minutes', 'site-reports', 'checklists'])
+const svc = process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY,
+                 { auth: { persistSession: false } })
+  : null
+
+/** Upload an original document as-is. Nothing is regenerated: an imported file is
+ *  evidence, and re-rendering it would replace the record with our version of it.
+ *
+ *  RETURNS null IF STORAGE REFUSES, rather than throwing or — worse — quietly
+ *  writing a row with a null url as though nothing were missing. Buckets differ:
+ *  cx-plans and equipment-files carry is_staff() client policies, so dev.admin can
+ *  write them; meeting-minutes, site-reports and checklists carry NO client policy
+ *  because the app writes them server-side with the service role. Widening a
+ *  production bucket policy to suit a one-off import is the wrong trade, so a
+ *  refusal is surfaced and the caller decides. */
+async function putFile(bucket, localName, storeAs) {
+  storeAs = storeAs.replace(/[#()]/g, '').replace(/[^\w.\-]+/g, '_')
+  const buf = readFileSync(`${FILES}/${localName}`)
+  const path = `${proj.id}/${storeAs}`
+  const type = storeAs.endsWith('.pdf') ? 'application/pdf'
+    : storeAs.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    : 'application/octet-stream'
+  // SANITISE THE KEY FIRST. Supabase rejects '#' and parens in object keys and
+  // reports it as a row-level-security violation, which sends you hunting through
+  // policies for a problem that is in the filename. Cost an hour once; never again.
+  const client = SERVER_WRITTEN.has(bucket) ? svc : sb
+  if (!client) {
+    console.log(`  !! bucket "${bucket}" is server-written and SUPABASE_SERVICE_ROLE_KEY is absent`)
+    return null
+  }
+  const { error } = await client.storage.from(bucket).upload(path, buf, { contentType: type, upsert: true })
+  if (error) {
+    console.log(`  !! storage REFUSED ${storeAs} on bucket "${bucket}": ${error.message}`)
+    if (/[^\w./-]/.test(storeAs)) console.log('     (key contains characters Supabase may reject)')
+    return null
+  }
+  return { path, bytes: buf.length }
+}
+
+// ── Stage 6: meeting #1 ─────────────────────────────────────────────────────
+if (stage === 'meeting') {
+  const batch = await getBatch({
+    entity: 'meetings',
+    sourceFile: '3_Cx_Docs/6.Cx_Meetings/Minutes/Isotherm257889-SenecaH&WCenter-CxMeetingMin#1_2025-07-02.pdf',
+    revision: 'Cx Meeting Minute #1, 2025-07-02',
+    expected: 1,
+    note:
+      'NO-GENERATION CLAIM: pdf_url points at the ORIGINAL issued minute, uploaded as-is; '
+      + 'storage_url stays NULL because the app did not generate a .docx for this meeting and must '
+      + 'not appear to have. ATTENDEES DELIBERATELY NOT IMPORTED: the only machine-readable roster '
+      + 'is CxMeetingMASTER.docx, which is the TEMPLATE roster, not this meeting\'s attendance — '
+      + 'importing it would assert who attended on 2025-07-02 without evidence. The issued PDF is '
+      + 'attached and carries the real list. Item statuses follow the minute\'s own Action column: '
+      + 'INFO -> status \'info\' (recorded, does not carry forward); a named party -> status \'open\' '
+      + 'with responsible_text, so it carries into meeting #2 with its original number retained.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  const up = await putFile('meeting-minutes',
+    'Isotherm257889-SenecaH&WCenter-CxMeetingMin#1_2025-07-02.pdf',
+    'CxMeetingMin-1_2025-07-02.pdf')
+  if (up) console.log(`  uploaded minute PDF (${Math.round(up.bytes / 1024)} KB) → meeting-minutes/${up.path}`)
+  else console.log('  minute PDF NOT attached — see the flag at the end of this stage')
+
+  const { data: mtype } = await sb.from('meeting_types').select('id').eq('name', 'Cx Kickoff Meeting').single()
+  let { data: mtg } = await sb.from('meetings').select('id')
+    .eq('project_id', proj.id).eq('meeting_number', 1).maybeSingle()
+  if (!mtg) {
+    const { data, error } = await sb.from('meetings').insert({
+      project_id: proj.id, meeting_type_id: mtype.id, meeting_number: 1,
+      meeting_date: '2025-07-02', location: 'Remote — MS Teams',
+      prepared_by: 'Isotherm Engineering Ltd.',
+      status: 'issued', issued_at: '2025-07-03T00:00:00Z',
+      pdf_url: up?.path ?? null, storage_url: null, import_batch_id: batch.id,
+    }).select('id').single()
+    if (error) { console.error(`meeting insert failed: ${error.message}`); process.exit(1) }
+    mtg = data
+    console.log('  created meeting #1')
+  } else console.log('  meeting #1 already present')
+
+  // SET THE DOCUMENT REFERENCES EVERY RUN, not only on insert. The first version
+  // set them on insert alone, so when the row already existed the stage silently
+  // left whatever was there — and something WAS there: issuing the meeting in the
+  // UI called api/generate-minutes, which wrote an app-GENERATED .docx/.pdf pair
+  // over both columns. For an imported historical minute that is exactly the claim
+  // the no-generation model forbids: the app rendering our imported items is not
+  // the minute Isotherm issued on 2025-07-02.
+  if (up) {
+    const { error: fixErr } = await sb.from('meetings')
+      .update({ pdf_url: up.path, storage_url: null }).eq('id', mtg.id)
+    if (fixErr) { console.error(`meeting doc refs failed: ${fixErr.message}`); process.exit(1) }
+  }
+
+  const TOPICS = [
+    { n: '1', title: 'Design Phase Documents' },
+    { n: '2', title: 'Systems to be Commissioned' },
+    { n: '3', title: 'Roles and Responsibilities' },
+    { n: '4', title: 'Cx Phases & Activities' },
+    { n: '5', title: 'Additional Meeting Notes & Action Items' },
+  ]
+  const topicId = {}
+  for (const [i, t] of TOPICS.entries()) {
+    let { data: row } = await sb.from('meeting_topics').select('id')
+      .eq('meeting_id', mtg.id).eq('title', t.title).maybeSingle()
+    if (!row) {
+      const { data, error } = await sb.from('meeting_topics')
+        .insert({ meeting_id: mtg.id, title: t.title, sort_order: i }).select('id').single()
+      if (error) { console.error(`topic failed: ${error.message}`); process.exit(1) }
+      row = data
+    }
+    topicId[t.n] = row.id
+  }
+
+  const rows = JSON.parse(readFileSync(`${EXTRACT}/meeting1_items.json`, 'utf8'))
+  const items = []
+  for (const cs of rows) {
+    const num = (cs[0] || '').trim()
+    const text = (cs[1] || '').trim()
+    const action = (cs[2] || '').trim()
+    if (!num || num.toLowerCase() === 'no.') continue
+    const topic = num.split('.')[0]
+    if (!topicId[topic]) continue
+    // A bare topic number with no action and no sub-item content is the heading
+    // itself — already a topic, not an item. A bare number WITH an action (3, 4)
+    // carries its own body and does become an item.
+    if (!num.includes('.') && !action) continue
+    const isInfo = action.toUpperCase() === 'INFO'
+    items.push({
+      meeting_id: mtg.id, topic_id: topicId[topic], item_number: num,
+      discussion: text,
+      responsible_text: isInfo ? null : (action || null),
+      status: isInfo ? 'info' : 'open',
+      sort_order: items.length, import_batch_id: batch.id,
+    })
+  }
+
+  const { data: have } = await sb.from('meeting_items').select('item_number').eq('meeting_id', mtg.id)
+  const seen = new Set((have ?? []).map(i => i.item_number))
+  const todo = items.filter(i => !seen.has(i.item_number))
+  if (todo.length) {
+    const { error } = await sb.from('meeting_items').insert(todo)
+    if (error) { console.error(`items insert failed: ${error.message}`); process.exit(1) }
+  }
+
+  const { data: all } = await sb.from('meeting_items').select('item_number, status').eq('meeting_id', mtg.id)
+  const open = all.filter(i => i.status === 'open').length
+  const info = all.filter(i => i.status === 'info').length
+  console.log('')
+  check(all.length === items.length, `meeting items: ${all.length} (expected ${items.length})`)
+  check(open === 8, `action items open and ready to carry into meeting #2: ${open}`)
+  check(info === 4, `INFO items recorded but not carried: ${info}`)
+  const { data: att } = await sb.from('meeting_attendees').select('id').eq('meeting_id', mtg.id)
+  check((att ?? []).length === 0, `attendees deliberately not asserted: ${(att ?? []).length}`)
+  const { data: mrow } = await sb.from('meetings').select('pdf_url, storage_url').eq('id', mtg.id).single()
+  if (!mrow.pdf_url) {
+    console.log('')
+    console.log('  FLAG — the minute PDF is NOT attached. The meeting-minutes bucket carries no')
+    console.log('  client storage policy; the app writes it server-side with the service role, and')
+    console.log('  SUPABASE_SERVICE_ROLE_KEY is not in .env. The record is otherwise complete and')
+    console.log('  correct; attaching the PDF needs the key, not a rerun of the import.')
+  }
+  // Assert the EXACT path, not merely that something is there. The earlier
+  // non-null check passed on an app-generated file — a green light for a value
+  // this stage had not written.
+  const wantPdf = up ? up.path : null
+  check(!!mrow.pdf_url && mrow.pdf_url === wantPdf,
+    `pdf_url is the ORIGINAL issued minute (${mrow.pdf_url ?? 'NULL'})`)
+  check(mrow.storage_url === null,
+    `storage_url NULL — no generated .docx claimed (${mrow.storage_url ?? 'NULL'})`)
+  await sb.from('import_batches').update({ rows_created: 1 }).eq('id', batch.id)
+}
+
+// ── Stage 7: documentation register ─────────────────────────────────────────
+if (stage === 'docregister') {
+  const { submittals, reports } = JSON.parse(readFileSync(`${EXTRACT}/docregister.json`, 'utf8'))
+  const all = [...submittals, ...reports]
+  console.log(`\nstage 7 — documentation register: ${submittals.length} submittals + ${reports.length} system reports`)
+
+  const batch = await getBatch({
+    entity: 'documentation_register',
+    sourceFile: 'ME Submittal Log by spec.xlsx + Equip.List rows 434-497',
+    revision: 'log at 2026-07-15; Equip.List 2026-05-28',
+    expected: all.length,
+    note:
+      'Submittal-log status mapped onto the register enum: CLS -> reviewed, OPE -> received, '
+      + 'N/A -> na, blank -> outstanding. date_received is the RETURN date where the log carries '
+      + 'one, else the submittal date. THE SYSTEM-REPORT COUNT IS 64, NOT THE 43 REPORTED AT '
+      + 'INVENTORY: below the Equip.List divider, column C holds 21 system-level report names and '
+      + 'column D holds their 43 sub-items. The earlier figure counted column D alone and missed '
+      + 'the parents.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  const { data: existing } = await sb.from('documentation_register')
+    .select('document_name').eq('project_id', proj.id)
+  const have = new Set((existing ?? []).map(d => d.document_name))
+  const todo = all.filter(d => !have.has(d.document_name))
+  console.log(`already present: ${have.size} · to insert: ${todo.length}`)
+
+  let created = 0
+  for (let i = 0; i < todo.length; i += 100) {
+    const slice = todo.slice(i, i + 100).map((d, k) => ({
+      project_id: proj.id, document_name: d.document_name, doc_type: d.doc_type,
+      status: d.status, date_received: d.date_received, notes: d.notes,
+      sort_order: i + k, import_batch_id: batch.id,
+    }))
+    const { data, error } = await sb.from('documentation_register').insert(slice).select('id')
+    if (error) { console.error(`register insert failed at ${i}: ${error.message}`); process.exit(1) }
+    created += data.length
+  }
+
+  // The Isotherm-authored documents, attached as-is.
+  const ATTACH = [
+    ['257889-SenecaHWC-SDrev#1-AHUs_DOAS.pdf',                'SDR #1 — AHUs & DOAS',            '2025-10-17'],
+    ['257889-SenecaHWC-SDrev#1.1-AHUs_DOAS(2025-11-13).pdf',  'SDR #1.1 — AHUs & DOAS',          '2025-11-13'],
+    ['257889-SenecaHWC-SDrev#1.2-AHUs_DOAS(2025-11-14).pdf',  'SDR #1.2 — AHUs & DOAS',          '2025-11-14'],
+    ['257889-SenecaHWC-SDrev#2-RAFs(2026-03-31).pdf',         'SDR #2 — Return Air Fans',        '2026-03-31'],
+    ['257889-SenecaHWC-SDrev#3-Hydronic_Pumps(2026-06-29).pdf','SDR #3 — Hydronic Pumps',        '2026-06-29'],
+    ['Seneca 257889_Health and Wellness Center_IST_REV10.docx','IST Plan — Rev 10',              '2025-10-01'],
+  ]
+  let attached = 0
+  for (const [local, name, date] of ATTACH) {
+    const storeAs = local.replace(/[#()]/g, '').replace(/[^\w.\-]+/g, '_')
+    const up = await putFile('equipment-files', local, storeAs)
+    if (!up) { console.log(`     ${name}: register row written, file NOT attached`); }
+    const { data: seen } = await sb.from('file_attachments').select('id')
+      .eq('project_id', proj.id).eq('filename', storeAs).maybeSingle()
+    if (!seen && up) {
+      const { error } = await sb.from('file_attachments').insert({
+        project_id: proj.id, equipment_id: null, filename: storeAs,
+        file_type: local.includes('SDrev') ? 'shop_drawing' : 'other',
+        storage_url: up.path, size_bytes: up.bytes,
+      })
+      if (error) { console.error(`attach ${name} failed: ${error.message}`); process.exit(1) }
+      attached++
+    }
+    const { data: reg } = await sb.from('documentation_register').select('id')
+      .eq('project_id', proj.id).eq('document_name', name).maybeSingle()
+    if (!reg) {
+      await sb.from('documentation_register').insert({
+        project_id: proj.id, document_name: name,
+        doc_type: local.includes('SDrev') ? 'Shop drawing review (Isotherm)' : 'IST Plan',
+        status: 'reviewed', revision: name.match(/#([\d.]+)|Rev (\d+)/)?.[0] ?? null,
+        date_received: date, notes: `Authored by Isotherm. Attached as issued: ${storeAs}`,
+        sort_order: 9000, import_batch_id: batch.id,
+      })
+      created++
+    }
+  }
+
+  const { count: total } = await sb.from('documentation_register')
+    .select('id', { count: 'exact', head: true }).eq('project_id', proj.id)
+  const { count: tagged } = await sb.from('documentation_register')
+    .select('id', { count: 'exact', head: true }).eq('project_id', proj.id).eq('import_batch_id', batch.id)
+  await sb.from('import_batches').update({ rows_created: tagged, rows_expected: all.length + ATTACH.length }).eq('id', batch.id)
+
+  console.log('')
+  check(total === all.length + ATTACH.length, `register rows: ${total} (expected ${all.length + ATTACH.length})`)
+  check(tagged === total, `carrying this batch id: ${tagged} of ${total}`)
+  console.log(`  files uploaded and attached: ${attached}`)
+}
+
+// ── Stage 8: closeout ───────────────────────────────────────────────────────
+if (stage === 'closeout') {
+  const batch = await getBatch({
+    entity: 'cx_plans',
+    sourceFile: '3_Cx_Docs/2.Spec_Plan/Cx-Plan/IELCxPlan257889_Seneca WHC_Issued For Tender.pdf',
+    revision: 'Issued For Tender, 2025-09-08',
+    expected: 1,
+    note:
+      'D5: chain continuity. The plan was issued OUTSIDE the app, so it is recorded as an issued '
+      + 'revision with the original PDF attached — and snapshot stays NULL, because a snapshot '
+      + 'asserts the app assembled the content and it did not. storage_url (the generated .docx) is '
+      + 'likewise NULL. knowledge_version is NULL: there was no corpus behind it. The composer\'s '
+      + 'next revision is therefore Rev 1 of real history rather than Rev 0 of a fiction. '
+      + 'ADDRESS CORRECTED: the project read "750 Finch Ave E"; every source document — the OPR, '
+      + 'the Cx Plan, the equipment workbook cover — reads 1750 Finch Avenue East. A one-character '
+      + 'typo, corrected against unanimous source evidence.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  const up = await putFile('cx-plans', 'IELCxPlan257889_Seneca WHC_Issued For Tender.pdf',
+    'IELCxPlan257889_Issued-For-Tender_2025-09-08.pdf')
+  console.log(`  uploaded Cx Plan PDF (${Math.round(up.bytes / 1024)} KB) → cx-plans/${up.path}`)
+
+  let { data: plan } = await sb.from('cx_plans').select('id')
+    .eq('project_id', proj.id).eq('revision_index', 0).maybeSingle()
+  if (!plan) {
+    const { data, error } = await sb.from('cx_plans').insert({
+      project_id: proj.id, tier: 'tender', revision_index: 0,
+      revision_label: 'Issued for Tender', status: 'issued',
+      issued_at: '2025-09-08T00:00:00Z',
+      pdf_url: up.path, storage_url: null, knowledge_version: null,
+      import_batch_id: batch.id,
+    }).select('id').single()
+    if (error) { console.error(`cx_plans insert failed: ${error.message}`); process.exit(1) }
+    plan = data
+    console.log('  created cx_plans Rev 0 — Issued for Tender')
+  } else console.log('  cx_plans Rev 0 already present')
+
+  const { error: pErr2 } = await sb.from('projects').update({
+    cx_role_designation: 'CxA',
+    address: '1750 Finch Avenue East, North York, ON M2J 2X5',
+  }).eq('id', proj.id)
+  if (pErr2) { console.error(`project update failed: ${pErr2.message}`); process.exit(1) }
+
+  const { data: snap } = await sb.from('cx_plan_snapshots').select('id').eq('plan_id', plan.id)
+  const { data: p2 } = await sb.from('projects')
+    .select('address, cx_role_designation').eq('id', proj.id).single()
+  const { data: row } = await sb.from('cx_plans').select('*').eq('id', plan.id).single()
+
+  console.log('')
+  check(row.status === 'issued' && row.revision_label === 'Issued for Tender',
+    `Rev 0 recorded as issued: "${row.revision_label}" (${row.status})`)
+  check(!!row.pdf_url && !row.storage_url,
+    `original PDF attached, no generated .docx claimed (storage_url ${row.storage_url ?? 'NULL'})`)
+  check((snap ?? []).length === 0, `snapshot NULL — the app does not claim to have assembled it`)
+  check(p2.cx_role_designation === 'CxA', `cx_role_designation = ${p2.cx_role_designation}`)
+  check(p2.address.startsWith('1750'), `address corrected: ${p2.address}`)
+  await sb.from('import_batches').update({ rows_created: 1 }).eq('id', batch.id)
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? 'PASS — counts reconciled, batch coverage complete.'
                            : `FAIL — ${failures} check(s) failed.`)

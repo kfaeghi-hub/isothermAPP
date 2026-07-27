@@ -831,7 +831,132 @@ one later is a category edit, not a re-import.
 | Untyped — awaiting ratification | 98 |
 | Queue entries awaiting your ruling | **19** |
 
-**Stages 6-9 not started.**
+### Stage 6 — meeting #1 · **COMPLETE (one item flagged)** 2026-07-27
+
+Cx Meeting Minute #1, 2025-07-02, recorded as **issued**. 5 topics, **12 items**.
+
+Item status follows the minute's **own Action column**, which is also what drives
+carry-forward (`status='open'`, topics matched by title):
+
+| Status | Items | Behaviour |
+|---|---|---|
+| `open` — a named party in the Action column | **8** | carries into meeting #2 with its original number retained |
+| `info` — Action reads INFO | **4** | recorded, does not carry |
+
+**Attendees deliberately NOT imported.** The only machine-readable roster is
+`CxMeetingMASTER.docx` — the **template** roster, not this meeting's attendance.
+Importing it would assert who was present on 2025-07-02 without evidence. The
+issued PDF carries the real list. (The minute PDF's own text layer is not
+machine-readable — only "Faeghi" surfaced, from metadata.)
+
+**Minute PDF attached** (ruled closer, 2026-07-27). `meeting-minutes` carries no
+client storage policy — the app writes it server-side from
+`api/generate-minutes.ts` — so the import writes it **the same way the app does**,
+with the service role, on the standard upload path and a sanitised key. **The
+bucket policy was not touched.**
+
+**Two defects surfaced doing it, both worth recording:**
+
+1. **The app had generated a minute over the import.** Issuing the meeting in the
+   UI between runs called `generate-minutes`, which wrote
+   `cx-kickoff-meeting-1.docx/.pdf` over both columns — the app rendering our
+   imported items, which is *not* the minute Isotherm issued on 2025-07-02, and
+   exactly the claim the no-generation model forbids. `pdf_url` now points at the
+   original 199 KB PDF and `storage_url` is back to NULL.
+2. **The stage set document references only on INSERT**, so when the row already
+   existed it silently kept whatever was there — and the check
+   `check(!!row.pdf_url)` **passed on a file the stage had not written**. Both
+   fixed: references are set every run, and the assertion now compares the exact
+   path.
+
+The two generated objects remain in storage, unreferenced. They are the app's
+render of the imported items, not the original — left in place rather than
+deleted, since removing a file a human may have deliberately produced is the more
+destructive of the two mistakes.
+
+`storage_url` stays NULL — the app generated no .docx for this meeting and must
+not appear to have.
+
+### Stage 7 — documentation register · **COMPLETE** 2026-07-27
+
+**164 rows.**
+
+| Source | Rows |
+|---|---|
+| ME Submittal Log — Mechanical/FP + Electrical | **94** |
+| System-based required reports (Equip.List below the divider) | **64** |
+| Isotherm-authored documents, files attached | **6** |
+
+Submittal status mapped onto the register enum: `CLS → reviewed` (23),
+`OPE → received` (2), `N/A → na` (2), blank `→ outstanding` (67).
+`date_received` is the **return** date where the log carries one, else the
+submittal date — 26 rows dated.
+
+**Correction to the inventory figure: the system-report count is 64, not 43.**
+Below the Equip.List divider, column C holds **21 system-level** report names and
+column D their **43 sub-items**. The earlier number counted column D alone and
+missed the parents.
+
+Attached as-is (6 files, `equipment-files`): SDR #1, #1.1, #1.2, #2, #3 and
+IST Plan Rev 10.
+
+### Stage 8 — closeout · **COMPLETE** 2026-07-27
+
+| | |
+|---|---|
+| `cx_plans` Rev 0 | **"Issued for Tender"**, status `issued`, issued 2025-09-08 |
+| PDF | attached (2,377 KB → `cx-plans/`) |
+| `storage_url` | **NULL** — no generated .docx claimed |
+| snapshot | **NULL** — the app does not claim to have assembled it |
+| `knowledge_version` | NULL — there was no corpus behind it |
+| `cx_role_designation` | **CxA** |
+| address | **1750 Finch Avenue East**, North York, ON M2J 2X5 |
+
+D5 satisfied: the plan was issued outside the app and is recorded as such, so the
+composer's next revision is **Rev 1 of real history** rather than Rev 0 of a
+fiction.
+
+---
+
+## 10 · EXECUTED — final provenance
+
+**13 import batches · 1,269 rows · 100% batch-tagged.**
+
+| Entity | Rows | Tagged |
+|---|---|---|
+| equipment | 367 | 367 |
+| cx_cell_values | 547 | 547 |
+| findings | 126 | 126 |
+| documentation_register | 164 | 164 |
+| meeting_items | 12 | 12 |
+| contacts (created) | 14 | 14 |
+| team seats | 7 | 7 |
+| meetings · cx_plans | 1 · 1 | 1 · 1 |
+| file_attachments | 6 | 6 |
+
+Every row is removable by `import_batch_id`. Nothing outside this project carries
+a batch tag.
+
+**Residue removed:** a first stage-7 run crashed mid-loop after uploading one file
+under an unsanitized key (Supabase storage rejects `#` and parens in object keys,
+surfaced misleadingly as an RLS error). The orphaned object and its row were
+deleted; attachments reconcile at 6 for 6 documents.
+
+**Closed: `file_attachments` is now the tenth provenance table.** It was missed in
+the original migration, leaving the 6 attached files identifiable only by a
+`storage_url` prefix — a pattern match, which is precisely what the batch id
+exists to replace. Column added, the 6 rows backfilled onto the stage-7 batch,
+and **0 attachments in any other project carry a tag**. The guarantee is now
+uniform: *every* row this import created is removable by `import_batch_id`.
+
+### Open items carried out of the import
+
+| Item | Detail |
+|---|---|
+| Ratification queue | **19 entries / 98 untyped rows** — Dry-Type Transformer 19, Lighting Panel 7, Unit Heater 6, Distribution Panel 5, … |
+| Ambiguous shop-drawing packages | Panelboards 26 24 16, VFDs 23 92 49, Metering 26 27 13/16, PV System 48 14 00 |
+| Unidentified equipment | `RHC` 3, `GI` 2, `PRV-NG` 2, `DBF` 2 — parked in MISCELLANEOUS |
+| Stamp verification | not performed — needs OCR or a human eye; the `-IEL` convention is corroborated by timestamps, not proven |
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
 normal API as `dev.admin`, every row carrying its import batch id, historical
