@@ -1364,6 +1364,40 @@ generalised; that document grew to 26 ratified rules exactly this way.
 
 ---
 
+## Import provenance — `import_batches`
+
+Rows that were **backfilled from documents** rather than created in the app carry
+an FK to the batch that made them. Nine tables have a nullable `import_batch_id`:
+`contacts`, `project_team_assignments`, `equipment`, `cx_cell_values`, `findings`,
+`meetings`, `meeting_items`, `documentation_register`, `cx_plans`. NULL means
+"born in the app", which is what every pre-existing row is.
+
+**The requirement it exists to meet: a bad import must be removable BY ID, never
+by pattern.** Deleting "the rows that look imported" is the cleanup-sweep mistake
+in another costume — it cannot tell a row the import created from a row a human
+later edited to resemble one, so it eats real work. Removal is
+`where import_batch_id = $1`.
+
+**`ON DELETE RESTRICT` on all nine references, deliberately.** `SET NULL` would
+let someone delete the batch and leave the rows behind — silently unattributable
+and no longer removable by id, which is exactly the state the table exists to
+prevent. RESTRICT makes removal a deliberate two-step: rows first, then the
+batch. Proven on ZZ-TEST rather than assumed: the orphaning delete raises
+`foreign_key_violation`, and the batch deletes cleanly once its rows are gone.
+
+The batch row records `source_file` (**relative to the document store — never an
+absolute local path**, which would be meaningless elsewhere and would name a
+user's home directory in a shared record), the `source_revision` the file claimed
+about itself, and `rows_expected` vs `rows_created` so a discrepancy is named at
+execution instead of discovered later.
+
+`finding_origin_enum` gained **`design_review`** in the same migration. The four
+existing values all describe construction-phase observation; design-review
+comments are none of them, and forcing them into `site_visit` would misreport
+their origin for the life of the project.
+
+---
+
 ## Standing rules (permanent — apply to every session)
 
 - **Every major change updates the docs in the SAME commit series that ships it.**
