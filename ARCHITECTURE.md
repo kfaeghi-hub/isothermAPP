@@ -1148,6 +1148,31 @@ commit.
 
 ## Standing rules (permanent — apply to every session)
 
+- **Every major change updates the docs in the SAME commit series that ships it.**
+  New module, schema change, new architecture layer, new standing pattern — the
+  documentation is part of the change, not follow-up work. Where each kind of
+  state belongs:
+
+  | Kind of state | Document |
+  |---|---|
+  | As-built technical state | `ARCHITECTURE.md` |
+  | Product state | Build Spec §1A / §3 / §12 |
+  | Roadmap state | `docs/MASTER-BRIEF.md` §4 / §10 |
+  | A completed proposal | The proposal doc itself, **flipped to as-built** |
+
+  **The docs are how sessions boot.** A shipped change that is not in them does
+  not exist for the next session — it will be re-derived, contradicted, or
+  rebuilt. That is the whole reason for the rule; it is not bookkeeping.
+
+  Two obligations that come with it:
+  - **Flag stale claims, never silently rewrite them.** A struck line with a dated
+    correction beneath it teaches what was believed and why it was wrong. A
+    silently corrected line teaches nothing and hides that anyone was ever
+    mistaken. (Precedents: the `project_members` → `portal_members` corrections,
+    the byte-clean-baseline claim, the `gray-400` contrast note.)
+  - **List per-file doc changes in the commit message.** A reviewer must be able
+    to see which documents moved without opening the diff.
+
 - **Verify a deploy by what actually CHANGED.** "Deploy verified" is a claim about
   the specific change, not about the deployment. Match the method to the artifact:
 
