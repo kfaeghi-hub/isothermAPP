@@ -1146,6 +1146,63 @@ commit.
 
 ---
 
+## The Firm Knowledge Layer — the standing AI architecture (2026-07-26)
+
+**Every AI feature in this system reads `api/_shared/ai-common.ts`.** It is the
+doc-common of AI. Record: `docs/CX-PLAN-COMPOSER-PROPOSAL.md`.
+
+### Two rules
+
+1. **Firm knowledge lives in DOCUMENTS, never in weights.** No fine-tuning, ever.
+   Everything the model knows about Isotherm arrives as context that can be
+   shown, audited, corrected and diffed in a pull request. A model that "just
+   knows" our conventions is a model whose knowledge cannot be reviewed.
+2. **No feature carries a private prompt that duplicates corpus content.** The
+   moment two features each hold a copy of the style rules, they drift. This is
+   the same failure the portal column whitelists (`portal_internal`) and the
+   document palette (`DOC`) were built to prevent; the pattern is established and
+   this is its third application.
+
+### The corpus — `firm-knowledge/`
+
+Versioned in the repo, reviewed in PRs, deployed with the app that reads it.
+
+| File | Holds |
+|---|---|
+| `identity.md` | Firm facts: since 1975, services, client types, how Isotherm runs a project |
+| `style-card.md` | The writing rules, **extracted from three issued plans** — person, modal discipline (`shall`/`will`/`is`), sentence discipline, Canadian spelling, structure, and an explicit NEVER list |
+| `terminology.md` | Controlled vocabulary + rulings. **CxA = Commissioning Authority · CxP = Commissioning Provider · "Agent" retired** (D1a, with the evidence for why it needed ruling) |
+| `domain-rules.md` | Seeded from `EXTRACTION-PLAYBOOK.md` — branding absolutism, ruled equipment keys, verification vocabulary, quarantine-never-guess |
+| `procedures/` | Procedure-bullet library keyed by system, `_index.json` mapping systems → equipment keys |
+| `exemplars/` | Merge-fielded skeletons only (D7). **Never full client documents** — that would breach the ShareSync rule |
+| `contracts/` | One per feature. States what the model drafts, what it never sees, hard constraints, return shape, budget. Stubs exist for `fpt`, `polish`, `summarize`, `equipment-extract` so the next feature is written as a contract, not as a prompt in an endpoint |
+
+**Hybrid storage (D4):** files are the base; DB rows (admin-editable procedure
+bullets, ratified corrections) merge OVER them at assembly time. Files win on
+identity and style; the DB only adds.
+
+### `ai-common` surface
+
+- `buildContext({ feature, slices, exemplar, dbAdditions })` → the SYSTEM prompt.
+  Deterministic: the same request always yields the same text, which is what
+  makes a generation reproducible from its snapshot.
+- `callModel({ system, user })` — **the only place this system talks to a model.**
+  One implementation of cost, model choice and failure handling.
+- `logGeneration()` → `ai_generations` (feature, model, tokens, cost, who).
+  Non-fatal on failure: a logging error must never lose work the user is looking at.
+- `knowledgeVersion()` — the corpus commit SHA, stamped on every generation and
+  every issued snapshot, so a document traces to the knowledge that produced it.
+- `parseJson()` — one lenient parser, so no feature reinvents a fragile one.
+
+### The corrections pipeline
+
+Review-screen edits are captured. A cluster of similar edits becomes a **proposed
+corpus addition** for ratification — **nothing self-modifies**. Ratified
+additions land as a PR to `firm-knowledge/`. This is the EXTRACTION-PLAYBOOK loop
+generalised; that document grew to 26 ratified rules exactly this way.
+
+---
+
 ## Standing rules (permanent — apply to every session)
 
 - **Every major change updates the docs in the SAME commit series that ships it.**

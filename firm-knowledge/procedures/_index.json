@@ -1,0 +1,12 @@
+{
+  "_comment": "Procedure-bullet library, keyed by system. The FILE is the base; admin edits live in the DB and are merged over it by ai-common (ruling D4, hybrid). Bullets are extracted from the three reference plans and phrased per the style card: noun phrases or imperative fragments, actor in parentheses where responsibility shifts.",
+  "version": 1,
+  "systems": {
+    "hydronic":    { "file": "hydronic.md",    "label": "Hydronic piping and pumps", "equipment_keys": ["pump", "boiler", "chiller", "cooling_tower"] },
+    "air":         { "file": "air.md",         "label": "Air handling and distribution", "equipment_keys": ["ahu", "fan", "vav", "fcu", "erv"] },
+    "electrical":  { "file": "electrical.md",  "label": "Electrical distribution", "equipment_keys": ["generator", "ats"] },
+    "controls":    { "file": "controls.md",    "label": "Controls and BAS", "equipment_keys": [] },
+    "life_safety": { "file": "life-safety.md", "label": "Integrated life safety", "equipment_keys": [], "tier": "tender" },
+    "tab":         { "file": "tab.md",         "label": "Testing, adjusting and balancing", "equipment_keys": [], "tier": "tender" }
+  }
+}
