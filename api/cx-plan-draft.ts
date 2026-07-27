@@ -20,7 +20,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 import {
-  buildContext, callModel, logGeneration, parseJson, parseModelJson,
+  buildContext, callModel, logGeneration, parseModelJson,
   JSON_RETRY_REMINDER, knowledgeVersion, AiError,
 } from './_shared/ai-common.js'
 import { SECTIONS } from './_shared/cx-plan-assembly.js'
@@ -41,30 +41,34 @@ const INTENT: Record<string, string> = {
 }
 
 /**
- * PER-SECTION TOKEN BUDGET.
+ * PER-SECTION GENERATION BUDGET — thinking INCLUDED.
  *
- * The first calibration run failed on Roles and Responsibilities at exactly 1200
- * output tokens — the flat ceiling — with no verification call after it, because
- * the JSON was cut off mid-object. Roles writes one line per participating
- * company, so its length scales with the team matrix while every other section
- * is a fixed few sentences.
+ * `max_tokens` is the TOTAL generation budget, and on this model reasoning
+ * dominates it. Measured on the failing Roles call: 4,929 thinking tokens
+ * against 453 of actual answer. A budget sized for the prose is sized for about
+ * eight per cent of what the call needs.
  *
- * And the CLAIMS ARRAY ROUGHLY DOUBLES THE OUTPUT: every sentence of prose comes
- * back a second time as a claim with its supporting fact key. A budget sized for
- * the prose alone is therefore about half of what the contract actually needs.
- * These numbers are prose-estimate x2 plus headroom.
+ * That was the real defect behind the first calibration failure, and my first
+ * fix got it wrong: I read "1200 output tokens, cut off mid-JSON" and reasoned
+ * about prose length and the claims array, so I raised Roles to 3000 — which the
+ * model spent entirely on thinking, emitting 2,998 reasoning tokens and NOT ONE
+ * TEXT BLOCK. The raw response logged empty, which is what finally gave it away.
+ *
+ * These ceilings are generous on purpose: we are billed for what is used, not
+ * for what is reserved, so the cost of headroom is zero and the cost of a
+ * too-small ceiling is a failed section and a wasted call.
  */
 function budgetFor(sectionKey: string): number {
   const BUDGETS: Record<string, number> = {
-    background: 1500,    // 2-4 sentences
-    roles: 3000,         // one line PER COMPANY — the only section that scales
-    process: 2000,       // 3-5 sentences
-    operational: 1800,   // 2-4 sentences
-    ils: 1800,
-    tab: 1800,
-    schedule: 2200,      // 3-5 sentences across phases
+    background: 8000,
+    roles: 10000,        // the only section that scales with the team matrix
+    process: 8000,
+    operational: 8000,
+    ils: 8000,
+    tab: 8000,
+    schedule: 9000,
   }
-  return BUDGETS[sectionKey] ?? 2000
+  return BUDGETS[sectionKey] ?? 8000
 }
 
 export default async function handler(req: any, res: any) {
@@ -156,22 +160,34 @@ export default async function handler(req: any, res: any) {
       !!v && typeof v.prose === 'string' && v.prose.trim().length > 0 &&
       (v.claims === undefined || Array.isArray(v.claims))
 
-    // ONE automatic retry with a terse reminder. Most unparseable responses are
-    // fence-wrapping or stray commentary and clear on the second attempt; a
-    // truncation does not, so it is NOT retried — the same budget would produce
-    // the same cut-off, at the same cost.
-    let draft = await callModel({ system, user: userMsg, maxTokens: budgetFor(section_key) })
+    // ONE automatic retry, matched to the failure — the two kinds have opposite
+    // fixes:
+    //
+    //   a BUDGET failure retries AT DOUBLE THE CEILING. Retrying at the same
+    //   ceiling buys the identical cut-off at the identical cost. Doubling makes
+    //   the ceiling self-correcting rather than dependent on my estimate being
+    //   right, which on the first calibration run it was not.
+    //
+    //   a PARSE failure retries at the SAME ceiling with a terse reminder. Most
+    //   are fence-wrapping or stray commentary and clear on the second attempt;
+    //   more room would not have helped.
+    let budget = budgetFor(section_key)
+    let draft = await callModel({ system, user: userMsg, maxTokens: budget })
     await logGeneration(service, {
       feature: 'cx-plan:draft', projectId: plan.project_id,
       result: draft, createdBy: user.userId,
     })
     let outcome = parseModelJson<Draft>(draft, isDraft)
 
-    if (!outcome.ok && outcome.failure !== 'truncated') {
-      console.warn(`[cx-plan-draft] ${section_key}: ${outcome.failure} — retrying once. Raw:\n` +
-        String(outcome.raw ?? '').slice(0, 2000))
+    if (!outcome.ok) {
+      const ranOutOfRoom =
+        outcome.failure === 'truncated' || outcome.failure === 'thinking-overrun'
+      console.warn(`[cx-plan-draft] ${section_key}: ${outcome.failure} — retrying once ` +
+        `(${ranOutOfRoom ? `budget ${budget} -> ${budget * 2}` : 'same budget, JSON reminder'}).` +
+        `\nRaw:\n` + String(outcome.raw ?? '').slice(0, 2000))
+      if (ranOutOfRoom) budget *= 2
       draft = await callModel({
-        system, user: userMsg + JSON_RETRY_REMINDER, maxTokens: budgetFor(section_key),
+        system, user: ranOutOfRoom ? userMsg : userMsg + JSON_RETRY_REMINDER, maxTokens: budget,
       })
       await logGeneration(service, {
         feature: 'cx-plan:draft:retry', projectId: plan.project_id,
@@ -186,12 +202,17 @@ export default async function handler(req: any, res: any) {
       // never goes to a browser.
       console.error(`[cx-plan-draft] ${section_key}: ${outcome.failure} after retry. ` +
         `stop_reason=${draft.stopReason} output_tokens=${draft.outputTokens} ` +
-        `budget=${budgetFor(section_key)}\nRAW:\n` + String(outcome.raw ?? '').slice(0, 4000))
+        `thinking=${draft.thinkingTokens} blocks=${draft.blockTypes.join('+') || 'none'} ` +
+        `budget=${budget}\nRAW:\n` + String(outcome.raw ?? '').slice(0, 4000))
 
       // A TRUNCATION IS ITS OWN ERROR, not a parse failure. They have different
       // fixes — one needs a bigger budget, the other a better prompt — and the
       // message must say which so a human is not left guessing.
       const messages: Record<string, string> = {
+        'thinking-overrun':
+          `The ${def.title} draft used its whole budget reasoning and never began ` +
+          `writing. Nothing was saved. Retry — if it recurs, this section has too ` +
+          `many facts to weigh at once.`,
         truncated:
           `The ${def.title} draft ran past its length budget and was cut off ` +
           `(${draft.outputTokens} tokens). Nothing was saved. Try again, or shorten ` +
@@ -218,15 +239,36 @@ export default async function handler(req: any, res: any) {
         'facts do not support, contradict, or leave vague. Return JSON only: ' +
         '{ "flags": [ { "span": string, "claim": string, "severity": "unsupported"|"contradicted"|"vague", "why": string } ] }',
       user: JSON.stringify({ prose: parsed.prose, facts }),
-      // Flags carry a span, a claim and a reason each, so this scales with the
-      // number of problems found — not with the prose length.
-      maxTokens: 1500,
+      // Comparing every sentence against every fact is the MOST reasoning-heavy
+      // call in the system, not the least — the old 1500 was sized for the flag
+      // list alone, which is the same mistake as the draft budgets one call later.
+      maxTokens: 8000,
     })
     await logGeneration(service, {
       feature: 'cx-plan:verify', projectId: plan.project_id,
       result: verify, createdBy: user.userId,
     })
-    const flags = parseJson<{ flags: any[] }>(verify.text)?.flags ?? []
+    // A VERIFICATION THAT FAILED IS NOT A VERIFICATION THAT PASSED. This line was
+    // `parseJson(...)?.flags ?? []`, so a truncated or unreadable check produced an
+    // empty flag list — indistinguishable, on screen and in the database, from a
+    // clean bill of health. The one guarantee the two-call design exists to give
+    // would have vanished in silence: the fourth instance of the class, found while
+    // fixing the third. Fail closed instead — discard the prose and say the check
+    // did not run.
+    const vOut = parseModelJson<{ flags: any[] }>(
+      verify, (v: any): v is { flags: any[] } => !!v && Array.isArray(v.flags))
+    if (!vOut.ok) {
+      console.error(`[cx-plan-draft] ${section_key}: VERIFICATION ${vOut.failure}. ` +
+        `stop_reason=${verify.stopReason} output_tokens=${verify.outputTokens} ` +
+        `thinking=${verify.thinkingTokens}\nRAW:\n` + String(vOut.raw ?? '').slice(0, 4000))
+      return res.status(502).json({
+        error: `The ${def.title} draft was written but could not be fact-checked, ` +
+          `so nothing was saved. Try again — unchecked text is not worth keeping.`,
+        reason: `verify-${vOut.failure}`,
+        retryable: true,
+      })
+    }
+    const flags = vOut.value!.flags
 
     // ── Persist the section's working state ────────────────────────────────
     const ordinal = SECTIONS.findIndex(s => s.key === section_key)

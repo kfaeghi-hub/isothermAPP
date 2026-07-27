@@ -1286,6 +1286,52 @@ identity and style; the DB only adds.
 - `knowledgeVersion()` — the corpus commit SHA, stamped on every generation and
   every issued snapshot, so a document traces to the knowledge that produced it.
 - `parseJson()` — one lenient parser, so no feature reinvents a fragile one.
+- `parseModelJson(result, validate)` — the parser a feature should actually call.
+  It returns *which* kind of failure occurred, because they have different fixes:
+  `thinking-overrun` · `truncated` · `unparseable` · `wrong-shape`.
+
+### `max_tokens` is a TOTAL GENERATION BUDGET, reasoning included
+
+The current models think before they answer, and **reasoning tokens are drawn
+from `max_tokens` and billed as output.** A budget sized for the expected prose
+is not a small budget — it is roughly a tenth of what the call needs.
+
+This cost a live calibration run. The Roles section failed; the first diagnosis
+read the ceiling as a prose overrun and doubled it, and the model spent the whole
+of the larger budget reasoning and emitted **no text block at all**. Measured
+against the API with the real system prompt:
+
+| `max_tokens` | stop reason | thinking | text |
+|---|---|---|---|
+| 3000 | `max_tokens` | 2,998 | 0 chars |
+| 6000 | `end_turn` | 4,929 | 1,317 chars |
+
+Consequences, now built in:
+
+- **Budget for the reasoning, not the answer** — the section budgets are 8–10k
+  for a few sentences of output. We are billed for what is *used*, not what is
+  *reserved*, so headroom is free and a short ceiling costs a failed section.
+- **A thinking-only response is its own diagnosis.** `blockTypes` containing
+  `thinking` with no `text` means the budget ran out before the answer began.
+  `outputTokens === maxTokens` alone cannot tell you that, and the raw text is
+  empty, so without the block types there is nothing to look at.
+- **Retry a budget failure at double the ceiling, never the same one.** A retry
+  at the same ceiling buys the identical cut-off at the identical cost.
+- **The logged cost is mostly reasoning.** `outputTokens` includes thinking, so
+  the figure in `ai_generations` is correct but is not a measure of prose.
+
+### A verification that failed is not a verification that passed
+
+The verify call in the two-call design read `parseJson(...)?.flags ?? []`. A
+truncated or unreadable fact-check therefore produced an empty flag list —
+indistinguishable, on screen and in the database, from a clean bill of health.
+The one guarantee the design exists to provide would have vanished silently.
+
+**Any check whose failure mode is an empty result must fail closed and say so.**
+This is the same class as the inert `revoke … from anon`, the zero-replacement
+substitution, and the cleanup sweep that matched nothing — prove the mechanism,
+never the silence. It is now the fourth instance, and it was found while fixing
+the third.
 
 ### The corrections pipeline
 

@@ -124,6 +124,13 @@ export interface ModelResult {
   inputTokens: number
   outputTokens: number
   model: string
+  /** Reasoning tokens. THESE COUNT AGAINST max_tokens AND ARE BILLED AS OUTPUT.
+   *  On the first calibration failure the model spent 2998 of a 3000-token
+   *  budget thinking and never emitted a single text block. */
+  thinkingTokens: number
+  /** Which content-block types came back. `['thinking']` with no `'text'` is the
+   *  signature of a budget exhausted before the answer began. */
+  blockTypes: string[]
   /** The API's own reason for stopping. `max_tokens` means the response was
    *  CUT OFF mid-sentence — and, for a JSON contract, mid-object. That is a
    *  budget failure, not a parse failure, and callers must be able to tell them
@@ -167,11 +174,14 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
   }
 
   const j = await res.json() as any
-  const text = (j.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+  const blocks: any[] = j.content ?? []
+  const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('')
   return {
     text,
     inputTokens: j.usage?.input_tokens ?? 0,
     outputTokens: j.usage?.output_tokens ?? 0,
+    thinkingTokens: j.usage?.output_tokens_details?.thinking_tokens ?? 0,
+    blockTypes: [...new Set(blocks.map(b => b.type))],
     model: j.model ?? MODEL,
     stopReason: j.stop_reason ?? null,
   }
@@ -179,7 +189,7 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
 
 /** Distinguishes the two ways a JSON contract fails, because they have different
  *  fixes and different messages. */
-export type JsonFailure = 'truncated' | 'unparseable' | 'wrong-shape'
+export type JsonFailure = 'thinking-overrun' | 'truncated' | 'unparseable' | 'wrong-shape'
 export interface JsonOutcome<T> {
   ok: boolean
   value?: T
@@ -199,6 +209,12 @@ export interface JsonOutcome<T> {
 export function parseModelJson<T>(
   result: ModelResult, validate: (v: any) => v is T,
 ): JsonOutcome<T> {
+  // The budget ran out DURING REASONING — the model never began its answer.
+  // Distinct from a mid-sentence cut-off: the fix is a bigger ceiling, and the
+  // raw text is empty so there is nothing to salvage or diagnose from.
+  if (!result.blockTypes.includes('text') && result.blockTypes.includes('thinking')) {
+    return { ok: false, failure: 'thinking-overrun', raw: '' }
+  }
   if (result.stopReason === 'max_tokens') {
     return { ok: false, failure: 'truncated', raw: result.text }
   }
@@ -216,7 +232,11 @@ export const JSON_RETRY_REMINDER =
   'sentence limit so the response is not cut off.'
 
 /** Rough cost in cents. Rates are a deploy-time constant, not a live lookup —
- *  an approximate logged cost is useful; a failed call to price a call is not. */
+ *  an approximate logged cost is useful; a failed call to price a call is not.
+ *  NOTE: outputTokens INCLUDES thinking tokens, and thinking dominates on this
+ *  workload (~4.9k of ~5.4k on a Roles draft). The logged cost is therefore
+ *  already correct — but anyone reading it should know most of it is reasoning,
+ *  not prose. */
 const RATE_PER_MTOK = { input: 300, output: 1500 }   // cents per million tokens
 export function estimateCents(inputTokens: number, outputTokens: number): number {
   return +(

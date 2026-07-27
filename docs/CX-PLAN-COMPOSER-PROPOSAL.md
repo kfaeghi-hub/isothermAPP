@@ -33,15 +33,47 @@ exists to catch: a claim that is plausible, house-style-correct, and wrong for
 this project. It was caught, surfaced beside the facts, and left for the CxA to
 rule on. Recorded because it is the design's first real evidence, not a hope.
 
-**Roles and Responsibilities failed to draft** — truncation, diagnosed from
-`ai_generations` alone: two draft calls at exactly 1200 output tokens (the flat
-ceiling) with no verification call after either, because the JSON was cut off
-mid-object. Fixed as a class rather than an instance: per-section token budgets
-(Roles is the only section whose length scales with the team matrix, and the
-claims array roughly doubles every section's output), truncation raised as its
-own error distinct from a parse failure, one automatic retry for the parse cases
-only, the raw response always logged server-side, and an inline retryable error
-in the UI instead of an alert with an OK button.
+**Roles and Responsibilities failed to draft** — the ceiling, diagnosed from
+`ai_generations` alone: two draft calls at exactly 1200 output tokens with no
+verification call after either. The first round of fixes was right about the
+symptom and **wrong about the cause**: it read the ceiling as a prose overrun,
+reasoned about the claims array doubling the output, and raised Roles to 3000.
+It failed again — and this time the raw response logged *empty*, which is what
+gave it away.
+
+**`max_tokens` is the total generation budget and reasoning is drawn from it.**
+Probed directly against the API with the real 21,753-character system prompt:
+
+| `max_tokens` | stop reason | thinking | text |
+|---|---|---|---|
+| 3000 | `max_tokens` | 2,998 | 0 chars |
+| 6000 | `end_turn` | 4,929 | 1,317 chars |
+
+Roughly 4,900 tokens of reasoning against 450 of answer. The claims array was
+never the driver. Fixed as a class: budgets reframed as generation budgets and
+raised to 8–10k; a `thinking-overrun` failure (thinking blocks, no text block)
+raised distinctly from a mid-sentence truncation, because one needs a bigger
+ceiling and the other a better prompt; and the single retry now **doubles the
+ceiling on a budget failure** while keeping the same ceiling plus a JSON reminder
+on a parse failure — a retry at an unchanged ceiling buys the identical cut-off
+at the identical cost. The model does fence-wrap its JSON, so the fence-stripping
+added in the first round earns its place.
+
+**Found while fixing it, and worse than the reported bug: the verification call
+swallowed its own failures.** It read `?.flags ?? []`, so a truncated fact-check
+produced an empty flag list — indistinguishable from a clean bill of health. The
+single guarantee the two-call design exists to provide would have disappeared in
+silence, on the same screen where the design had just proved its worth. It now
+fails closed: the prose is discarded and the human is told the check did not run.
+Its budget was 1500, the same prose-sized mistake one call later; comparing every
+sentence against every fact is the most reasoning-heavy call in the system, not
+the least.
+
+**Cost basis corrected.** The ~4.6¢ per section above was measured on short
+sections before any of this was understood; `output_tokens` includes thinking, so
+a realistic Roles-sized draft is **~10-11¢** and a four-section pass is closer to
+**30¢** than 19¢. Still the right trade, and still dominated by the corpus in the
+system prompt — but the figure to plan with is the larger one.
 
 ---
 
