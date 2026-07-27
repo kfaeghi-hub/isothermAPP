@@ -25,6 +25,7 @@ import { spawnSync } from 'node:child_process'
 
 const SUITES = [
   'pw-access',
+  'pw-agent-arch',
   'pw-checklist-offline',
   'pw-classification',
   'pw-copy',

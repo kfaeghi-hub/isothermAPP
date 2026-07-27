@@ -99,6 +99,16 @@ export function CxIndexPage({ projectId }: Props) {
   const [newColLabel, setNewColLabel]       = useState('')
 
   // Add equipment modal
+  // ── A1: find, filter, and the per-unit panel ──────────────────────────────
+  // Pure UI over data already loaded. No AI, no schema, no round-trip — the
+  // matrix is 367 x 88 on a real project and the answer to "where is AHU-3" must
+  // arrive at the speed of typing.
+  const [query, setQuery]   = useState('')
+  const [fType, setFType]   = useState('')
+  const [fCat, setFCat]     = useState('')
+  const [fState, setFState] = useState('')     // `${groupId}:outstanding|complete`
+  const [panelUnit, setPanelUnit] = useState<Equipment | null>(null)
+
   const [addEquipOpen, setAddEquipOpen] = useState(false)
   const [addEquipForm, setAddEquipForm] = useState<AddEquipForm>(EMPTY_EQUIP)
   const [savingEquip, setSavingEquip]   = useState(false)
@@ -427,15 +437,70 @@ export function CxIndexPage({ projectId }: Props) {
   }
 
   // Group equipment by category for header rows
+  // SEARCH AND FILTER DO DIFFERENT JOBS, deliberately.
+  //   filters HIDE   — narrowing the register to a workable set
+  //   search HIGHLIGHTS — you want to SEE the unit in its row of context, not
+  //                       alone on an empty grid. Hiding everything else is the
+  //                       wrong answer to "where is AHU-3".
+  const q = query.trim().toLowerCase()
+  const matchesQuery = (e: Equipment) =>
+    !!q && ((e.tag ?? '').toLowerCase().includes(q) ||
+            (e.descriptor ?? '').toLowerCase().includes(q))
+
+  const stageState = (equipId: string, g: CxStageGroup) => {
+    let outstanding = 0, done = 0, na = 0
+    g.columns.forEach(c => {
+      const st = cells.get(`${equipId}:${c.id}`)
+      if (st === 'na') na++
+      else if (st === 'done') done++
+      else outstanding++
+    })
+    return { outstanding, done, na }
+  }
+
+  const passesFilters = (e: Equipment) => {
+    if (fType && (e.equipment_type ?? '') !== fType) return false
+    if (fCat && (e.category ?? '') !== fCat) return false
+    if (fState) {
+      const [gid, want] = fState.split(':')
+      const g = groups.find(x => x.id === gid)
+      if (g) {
+        const { outstanding } = stageState(e.id, g)
+        if (want === 'outstanding' && outstanding === 0) return false
+        if (want === 'complete' && outstanding > 0) return false
+      }
+    }
+    return true
+  }
+
+  const visible = equipment.filter(passesFilters)
+  const matchCount = visible.filter(matchesQuery).length
+  const typeOptions = [...new Set(equipment.map(e => e.equipment_type).filter(Boolean))].sort() as string[]
+  const catOptions  = [...new Set(equipment.map(e => e.category).filter(Boolean))].sort() as string[]
+  const filtersOn = !!(fType || fCat || fState)
+
+  /** Jump to the first match. The matrix is wider than any screen, so scrolling a
+   *  row into view has to bring the STICKY TAG COLUMN with it — centring on the
+   *  row and leaving the horizontal scroll where it was would land the user on
+   *  column 60 of a row they cannot identify. */
+  function jumpToFirstMatch() {
+    const first = visible.find(matchesQuery)
+    if (!first) return
+    const el = document.querySelector(`[data-unit-row="${first.id}"]`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const scroller = el?.closest('.overflow-auto')
+    if (scroller) scroller.scrollLeft = 0
+  }
+
   const seen = new Set<string>()
   const catOrder: string[] = []
-  equipment.forEach(e => {
+  visible.forEach(e => {
     const c = e.category ?? ''
     if (!seen.has(c)) { seen.add(c); catOrder.push(c) }
   })
   const byCategory = catOrder.map(cat => ({
     cat,
-    items: equipment.filter(e => (e.category ?? '') === cat),
+    items: visible.filter(e => (e.category ?? '') === cat),
   }))
 
   const totalCols = groups.reduce((s, g) => s + g.columns.length, 0)
@@ -446,7 +511,9 @@ export function CxIndexPage({ projectId }: Props) {
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 shrink-0">
         <span className="text-[11px] text-gray-400 mr-auto font-mono">
-          {equipment.length} items · {totalCols} columns · {totalEntries} entries
+          {filtersOn
+            ? `${visible.length} of ${equipment.length} items`
+            : `${equipment.length} items`} · {totalCols} columns · {totalEntries} entries
         </span>
         <button
           onClick={() => setStructureOpen(true)}
@@ -460,6 +527,62 @@ export function CxIndexPage({ projectId }: Props) {
         >
           + Add Equipment
         </button>
+      </div>
+
+      {/* ── A1: find + filter ──────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2 px-6 py-2 border-b border-gray-100 shrink-0">
+        <div className="relative">
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') jumpToFirstMatch() }}
+            placeholder="Find a tag…"
+            aria-label="Find equipment by tag or descriptor"
+            className="border border-gray-200 rounded pl-2 pr-16 py-1 text-xs w-52 focus:outline-none focus:border-teal-400"
+          />
+          {q && (
+            <button
+              onClick={jumpToFirstMatch}
+              className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-teal-700 hover:underline">
+              {matchCount} ↵
+            </button>
+          )}
+        </div>
+
+        <select value={fType} onChange={e => setFType(e.target.value)} aria-label="Filter by type"
+          className="border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 focus:outline-none focus:border-teal-400">
+          <option value="">All types</option>
+          {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        <select value={fCat} onChange={e => setFCat(e.target.value)} aria-label="Filter by category"
+          className="border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 max-w-[14rem] focus:outline-none focus:border-teal-400">
+          <option value="">All categories</option>
+          {catOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {/* The question a CxA actually asks: "what's outstanding in X?" */}
+        <select value={fState} onChange={e => setFState(e.target.value)} aria-label="Filter by stage state"
+          className="border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 max-w-[16rem] focus:outline-none focus:border-teal-400">
+          <option value="">Any stage state</option>
+          {groups.map(g => (
+            <Fragment key={g.id}>
+              <option value={`${g.id}:outstanding`}>{g.name} — outstanding</option>
+              <option value={`${g.id}:complete`}>{g.name} — complete</option>
+            </Fragment>
+          ))}
+        </select>
+
+        {filtersOn && (
+          <button onClick={() => { setFType(''); setFCat(''); setFState('') }}
+            className="text-[11px] text-gray-500 hover:text-teal-700">Clear filters</button>
+        )}
+
+        {filtersOn && visible.length === 0 && (
+          <span className="text-[11px] text-amber-700">
+            No equipment matches — clear a filter to see the register again.
+          </span>
+        )}
       </div>
 
       {/* ── Legend ─────────────────────────────────────────────────────────── */}
@@ -618,8 +741,10 @@ export function CxIndexPage({ projectId }: Props) {
                   const pct = total === 0 ? null : Math.round((done / total) * 100)
                   const rowBg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
 
+                  const hit = matchesQuery(equip)
                   return (
-                    <tr key={equip.id}>
+                    <tr key={equip.id} data-unit-row={equip.id}
+                        className={hit ? 'ring-2 ring-inset ring-amber-400' : undefined}>
                       {/* # */}
                       <td
                         className={`sticky left-0 z-20 ${rowBg} border-b border-r border-gray-100 text-center text-gray-300 font-mono`}
@@ -629,10 +754,14 @@ export function CxIndexPage({ projectId }: Props) {
                       </td>
 
                       {/* Tag + Descriptor */}
-                      <td className={`sticky left-8 z-20 ${rowBg} border-b border-r border-gray-200 px-2 py-1`}>
-                        <div className="font-mono font-semibold text-gray-800 leading-none" style={{ fontSize: '9px' }}>
+                      <td className={`sticky left-8 z-20 ${hit ? 'bg-amber-50' : rowBg} border-b border-r border-gray-200 px-2 py-1`}>
+                        <button
+                          onClick={() => setPanelUnit(equip)}
+                          title="What's still needed for this unit"
+                          className="font-mono font-semibold text-gray-800 leading-none hover:text-teal-700 text-left"
+                          style={{ fontSize: '9px' }}>
                           {equip.tag}
-                        </div>
+                        </button>
                         {equip.descriptor && (
                           <div className="text-gray-400 leading-none mt-0.5 truncate" style={{ fontSize: '8px', maxWidth: '148px' }}>
                             {equip.descriptor}
@@ -989,6 +1118,84 @@ export function CxIndexPage({ projectId }: Props) {
                 {savingEquip ? 'Adding…' : 'Add Equipment'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── A1: the per-unit panel — "what's still needed" ─────────────────── */}
+      {/* The matrix answers "how is the project doing". This answers "what does
+          THIS unit still need", which is the question asked standing in front of
+          it. Same data, one column instead of eighty-eight. */}
+      {panelUnit && (
+        <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true"
+             aria-label={`What's still needed for ${panelUnit.tag}`}>
+          <button className="absolute inset-0 bg-gray-900/20" aria-label="Close"
+                  onClick={() => setPanelUnit(null)} />
+          <div className="relative w-full max-w-sm bg-white h-full shadow-xl flex flex-col">
+            <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-gray-200 shrink-0">
+              <div className="min-w-0">
+                <div className="font-mono font-semibold text-gray-900 text-sm">{panelUnit.tag}</div>
+                <div className="text-[11px] text-gray-500 truncate">
+                  {panelUnit.descriptor || panelUnit.category || '—'}
+                </div>
+                {(panelUnit.location || panelUnit.area_served) && (
+                  <div className="text-[10px] text-gray-400 truncate mt-0.5">
+                    {[panelUnit.location, panelUnit.area_served].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setPanelUnit(null)}
+                className="text-gray-400 hover:text-gray-700 text-lg leading-none shrink-0">×</button>
+            </div>
+
+            {(() => {
+              const rows = groups.map(g => ({ g, st: stageState(panelUnit.id, g) }))
+              const outstandingTotal = rows.reduce((n, r) => n + r.st.outstanding, 0)
+              const doneTotal = rows.reduce((n, r) => n + r.st.done, 0)
+              return (
+                <>
+                  <div className="px-4 py-2 border-b border-gray-100 shrink-0">
+                    <span className="text-[11px] text-gray-500">
+                      <span className="font-semibold text-gray-800">{outstandingTotal}</span> outstanding
+                      <span className="text-gray-300"> · </span>
+                      {doneTotal} done
+                    </span>
+                  </div>
+                  <div className="overflow-y-auto flex-1 min-h-0 px-4 py-3 space-y-3">
+                    {rows.map(({ g, st }) => (
+                      <div key={g.id}>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h4 className="text-[11px] font-semibold text-gray-800">{g.name}</h4>
+                          <span className="text-[10px] text-gray-400 shrink-0">
+                            {st.done}/{st.done + st.outstanding || 0}
+                            {st.na > 0 && <span className="text-gray-300"> · {st.na} n/a</span>}
+                          </span>
+                        </div>
+                        <ul className="mt-1 space-y-0.5">
+                          {g.columns.map(col => {
+                            const status = cells.get(`${panelUnit.id}:${col.id}`)
+                            const mark = status === 'done' ? '✓' : status === 'in_progress' ? '◐'
+                                       : status === 'na' ? '—' : '○'
+                            const cls = status === 'done' ? 'text-teal-700'
+                                      : status === 'in_progress' ? 'text-amber-600'
+                                      : status === 'na' ? 'text-gray-300'
+                                      : 'text-gray-500'
+                            return (
+                              <li key={col.id} className="flex items-start gap-1.5 text-[11px]">
+                                <span className={`${cls} font-semibold w-3 shrink-0`}>{mark}</span>
+                                <span className={status === 'na' ? 'text-gray-300 line-through' : 'text-gray-700'}>
+                                  {col.label}
+                                </span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
