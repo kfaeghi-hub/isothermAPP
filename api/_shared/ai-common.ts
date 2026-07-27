@@ -111,6 +111,12 @@ const MODEL = process.env.AI_MODEL ?? 'claude-sonnet-5'
 export interface ModelCall {
   system: string
   user: string
+  /** THE TOTAL GENERATION BUDGET, REASONING INCLUDED — not the length of the
+   *  answer. These models think before they write and the thinking is drawn
+   *  from here: a Cx Plan section that returns ~450 tokens of prose spends
+   *  ~4,900 getting there. Budget an order of magnitude above the output you
+   *  expect. Tokens are billed as USED, not as reserved, so headroom is free and
+   *  a short ceiling costs a wasted call plus a failed feature. */
   maxTokens?: number
 }
 // NO `temperature`. The current models reject it outright:
@@ -160,7 +166,11 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: c.maxTokens ?? 2000,
+      // The default was 2000 — sized for prose, and therefore a trap armed for
+      // whichever feature next omits maxTokens. 8000 is the smallest ceiling
+      // that has been observed to leave room to reason AND answer on this
+      // corpus. A caller with a genuinely short task should still pass its own.
+      max_tokens: c.maxTokens ?? 8000,
       system: c.system,
       messages: [{ role: 'user', content: c.user }],
     }),

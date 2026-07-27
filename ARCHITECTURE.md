@@ -1064,6 +1064,28 @@ Two habits that go with it:
   0 (must be 0)`). A cleanup that silently did nothing looks identical to one that
   worked.
 
+### Wait for the condition, never for the clock
+
+**`waitForTimeout(n)` before an assertion is an assumption about how long
+something takes, not a wait for the thing being asserted.** Use a bounded
+`waitFor` on the element or state the assertion is about, then assert. The
+assertion stays honest — if the thing genuinely never arrives, the wait expires
+and the check still fails — but it stops failing for reasons that have nothing to
+do with the behaviour under test.
+
+The cost is specific and was paid in `pw-deliverable-access`: a 3.5-second sleep
+after login held when the suite ran alone and expired inside the battery, where
+nineteen suites had gone before it. It reported **"the governor cannot see the
+Outstanding Deliverables panel"** — which reads as a permissions regression, on a
+gate whose entire subject is permissions. It was not one; the API-level scoping
+assertion had passed in the same run, and later assertions in the same browser
+session passed too.
+
+A gate that fails for reasons other than the thing it gates is worse than no
+gate. It manufactures a regression that does not exist, and it teaches whoever
+reads it next to discount the failure — so the real one, when it comes, gets read
+as another flake.
+
 The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
 - `pw-cx-plan.mjs` — the Cx Plan composer gate. Mocked AI by default (the
   drafting endpoint is never called in the battery); `--real-ai` makes ONE real

@@ -69,11 +69,25 @@ Its budget was 1500, the same prose-sized mistake one call later; comparing ever
 sentence against every fact is the most reasoning-heavy call in the system, not
 the least.
 
-**Cost basis corrected.** The ~4.6¢ per section above was measured on short
-sections before any of this was understood; `output_tokens` includes thinking, so
-a realistic Roles-sized draft is **~10-11¢** and a four-section pass is closer to
-**30¢** than 19¢. Still the right trade, and still dominated by the corpus in the
-system prompt — but the figure to plan with is the larger one.
+**Cost basis corrected, then measured.** The ~4.6¢ per section above was taken
+from Background — the cheapest section — before any of this was understood.
+`output_tokens` includes thinking, so the real figure for a reasoning-heavy
+section is several times that. Measured on the post-fix Roles draft against
+production:
+
+| call | tokens | cost |
+|---|---|---|
+| `cx-plan:draft` (roles) | 5,211 | **10.44¢** |
+| `cx-plan:verify` | 504 | 1.02¢ |
+| **per section** | | **~11.5¢** |
+
+So a four-section standard pass is roughly **28-30¢**, not 19¢ — the sections
+differ by several-fold depending on how much comparison the model has to do, and
+Roles is the top of the range. Still the right trade and still dominated by the
+corpus in the system prompt; the figure to plan with is the larger one.
+
+For scale, the two failed attempts that produced this diagnosis cost 7.19¢ and
+4.49¢ and returned nothing. A ceiling set too low is not the cheap option.
 
 ---
 

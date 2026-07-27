@@ -115,11 +115,19 @@ try {
   await page.locator('input[type="email"]').fill(process.env.owner_email)
   await page.locator('input[type="password"]').fill(process.env.owner_password)
   await page.getByRole('button', { name: 'Sign In' }).click()
-  await page.waitForTimeout(3500)
 
   // (b) governor sees the Outstanding Deliverables panel; every project header is a member project
   {
     const panel = page.locator('[data-testid="outstanding-deliverables"]')
+    // BOUNDED WAIT, NOT A FIXED SLEEP. This was waitForTimeout(3500), which is an
+    // assumption about how long a dashboard takes rather than a wait for the
+    // thing being asserted. It held when the suite ran alone and failed inside
+    // the battery, where nineteen other suites had already been through the same
+    // browser — reporting "the governor cannot see the panel", which reads as a
+    // permissions regression and is not one. The assertion is unchanged and
+    // still fails if the panel genuinely never arrives; only the waiting is now
+    // tied to the condition instead of to the clock.
+    await panel.waitFor({ state: 'attached', timeout: 20000 }).catch(() => {})
     check(await panel.count() === 1, '(b) governor sees the Outstanding Deliverables panel')
     const headers = (await page.locator('[data-testid="outstanding-project"]').allInnerTexts()).map(h => h.trim())
     check(headers.length > 0 && headers.every(h => h.startsWith('ZZ-TEST')),

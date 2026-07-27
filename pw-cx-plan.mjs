@@ -255,14 +255,36 @@ try {
       .insert({ project_id: ZZ, tier: 'standard', revision_index: REV_BASE + 1 }).select('*').single()
     createdPlanIds.push(p2.id)
     const before = await adm.from('ai_generations').select('id', { count: 'exact', head: true })
-    const r = await post(adm, '/api/cx-plan-draft', { plan_id: p2.id, section_key: 'background' })
+    // ROLES, not Background. Background is the cheap section and it never failed;
+    // Roles is the one that broke on the first human calibration run, because it
+    // is the longest system prompt AND the most reasoning-heavy comparison. A
+    // smoke test that exercises the easy case proves the easy case.
+    const r = await post(adm, '/api/cx-plan-draft', { plan_id: p2.id, section_key: 'roles' })
     check(r.status === 200 && typeof r.body.prose === 'string' && r.body.prose.length > 40,
-      `REAL AI drafted prose (${r.status}, ${String(r.body.prose ?? '').length} chars)`)
+      `REAL AI drafted ROLES prose (${r.status}, ${String(r.body.prose ?? '').length} chars` +
+      `${r.status === 200 ? '' : ` — ${r.body.reason ?? r.body.error}`})`)
     check(Array.isArray(r.body.flags), `REAL AI verification returned flags (${(r.body.flags ?? []).length})`)
     const after = await adm.from('ai_generations').select('id', { count: 'exact', head: true })
     check((after.count ?? 0) > (before.count ?? 0),
       `ai_generations logged the calls (${before.count} -> ${after.count})`)
+
+    // The budget failure was invisible until output_tokens could be compared to
+    // the ceiling. Assert the telemetry that made the diagnosis possible still
+    // arrives — and that the draft call finished INSIDE its budget rather than
+    // being rescued by the doubling retry, which would pass the test above while
+    // hiding that the ceiling is still too low.
+    const { data: gens } = await adm.from('ai_generations')
+      .select('feature, output_tokens, cost_cents')
+      .order('created_at', { ascending: false }).limit(4)
+    const drafts = (gens ?? []).filter(g => g.feature === 'cx-plan:draft')
+    const retries = (gens ?? []).filter(g => g.feature === 'cx-plan:draft:retry')
+    check(drafts.length > 0 && drafts[0].output_tokens > 0,
+      `draft tokens recorded (${drafts[0]?.output_tokens ?? 'none'} — includes thinking)`)
+    check(retries.length === 0,
+      `ROLES fitted its budget first time (no escalation retry)`)
     console.log('\n  --- prose ---\n  ' + String(r.body.prose ?? '').slice(0, 400))
+    console.log('  --- calls ---  ' + (gens ?? []).map(g =>
+      `${g.feature}:${g.output_tokens}tok/${g.cost_cents}c`).join('  '))
     await adm.from('cx_plans').delete().eq('id', p2.id)
   }
 
