@@ -1,0 +1,37 @@
+-- Cx Plan Composer schema (2026-07-26). Applied as cx_plan_composer_schema +
+-- cx_plan_composer_policies. Rulings D1a, D5, D6, D7 and the §13 acceptance.
+--
+-- SEE THE MIGRATION HISTORY for the exact applied SQL. Recorded here as the
+-- reviewable record, per the repo convention that every applied migration has a
+-- file.
+--
+-- KEY DECISIONS ENCODED IN THIS SCHEMA:
+--
+-- · projects.background_description exists on the PROJECT, not on the plan
+--   (§13 accepted). The portal hero and the future Final Report both want it;
+--   a plan-local copy would bury a project fact inside a document wizard. The
+--   wizard EDITS the project field. One home.
+--
+-- · projects.cx_role_designation is CHECK-constrained to ('CxA','CxP') only.
+--   "Commissioning Agent" is retired (D1a) — our own three issued plans said
+--   Agent(CxA), Authority(CxA) and Provider(CxP), so CxA expanded to two
+--   different words in documents we sent clients. The constraint makes the
+--   retirement structural rather than advisory.
+--
+-- · cx_plan_answers is keyed by (project_id, document_type, question_key), NOT
+--   by plan. FPT generation and the Final Report will ask overlapping questions
+--   and the CxA should answer "what / where / why" ONCE PER PROJECT.
+--
+-- · cx_plan_snapshots carries knowledge_version — the firm-knowledge corpus
+--   commit SHA. Rule 4 means an issued plan is frozen; this means it is also
+--   TRACEABLE: Rev 1 diffs against what Rev 0 said AND against the knowledge
+--   that produced it. A dispute years later shows what was represented, when,
+--   and on what basis.
+--
+-- · Snapshots have a SELECT policy and no INSERT policy. They are written only
+--   by the service role at issue time; no client-side write path exists at all.
+--
+-- · D6 split: cx_plans INSERT/UPDATE is any project member (drafting), but
+--   APPROVE and ISSUE are enforced server-side in the endpoint. RLS cannot see a
+--   status TRANSITION, only the resulting row — so the transition rule cannot
+--   live in a policy, and a UI that hides a button is not a control.
