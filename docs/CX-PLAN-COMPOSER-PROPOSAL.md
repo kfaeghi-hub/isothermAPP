@@ -1,6 +1,17 @@
 # Cx Plan Composer + Firm Knowledge Layer — proposal (2026-07-26)
 
-**Status: PROPOSED. No code written. Nothing migrated.**
+**Status: ✅ AS-BUILT 2026-07-27.** All decisions ruled (D1a, D2, D3b, D4, D5,
+D6, D7) and §13 accepted. Shipped across six commits; gate `pw-cx-plan.mjs`
+25/25, battery 20/20. As-built detail: ARCHITECTURE "Cx Plan Composer" and
+"The Firm Knowledge Layer".
+
+> **One item of scope is BLOCKED, not done:** the single real-call AI smoke.
+> `ANTHROPIC_API_KEY` is not set on the deployment, so `/api/cx-plan-draft`
+> answers `503 — AI is not configured on this deployment`. That is the intended
+> fail-closed behaviour, and the mocked path is fully green, but **no real model
+> call has ever been made by this system.** Run
+> `node --env-file=.env pw-cx-plan.mjs --real-ai` once the key is set; the suite
+> asserts prose returns, flags return, and `ai_generations` increments.
 
 Calibrated against the three real plans, copied out of ShareSync into gitignored
 `samples/cx-plans/` and analysed locally (`extract.mjs`): **Humber** and

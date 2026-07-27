@@ -128,6 +128,26 @@ overdue-deliverable queue + My Items integration. **LEED deliverable model:**
 Fundamental 7 / Enhanced 14 / MBCx 3 / Envelope BECx 6 seeded DORMANT
 (activation = two admin toggles + compose when a BECx project is awarded).
 
+**Cx Plan Composer + Firm Knowledge Layer (2026-07-27; record:
+`docs/CX-PLAN-COMPOSER-PROPOSAL.md`).** The first AI feature, and the foundation
+every future one reads. **Firm knowledge lives in documents, never in weights** —
+no fine-tuning, ever; a versioned `firm-knowledge/` corpus (identity, style card,
+terminology, domain rules, procedure library, exemplars, per-feature contracts)
+assembled by `api/_shared/ai-common.ts`, the doc-common of AI. No feature carries
+a private prompt duplicating corpus content.
+
+The composer itself: a questionnaire that never asks for prose, deterministic
+assembly of everything the database holds (the team table renders from the matrix
+verbatim and the model is never shown it), AI for narrative sections only, a
+second adversarial call that flags unsupported claims, and a review screen that
+puts **facts beside prose**. No draft becomes a document without explicit
+approval — enforced server-side, not hidden in the UI. Output injects into a real
+.docx skeleton so it opens in Word as-if-native with a self-updating TOC.
+
+Style card extracted from three issued plans; **D1a ruled the role designation**
+(CxA = Commissioning Authority, CxP = Commissioning Provider, "Agent" retired)
+because our own plans expanded `CxA` two different ways.
+
 **UI overhaul (2026-07-22).** Full visual-system redesign executed with external
 design tooling (logo-pinned purple/vermilion palette, Archivo + Spline Sans Mono,
 motion system, single chart grammar). As-built record: ARCHITECTURE.md

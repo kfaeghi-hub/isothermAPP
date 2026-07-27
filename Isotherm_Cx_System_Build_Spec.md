@@ -198,6 +198,20 @@ PROJECT (belongs to a CLIENT, or standalone)
 DASHBOARD (BUILT — pure READ layer over everything above; no tables of its own except
   the dashboard_checklist_coverage view. Zero writes by design.)
 
+CX PLAN COMPOSER (BUILT 2026-07-27 - questionnaire + deterministic assembly +
+  AI narrative -> issued Cx Plans, on the Firm Knowledge Layer)
+  └─ CX_PLANS (one per project, revisable; draft -> approved -> issued, frozen)
+  └─ CX_PLAN_ANSWERS (questionnaire, keyed by project + document_type so FPT and
+       the Final Report reuse the same answers)
+  └─ CX_PLAN_SECTIONS (per-section drafted/final text, accepted flag, AI flags)
+  └─ CX_PLAN_SNAPSHOTS (rule 4: answers + sections + corpus SHA at issue)
+  └─ AI_GENERATIONS (cost/audit for every model call, all features)
+  └─ FIRM_PROCEDURE_BULLETS / FIRM_CORRECTIONS (admin-editable half of the
+       hybrid corpus; the files under firm-knowledge/ are the base)
+  projects gains cx_role_designation (CxA|CxP, CHECK-constrained) and
+  background_description (ONE home - the wizard edits it, the portal hero and
+  the future Final Report read it).
+
 EXTERNAL PROJECT PORTAL (Part A BUILT 2026-07-25 — a SECOND, parallel access world
   over the same rows. Two tables of its own; touches nothing above it.)
   └─ PORTAL_MEMBERS (project + profile — the external visibility wall. Deliberately

@@ -1065,6 +1065,13 @@ Two habits that go with it:
   worked.
 
 The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
+- `pw-cx-plan.mjs` — the Cx Plan composer gate. Mocked AI by default (the
+  drafting endpoint is never called in the battery); `--real-ai` makes ONE real
+  call as a manual smoke. Asserts the client/server SECTION lists are identical,
+  the team table **field-by-field against the matrix**, that a draft cannot
+  generate, that an approved-but-unaccepted plan still cannot, role gating **by
+  error code**, that the ACCEPTED text (not the draft) reaches the document, and
+  that an issued revision is frozen with its snapshot written.
 - `pw-report-regen.mjs` — regeneration diff (the gate for any change near the
   report path; before/after capture, normalized-text compare).
   **It compares VISIBLE TEXT, not bytes** — `word/document.xml` with every tag
@@ -1143,6 +1150,92 @@ commit.
 - Do not use any storage or DB feature that makes bulk export harder (e.g., Supabase-specific encrypted columns without export tooling)
 
 **Export feature (Phase 3, not yet built):** a per-project export that bundles reports, photos, and a data snapshot into a portable folder for archiving to the firm's on-premise server (ShareSync). The data architecture already supports this — no rework needed when that feature is added.
+
+---
+
+## Cx Plan Composer (as-built 2026-07-27)
+
+Questionnaire + deterministic assembly + AI narrative -> issued Cx Plans. Record:
+`docs/CX-PLAN-COMPOSER-PROPOSAL.md` (rulings D1a-D7). Gate: `pw-cx-plan.mjs`.
+
+### The three-engine boundary, enforced structurally
+
+| Engine | Owns | Where |
+|---|---|---|
+| **Deterministic** | Everything the database holds: parameterised boilerplate, the team table, systems, submittals, the header, appendices | `api/_shared/cx-plan-assembly.ts` |
+| **Questionnaire** | Facts that exist only in the CxA's head, as structured answers | `cx_plan_answers`, keyed by `(project, document_type, question_key)` |
+| **Narrative** | AI, from questionnaire facts + project data + corpus slices | `api/cx-plan-draft.ts` |
+
+`buildDeterministic()` runs with **no model involvement at all**; narrative
+arrives as a separate map merged in afterwards. **The model is never handed the
+team table**, so it cannot restate it wrongly — it is not given the opportunity,
+which is stronger than instructing it not to. `SECTIONS` is one declaration read
+by the assembler, the wizard and the review screen, and `pw-cx-plan` asserts the
+client's copy is identical to the server's.
+
+### Two calls, deliberately
+
+1. **Draft** — writes prose AND enumerates its own factual claims, each citing
+   the fact key that supports it.
+2. **Verify** — a SEPARATE call with no memory of drafting, framed
+   adversarially. A model asked to check its own output in the same context
+   agrees with itself. Flags do not block; the CxA rules on each.
+
+Empty facts are **deleted** before the call rather than passed as null, so an
+absent fact is genuinely absent and not something to narrate around. Both calls
+log to `ai_generations` with model, tokens and cost.
+
+### The refusals — all server-side
+
+| Refusal | Enforced |
+|---|---|
+| A draft cannot generate | `status` must be `approved`, **and** every narrative section must be `accepted` — re-checked at generate time so an approved-then-redrafted plan cannot slip out |
+| Approve/issue is owner+lead (D6) | In the endpoint. **RLS can see a resulting row but not a status TRANSITION**, so this rule cannot live in a policy |
+| An issued revision is frozen (rule 4) | Re-issuing refused; redrafting into an issued plan refused |
+| Client/portal roles cannot reach either endpoint | `requireProjectAccess`'s explicit staff restriction. Asserted **by error code** |
+
+A redraft **un-accepts** the section: an approval applies to text a human read,
+and after a redraft that is not the text.
+
+### docx-skeleton — the second docx mechanism, deliberately
+
+`doc-common`'s html-to-docx path generates site reports, minutes and checklists:
+short, tabular, generated documents. The Cx Plan is long-form and styled with a
+table of contents. Different problems — **do not unify them.**
+
+The insight that makes it cheap: **we do not generate Word XML, only paragraphs
+that reference styles the skeleton already defines.** `styles.xml` (157
+definitions), `numbering.xml`, headers/footers and `sectPr` pass through
+untouched; the TOC is a real field that rebuilds itself on open. The skeleton at
+`firm-knowledge/skeletons/cx-plan.docx` is built by `build-skeleton.mjs`, which
+asserts that no client string survives.
+
+**Hard-won rules in that module:**
+- **Make no bet on an inherited style's visual definition.** Table cells use
+  `BodyText-ABC` with direct bold, because `CellBody-ABC` renders WHITE — a table
+  whose rows were correct in the XML and invisible on the page, through twelve
+  passing assertions.
+- **`substituteOrThrow()`** — a find-and-replace that changes nothing throws.
+  Third instance of the silence class; see the standing rules.
+- The palette re-tint fails when it replaces zero values, and injection refuses
+  to emit a document identical to the skeleton.
+
+### Lifecycle
+
+`draft` -> `approved` -> `issued`. Issue writes `cx_plan_snapshots`: the answers,
+the sections (drafts and edits) and the **corpus commit SHA**. Rev 1 therefore
+diffs against what Rev 0 said *and* against the knowledge that produced it.
+Revision labels follow the samples' own convention ("Issued for Tender").
+
+Storage: private `cx-plans` bucket, staff-only, read through the row-anchored
+`api/get-file-url`. `cx_plans` is **explicitly refused** for external callers
+rather than relying on the absence of a case — a Cx Plan is not a portal surface.
+
+### Open item
+
+The skeleton inherits the source document's section breaks, so the footer can
+read "Page N of M-1". Not an injection fault; it is fixed when the cover/section
+layout is authored in Word.
 
 ---
 

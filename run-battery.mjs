@@ -28,6 +28,7 @@ const SUITES = [
   'pw-checklist-offline',
   'pw-classification',
   'pw-copy',
+  'pw-cx-plan',
   'pw-dashboard',
   'pw-dates',
   'pw-deliverables',

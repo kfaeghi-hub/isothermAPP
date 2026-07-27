@@ -60,7 +60,11 @@ async function cleanup() {
   await adm.from('portal_members').delete().eq('profile_id', clientUser.id)
   if (draftReportId) await adm.from('site_reports').delete().eq('id', draftReportId)
   for (const id of linkIds) await adm.from('portal_share_links').delete().eq('id', id)
-  await adm.from('portal_share_links').delete().ilike('label', 'ZZ-LINK%')
+  // Sweep by PROJECT, not by label. The label sweep missed a row whose label was
+  // NULL, because NULL never matches LIKE — and the suite only ever creates
+  // links on ZZ-TEST, so the project is the honest scope. This is the ops rule
+  // in ARCHITECTURE ("clean unconditionally and by ID") catching its own author.
+  await adm.from('portal_share_links').delete().eq('project_id', ZZ)
   if (probeProjectId) await adm.from('projects').delete().eq('id', probeProjectId)
   for (const id of inviteIds) await adm.from('portal_invites').delete().eq('id', id)
   await adm.from('portal_invites').delete().ilike('email', 'zz-portal-%@zz-test.example')
