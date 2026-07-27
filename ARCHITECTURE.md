@@ -1100,9 +1100,16 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
 
 **Deploy-verification pattern (learned the hard way):** Vercel queues builds; a
 "READY" older deploy can still be serving when a test starts. Before any
-production-gated test run, poll until the SERVED JS bundle contains a marker of
-the change (fetch index.html → asset URL → grep the bundle), not just the
-deployment state. A gate run against a stale bundle is void — re-run and say so.
+production-gated test run, confirm the SERVED code carries the change, not just
+that a deployment says READY. A gate run against a stale deploy is void — re-run
+and say so.
+
+**How you confirm depends on WHAT changed** — and picking the wrong method is its
+own failure mode. See the standing rule *"Verify a deploy by what actually
+changed"*: served-bundle grep covers **client code only**; an API function change
+is verified by the deployment record's lambda state or by a **functional probe of
+the changed behaviour itself**, never by polling an endpoint that predates the
+commit.
 
 - BAS parsers: Vitest unit tests against real-file fixtures in `fixtures/bas/`
   (sanitized TDSB exports — TL/MT variants, Excel-damaged file, sentinel values).
@@ -1140,6 +1147,34 @@ deployment state. A gate run against a stale bundle is void — re-run and say s
 ---
 
 ## Standing rules (permanent — apply to every session)
+
+- **Verify a deploy by what actually CHANGED.** "Deploy verified" is a claim about
+  the specific change, not about the deployment. Match the method to the artifact:
+
+  | What changed | How to verify | Why |
+  |---|---|---|
+  | Client code (`src/**`) | Fetch `index.html` → asset URL → **grep the served bundle** for a marker of the change | The bundle is fetchable; content is the proof |
+  | **API functions (`api/**`)** | The deployment record's SHA + lambda state, **or a functional probe of the changed behaviour itself** | Serverless function source is NOT fetchable. There is no bundle to grep |
+  | SQL / migrations | Query the live catalog (`pg_proc`, `has_*_privilege`, `pg_policies`) | The database is the deployment |
+  | Docs only | Nothing to verify | No runtime artifact |
+
+  **Never verify an API change by polling an endpoint that predates the commit.**
+  That is what this rule exists for: a `get-file-url` change was "confirmed live"
+  by polling `/api/portal-link`, which had shipped in the *previous* commit and
+  therefore answered correctly the whole time. The gate passed, the suite then ran
+  against old code, and a leg failed for a reason that had nothing to do with the
+  code under test. **A green check on the wrong artifact is worse than no check —
+  it converts "I don't know" into "I verified", and the next failure gets
+  misattributed.**
+
+  The functional probe is usually two lines and always unambiguous: exercise the
+  *new* behaviour and assert the *new* answer. For the case above that was
+  creating a share link and asking for a nonexistent row id — old code answers
+  404, new code answers 403, and there is nothing to interpret.
+
+  Same shape as **"prove the mechanism, never the silence"**: an endpoint that was
+  always going to answer 200 proves nothing about a change it predates, exactly as
+  a table that was always empty proves nothing about a policy.
 
 - **ShareSync is READ-ONLY, absolutely** (`C:\Users\TonyF\My ShareSync`). List/read
   only. Working copies land ONLY in gitignored `samples/`. Client-confidential
