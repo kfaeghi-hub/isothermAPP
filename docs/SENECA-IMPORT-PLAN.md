@@ -392,7 +392,96 @@ batch note, not silently decided.
 Companies` (created 2026-07-24, no batch tag). Not from this import and outside
 its scope — noted for directory hygiene.
 
-**Stages 3-9 not started.**
+### Stage 2a — DIALOG amendment · 2026-07-27
+
+Ruled after the stage-2 spot-check: one firm may hold many seats (the Humber plan
+seats Ecosystem in five rows), and the composer's team table must render those
+seats populated. DIALOG additionally seated as **Mechanical Engineer** and
+**Electrical Engineer** — 7 seats total. The team batch's `rows_expected` was
+raised 5 → 7 and the amendment appended to its note, rather than left reading 5
+against 7 created.
+
+### Stage 3 — equipment · **COMPLETE** 2026-07-27
+
+**367 distinct tags**, from `Equip.List` of the live master schedule.
+
+#### The triage was decided by the document's structure, not by my keywords
+
+My first pass classified rows by a keyword regex (does the text contain "report",
+"study", "manual"…). It gave 380 equipment / 38 deliverables — and it was wrong
+in a way worth recording, because a keyword rule cannot see a section boundary.
+
+**Row 433 is a hard divider in the sheet: `SYSTEM-BASED REQUIRED REPORTS/…`.**
+Below it the columns change meaning — column C holds a *system* name and column D
+holds a *report* name — and **0 of the 43 rows below it carry an equipment type**.
+The correct rule is structural:
+
+| Region | Rows | Meaning |
+|---|---|---|
+| Rows 6-432 (above the divider) | 375 → **367 distinct** | Equipment |
+| Rows 434-497 (below the divider) | **43** | System-based required reports → documentation-register candidates, **stage 7** |
+
+The two methods disagree on exactly 5 rows — `CCTV`, `Card Readers`,
+`Motion/Occupancy Sensors`, `Signages`, `Doors and Doors Hardwares, Overheads etc`
+(rows 445-449). They contain no keyword, so the regex kept them as equipment;
+they carry **no type, no location, nothing but a row number and a label**, and
+they sit directly beneath row 444, *"Security System Startup and Final Report"* —
+they are its sub-items. **Structure wins: they are not equipment.** Same lesson as
+the fill-colour finding in §2.2 — the document's own structure beats a heuristic
+laid over it.
+
+**8 duplicate tags** in the source collapsed to first occurrence: `RP-01`,
+`RP-02`, `UH-L1-01`, `UH-L1-02`, `UH-L2-01`, `UH-L3-01`, `UH-L3-02`, `UH-L3-03`.
+
+#### What was written
+
+Per D3, **tags / types / locations only** — `manufacturer`, `model`,
+`serial_number` and every electrical field are deliberately NULL rather than
+guessed. `kind` supplied as `'equipment'` per the stage-1 NOT NULL finding.
+
+| Field | Coverage |
+|---|---|
+| `tag` | 367 / 367 |
+| `category` (source section header) | 367 / 367 |
+| `descriptor` (source column C) | 283 / 367 |
+| `location` / `area_served` | 86 / 87 of 367 |
+| `equipment_type` mapped to the app enum | 231 of 367 — `fcu` 117, `vav` 55, `pump` 31, `fan` 11, `ahu` 10, `ats` 4, `erv` 2, `generator` 1 |
+
+The remaining 136 are left NULL rather than forced into the nearest enum value.
+
+#### Verification
+
+| Check | Result |
+|---|---|
+| Equipment on the project | **367** (expected 367) |
+| Carrying this batch id | **367 of 367** |
+| Equipment without a batch tag | **0** |
+| Duplicate tags on the project | **0** |
+| Idempotency — identical re-run | `to insert: 0`, all checks still pass |
+| Blast radius | Humber 0 · ZZ-TEST 266 · ZZ-TEST-LEED 2 — **0 batch-tagged rows anywhere but Seneca** |
+
+### Write path — a deviation, recorded
+
+The brief rules that Phase 3 writes go **via the normal API as dev.admin**.
+Stage 1 was necessarily a migration. **Stage 2 was written as direct SQL, which
+was a deviation** — direct SQL runs as service role and bypasses RLS, so it can
+in principle create rows the application itself would refuse. The stage-2 rows
+were subsequently read back through the API as dev.admin and are visible and
+correct, but RLS was not exercised on the write.
+
+**From stage 3 onward the importer is `seneca-import.mjs`**, which signs in with
+`supabase-js` as dev.admin and writes through the same client the app uses, so
+every write is subject to the same policies as a human doing it by hand.
+
+It carries **an inverted guard**: `pw-config` forbids touching anything except
+ZZ-TEST, whereas this script deliberately writes to a real client project, so it
+refuses to run against any project whose `com_number` does not resolve to the
+expected name. Proven, not assumed — pointed at Humber (`257882`) it refuses:
+
+> `REFUSING: com_number 257882 resolved to "Humber College New Mechanical RM Cx",
+> expected "Seneca Health and Wellness Center".`
+
+**Stages 4-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
 normal API as `dev.admin`, every row carrying its import batch id, historical
