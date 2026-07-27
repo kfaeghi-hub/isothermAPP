@@ -1,6 +1,9 @@
 {
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
     "api/generate-report.ts": {
@@ -11,6 +14,15 @@
     },
     "api/generate-minutes.ts": {
       "maxDuration": 60
+    },
+    "api/classify-applicability.ts": {
+      "maxDuration": 300
+    },
+    "api/cx-plan-draft.ts": {
+      "maxDuration": 120
+    },
+    "api/librarian-harvest.ts": {
+      "maxDuration": 120
     }
   }
 }

@@ -23,8 +23,12 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 /** One call per this many units. Batching keeps each call inside its budget while
  *  still giving the model enough of the register to see a TYPE rather than a row.
  *  A per-unit call would be both ruinous and worse: the whole point is that the
- *  burden scales with types. */
-const BATCH = 120
+ *  burden scales with types.
+ *
+ *  KEPT SMALL DELIBERATELY. Reasoning over 40 type-groups against 12 stage groups
+ *  is 480 judgements in one call — it blew the function timeout on the first real
+ *  run. Several bounded calls beat one that may not return. */
+const BATCH = 30
 
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res)) return
