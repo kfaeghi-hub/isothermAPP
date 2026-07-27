@@ -112,9 +112,13 @@ export interface ModelCall {
   system: string
   user: string
   maxTokens?: number
-  /** Lower for verification (deterministic checking), default for drafting. */
-  temperature?: number
 }
+// NO `temperature`. The current models reject it outright:
+//   400 invalid_request_error — "`temperature` is deprecated for this model."
+// It is deliberately absent from this interface rather than silently dropped, so
+// a caller cannot pass one and believe it took effect. Determinism in the
+// verification call comes from its framing and its separate context, not from a
+// sampling parameter.
 export interface ModelResult {
   text: string
   inputTokens: number
@@ -143,7 +147,6 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
     body: JSON.stringify({
       model: MODEL,
       max_tokens: c.maxTokens ?? 2000,
-      temperature: c.temperature ?? 0.3,
       system: c.system,
       messages: [{ role: 'user', content: c.user }],
     }),

@@ -142,7 +142,6 @@ export default async function handler(req: any, res: any) {
         '{ "flags": [ { "span": string, "claim": string, "severity": "unsupported"|"contradicted"|"vague", "why": string } ] }',
       user: JSON.stringify({ prose: parsed.prose, facts }),
       maxTokens: 800,
-      temperature: 0,
     })
     await logGeneration(service, {
       feature: 'cx-plan:verify', projectId: plan.project_id,
