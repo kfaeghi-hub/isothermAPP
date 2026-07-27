@@ -45,6 +45,35 @@ const STYLE_FOR: Record<string, string> = {
   para: 'BodyText-ABC', bullet: 'Bullet1-ABC',
 }
 
+/**
+ * A substitution that replaces NOTHING is a bug, and it fails here.
+ *
+ * THE THIRD INSTANCE OF THE SILENCE CLASS, so it becomes a mechanism rather than
+ * a lesson. The first was `revoke ... from anon`, which was inert while looking
+ * like a lock. The second was a served-bundle deploy check pointed at an
+ * endpoint that predated the commit. The third was this module's own skeleton
+ * re-tint: it substituted a navy that this template does not use, replaced zero
+ * values, reported success, and left the document the wrong colour through
+ * twelve passing assertions.
+ *
+ * All three share one shape: an operation that cannot fail is not a check. Any
+ * find-and-replace over document XML must therefore assert its own effect.
+ */
+export function substituteOrThrow(
+  haystack: string, find: string | RegExp, replace: string, what: string,
+): string {
+  const before = haystack
+  const out = typeof find === 'string'
+    ? haystack.split(find).join(replace)
+    : haystack.replace(find, replace)
+  if (out === before) {
+    throw new Error(
+      `substitution matched nothing: ${what}. A replace that changes nothing is ` +
+      `a silent failure — fix the pattern or remove the call.`)
+  }
+  return out
+}
+
 /** XML-escape. Every piece of generated text goes through this — a stray `&` in
  *  a company name produces a file Word refuses to open, and the failure looks
  *  like a corrupt document rather than an escaping bug. */
@@ -178,6 +207,9 @@ export async function injectIntoSkeleton(
   if (pOpen < 0 || pCloseTag < 0) throw new Error('could not bound the marker paragraphs')
 
   const next = doc.slice(0, pOpen) + renderBlocks(blocks) + doc.slice(pCloseTag + '</w:p>'.length)
+  // Self-check: the body region must actually have changed. Cheap, and it closes
+  // the same silence class the marker bounds could fall into.
+  if (next === doc) throw new Error('injection produced an identical document — the marker bounds resolved to an empty region')
   zip.file('word/document.xml', next)
 
   const tocFieldPresent = /TOC\s+\\o/.test(next)

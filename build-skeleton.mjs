@@ -98,6 +98,7 @@ zip.file('word/document.xml', next)
     'C9D2DD': 'CFCCE0',
     'DDE3EA': 'E1DEEB',
   }
+  let total = 0
   for (const part of ['word/styles.xml', 'word/numbering.xml',
                       'word/header1.xml', 'word/header2.xml', 'word/header3.xml',
                       'word/footer1.xml', 'word/footer2.xml', 'word/footer3.xml',
@@ -114,7 +115,19 @@ zip.file('word/document.xml', next)
     }
     if (n) console.log(`  re-tinted ${part}: ${n} colour values`)
     zip.file(part, x)
+    total += n
   }
+  // THE ASSERTION THIS SCRIPT LACKED. The first re-tint targeted a navy this
+  // template does not use, replaced zero values, printed nothing, and left the
+  // skeleton the wrong colour behind twelve passing assertions. A colour pass
+  // that changes nothing is a failed colour pass.
+  if (total === 0) {
+    console.error('\nFAIL: the palette re-tint replaced ZERO colour values.')
+    console.error('Either the skeleton is already converged, or the MAP targets')
+    console.error('hexes this template does not use. Measure before assuming.')
+    process.exit(1)
+  }
+  console.log(`  palette re-tint total: ${total} values`)
 }
 
 // Wipe the docProps — they carry the source project's title/author.
