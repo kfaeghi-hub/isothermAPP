@@ -26,15 +26,20 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
  *  A per-unit call would be both ruinous and worse: the whole point is that the
  *  burden scales with types.
  *
- *  KEPT SMALL DELIBERATELY. Reasoning over 40 type-groups against 12 stage groups
- *  is ~480 judgements — it blew the function timeout twice on the first real run.
+/**
+ * BATCHING IS OVER STAGE GROUPS, NOT UNITS — and that was measured, not guessed.
  *
- *  ONE BATCH PER REQUEST. The platform ceiling here is 60s and no maxDuration
- *  raises it, so the fix is not a longer timeout but BOUNDED WORK: the caller
- *  passes an offset, gets one batch back with the next offset, and loops. Each
- *  request finishes comfortably, the UI can show progress, and a slow batch costs
- *  a retry rather than the whole run. */
-const BATCH = 15
+ * The first two attempts split the register by unit and still timed out. Timing
+ * real calls showed why: 5 type-groups took 39.5s and 15 took 42.9s. Latency is
+ * driven by how many STAGE GROUPS the model must reason about, not by how many
+ * units — the units are a list to consult, the groups are the judgements.
+ *
+ * The platform ceiling is 60s (measured: the function dies at 60.3s) and no
+ * maxDuration raises it on this plan. So the fix is not a longer timeout but a
+ * correct decomposition: a few stage groups per request against the whole
+ * register, with the caller looping over the offset.
+ */
+const GROUPS_PER_CALL = 3
 
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res)) return
@@ -86,14 +91,16 @@ export default async function handler(req: any, res: any) {
     // The caller drives the loop; we do exactly one batch.
     const runId: string = req.body?.run_id ?? randomUUID()
     const offset: number = Math.max(0, Number(req.body?.offset ?? 0))
-    const slice = units.slice(offset, offset + BATCH)
-    if (slice.length === 0) {
+    const groupSlice = stage_groups.slice(offset, offset + GROUPS_PER_CALL)
+    if (groupSlice.length === 0) {
       return res.status(200).json({ run_id: runId, next_offset: null, done: true,
                                     rules: 0, exceptions: 0, cost_cents: 0 })
     }
 
     const run = await runAgent<ClassifierOutput>('classifier',
-      { units: slice, stage_groups },
+      // The WHOLE register every call — the model needs to see all the types to
+      // write a rule about one — but only a few stage groups to judge.
+      { units, stage_groups: groupSlice },
       { task: [
           'Propose which commissioning stage groups DO NOT APPLY to which equipment',
           'types on this project, so the index reports honest denominators.',
@@ -169,14 +176,14 @@ export default async function handler(req: any, res: any) {
       if (error) return res.status(500).json({ error: error.message })
     }
 
-    const nextOffset = offset + BATCH
+    const nextOffset = offset + GROUPS_PER_CALL
     return res.status(200).json({
       run_id: runId,
-      next_offset: nextOffset < units.length ? nextOffset : null,
-      done: nextOffset >= units.length,
+      next_offset: nextOffset < stage_groups.length ? nextOffset : null,
+      done: nextOffset >= stage_groups.length,
       units_considered: equip.length,
       type_groups: units.length,
-      progress: `${Math.min(nextOffset, units.length)}/${units.length}`,
+      progress: `${Math.min(nextOffset, stage_groups.length)}/${stage_groups.length} stage groups`,
       rules: allRules.length,
       exceptions: allExceptions.length,
       life_safety: rows.filter(r => r.life_safety).length,
