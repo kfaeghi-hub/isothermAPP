@@ -643,6 +643,118 @@ if (stage === 'shopdwgs') {
   check(shopN >= 5, `the stale 5 AHU Shop-Dwgs cells are subsumed, not orphaned (${shopN} total)`)
 }
 
+// ── Stage 3c: split ELECTRICAL and PUMPS ────────────────────────────────────
+if (stage === 'recategorize2') {
+  // Same rule as the AHU split: the new name is the SOURCE'S OWN WORD for the
+  // thing — its descriptor column, or the title of the schedule the tag appears
+  // in. ELECTRICAL splits on descriptors it already carries; PUMPS splits on
+  // schedule titles, because its rows carry almost no descriptor.
+  //
+  // ONE SCHEDULE = ONE CATEGORY. Pumps.xlsx covers CHW/HW/GEO/GLY/DHWR/DCW/FSP
+  // as a single "PUMP SCHEDULE", so they stay one category; SumpP.xlsx is its
+  // own schedule, so a sump pump is its own category. Applying that consistently
+  // is what stops the split from becoming taste.
+  const batch = await getBatch({
+    entity: 'equipment:recategorize2',
+    sourceFile: '3_Cx_Docs/9. Cx Index + 3_Cx_Docs/3.IVCs_Start-Ups/EQU-schedules',
+    revision: 'ELECTRICAL and PUMPS blocks',
+    expected: 71 + 13,
+    note:
+      'Continues the C5 amendment. ELECTRICAL (71 rows / 58 tag families) and PUMPS (43 rows / 15 '
+      + 'families) were single source headers over many equipment classes, exactly like AIR '
+      + 'HANDLING UNIT. Electrical names come from the descriptor the source already carried; pump '
+      + 'names from the title of the equipment schedule each tag appears in. TRANSFORMER RATINGS '
+      + 'ARE NOT CATEGORIES: the source descriptor reads "Transformer (30 kVA)", "(45 kVA)", '
+      + '"(75 kVA)", "(112.5 kVA)" — all 19 become DRY-TYPE TRANSFORMER and the rating stays in '
+      + 'the descriptor as nameplate detail. UTILITY TRANSFORMER stays separate: utility-owned, '
+      + 'different scope, and the source names it distinctly. UNRESOLVED, LEFT UNDER PUMPS: RHC '
+      + '(3), GI (2), PRV-NG (2) appear in no schedule and carry no descriptor.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  const BY_DESCRIPTOR = [
+    { cat: 'RECEPTACLE PANEL',    match: 'Receptacle Panel' },
+    { cat: 'DRY-TYPE TRANSFORMER', matchLike: 'Transformer (%kVA)' },
+    { cat: 'LIGHTING PANEL',      match: 'Lighting Panel' },
+    { cat: 'DISTRIBUTION PANEL',  match: 'Distribution Panel' },
+    { cat: 'TRANSFER SWITCH',     matchAny: ['Automatic Transfer Switch','Fire Pump ATS',
+                                             'Temporary Generator ATS','Fire Pump Disconnect & ATS'] },
+    { cat: 'SWITCHGEAR',          matchAny: ['Main Switchgear','Secondary Switchgear'] },
+    { cat: 'SWITCHBOARD',         match: 'Switchboard' },
+    { cat: 'GENERATOR',           matchLike: 'Generator (%' },
+    { cat: 'UTILITY TRANSFORMER', match: 'Utility Transformer' },
+    { cat: 'METERING SYSTEM',     match: 'Metering System' },
+    { cat: 'PV DISCONNECT',       match: 'PV Fused Disconnect' },
+    { cat: 'LOAD BANK PANEL',     match: 'Load Bank Panel' },
+  ]
+  let moved = 0
+  for (const s of BY_DESCRIPTOR) {
+    let q = sb.from('equipment').update({ category: s.cat })
+      .eq('project_id', proj.id).eq('category', 'ELECTRICAL')
+    if (s.match)     q = q.eq('descriptor', s.match)
+    if (s.matchLike) q = q.like('descriptor', s.matchLike)
+    if (s.matchAny)  q = q.in('descriptor', s.matchAny)
+    const { data, error } = await q.select('tag')
+    if (error) { console.error(`${s.cat} failed: ${error.message}`); process.exit(1) }
+    if (data.length) console.log(`  ${String(data.length).padStart(3)} → ${s.cat}`)
+    moved += data.length
+  }
+
+  // PUMPS — by the schedule each tag appears in.
+  const BY_SCHEDULE = [
+    { cat: 'SUMP PUMP',                tags: ['SP-01'],           why: 'SumpP.xlsx: "SUMP PUMP SCHEDULE"' },
+    { cat: 'VENTILATION AIR UNIT',     tags: ['DOAS-1','DOAS-2'], why: 'DOAS-2.xlsx: "VENTILATION AIR UNIT SCHEDULE"' },
+    { cat: 'NATURAL GAS BOILER',       tags: ['BG-01'],           why: 'NG-Boiler.xlsx: "NATURAL GAS BOILER SCHEDULE"' },
+    { cat: 'FLUID COOLER',             tags: ['FLC-01'],          why: 'FLC.xlsx: "FLUID COOLER SCHEDULE"' },
+    { cat: 'WATER TO WATER HEAT PUMP', tags: ['WSHP-01'],         why: 'W-W_HPs.xlsx: "WATER TO WATER HEAT PUMP SCHEDULE"' },
+  ]
+  for (const s of BY_SCHEDULE) {
+    const { data, error } = await sb.from('equipment').update({ category: s.cat })
+      .eq('project_id', proj.id).eq('category', 'PUMPS').in('tag', s.tags).select('tag')
+    if (error) { console.error(`${s.cat} failed: ${error.message}`); process.exit(1) }
+    if (data.length) console.log(`  ${String(data.length).padStart(3)} → ${s.cat.padEnd(26)} (${s.why})`)
+    moved += data.length
+  }
+
+  // Types the schedules settled while we were in there.
+  for (const [tag, t, why] of [
+    ['BG-01',  'boiler', 'NATURAL GAS BOILER SCHEDULE'],
+    ['FSP-01', 'pump',   'appears in Pumps.xlsx "PUMP SCHEDULE"'],
+  ]) {
+    const { data } = await sb.from('equipment').update({ equipment_type: t })
+      .eq('project_id', proj.id).eq('tag', tag).is('equipment_type', null).select('tag')
+    if (data?.length) console.log(`  typed ${tag} → ${t} (${why})`)
+  }
+  await sb.from('import_batches').update({ rows_created: moved }).eq('id', batch.id)
+
+  for (const q of [
+    { observed_name: 'Dry-Type Transformer', proposed_key: 'transformer', tags: ['TX-GC1','TX-GS1','TX-GN1'], n: 19 },
+    { observed_name: 'Lighting Panel',       proposed_key: 'lighting_panel', tags: ['LP-GXC1','LP-PHV1'], n: 7 },
+    { observed_name: 'Distribution Panel',   proposed_key: 'distribution_panel', tags: ['DP-GEF1','DP-PHK1'], n: 5 },
+    { observed_name: 'Switchgear',           proposed_key: 'switchgear', tags: ['SWGR-GA2','SWGR-GEA1'], n: 2 },
+    { observed_name: 'Switchboard',          proposed_key: 'switchboard', tags: ['SWBD-GG1','SWBD-GEB1'], n: 2 },
+    { observed_name: 'Fluid Cooler',         proposed_key: 'fluid_cooler', tags: ['FLC-01'], n: 1 },
+  ]) {
+    const { data: seen } = await sb.from('proposed_equipment_types').select('id, status')
+      .eq('project_id', proj.id).eq('observed_name', q.observed_name).maybeSingle()
+    if (seen) continue
+    await sb.from('proposed_equipment_types').insert({
+      project_id: proj.id, observed_name: q.observed_name, proposed_key: q.proposed_key,
+      evidence: { sample_tags: q.tags, count: q.n, source: 'Seneca 257889 — ELECTRICAL/PUMPS split' },
+    })
+    console.log(`  queued: ${q.observed_name} (${q.n})`)
+  }
+
+  const { data: leftE } = await sb.from('equipment').select('tag')
+    .eq('project_id', proj.id).eq('category', 'ELECTRICAL')
+  const { data: leftP } = await sb.from('equipment').select('tag')
+    .eq('project_id', proj.id).eq('category', 'PUMPS')
+  console.log('')
+  check(leftE.length === 0, `ELECTRICAL fully resolved: ${leftE.length} rows remain`)
+  check(leftP.length === 37,
+    `PUMPS now holds ${leftP.length} — 30 real pumps + RHC/GI/PRV-NG (7) held for identification`)
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? 'PASS — counts reconciled, batch coverage complete.'
                            : `FAIL — ${failures} check(s) failed.`)

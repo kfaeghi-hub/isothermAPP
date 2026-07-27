@@ -654,6 +654,66 @@ Each cell carries its package and date in `notes`.
 | Metering 26 27 13 / 26 27 16 | Two reviewed packages, one metering tag. |
 | PV System 48 14 00 | Panels/inverters/racking are not register tags. |
 
+### Stage 3c — ELECTRICAL and PUMPS split · **COMPLETE** 2026-07-27
+
+Same rule as the AHU split, applied to the other two headers hiding many classes.
+**ELECTRICAL** was 71 rows across 58 tag families; **PUMPS** 43 rows across 15.
+
+**ELECTRICAL splits on the descriptor the source already carried:**
+
+| New category | Rows | | New category | Rows |
+|---|---|---|---|---|
+| RECEPTACLE PANEL | 26 | | UTILITY TRANSFORMER | 1 |
+| DRY-TYPE TRANSFORMER | 19 | | METERING SYSTEM | 1 |
+| LIGHTING PANEL | 7 | | PV DISCONNECT | 1 |
+| DISTRIBUTION PANEL | 5 | | LOAD BANK PANEL | 1 |
+| TRANSFER SWITCH | 5 | | GENERATOR | 1 |
+| SWITCHGEAR / SWITCHBOARD | 2 / 2 | | | |
+
+**A rating is not a category.** The source reads `Transformer (30 kVA)`,
+`(45 kVA)`, `(75 kVA)`, `(112.5 kVA)` — all 19 become **DRY-TYPE TRANSFORMER**
+with the rating left in `descriptor` as nameplate detail. **UTILITY TRANSFORMER
+stays separate**: utility-owned, different scope, and the source names it
+distinctly.
+
+**PUMPS splits on the title of the schedule each tag appears in** — its rows
+carry almost no descriptor, so the schedules are the evidence:
+
+| New category | Rows | Source schedule |
+|---|---|---|
+| VENTILATION AIR UNIT | 2 | `DOAS-2.xlsx` — "VENTILATION AIR UNIT SCHEDULE" |
+| SUMP PUMP | 1 | `SumpP.xlsx` — "SUMP PUMP SCHEDULE" |
+| NATURAL GAS BOILER | 1 | `NG-Boiler.xlsx` — "NATURAL GAS BOILER SCHEDULE" |
+| FLUID COOLER | 1 | `FLC.xlsx` — "FLUID COOLER SCHEDULE" |
+| WATER TO WATER HEAT PUMP | 1 | `W-W_HPs.xlsx` — "WATER TO WATER HEAT PUMP SCHEDULE" |
+| **PUMPS** (retained) | **30** | `Pumps.xlsx` — "PUMP SCHEDULE" |
+
+**ONE SCHEDULE = ONE CATEGORY**, applied consistently — that is what stops the
+split becoming taste. `Pumps.xlsx` covers CHW/HW/GEO/GLY/DHWR/DCW/FSP as a single
+schedule, so they stay one category; `SumpP.xlsx` is its own schedule, so a sump
+pump is its own category.
+
+Two more types settled by the schedules: **BG-01 → `boiler`**, **FSP-01 → `pump`**
+(it is in the pump schedule).
+
+**Unresolved, left under PUMPS: `RHC` (3), `GI` (2), `PRV-NG` (2)** — no schedule,
+no descriptor. Flagged, not guessed. PUMPS therefore reads 37, not 30.
+
+The register now spans **40 categories**, up from 14. ELECTRICAL is fully
+resolved (0 rows remain).
+
+### Ratification queue — 16 proposals awaiting your ruling
+
+| Observed | Rows | | Observed | Rows |
+|---|---|---|---|---|
+| Dry-Type Transformer | 19 | | Switchboard | 2 |
+| Lighting Panel | 7 | | Unit Heater | 6 |
+| Distribution Panel | 5 | | DBF (unidentified) | 2 |
+| Switchgear | 2 | | Hydraulic Separator | 1 |
+| Fluid Cooler | 1 | | + singletons | |
+
+None minted. The rows carry `equipment_type` NULL until ruled.
+
 **Stages 6-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
