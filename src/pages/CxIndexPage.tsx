@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { Combobox } from '../components/ui/Combobox'
+import { ApplicabilityReview } from '../components/cxindex/ApplicabilityReview'
 import type { Equipment } from '../types/database'
 
 // ── Local types ──────────────────────────────────────────────────────────────
@@ -123,6 +124,28 @@ export function CxIndexPage({ projectId }: Props) {
   const [addEquipOpen, setAddEquipOpen] = useState(false)
   const [addEquipForm, setAddEquipForm] = useState<AddEquipForm>(EMPTY_EQUIP)
   const [savingEquip, setSavingEquip]   = useState(false)
+  const [applyingRules, setApplyingRules] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [pendingProposals, setPendingProposals] = useState(0)
+
+  /** Apply the firm's ratified rules to this project. The precedence guarantee is
+   *  the FUNCTION's, not this caller's — it clears source='rule' rows only and
+   *  skips any cell carrying a manual override. Stated here because a reader of
+   *  this button should not have to guess whether their overrides are at risk. */
+  async function applyFirmRules() {
+    setApplyingRules(true)
+    const { data, error } = await supabase.rpc('apply_applicability_rules', { pid: projectId })
+    setApplyingRules(false)
+    if (error) { reportError(error, 'apply the firm applicability rules'); return }
+    const r = Array.isArray(data) ? data[0] : data
+    await fetchAll()
+    window.alert(
+      `Applied firm rules: ${r?.applied ?? 0} cells marked not applicable ` +
+      `(${r?.cleared ?? 0} previous rule-set cells refreshed).
+
+` +
+      `Manual overrides were not touched.`)
+  }
 
   // ── Data fetch ──────────────────────────────────────────────────────────────
 
@@ -171,6 +194,11 @@ export function CxIndexPage({ projectId }: Props) {
       na.set(`${row.equipment_id}:${row.column_id}`, row.source)
     })
     setNaMap(na)
+
+    const { count } = await supabase.from('cx_applicability_proposals')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', projectId).eq('status', 'proposed')
+    setPendingProposals(count ?? 0)
     setLoading(false)
   }, [projectId])
 
@@ -590,6 +618,25 @@ export function CxIndexPage({ projectId }: Props) {
             : `${equipment.length} items`} · {totalCols} columns · {totalEntries} entries
         </span>
         <button
+          onClick={() => setReviewOpen(o => !o)}
+          className="text-[11px] border border-gray-200 rounded px-3 py-1.5 text-gray-600 hover:border-teal-400 hover:text-teal-700"
+        >
+          Applicability
+          {pendingProposals > 0 && (
+            <span className="ml-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded px-1.5 py-0.5">
+              {pendingProposals}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={applyFirmRules}
+          disabled={applyingRules}
+          title="Mark cells not-applicable from the firm's ratified type rules. Manual overrides are never touched."
+          className="text-[11px] border border-gray-200 rounded px-3 py-1.5 text-gray-600 hover:border-teal-400 hover:text-teal-700 disabled:opacity-50"
+        >
+          {applyingRules ? 'Applying…' : 'Apply firm rules'}
+        </button>
+        <button
           onClick={() => setStructureOpen(true)}
           className="px-3 py-1.5 text-xs border border-gray-200 rounded text-gray-600 hover:text-gray-900 hover:border-gray-300 transition-colors"
         >
@@ -602,6 +649,12 @@ export function CxIndexPage({ projectId }: Props) {
           + Add Equipment
         </button>
       </div>
+
+      {reviewOpen && (
+        <div className="border-b border-gray-200 bg-gray-50/50 shrink-0 max-h-[55vh] overflow-y-auto">
+          <ApplicabilityReview projectId={projectId} onApplied={fetchAll} />
+        </div>
+      )}
 
       {/* ── A1: find + filter ──────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2 px-6 py-2 border-b border-gray-100 shrink-0">

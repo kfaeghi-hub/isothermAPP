@@ -68,9 +68,10 @@ export interface ClassifierInput {
 export interface ClassifierOutput {
   rules: { equipment_type: string; stage_group: string; column?: string | null
            applicable: boolean; rationale: string; confidence: number
-           units_affected?: number }[]
+           units_affected?: number; life_safety?: boolean }[]
   exceptions: { tag: string; stage_group: string; column?: string | null
-                applicable: boolean; rationale: string; confidence: number }[]
+                applicable: boolean; rationale: string; confidence: number
+                life_safety?: boolean }[]
 }
 
 export const ClassifierInput: Validator<ClassifierInput> = (v): v is ClassifierInput =>

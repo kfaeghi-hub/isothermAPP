@@ -27,6 +27,7 @@ const SUITES = [
   'pw-access',
   'pw-agent-arch',
   'pw-applicability',
+  'pw-applicability-rules',
   'pw-checklist-offline',
   'pw-classification',
   'pw-copy',

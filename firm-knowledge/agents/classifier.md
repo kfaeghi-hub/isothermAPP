@@ -44,6 +44,13 @@ bulk-ratified.
 This list is **guidance for the proposal, not a seed**: the classifier states what
 it found in *this* register and why, and the CxA rules.
 
+**Set `life_safety: true` on any proposal touching integrated systems testing,
+fire or smoke control, emergency power transfer, or stair pressurization** — the
+review surface routes those into their own block so they are read individually
+rather than bulk-ratified. Declaring it is the agent's job; inferring it from a
+stage-group name downstream would be exactly the kind of string-matching law 8
+forbids.
+
 ## Confidence and abstention
 
 Every proposal carries a confidence and a rationale in plain language.
@@ -57,7 +64,8 @@ stated, never as a silent default.
 { "rules": [ { "equipment_type": "fcu",
                "stage_group": "IST (Integrated Systems Testing)",
                "column": null, "applicable": false,
-               "rationale": "…", "confidence": 0.9, "units_affected": 113 } ],
+               "rationale": "…", "confidence": 0.9, "units_affected": 113,
+               "life_safety": false } ],
   "exceptions": [ { "tag": "AHU-3", "stage_group": "Plumbing / Domestic",
                     "column": null, "applicable": false,
                     "rationale": "…", "confidence": 0.62 } ] }
