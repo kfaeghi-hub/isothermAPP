@@ -5,13 +5,22 @@ D6, D7) and §13 accepted. Shipped across six commits; gate `pw-cx-plan.mjs`
 25/25, battery 20/20. As-built detail: ARCHITECTURE "Cx Plan Composer" and
 "The Firm Knowledge Layer".
 
-> **One item of scope is BLOCKED, not done:** the single real-call AI smoke.
-> `ANTHROPIC_API_KEY` is not set on the deployment, so `/api/cx-plan-draft`
-> answers `503 — AI is not configured on this deployment`. That is the intended
-> fail-closed behaviour, and the mocked path is fully green, but **no real model
-> call has ever been made by this system.** Run
-> `node --env-file=.env pw-cx-plan.mjs --real-ai` once the key is set; the suite
-> asserts prose returns, flags return, and `ai_generations` increments.
+> **Real-call smoke: ✅ PASSED 2026-07-27.** `ANTHROPIC_API_KEY` set; one real
+> drafting call plus its verification call, both live against `claude-sonnet-5`.
+> Prose returned (260 chars, correct voice and the ruled `Commissioning
+> Authority (CxA)`), the adversarial pass returned **2 flags**, and
+> `ai_generations` incremented 2 → 4.
+>
+> **Measured cost per section: ~4.6¢** (draft ~3.8-4.2¢ at ~8.7k input tokens,
+> verify ~0.7-0.8¢ at ~0.6-0.8k). Four narrative sections on a standard plan is
+> roughly **19¢ per full draft pass**. The draft call dominates because the whole
+> corpus is its system prompt — that is the cost of firm knowledge living in
+> documents rather than weights, and it is the right trade at this scale.
+>
+> Two defects were found getting here, both fail-closed and both legible from the
+> server log in one look: `temperature` is rejected outright by the current models
+> (`400 — deprecated for this model`), and Vercel bakes env vars into a deployment
+> at build time, so the key needed a redeploy to take effect.
 
 Calibrated against the three real plans, copied out of ShareSync into gitignored
 `samples/cx-plans/` and analysed locally (`extract.mjs`): **Humber** and
