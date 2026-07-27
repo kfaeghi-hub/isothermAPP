@@ -19,6 +19,7 @@
 // style; the DB only adds.
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { SCHEMAS, type Validator } from './agent-schemas.js'
 
 // ── Corpus ───────────────────────────────────────────────────────────────────
 // Vercel bundles files referenced statically. The corpus is read at cold start
@@ -309,4 +310,264 @@ export function parseJson<T>(text: string): T | null {
     }
   }
   return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE AGENT RUNTIME
+//
+// One brain, many agents, one keeper. Every model call in this system goes
+// through runAgent — features compose agents, agents read the brain, and nothing
+// writes without a human. The universal laws live in ARCHITECTURE; this is where
+// four of them are ENFORCED rather than merely stated:
+//
+//   law 1  every agent reads the brain through ai-common
+//          -> context is assembled from the contract's declared slices ONLY, so
+//             a call site cannot widen what an agent sees.
+//   law 4  budgets per class; parse failures fail closed with the raw logged
+//          -> the ceiling comes from budget_class, never from a caller.
+//   law 5  the verifier never shares context with what it verifies
+//          -> verifier.md declares `slices: []`, and this runtime honours it.
+//             The isolation is a data fact, not a habit at the call site.
+//   law 6  no agent self-modifies
+//          -> contracts are read-only here. Nothing in this file writes to
+//             firm-knowledge/.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A total generation budget INCLUDING reasoning, chosen by task shape rather
+ *  than by a number a caller invents. Sized from measurement, not taste: a Cx
+ *  Plan section returning ~450 tokens of prose spent ~4,900 getting there. */
+export const BUDGET_CLASS = {
+  reasoning:  16000,   // compares many things against many rules
+  prose:      10000,   // writes a few hundred words under a style card
+  extraction:  8000,   // transcribes structure — PER PAGE, never per document
+} as const
+export type BudgetClass = keyof typeof BUDGET_CLASS
+
+export interface AgentContract {
+  key: string
+  purpose: string
+  slices: Slice[]
+  budgetClass: BudgetClass
+  inputSchema: string
+  outputSchema: string
+  reviewSurface: string
+  verifier: string | null
+  costExpectation: string
+}
+
+/** Minimal front-matter reader. Deliberately not a YAML dependency: the contract
+ *  front-matter is a fixed, flat key set, and a parser that accepts only what the
+ *  registry is allowed to contain rejects a malformed contract rather than
+ *  interpreting it generously. */
+function parseFrontMatter(text: string, key: string): Record<string, string> {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
+  if (!m) throw new AiError(500, `agent contract "${key}" has no front-matter block`)
+  const out: Record<string, string> = {}
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = /^([a-z_]+):\s*(.*)$/.exec(line.trim())
+    if (kv) out[kv[1]] = kv[2].trim().replace(/^["']|["']$/g, '')
+  }
+  return out
+}
+
+const contractCache: Record<string, AgentContract> = {}
+const bodyCache: Record<string, string> = {}
+
+/** The agent contract's PROSE — everything after the front-matter. This is the
+ *  specialist's own instruction set, and it is what makes writer.md the single
+ *  place the "what it never sees" guarantee is written. Front-matter is runtime
+ *  configuration and is never sent to a model. */
+function agentContractBody(agentKey: string): string {
+  if (bodyCache[agentKey] !== undefined) return bodyCache[agentKey]
+  const path = join(ROOT, 'agents', `${agentKey}.md`)
+  const raw = existsSync(path) ? readFileSync(path, 'utf8') : ''
+  // Front-matter is delimited by a pair of `---` lines. Split on lines rather
+  // than with a multiline regex: the corpus is authored on Windows and a regex
+  // that forgets \r silently returns the whole file, front-matter included —
+  // which would send runtime configuration to a model as if it were instruction.
+  const lines = raw.split('\n')
+  let body = raw
+  if (lines[0]?.trim() === '---') {
+    const close = lines.findIndex((l, i) => i > 0 && l.trim() === '---')
+    if (close > 0) body = lines.slice(close + 1).join('\n')
+  }
+  bodyCache[agentKey] = body.trim()
+  return bodyCache[agentKey]
+}
+
+/** Resolve an agent's contract. Throws on a contract that names a budget class or
+ *  a schema that does not exist — a registry typo becomes a startup error, not a
+ *  silent fallback at 2am. */
+export function loadAgent(agentKey: string): AgentContract {
+  if (contractCache[agentKey]) return contractCache[agentKey]
+  const path = join(ROOT, 'agents', `${agentKey}.md`)
+  if (!existsSync(path)) throw new AiError(500, `no agent contract for "${agentKey}"`)
+  const fm = parseFrontMatter(readFileSync(path, 'utf8'), agentKey)
+
+  const slices = (fm.slices ?? '[]').replace(/^\[|\]$/g, '').split(',')
+    .map(s => s.trim()).filter(Boolean) as Slice[]
+  const budgetClass = (fm.budget_class ?? '') as BudgetClass
+  if (!(budgetClass in BUDGET_CLASS)) {
+    throw new AiError(500, `agent "${agentKey}" declares unknown budget_class "${fm.budget_class}"`)
+  }
+  for (const nm of [fm.input_schema, fm.output_schema]) {
+    if (!nm || !SCHEMAS[nm]) {
+      throw new AiError(500, `agent "${agentKey}" names schema "${nm}" which does not exist`)
+    }
+  }
+  const c: AgentContract = {
+    key: fm.key || agentKey,
+    purpose: fm.purpose ?? '',
+    slices,
+    budgetClass,
+    inputSchema: fm.input_schema,
+    outputSchema: fm.output_schema,
+    reviewSurface: fm.review_surface ?? '',
+    verifier: !fm.verifier || fm.verifier === 'none' ? null : fm.verifier,
+    costExpectation: fm.cost_expectation ?? '',
+  }
+  if (c.key !== agentKey) {
+    throw new AiError(500, `agent contract "${agentKey}.md" declares key "${c.key}"`)
+  }
+  contractCache[agentKey] = c
+  return c
+}
+
+export type AgentFailure =
+  | 'contract-input'      // the caller's input did not satisfy the contract — no token spent
+  | 'contract-output'     // the model returned the wrong shape — fail closed
+  | JsonFailure
+
+export interface AgentRun<T> {
+  ok: boolean
+  value?: T
+  failure?: AgentFailure
+  raw?: string
+  usage: ModelResult | null
+  budget: number
+}
+
+export interface RunAgentOpts {
+  /** The task for THIS call — never identity or style, which arrive from the
+   *  corpus. A call site that restates the style card is the drift this
+   *  architecture exists to prevent. */
+  task: string
+  exemplar?: string
+  dbAdditions?: ContextRequest['dbAdditions']
+  /** extraction class only: the ceiling applies per page, so a multi-page caller
+   *  runs one agent per page rather than raising the budget. */
+  budgetOverride?: number
+  /** One retry, matched to the failure. Pass false to disable. */
+  retry?: boolean
+  /** The FEATURE composing this agent — loads contracts/<feature>.md above the
+   *  agent contract (D5). Omit for an agent invoked outside any feature. */
+  feature?: string
+}
+
+/**
+ * THE ONLY WAY A FEATURE TALKS TO A MODEL.
+ *
+ * Resolve the contract -> validate input -> assemble declared slices -> apply the
+ * class budget -> call -> validate output fail-closed. Logging stays with the
+ * caller (it holds the service client and the project id), but the row shape comes
+ * from logAgentRun so cost reads per specialist.
+ */
+export async function runAgent<T>(
+  agentKey: string, input: unknown, opts: RunAgentOpts,
+): Promise<AgentRun<T>> {
+  const c = loadAgent(agentKey)
+
+  // 1. VALIDATE INPUT BEFORE SPENDING A TOKEN. A malformed call is the caller's
+  //    bug, and discovering it after paying for 20k tokens of context helps nobody.
+  const validIn = SCHEMAS[c.inputSchema] as Validator<unknown>
+  if (!validIn(input)) {
+    return { ok: false, failure: 'contract-input', usage: null, budget: 0 }
+  }
+
+  // 2. Context from the DECLARED slices only. An empty list means an empty system
+  //    prompt — which is the verifier's whole guarantee, held here rather than
+  //    remembered at each call site.
+  //
+  //    THREE LAYERS, in this order, and the order is the precedence:
+  //      corpus slices        — identity, style, terminology (shared by all)
+  //      the AGENT contract   — agents/<key>.md, this specialist's own rules
+  //      the FEATURE contract — contracts/<feature>.md, when a caller names one
+  //
+  //    D5: the feature contract sits ABOVE the agent split. Features compose
+  //    agents; a feature contract REFERENCES its agents and never restates their
+  //    constraints, because two copies of a rule are two rules that will drift.
+  let system = ''
+  if (c.slices.length > 0) {
+    const parts = [buildContext({
+      feature: '__none__',                 // no contract here; added explicitly below
+      slices: c.slices, exemplar: opts.exemplar, dbAdditions: opts.dbAdditions,
+    })]
+    const agentBody = agentContractBody(agentKey)
+    if (agentBody) parts.push(agentBody)
+    if (opts.feature) {
+      const feat = corpus(join('contracts', `${opts.feature}.md`))
+      if (feat) parts.push(feat)
+    }
+    system = parts.filter(Boolean).join('\n\n---\n\n')
+  }
+
+  let budget = opts.budgetOverride ?? BUDGET_CLASS[c.budgetClass]
+  const user = `${opts.task}\n\n${JSON.stringify(input)}`
+  const validOut = SCHEMAS[c.outputSchema] as Validator<T>
+
+  let result = await callModel({ system, user, maxTokens: budget })
+  let outcome = parseModelJson<T>(result, validOut)
+
+  if (!outcome.ok && opts.retry !== false) {
+    const ranOutOfRoom =
+      outcome.failure === 'truncated' || outcome.failure === 'thinking-overrun'
+    console.warn(`[runAgent:${agentKey}] ${outcome.failure} — retrying once ` +
+      `(${ranOutOfRoom ? `budget ${budget} -> ${budget * 2}` : 'same budget, JSON reminder'}).` +
+      `\nRaw:\n` + String(outcome.raw ?? '').slice(0, 2000))
+    if (ranOutOfRoom) budget *= 2
+    result = await callModel({
+      system, user: ranOutOfRoom ? user : user + JSON_RETRY_REMINDER, maxTokens: budget,
+    })
+    outcome = parseModelJson<T>(result, validOut)
+  }
+
+  if (!outcome.ok) {
+    console.error(`[runAgent:${agentKey}] ${outcome.failure} after retry. ` +
+      `stop=${result.stopReason} out=${result.outputTokens} think=${result.thinkingTokens} ` +
+      `blocks=${result.blockTypes.join('+') || 'none'} budget=${budget}\nRAW:\n` +
+      String(outcome.raw ?? '').slice(0, 4000))
+    // 'wrong-shape' means the output failed THIS agent's contract. Name it as a
+    // contract failure so the log distinguishes "the model returned nonsense" from
+    // "the model returned the wrong thing" — different fixes.
+    const failure: AgentFailure =
+      outcome.failure === 'wrong-shape' ? 'contract-output' : outcome.failure!
+    return { ok: false, failure, raw: outcome.raw, usage: result, budget }
+  }
+
+  return { ok: true, value: outcome.value, usage: result, budget }
+}
+
+/** Log an agent run. FAILURES ARE LOGGED TOO: a run that produced nothing still
+ *  cost money, and silence here would hide exactly the failures worth counting. */
+export async function logAgentRun(service: any, row: {
+  agentKey: string; feature: string; projectId: string | null
+  run: AgentRun<any>; createdBy: string | null; runId?: string | null
+}): Promise<void> {
+  const u = row.run.usage
+  const { error } = await service.from('ai_generations').insert({
+    feature: row.feature,
+    agent_key: row.agentKey,
+    run_id: row.runId ?? null,
+    project_id: row.projectId,
+    model: u?.model ?? null,
+    input_tokens: u?.inputTokens ?? 0,
+    output_tokens: u?.outputTokens ?? 0,
+    thinking_tokens: u?.thinkingTokens ?? 0,
+    cost_cents: estimateCents(u?.inputTokens ?? 0, u?.outputTokens ?? 0),
+    budget_class: loadAgent(row.agentKey).budgetClass,
+    max_tokens: row.run.budget,
+    outcome: row.run.ok ? 'ok' : (row.run.failure ?? 'unknown'),
+    created_by: row.createdBy,
+  })
+  if (error) console.error('[ai-common] logAgentRun failed (non-fatal):', error.message)
 }

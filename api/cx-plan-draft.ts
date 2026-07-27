@@ -17,12 +17,11 @@
 // deliverables and header are assembled after the prose returns
 // (cx-plan-assembly). The model cannot invent a name because it is never given
 // the opportunity.
+import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
-import {
-  buildContext, callModel, logGeneration, parseModelJson,
-  JSON_RETRY_REMINDER, knowledgeVersion, AiError,
-} from './_shared/ai-common.js'
+import { runAgent, logAgentRun, knowledgeVersion, AiError } from './_shared/ai-common.js'
+import type { WriterOutput, VerifierOutput } from './_shared/agent-schemas.js'
 import { SECTIONS } from './_shared/cx-plan-assembly.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
@@ -40,36 +39,17 @@ const INTENT: Record<string, string> = {
   schedule:    'Three to five sentences on commissioning sequencing across the project phases supplied.',
 }
 
-/**
- * PER-SECTION GENERATION BUDGET — thinking INCLUDED.
- *
- * `max_tokens` is the TOTAL generation budget, and on this model reasoning
- * dominates it. Measured on the failing Roles call: 4,929 thinking tokens
- * against 453 of actual answer. A budget sized for the prose is sized for about
- * eight per cent of what the call needs.
- *
- * That was the real defect behind the first calibration failure, and my first
- * fix got it wrong: I read "1200 output tokens, cut off mid-JSON" and reasoned
- * about prose length and the claims array, so I raised Roles to 3000 — which the
- * model spent entirely on thinking, emitting 2,998 reasoning tokens and NOT ONE
- * TEXT BLOCK. The raw response logged empty, which is what finally gave it away.
- *
- * These ceilings are generous on purpose: we are billed for what is used, not
- * for what is reserved, so the cost of headroom is zero and the cost of a
- * too-small ceiling is a failed section and a wasted call.
- */
-function budgetFor(sectionKey: string): number {
-  const BUDGETS: Record<string, number> = {
-    background: 8000,
-    roles: 10000,        // the only section that scales with the team matrix
-    process: 8000,
-    operational: 8000,
-    ils: 8000,
-    tab: 8000,
-    schedule: 9000,
-  }
-  return BUDGETS[sectionKey] ?? 8000
-}
+// THE PER-SECTION BUDGET IS GONE, and that is the point of the refactor.
+//
+// This endpoint used to own a BUDGETS map — the artefact of a calibration failure
+// where a ceiling sized for prose was spent entirely on reasoning. That number was
+// never really a property of "the Roles section"; it was a property of the KIND of
+// work the writer does. It now lives in firm-knowledge/agents/writer.md as
+// `budget_class: prose`, and the runtime applies it.
+//
+// The retry logic went the same way: budget failure doubles the ceiling, parse
+// failure re-asks with the JSON reminder — one implementation in runAgent rather
+// than one per endpoint.
 
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res)) return
@@ -137,138 +117,86 @@ export default async function handler(req: any, res: any) {
           (Array.isArray(v) && v.length === 0)) delete facts[k]
     }
 
-    // ── Call 1: draft ──────────────────────────────────────────────────────
-    const system = buildContext({
-      feature: 'cx-plan',
-      slices: ['identity', 'style', 'terminology', 'domain-rules', 'exemplar'],
-      exemplar: plan.tier === 'tender' ? 'cx-plan-tender' : 'cx-plan-standard',
-    })
-    const userMsg = JSON.stringify({
+    const runId = randomUUID()
+
+    // ── The writer agent ───────────────────────────────────────────────────
+    // The endpoint no longer assembles context, picks a budget, or owns retry
+    // logic. It states the TASK and the facts; the contract states everything
+    // else. What the model never sees is enforced by what this input contains.
+    const writerInput = {
       section_key, section_title: def.title, section_intent: INTENT[section_key],
       facts,
       steering_note: note || undefined,
-      constraints: [
-        'Use ONLY the facts provided. If a fact is absent, omit the claim — never estimate, never generalise, never emit a placeholder.',
-        'Do not restate any table or list; those are rendered deterministically.',
-        'Obey the modal discipline: shall = another party\'s obligation, will = Isotherm\'s intent, is/are = fact.',
-        'Return JSON only: { "prose": string, "claims": [ { "text": string, "supported_by": string } ] }',
-      ],
-    })
-
-    type Draft = { prose: string; claims: { text: string; supported_by: string }[] }
-    const isDraft = (v: any): v is Draft =>
-      !!v && typeof v.prose === 'string' && v.prose.trim().length > 0 &&
-      (v.claims === undefined || Array.isArray(v.claims))
-
-    // ONE automatic retry, matched to the failure — the two kinds have opposite
-    // fixes:
-    //
-    //   a BUDGET failure retries AT DOUBLE THE CEILING. Retrying at the same
-    //   ceiling buys the identical cut-off at the identical cost. Doubling makes
-    //   the ceiling self-correcting rather than dependent on my estimate being
-    //   right, which on the first calibration run it was not.
-    //
-    //   a PARSE failure retries at the SAME ceiling with a terse reminder. Most
-    //   are fence-wrapping or stray commentary and clear on the second attempt;
-    //   more room would not have helped.
-    let budget = budgetFor(section_key)
-    let draft = await callModel({ system, user: userMsg, maxTokens: budget })
-    await logGeneration(service, {
-      feature: 'cx-plan:draft', projectId: plan.project_id,
-      result: draft, createdBy: user.userId,
-    })
-    let outcome = parseModelJson<Draft>(draft, isDraft)
-
-    if (!outcome.ok) {
-      const ranOutOfRoom =
-        outcome.failure === 'truncated' || outcome.failure === 'thinking-overrun'
-      console.warn(`[cx-plan-draft] ${section_key}: ${outcome.failure} — retrying once ` +
-        `(${ranOutOfRoom ? `budget ${budget} -> ${budget * 2}` : 'same budget, JSON reminder'}).` +
-        `\nRaw:\n` + String(outcome.raw ?? '').slice(0, 2000))
-      if (ranOutOfRoom) budget *= 2
-      draft = await callModel({
-        system, user: ranOutOfRoom ? userMsg : userMsg + JSON_RETRY_REMINDER, maxTokens: budget,
-      })
-      await logGeneration(service, {
-        feature: 'cx-plan:draft:retry', projectId: plan.project_id,
-        result: draft, createdBy: user.userId,
-      })
-      outcome = parseModelJson<Draft>(draft, isDraft)
     }
+    const draft = await runAgent<WriterOutput>('writer', writerInput, {
+      task: `Draft the "${def.title}" section. Return JSON only: ` +
+            `{ "prose": string, "claims": [ { "text": string, "supported_by": string } ] }`,
+      exemplar: plan.tier === 'tender' ? 'cx-plan-tender' : 'cx-plan-standard',
+      feature: 'cx-plan',        // D5: the feature contract sits above the agents
+    })
+    await logAgentRun(service, {
+      agentKey: 'writer', feature: 'cx-plan:draft', projectId: plan.project_id,
+      run: draft, createdBy: user.userId, runId,
+    })
 
-    if (!outcome.ok) {
-      // ALWAYS log the raw response. This is the diagnosis; without it the only
-      // signal is a generic message and a guess. Server-side only — the raw text
-      // never goes to a browser.
-      console.error(`[cx-plan-draft] ${section_key}: ${outcome.failure} after retry. ` +
-        `stop_reason=${draft.stopReason} output_tokens=${draft.outputTokens} ` +
-        `thinking=${draft.thinkingTokens} blocks=${draft.blockTypes.join('+') || 'none'} ` +
-        `budget=${budget}\nRAW:\n` + String(outcome.raw ?? '').slice(0, 4000))
-
-      // A TRUNCATION IS ITS OWN ERROR, not a parse failure. They have different
-      // fixes — one needs a bigger budget, the other a better prompt — and the
-      // message must say which so a human is not left guessing.
+    if (!draft.ok) {
+      console.error(`[cx-plan-draft] ${section_key}: writer failed — ${draft.failure}`)
       const messages: Record<string, string> = {
+        'contract-input':
+          `The ${def.title} section could not be prepared for drafting. Nothing was saved.`,
+        'contract-output':
+          `The ${def.title} draft came back missing its prose. Nothing was saved.`,
         'thinking-overrun':
           `The ${def.title} draft used its whole budget reasoning and never began ` +
           `writing. Nothing was saved. Retry — if it recurs, this section has too ` +
           `many facts to weigh at once.`,
         truncated:
-          `The ${def.title} draft ran past its length budget and was cut off ` +
-          `(${draft.outputTokens} tokens). Nothing was saved. Try again, or shorten ` +
-          `the facts this section draws on.`,
+          `The ${def.title} draft ran past its length budget and was cut off. ` +
+          `Nothing was saved. Try again, or shorten the facts this section draws on.`,
         unparseable:
           `The ${def.title} draft came back in a form we could not read, twice. ` +
           `Nothing was saved.`,
-        'wrong-shape':
-          `The ${def.title} draft was missing its prose, twice. Nothing was saved.`,
       }
       return res.status(502).json({
-        error: messages[outcome.failure!] ?? 'The draft could not be read. Nothing was saved.',
-        reason: outcome.failure,
-        retryable: true,
+        error: messages[draft.failure!] ?? 'The draft could not be read. Nothing was saved.',
+        reason: draft.failure, retryable: true,
       })
     }
-    const parsed = outcome.value!
+    const parsed = draft.value!
 
-    // ── Call 2: adversarial verification, separate context ─────────────────
-    const verify = await callModel({
-      system:
-        'You are verifying a commissioning document for factual support. You did not ' +
-        'write this text. Assume it contains errors. Flag every claim that the supplied ' +
-        'facts do not support, contradict, or leave vague. Return JSON only: ' +
-        '{ "flags": [ { "span": string, "claim": string, "severity": "unsupported"|"contradicted"|"vague", "why": string } ] }',
-      user: JSON.stringify({ prose: parsed.prose, facts }),
-      // Comparing every sentence against every fact is the MOST reasoning-heavy
-      // call in the system, not the least — the old 1500 was sized for the flag
-      // list alone, which is the same mistake as the draft budgets one call later.
-      maxTokens: 8000,
+    // ── The verifier agent ────────────────────────────────────────────────
+    // Isolation is now a DATA FACT, not a discipline at the call site:
+    // verifier.md declares `slices: []`, so the runtime sends it an empty system
+    // prompt. It cannot see the style card, the exemplars, or this endpoint's
+    // framing — it sees the prose and the facts, which is the only question it is
+    // being asked.
+    const verify = await runAgent<VerifierOutput>('verifier',
+      { prose: parsed.prose, facts },
+      { task:
+          'You are verifying a commissioning document for factual support. You did ' +
+          'not write this text. Assume it contains errors. Flag every claim the ' +
+          'supplied facts do not support, contradict, or leave vague. Return JSON ' +
+          'only: { "flags": [ { "span": string, "claim": string, ' +
+          '"severity": "unsupported"|"contradicted"|"vague", "why": string } ] }' },
+    )
+    await logAgentRun(service, {
+      agentKey: 'verifier', feature: 'cx-plan:verify', projectId: plan.project_id,
+      run: verify, createdBy: user.userId, runId,
     })
-    await logGeneration(service, {
-      feature: 'cx-plan:verify', projectId: plan.project_id,
-      result: verify, createdBy: user.userId,
-    })
-    // A VERIFICATION THAT FAILED IS NOT A VERIFICATION THAT PASSED. This line was
-    // `parseJson(...)?.flags ?? []`, so a truncated or unreadable check produced an
-    // empty flag list — indistinguishable, on screen and in the database, from a
-    // clean bill of health. The one guarantee the two-call design exists to give
-    // would have vanished in silence: the fourth instance of the class, found while
-    // fixing the third. Fail closed instead — discard the prose and say the check
-    // did not run.
-    const vOut = parseModelJson<{ flags: any[] }>(
-      verify, (v: any): v is { flags: any[] } => !!v && Array.isArray(v.flags))
-    if (!vOut.ok) {
-      console.error(`[cx-plan-draft] ${section_key}: VERIFICATION ${vOut.failure}. ` +
-        `stop_reason=${verify.stopReason} output_tokens=${verify.outputTokens} ` +
-        `thinking=${verify.thinkingTokens}\nRAW:\n` + String(vOut.raw ?? '').slice(0, 4000))
+
+    // A VERIFICATION THAT FAILED IS NOT A VERIFICATION THAT PASSED. The contract
+    // requires `flags` to be present even when empty, so "checked, found nothing"
+    // and "the check did not run" cannot collapse into the same value. Fail closed:
+    // discard the prose and say the check did not run.
+    if (!verify.ok) {
+      console.error(`[cx-plan-draft] ${section_key}: VERIFICATION ${verify.failure}`)
       return res.status(502).json({
         error: `The ${def.title} draft was written but could not be fact-checked, ` +
           `so nothing was saved. Try again — unchecked text is not worth keeping.`,
-        reason: `verify-${vOut.failure}`,
-        retryable: true,
+        reason: `verify-${verify.failure}`, retryable: true,
       })
     }
-    const flags = vOut.value!.flags
+    const flags = verify.value!.flags
 
     // ── Persist the section's working state ────────────────────────────────
     const ordinal = SECTIONS.findIndex(s => s.key === section_key)
