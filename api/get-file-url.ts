@@ -33,6 +33,10 @@ const DOC_TABLES: Record<string, DocTable> = {
   site_reports:          { bucket: 'site-reports',    columns: { docx: 'storage_url', pdf: 'pdf_url' }, expiry: DOC_EXPIRY },
   meetings:              { bucket: 'meeting-minutes', columns: { docx: 'storage_url', pdf: 'pdf_url' }, expiry: DOC_EXPIRY },
   equipment_attachments: { bucket: 'equipment-files', columns: { docx: 'storage_url', pdf: 'storage_url', file: 'storage_url' }, expiry: DOC_EXPIRY },
+  // Cx Plans are STAFF-ONLY. refuseUnlessIssued() refuses them for any external
+  // caller by falling through to no case — so add an explicit refusal rather
+  // than relying on the absence of one.
+  cx_plans:              { bucket: 'cx-plans',        columns: { docx: 'storage_url', pdf: 'pdf_url' }, expiry: DOC_EXPIRY },
 }
 
 /**
@@ -53,7 +57,7 @@ const DOC_TABLES: Record<string, DocTable> = {
  * (portal_internal.document_rows) and here, and nowhere else.
  */
 function refuseUnlessIssued(table: string, row: any): void {
-  if (table === 'equipment_attachments')
+  if (table === 'equipment_attachments' || table === 'cx_plans')
     throw new AuthError(403, 'Not available in the portal')
   if (table === 'site_reports' && !row?.storage_url)
     throw new AuthError(403, 'This document has not been issued')

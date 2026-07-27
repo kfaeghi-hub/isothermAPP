@@ -24,6 +24,7 @@ import { MeetingsPage } from './MeetingsPage'
 import { ChecklistsPage } from './ChecklistsPage'
 import { TeamPage } from './TeamPage'
 import { DeliverablesPage } from './DeliverablesPage'
+import { CxPlanPage } from './CxPlanPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, TradeType,
 } from '../types/database'
@@ -51,7 +52,7 @@ interface EditForm {
   notes: string
 }
 
-type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'meetings' | 'checklists' | 'deliverables'
+type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'meetings' | 'checklists' | 'deliverables' | 'cx_plan'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
@@ -63,6 +64,9 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'meetings',     label: 'Meetings',     built: true  },
   { id: 'checklists',   label: 'Checklists',   built: true  },
   { id: 'deliverables', label: 'Deliverables', built: true },
+  // Own tab, after Deliverables: a deliverable is a tracked obligation, this is a
+  // document with a wizard and a review workflow. The deliverable row links here.
+  { id: 'cx_plan',      label: 'Cx Plan',      built: true },
 ]
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -725,6 +729,12 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         {/* Deliverables */}
         {activeTab === 'deliverables' && (
           <DeliverablesPage projectId={projectId} canAssign={isOwner || isLead} />
+        )}
+
+        {/* Cx Plan — any member may draft; owner/lead approve and issue (D6).
+            The server enforces both regardless of what this prop allows. */}
+        {activeTab === 'cx_plan' && (
+          <CxPlanPage projectId={projectId} canApprove={isOwner || isLead} />
         )}
       </div>
 

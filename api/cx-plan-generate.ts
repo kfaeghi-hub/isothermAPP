@@ -147,7 +147,7 @@ export default async function handler(req: any, res: any) {
     const pdf = await toPdf(html, PDF_FOOTER)
 
     const base = `${plan.project_id}/CxPlan-Rev${plan.revision_index}`
-    const uploaded = await uploadDocPair(service, base, injected.buffer, pdf)
+    const uploaded = await uploadDocPair(service.storage.from('cx-plans'), base, injected.buffer, pdf)
     if ((uploaded as any).error) {
       return res.status(500).json({ error: (uploaded as any).error })
     }
