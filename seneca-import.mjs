@@ -447,6 +447,202 @@ if (stage === 'corrections') {
     + (disagreements.length ? '\n      ' + disagreements.slice(0, 8).join('\n      ') : ''))
 }
 
+// ── Stage 3b: split the AIR HANDLING UNIT category ──────────────────────────
+if (stage === 'recategorize') {
+  // The source carries ONE header, "AIR HANDLING UNIT" at row 88, spanning rows
+  // 89-296 — 13 different equipment families under one label, because the source
+  // never sub-headered them. Only 5 of the 194 rows are actually AHUs. Category
+  // names below come from the source's OWN vocabulary wherever it states one:
+  // its column C, its other section headers, or the title of the matching
+  // equipment schedule. Nothing here is invented.
+  const SPLIT = [
+    { cat: 'FAN COIL UNIT',            like: 'FCU-L%',  why: 'source column C: "FAN COIL UNIT"' },
+    { cat: 'VAV BOX',                  like: 'TBS-%',   why: 'source column C: "VAV BOX"' },
+    { cat: 'VAV BOX',                  like: 'TBE-%',   why: 'source column C: "VAV BOX"' },
+    { cat: 'EXHAUST FAN',              like: 'EF-%',    why: 'tag convention; already typed fan' },
+    { cat: 'UNIT HEATER',              like: 'UH-L%',   why: 'tag convention; source headers a separate "STANDALONE PROPELLER UNIT HEATER" elsewhere' },
+    { cat: 'TRENCH FAN COIL UNIT',     like: 'TFCU-%',  why: 'TFCUs.xlsx: "TRENCH FAN COIL UNIT SCHEDULE"' },
+    { cat: 'VERTICAL FAN COIL UNIT',   like: 'VFCU-%',  why: 'VFCU.xlsx: "VERTICAL FAN COIL SCHEDULE"' },
+    { cat: 'HYDRONIC ELECTRIC BOILER', like: 'BE-0%',   why: 'Elec-Boiler.xlsx: "HYDRONIC ELECTRIC BOILER SCHEDULE" (PRECISION PCW3-304)' },
+    { cat: 'HYDRAULIC SEPARATOR',      like: 'HS-%',    why: 'source column C: "HYDRAULIC SEPARATOR"' },
+    { cat: 'CEILING FAN',              like: 'CF-%',    why: 'tag convention; source names "CEILING FANS" in the tender index' },
+  ]
+  const batch = await getBatch({
+    entity: 'equipment:recategorize',
+    sourceFile: '3_Cx_Docs/9. Cx Index/Master_Isotherm 257889_SenecaHealthAndWellness_Cx_Master Schedule.xlsx',
+    revision: 'Equip.List rows 89-296',
+    expected: 192,
+    note:
+      'AMENDS C5 for this block only. The source header "AIR HANDLING UNIT" (row 88) spans rows '
+      + '89-296 and covers 13 equipment families — only 5 rows are AHUs. Every new category name is '
+      + 'taken from the source\'s own words: its column C, its other section headers, or the title '
+      + 'of the matching equipment schedule. UNRESOLVED AND LEFT ALONE: DBF-1 and DBF-2 (locations '
+      + '"WOMEN\'S REC CHN ROOM" and "EQ. STORAGE") appear in no schedule and carry no descriptor — '
+      + 'flagged rather than guessed, so they stay under AIR HANDLING UNIT until identified.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  let moved = 0
+  for (const s of SPLIT) {
+    const { data, error } = await sb.from('equipment')
+      .update({ category: s.cat }).eq('project_id', proj.id)
+      .eq('category', 'AIR HANDLING UNIT').like('tag', s.like).select('tag')
+    if (error) { console.error(`recategorize ${s.cat} failed: ${error.message}`); process.exit(1) }
+    if (data.length) console.log(`  ${String(data.length).padStart(3)} → ${s.cat.padEnd(26)} (${s.why})`)
+    moved += data.length
+  }
+
+  // Two type corrections the schedules just settled.
+  for (const [tag, t] of [['BE-01', 'boiler'], ['CF-1', 'fan']]) {
+    const { data } = await sb.from('equipment').update({ equipment_type: t })
+      .eq('project_id', proj.id).eq('tag', tag).is('equipment_type', null).select('tag')
+    if (data?.length) console.log(`  typed ${tag} → ${t}`)
+  }
+  await sb.from('import_batches').update({ rows_created: moved }).eq('id', batch.id)
+
+  const { data: left } = await sb.from('equipment').select('tag')
+    .eq('project_id', proj.id).eq('category', 'AIR HANDLING UNIT')
+  console.log('')
+  check(left.length === 7,
+    `AIR HANDLING UNIT now holds ${left.length}: ${left.map(l => l.tag).sort().join(', ')} `
+    + `(5 real AHUs + DBF-1/2 held for identification)`)
+
+  // Unit heaters and DBF have no type in the vocabulary — QUEUE, never mint.
+  for (const q of [
+    { observed_name: 'Unit Heater', proposed_key: 'unit_heater', tags: ['UH-L1-01','UH-L2-01','UH-L3-01'], n: 6 },
+    { observed_name: 'DBF (unidentified)', proposed_key: null, tags: ['DBF-1','DBF-2'], n: 2 },
+    { observed_name: 'Hydraulic Separator', proposed_key: 'hydraulic_separator', tags: ['HS-01'], n: 1 },
+  ]) {
+    const { data: seen } = await sb.from('proposed_equipment_types').select('id')
+      .eq('project_id', proj.id).eq('observed_name', q.observed_name).maybeSingle()
+    if (seen) continue
+    await sb.from('proposed_equipment_types').insert({
+      project_id: proj.id, observed_name: q.observed_name, proposed_key: q.proposed_key,
+      evidence: { sample_tags: q.tags, count: q.n, source: 'Seneca 257889 — AHU category split' },
+    })
+    console.log(`  queued for ratification: ${q.observed_name} (${q.n})`)
+  }
+}
+
+// ── Stage 4b: shop drawings — RECEIVED vs REVIEWED, two columns ─────────────
+if (stage === 'shopdwgs') {
+  // The evidence is the filename convention in 2_Bldg_Docs/4_Shops: a package
+  // filed WITHOUT "-IEL" is what the contractor submitted; the "-IEL" copy is
+  // Isotherm's marked-up review. Plus the SDR reports in 5.Reports/3.SDR, which
+  // ARE the review for AHU/DOAS, RAF and pumps, and the submittal log's CLS.
+  const PKG = [
+    { spec: '20 30 00',    name: 'Hydronic Pumps',            recv: '2026-06-25', rev: '2026-06-29',
+      tags: ['CHW-P-01','CHW-P-02','CHW-P-03','CHW-P-04','CHW-P-05','CHW-P-06','DHWR-P-01','DHWR-P-02',
+             'GEO-P-01','GEO-P-02','GEO-P-03','GEO-P-04','GEO-P-05','GEO-P-06','GEO-P-07','GEO-P-08',
+             'GEO-P-09','GEO-P-10','GLY-P-01','GLY-P-02','HW-P-01','HW-P-02','HW-P-03','HW-P-04',
+             'HW-P-05','HW-P-06','HW-P-07','HW-P-08'] },
+    { spec: '23 05 17.13', name: 'HVAC Air Separator',        recv: '2026-06-25', rev: '2026-06-29',
+      tags: ['CHW-AS-01','HW-AS-01','HGLY-AS-01'] },
+    { spec: '23 34 00-2.0',name: 'Return Air Fans',           recv: '2026-07-13', rev: '2026-07-15',
+      tags: ['RAF-1','RAF-2','RAF-3','RAF-4','RAF-5'] },
+    { spec: '23 36 00',    name: 'Trench Fan Coil Units',     recv: '2026-06-17', rev: '2026-06-19',
+      tags: ['TFCU-01','TFCU-02','TFCU-03'] },
+    { spec: '23 57 13',    name: 'HVAC Heat Exchangers',      recv: '2026-07-15', rev: '2026-07-15',
+      tags: ['CHW-HX-01','DHW-HX-01','HW-HX-01','GLY-HX-01','GLY-HX-02'] },
+    { spec: '23 73 23',    name: 'AHU & DOAS',                recv: '2025-11-14', rev: '2025-11-14',
+      tags: ['AHU-1','AHU-2','AHU-3','AHU-4','AHU-5','DOAS-1','DOAS-2'] },
+    { spec: '26 12 17',    name: 'Dry-Type Transformers',     recv: '2026-05-08', rev: '2026-05-14',
+      tags: null, like: 'TX-%' },
+    { spec: '26 23 00',    name: 'Switchgear',                recv: '2026-04-24', rev: '2026-05-04',
+      tags: null, like: 'SWGR-%' },
+    { spec: '26 24 13',    name: 'Electrical Switchboard',    recv: '2026-06-17', rev: '2026-06-19',
+      tags: null, like: 'SWBD-%' },
+    { spec: '26 29 19',    name: 'PV System Disconnect',      recv: '2026-05-22', rev: '2026-05-25',
+      tags: ['Solar PV Disconnect'] },
+    { spec: '26 36 23',    name: 'Automatic Transfer Switches', recv: '2026-06-23', rev: '2026-06-24',
+      tags: ['ATS-GEB','ATS-GXA','ATS-GXFP'] },
+    { spec: '26 36 23-01', name: 'Manual TS & Gen Connection', recv: '2026-05-13', rev: '2026-05-20',
+      tags: ['ATS-MS','Load Bank Connection Panel'] },
+    { spec: '20 13 13',    name: 'Expansion + Buffer Tanks',  recv: '2026-06-25', rev: '2026-07-13',
+      tags: null, like: '%-ET-%' },
+    { spec: '20 13 13b',   name: 'Buffer Tanks',              recv: '2026-06-25', rev: '2026-07-13',
+      tags: null, like: '%-BT-%' },
+  ]
+
+  const batch = await getBatch({
+    entity: 'cx_cell_values:shopdwgs',
+    sourceFile: '2_Bldg_Docs/4_Shops + 3_Cx_Docs/5.Reports/3.SDR + ME Submittal Log',
+    revision: 'shop-drawing folder state at 2026-07-27',
+    expected: 0,
+    note:
+      'TWO COLUMNS, TWO FACTS. "Shop Dwgs" = the submittal was RECEIVED; "SDR" = Isotherm has '
+      + 'REVIEWED it. Evidence is the 4_Shops filename convention — a package filed without "-IEL" '
+      + 'is the contractor submission, the "-IEL" copy is Isotherm\'s marked-up review — corroborated '
+      + 'by the SDR reports (which ARE the review for AHU/DOAS, RAF and pumps) and the submittal '
+      + 'log\'s CLS status. THE MASTER SCHEDULE\'S 5 GREEN Shop-Dwgs CELLS WERE A STALE SNAPSHOT: '
+      + 'they marked only AHU-1..5 while 14 packages have since been received and reviewed. '
+      + 'NOT WRITTEN, flagged as ambiguous: Panelboards 26 24 16 (could be the 26 receptacle, 7 '
+      + 'lighting or 5 distribution panels — the package does not say and no SD log names tags); '
+      + 'VFDs 23 92 49 (no VFD tags in the register); Metering 26 27 13/16 (two packages, one tag); '
+      + 'PV System 48 14 00 (panels/inverters/racking are not register tags).',
+  })
+  console.log(`batch ${batch.id}`)
+
+  // The new column, appended to Doc Review Stage.
+  const { data: grp } = await sb.from('project_cx_stage_groups')
+    .select('id').eq('project_id', proj.id).eq('name', 'Doc Review Stage').single()
+  let { data: sdrCol } = await sb.from('project_cx_columns')
+    .select('id').eq('stage_group_id', grp.id).eq('label', 'SDR').maybeSingle()
+  if (!sdrCol) {
+    const { data: cols } = await sb.from('project_cx_columns')
+      .select('sort_order').eq('stage_group_id', grp.id).order('sort_order', { ascending: false }).limit(1)
+    const { data, error } = await sb.from('project_cx_columns')
+      .insert({ stage_group_id: grp.id, label: 'SDR', sort_order: (cols?.[0]?.sort_order ?? 0) + 1 })
+      .select('id').single()
+    if (error) { console.error(`SDR column insert failed: ${error.message}`); process.exit(1) }
+    sdrCol = data
+    console.log('  created column "SDR" under Doc Review Stage')
+  } else console.log('  column "SDR" already present')
+
+  const { data: shopCol } = await sb.from('project_cx_columns')
+    .select('id').eq('stage_group_id', grp.id).eq('label', 'Shop Dwgs').single()
+
+  const { data: equip } = await sb.from('equipment').select('id, tag').eq('project_id', proj.id)
+  const byTag = new Map((equip ?? []).map(e => [e.tag.toUpperCase(), e.id]))
+
+  const cells = []
+  const missing = []
+  for (const p of PKG) {
+    let tags = p.tags
+    if (!tags && p.like) {
+      const rx = new RegExp('^' + p.like.replace(/%/g, '.*') + '$', 'i')
+      tags = (equip ?? []).map(e => e.tag).filter(t => rx.test(t))
+    }
+    for (const t of tags) {
+      const id = byTag.get(t.toUpperCase())
+      if (!id) { missing.push(`${p.spec}: ${t}`); continue }
+      cells.push({ project_id: proj.id, equipment_id: id, column_id: shopCol.id, status: 'done',
+                   notes: `${p.spec} ${p.name} — received ${p.recv}`, import_batch_id: batch.id })
+      cells.push({ project_id: proj.id, equipment_id: id, column_id: sdrCol.id, status: 'done',
+                   notes: `${p.spec} ${p.name} — Isotherm review ${p.rev}`, import_batch_id: batch.id })
+    }
+  }
+  check(missing.length === 0, `every mapped tag exists in the register (${missing.length} missing`
+    + `${missing.length ? ': ' + missing.slice(0, 4).join(', ') : ''})`)
+
+  let written = 0
+  for (let i = 0; i < cells.length; i += 200) {
+    const { data, error } = await sb.from('cx_cell_values')
+      .upsert(cells.slice(i, i + 200), { onConflict: 'equipment_id,column_id' }).select('id')
+    if (error) { console.error(`upsert failed at ${i}: ${error.message}`); process.exit(1) }
+    written += data.length
+  }
+  await sb.from('import_batches').update({ rows_created: written, rows_expected: cells.length }).eq('id', batch.id)
+
+  const countIn = async (colId) => (await sb.from('cx_cell_values')
+    .select('id', { count: 'exact', head: true }).eq('column_id', colId).eq('status', 'done')).count
+  const shopN = await countIn(shopCol.id), sdrN = await countIn(sdrCol.id)
+  console.log('')
+  check(written === cells.length, `cells written: ${written} of ${cells.length}`)
+  console.log(`  Shop Dwgs (received): ${shopN}   ·   SDR (Isotherm reviewed): ${sdrN}`)
+  check(shopN >= 5, `the stale 5 AHU Shop-Dwgs cells are subsumed, not orphaned (${shopN} total)`)
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? 'PASS — counts reconciled, batch coverage complete.'
                            : `FAIL — ${failures} check(s) failed.`)

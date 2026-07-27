@@ -578,6 +578,82 @@ the disambiguation rather than hiding it.
 | Numeric numbers consumed | **0** — next app finding is #1 |
 | Closed findings stamped today | **0** |
 
+### Stage 3b — the AIR HANDLING UNIT category split · **COMPLETE** 2026-07-27
+
+**Amends C5 for this block only.** The source carries ONE header, `AIR HANDLING
+UNIT` at row 88, spanning rows 89-296 — **13 equipment families under one label**,
+because the source never sub-headered them. Only 5 of the 194 rows are AHUs.
+
+Every new category name comes from the source's **own words** — its column C, its
+other section headers, or the title of the matching equipment schedule:
+
+| New category | Rows | Source evidence |
+|---|---|---|
+| FAN COIL UNIT | 113 | column C: "FAN COIL UNIT" |
+| VAV BOX | 55 | column C: "VAV BOX" (TBS + TBE) |
+| EXHAUST FAN | 6 | tag convention; already typed `fan` |
+| UNIT HEATER | 6 | tag convention; source headers "STANDALONE PROPELLER UNIT HEATER" separately |
+| TRENCH FAN COIL UNIT | 3 | `TFCUs.xlsx` — "TRENCH FAN COIL UNIT SCHEDULE" |
+| VERTICAL FAN COIL UNIT | 1 | `VFCU.xlsx` — "VERTICAL FAN COIL SCHEDULE" |
+| HYDRONIC ELECTRIC BOILER | 1 | `Elec-Boiler.xlsx` — "HYDRONIC ELECTRIC BOILER SCHEDULE" (PRECISION PCW3-304) |
+| HYDRAULIC SEPARATOR | 1 | column C: "HYDRAULIC SEPARATOR" |
+| CEILING FAN | 1 | tag convention; source names "CEILING FANS" in the tender index |
+| **AIR HANDLING UNIT** (retained) | **5** | AHU-1…5 — the real ones |
+
+Two type corrections the schedules settled: **BE-01 → `boiler`**, **CF-1 → `fan`**.
+
+**Unresolved, held rather than guessed: `DBF-1` and `DBF-2`** (locations
+"WOMEN'S REC CHN ROOM", "EQ. STORAGE"). They appear in **no** equipment schedule
+and carry no descriptor, so they stay under AIR HANDLING UNIT until identified —
+which is why that category reads 7, not 5.
+
+Queued for ratification rather than minted: **Unit Heater** (6), **Hydraulic
+Separator** (1), **DBF — unidentified** (2).
+
+### Stage 4b — shop drawings: RECEIVED vs REVIEWED · **COMPLETE** 2026-07-27
+
+A new **`SDR`** column under Doc Review Stage. Two columns now carry two
+different facts:
+
+- **`Shop Dwgs`** — the submittal was **received**
+- **`SDR`** — **Isotherm has reviewed it**
+
+**The evidence is the 4_Shops filename convention:** a package filed without
+`-IEL` is the contractor's submission; the `-IEL` copy is Isotherm's marked-up
+review. Corroborated by the SDR reports in `5.Reports/3.SDR` (which *are* the
+review for AHU/DOAS, RAF and pumps) and the submittal log's `CLS` status.
+
+**The master schedule's 5 green Shop-Dwgs cells were a stale snapshot** — they
+marked only AHU-1…5, while **14 packages** have since been received and reviewed.
+
+| Package | Received | Isotherm review | Tags |
+|---|---|---|---|
+| 20 30 00 Hydronic Pumps | 2026-06-25 | 2026-06-29 | 28 |
+| 26 12 17 Dry-Type Transformers | 2026-05-08 | 2026-05-14 | 19 |
+| 20 13 13 Expansion + Buffer Tanks | 2026-06-25 | 2026-07-13 | 10 |
+| 23 73 23 AHU & DOAS | 2025-11-14 | 2025-11-14 | 7 |
+| 23 57 13 Heat Exchangers | 2026-07-15 | 2026-07-15 | 5 |
+| 23 34 00-2.0 Return Air Fans | 2026-07-13 | 2026-07-15 | 5 |
+| 23 05 17.13 Air Separator | 2026-06-25 | 2026-06-29 | 3 |
+| 23 36 00 Trench Fan Coil Units | 2026-06-17 | 2026-06-19 | 3 |
+| 26 36 23 Automatic Transfer Switches | 2026-06-23 | 2026-06-24 | 3 |
+| 26 36 23-01 Manual TS & Gen Connection | 2026-05-13 | 2026-05-20 | 2 |
+| 26 23 00 Switchgear | 2026-04-24 | 2026-05-04 | 2 |
+| 26 24 13 Electrical Switchboard | 2026-06-17 | 2026-06-19 | 2 |
+| 26 29 19 PV System Disconnect | 2026-05-22 | 2026-05-25 | 1 |
+| **total** | | | **90 tags → 180 cells** |
+
+Each cell carries its package and date in `notes`.
+
+**Not written — flagged as ambiguous:**
+
+| Package | Why |
+|---|---|
+| Panelboards 26 24 16 | Could be the 26 receptacle, 7 lighting or 5 distribution panels. The package does not say and no SD log names tags. |
+| VFDs 23 92 49 | No VFD tags in the register — they are integral to pumps/fans. |
+| Metering 26 27 13 / 26 27 16 | Two reviewed packages, one metering tag. |
+| PV System 48 14 00 | Panels/inverters/racking are not register tags. |
+
 **Stages 6-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
