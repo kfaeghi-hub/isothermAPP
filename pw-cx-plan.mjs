@@ -33,14 +33,33 @@ const post = async (c, path, body) => {
   return { status: r.status, body: await r.json().catch(() => ({})) }
 }
 
+// A RESERVED revision band. Revisions 0..899 belong to humans; this suite only
+// ever uses 900+. The first version created rev 0, collided with a real plan
+// somebody had started in the UI, and then its cleanup DELETED that plan —
+// because it swept every cx_plans row on ZZ-TEST rather than only its own.
+// Same class as the leaked checklist instances, inverted: a suite must never
+// touch a row it did not create, even inside the test project.
 let planId = null
-const answerKeys = []
+const REV_BASE = 900
+const createdPlanIds = []
+/** Prior answer values, captured before the suite overwrites them, so cleanup
+ *  RESTORES rather than deletes. A test that erases a user's input is a test
+ *  that costs more than it proves. */
+const priorAnswers = new Map()
+
 async function cleanup() {
-  if (planId) await adm.from('cx_plans').delete().eq('id', planId)
-  await adm.from('cx_plans').delete().eq('project_id', ZZ)
-  for (const k of answerKeys) {
-    await adm.from('cx_plan_answers').delete()
-      .eq('project_id', ZZ).eq('document_type', 'cx_plan').eq('question_key', k)
+  for (const id of createdPlanIds) await adm.from('cx_plans').delete().eq('id', id)
+  // Belt and braces, still scoped to the reserved band — never a blanket sweep.
+  await adm.from('cx_plans').delete().eq('project_id', ZZ).gte('revision_index', REV_BASE)
+  for (const [k, prior] of priorAnswers) {
+    if (prior === null) {
+      await adm.from('cx_plan_answers').delete()
+        .eq('project_id', ZZ).eq('document_type', 'cx_plan').eq('question_key', k)
+    } else {
+      await adm.from('cx_plan_answers').upsert({
+        project_id: ZZ, document_type: 'cx_plan', question_key: k, answer: prior,
+      }, { onConflict: 'project_id,document_type,question_key' })
+    }
   }
 }
 
@@ -60,7 +79,11 @@ try {
 
   // ── 1 · Fixture answers ─────────────────────────────────────────────────
   const putAnswer = async (k, v) => {
-    answerKeys.push(k)
+    if (!priorAnswers.has(k)) {
+      const { data } = await adm.from('cx_plan_answers').select('answer')
+        .eq('project_id', ZZ).eq('document_type', 'cx_plan').eq('question_key', k).maybeSingle()
+      priorAnswers.set(k, data?.answer ?? null)
+    }
     await adm.from('cx_plan_answers').upsert({
       project_id: ZZ, document_type: 'cx_plan', question_key: k,
       answer: typeof v === 'string' ? v : JSON.stringify(v),
@@ -74,9 +97,10 @@ try {
   await adm.from('projects').update({ cx_role_designation: 'CxA' }).eq('id', ZZ)
 
   const { data: plan, error: pErr } = await adm.from('cx_plans')
-    .insert({ project_id: ZZ, tier: 'standard', revision_index: 0 }).select('*').single()
+    .insert({ project_id: ZZ, tier: 'standard', revision_index: REV_BASE }).select('*').single()
   if (pErr) { check(false, `could not create plan: ${pErr.message}`); throw new Error('setup') }
   planId = plan.id
+  createdPlanIds.push(planId)
   check(plan.status === 'draft', `new plan starts as draft (${plan.status})`)
 
   // ── 2 · UNAPPROVED CANNOT GENERATE — server-side ────────────────────────
@@ -228,7 +252,8 @@ try {
   if (REAL_AI) {
     console.log('\n  --real-ai: making ONE real drafting call…')
     const { data: p2 } = await adm.from('cx_plans')
-      .insert({ project_id: ZZ, tier: 'standard', revision_index: 99 }).select('*').single()
+      .insert({ project_id: ZZ, tier: 'standard', revision_index: REV_BASE + 1 }).select('*').single()
+    createdPlanIds.push(p2.id)
     const before = await adm.from('ai_generations').select('id', { count: 'exact', head: true })
     const r = await post(adm, '/api/cx-plan-draft', { plan_id: p2.id, section_key: 'background' })
     check(r.status === 200 && typeof r.body.prose === 'string' && r.body.prose.length > 40,
@@ -245,8 +270,10 @@ try {
   check(false, `unexpected: ${err.message}`)
 } finally {
   await cleanup()
-  const { data: left } = await adm.from('cx_plans').select('id').eq('project_id', ZZ)
-  check((left ?? []).length === 0, `self-clean: no Cx Plans left on ZZ-TEST (${(left ?? []).length})`)
+  const { data: left } = await adm.from('cx_plans')
+    .select('id').eq('project_id', ZZ).gte('revision_index', REV_BASE)
+  check((left ?? []).length === 0,
+    `self-clean: no suite-created plans left (rev >= ${REV_BASE}): ${(left ?? []).length}`)
 }
 
 console.log('\n' + '='.repeat(64))
