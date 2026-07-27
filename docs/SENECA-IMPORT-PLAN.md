@@ -798,6 +798,39 @@ instrument is not evidence.
 | **Corroborated** | Air Sep, TFCU, HX, Transformers, Switchgear, Switchboard, Metering, PV, ATS, Manual TS | `-IEL` file + timestamp pattern |
 | **Log only — weakest** | Expansion Tanks, Buffer Tanks (10 tags / 20 cells) | submittal log `CLS`; no file in 4_Shops, no SDR report |
 
+### Stage 3d — MISCELLANEOUS · **COMPLETE** 2026-07-27
+
+Ruled: park what could not be identified rather than leave it in a category that
+is actively wrong. **9 rows moved.**
+
+| Tags | Was | Why it was wrong |
+|---|---|---|
+| `RHC-01/02/03` | PUMPS | a reheat coil is not a pump |
+| `GI-1/2` | PUMPS | unidentified |
+| `PRV-NG-1/2` | PUMPS | a gas pressure-reducing valve is not a pump |
+| `DBF-1/2` | AIR HANDLING UNIT | unidentified |
+
+**MISCELLANEOUS is the honest holding pen** — it says *"not yet identified"*
+rather than asserting something false. The original source placement is recorded
+in the batch note, so this stays reversible.
+
+Consequence: **PUMPS is now 30 — every row a pump. AIR HANDLING UNIT is now 5 —
+every row an AHU.** Both categories are finally true to their names.
+
+`equipment_type` stays NULL on all nine and each family is queued for
+ratification, so parking them did not quietly drop them off the list. Identifying
+one later is a category edit, not a re-import.
+
+### Register state at close of the categorisation work
+
+| | |
+|---|---|
+| Equipment | **367** |
+| Categories | **41** (from 14 at import) |
+| Typed | 269 |
+| Untyped — awaiting ratification | 98 |
+| Queue entries awaiting your ruling | **19** |
+
 **Stages 6-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the

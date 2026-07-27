@@ -755,6 +755,77 @@ if (stage === 'recategorize2') {
     `PUMPS now holds ${leftP.length} — 30 real pumps + RHC/GI/PRV-NG (7) held for identification`)
 }
 
+// ── Stage 3d: the unidentified go to MISCELLANEOUS ──────────────────────────
+if (stage === 'misc') {
+  // Ruled: park what could not be identified rather than leaving it sitting in a
+  // category that is actively wrong. MISCELLANEOUS is honest — it says "not yet
+  // identified" — whereas leaving a reheat coil under PUMPS asserts something
+  // false. The original source placement is recorded in the batch note so this
+  // stays reversible and the trail survives.
+  const MISC = [
+    { tags: ['RHC-01','RHC-02','RHC-03'], from: 'PUMPS',             what: 'RHC' },
+    { tags: ['GI-1','GI-2'],              from: 'PUMPS',             what: 'GI' },
+    { tags: ['PRV-NG-1','PRV-NG-2'],      from: 'PUMPS',             what: 'PRV-NG' },
+    { tags: ['DBF-1','DBF-2'],            from: 'AIR HANDLING UNIT', what: 'DBF' },
+  ]
+  const batch = await getBatch({
+    entity: 'equipment:miscellaneous',
+    sourceFile: 'ruling/2026-07-27 unidentified to MISCELLANEOUS',
+    revision: '9 rows',
+    expected: 9,
+    note:
+      'Nine rows that appear in NO equipment schedule and carry no descriptor, so neither the '
+      + 'schedules nor the source could identify them. Original source placement, preserved here: '
+      + 'RHC-01..03, GI-1/2 and PRV-NG-1/2 sat under the source header "PUMPS"; DBF-1/2 under '
+      + '"AIR HANDLING UNIT" (locations "WOMEN\'S REC CHN ROOM" and "EQ. STORAGE"). Both placements '
+      + 'are wrong — a reheat coil is not a pump — and MISCELLANEOUS is the honest holding pen: it '
+      + 'says "not yet identified" instead of asserting something false. equipment_type stays NULL '
+      + 'and each family is queued for ratification; identifying them later is a category edit, not '
+      + 'a re-import.',
+  })
+  console.log(`batch ${batch.id}`)
+
+  let moved = 0
+  for (const m of MISC) {
+    const { data, error } = await sb.from('equipment')
+      .update({ category: 'MISCELLANEOUS' })
+      .eq('project_id', proj.id).eq('category', m.from).in('tag', m.tags).select('tag')
+    if (error) { console.error(`misc move failed (${m.what}): ${error.message}`); process.exit(1) }
+    if (data.length) console.log(`  ${data.length} × ${m.what.padEnd(8)} ${m.from} → MISCELLANEOUS`)
+    moved += data.length
+  }
+  await sb.from('import_batches').update({ rows_created: moved }).eq('id', batch.id)
+
+  // Queue the ones not already awaiting a type, so parking them does not quietly
+  // drop them off the ratification list.
+  for (const q of [
+    { observed_name: 'RHC (unidentified)',    tags: ['RHC-01','RHC-02','RHC-03'], n: 3 },
+    { observed_name: 'GI (unidentified)',     tags: ['GI-1','GI-2'],              n: 2 },
+    { observed_name: 'PRV-NG (unidentified)', tags: ['PRV-NG-1','PRV-NG-2'],      n: 2 },
+  ]) {
+    const { data: seen } = await sb.from('proposed_equipment_types').select('id')
+      .eq('project_id', proj.id).eq('observed_name', q.observed_name).maybeSingle()
+    if (seen) continue
+    await sb.from('proposed_equipment_types').insert({
+      project_id: proj.id, observed_name: q.observed_name, proposed_key: null,
+      evidence: { sample_tags: q.tags, count: q.n,
+                  source: 'Seneca 257889 — parked in MISCELLANEOUS, identity unknown' },
+    })
+    console.log(`  queued: ${q.observed_name} (${q.n})`)
+  }
+
+  const { data: misc } = await sb.from('equipment').select('tag')
+    .eq('project_id', proj.id).eq('category', 'MISCELLANEOUS')
+  const { data: pumps } = await sb.from('equipment').select('tag')
+    .eq('project_id', proj.id).eq('category', 'PUMPS')
+  const { data: ahu } = await sb.from('equipment').select('tag')
+    .eq('project_id', proj.id).eq('category', 'AIR HANDLING UNIT')
+  console.log('')
+  check(misc.length === 9, `MISCELLANEOUS holds ${misc.length}: ${misc.map(m => m.tag).sort().join(', ')}`)
+  check(pumps.length === 30, `PUMPS is now ${pumps.length} — every row a pump`)
+  check(ahu.length === 5, `AIR HANDLING UNIT is now ${ahu.length} — every row an AHU`)
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? 'PASS — counts reconciled, batch coverage complete.'
                            : `FAIL — ${failures} check(s) failed.`)
