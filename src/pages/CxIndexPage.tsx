@@ -38,11 +38,18 @@ const EMPTY_EQUIP: AddEquipForm = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// THE 'na' STATUS IS DEPRECATED IN PLACE (ruling D1). The cycle no longer writes
+// it: applicability is a separate axis now, and a status that can overwrite 'done'
+// cannot express "does not apply" without destroying "was completed". Existing
+// 'na' values still READ correctly everywhere — deprecated, not deleted.
+//
+//   blank → done → in progress → blank
+//
+// Not-applicable is set by alt-click or by a ratified rule, never by cycling.
 function nextStatus(s: CellStatus | undefined): CellStatus | null {
   if (!s) return 'done'
   if (s === 'done') return 'in_progress'
-  if (s === 'in_progress') return 'na'
-  return null // na → blank (delete)
+  return null // in_progress (or a legacy 'na') → blank
 }
 
 // One color per stage group, indexed by position in the sorted list
@@ -86,6 +93,10 @@ export function CxIndexPage({ projectId }: Props) {
   const [groups, setGroups]       = useState<CxStageGroup[]>([])
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [cells, setCells]         = useState<Map<string, CellStatus>>(new Map())
+  /** A2 — the sparse not-applicable overlay. A key PRESENT means not applicable;
+   *  absent means applicable. The value is the SOURCE, which is what makes a
+   *  manual override immune to rule re-application. */
+  const [naMap, setNaMap] = useState<Map<string, 'rule' | 'manual'>>(new Map())
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [loading, setLoading]     = useState(true)
   const [initing, setIniting]     = useState(false)
@@ -117,7 +128,7 @@ export function CxIndexPage({ projectId }: Props) {
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
-    const [gRes, eRes, cRes] = await Promise.all([
+    const [gRes, eRes, cRes, aRes] = await Promise.all([
       supabase
         .from('project_cx_stage_groups')
         .select('id, project_id, name, sort_order, project_cx_columns(id, stage_group_id, label, sort_order)')
@@ -132,6 +143,10 @@ export function CxIndexPage({ projectId }: Props) {
       supabase
         .from('cx_cell_values')
         .select('equipment_id, column_id, status')
+        .eq('project_id', projectId),
+      supabase
+        .from('cx_cell_applicability')
+        .select('equipment_id, column_id, source')
         .eq('project_id', projectId),
     ])
 
@@ -150,6 +165,12 @@ export function CxIndexPage({ projectId }: Props) {
       cellMap.set(`${row.equipment_id}:${row.column_id}`, row.status as CellStatus)
     })
     setCells(cellMap)
+
+    const na = new Map<string, 'rule' | 'manual'>()
+    ;(aRes.data ?? []).forEach((row: any) => {
+      na.set(`${row.equipment_id}:${row.column_id}`, row.source)
+    })
+    setNaMap(na)
     setLoading(false)
   }, [projectId])
 
@@ -190,6 +211,43 @@ export function CxIndexPage({ projectId }: Props) {
     }
     await fetchAll()
     setIniting(false)
+  }
+
+  /**
+   * MANUAL APPLICABILITY OVERRIDE — alt-click a cell.
+   *
+   * Writes source='manual', which is what makes it immune to rule re-application:
+   * A3 re-applies rules against source='rule' rows ONLY. The precedence lives in
+   * the column rather than in the care of whoever writes the next query.
+   *
+   * Marking not-applicable NEVER touches cx_cell_values, so a done cell keeps its
+   * status and stays visible, struck through.
+   */
+  async function toggleApplicable(equipId: string, colId: string) {
+    const key = `${equipId}:${colId}`
+    const wasNa = naMap.has(key)
+
+    setNaMap(prev => {
+      const m = new Map(prev)
+      if (wasNa) m.delete(key)
+      else m.set(key, 'manual')
+      return m
+    })
+
+    const { data: auth } = await supabase.auth.getUser()
+    const { error } = wasNa
+      ? await supabase.from('cx_cell_applicability').delete()
+          .eq('equipment_id', equipId).eq('column_id', colId)
+      : await supabase.from('cx_cell_applicability').upsert({
+          project_id: projectId, equipment_id: equipId, column_id: colId,
+          applicable: false, source: 'manual', set_by: auth?.user?.id ?? null,
+          set_at: new Date().toISOString(),
+        }, { onConflict: 'equipment_id,column_id' })
+
+    if (error) {
+      reportError(error, 'change whether this applies')
+      await fetchAll()          // the optimistic view was a guess; refetch the truth
+    }
   }
 
   // ── Cell toggle (optimistic) ────────────────────────────────────────────────
@@ -238,12 +296,28 @@ export function CxIndexPage({ projectId }: Props) {
 
   // ── Progress ────────────────────────────────────────────────────────────────
 
+  /** Applicable unless the overlay says otherwise. Absent row = applicable. */
+  const isNa = (equipId: string, colId: string) => naMap.has(`${equipId}:${colId}`)
+
+  /**
+   * PROGRESS EXCLUDES NOT-APPLICABLE FROM BOTH SIDES.
+   *
+   * A cell that does not apply is not work outstanding, so it leaves the
+   * denominator. It also leaves the NUMERATOR even when its status is 'done' —
+   * otherwise a unit with more done-then-N/A'd cells than applicable ones reports
+   * over 100%, which is the arithmetic telling an obvious lie.
+   *
+   * The done-on-later-N/A'd cell still RENDERS (struck through). It is the one
+   * state the UI shows that the arithmetic ignores, and hiding it would quietly
+   * discard a record of work someone actually did.
+   */
   function rowProgress(equipId: string) {
     let done = 0, total = 0
     groups.forEach(g =>
       g.columns.forEach(col => {
+        if (isNa(equipId, col.id)) return
         const s = cells.get(`${equipId}:${col.id}`)
-        if (s === 'na') return
+        if (s === 'na') return          // deprecated status, still honoured on read
         total++
         if (s === 'done') done++
       })
@@ -451,7 +525,7 @@ export function CxIndexPage({ projectId }: Props) {
     let outstanding = 0, done = 0, na = 0
     g.columns.forEach(c => {
       const st = cells.get(`${equipId}:${c.id}`)
-      if (st === 'na') na++
+      if (isNa(equipId, c.id) || st === 'na') na++
       else if (st === 'done') done++
       else outstanding++
     })
@@ -591,7 +665,8 @@ export function CxIndexPage({ projectId }: Props) {
         {[
           { label: 'Done', bg: 'bg-teal-700', text: 'text-white', symbol: '✓' },
           { label: 'In Progress', bg: 'bg-amber-400', text: 'text-white', symbol: '◐' },
-          { label: 'N/A', bg: 'bg-gray-200', text: 'text-gray-400', symbol: '—' },
+          { label: 'Not applicable (alt-click)', bg: 'bg-gray-100', text: 'text-gray-300', symbol: '·' },
+          { label: 'Done, now n/a', bg: 'bg-gray-100', text: 'text-gray-400 line-through', symbol: '✓' },
           { label: 'Blank (click to cycle)', bg: 'bg-white border border-gray-200', text: 'text-gray-300', symbol: '' },
         ].map(({ label, bg, text, symbol }) => (
           <span key={label} className="flex items-center gap-1 text-[9px] text-gray-500">
@@ -601,7 +676,9 @@ export function CxIndexPage({ projectId }: Props) {
             {label}
           </span>
         ))}
-        <span className="ml-4 text-[9px] text-gray-400">Click column header to collapse/expand group</span>
+        <span className="ml-4 text-[9px] text-gray-400">
+          Click header to collapse · <span className="font-semibold">alt-click a cell</span> = does not apply
+        </span>
       </div>
 
       {/* ── Matrix ─────────────────────────────────────────────────────────── */}
@@ -797,25 +874,51 @@ export function CxIndexPage({ projectId }: Props) {
 
                         return g.columns.map(col => {
                           const status = cells.get(`${equip.id}:${col.id}`)
-                          const cellBg = status === 'done'
+                          const na = isNa(equip.id, col.id) || status === 'na'
+                          // A DONE CELL THAT NO LONGER APPLIES still renders. It
+                          // leaves the arithmetic but not the record — someone did
+                          // that work, and hiding it would quietly discard the fact.
+                          const doneButNa = na && status === 'done'
+
+                          const cellBg = na
+                            ? 'bg-gray-100'
+                            : status === 'done'
                             ? 'bg-teal-700'
                             : status === 'in_progress'
                             ? 'bg-amber-400'
-                            : status === 'na'
-                            ? 'bg-gray-200'
                             : rowBg
 
                           return (
                             <td
                               key={`${col.id}-${equip.id}`}
-                              className={`${cellBg} border-b border-r border-gray-100 text-center cursor-pointer select-none hover:opacity-80 transition-opacity`}
+                              className={`${cellBg} border-b border-r border-gray-100 text-center select-none transition-opacity ${
+                                na ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
                               style={{ height: '1.75rem' }}
-                              onClick={() => toggleCell(equip.id, col.id)}
-                              title={`${equip.tag ?? equip.descriptor} — ${col.label}: ${status ?? 'blank'}`}
+                              onClick={e => {
+                                // Alt-click rules on applicability; plain click cycles
+                                // status. A not-applicable cell does not cycle — there
+                                // is no progress to record on work that will not happen.
+                                if (e.altKey) { void toggleApplicable(equip.id, col.id); return }
+                                if (!na) void toggleCell(equip.id, col.id)
+                              }}
+                              title={
+                                na
+                                  ? `${equip.tag} — ${col.label}: NOT APPLICABLE` +
+                                    `${naMap.get(`${equip.id}:${col.id}`) === 'rule' ? ' (by rule)' : ''}` +
+                                    `${doneButNa ? ' — was completed' : ''}` +
+                                    ` · alt-click to restore`
+                                  : `${equip.tag ?? equip.descriptor} — ${col.label}: ${status ?? 'blank'}` +
+                                    ` · alt-click = not applicable`
+                              }
                             >
-                              {status === 'done'        && <span className="text-white" style={{ fontSize: '10px' }}>✓</span>}
-                              {status === 'in_progress' && <span className="text-white" style={{ fontSize: '9px' }}>◐</span>}
-                              {status === 'na'          && <span className="text-gray-400" style={{ fontSize: '8px' }}>—</span>}
+                              {doneButNa && (
+                                <span className="text-gray-400 line-through" style={{ fontSize: '9px' }}>✓</span>
+                              )}
+                              {na && !doneButNa && (
+                                <span className="text-gray-300" style={{ fontSize: '8px' }}>·</span>
+                              )}
+                              {!na && status === 'done'        && <span className="text-white" style={{ fontSize: '10px' }}>✓</span>}
+                              {!na && status === 'in_progress' && <span className="text-white" style={{ fontSize: '9px' }}>◐</span>}
                             </td>
                           )
                         })
