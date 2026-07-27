@@ -18,18 +18,12 @@ await page.getByRole('button', { name: 'Sign In' }).click()
 await page.waitForTimeout(3500)
 
 // Seneca — the real register, not a fixture. A1's whole claim is that it makes a
-// 367-row matrix workable, and that is not testable on three rows.
-await page.goto(`${BASE_URL}/projects`)
-await page.waitForTimeout(2000)
-await page.getByText('Seneca Health and Wellness Center', { exact: false }).first().click()
-await page.waitForTimeout(2500)
-
-const idx = page.getByRole('link', { name: /Cx Index/i }).first()
-if (await idx.count()) { await idx.click(); await page.waitForTimeout(3000) }
-else {
-  await page.goto(page.url().replace(/\/$/, '') + '/cx-index')
-  await page.waitForTimeout(3000)
-}
+// 367-row matrix workable, and that is not testable on three rows. Navigate by id
+// and tab param rather than clicking through: this is a render check, not a
+// navigation test, and a brittle click path would fail for the wrong reason.
+const SENECA = 'a0a6791f-f24b-4397-89cd-61094aa78714'
+await page.goto(`${BASE_URL}/projects/${SENECA}?tab=cx_index`)
+await page.waitForTimeout(4000)
 
 await page.screenshot({ path: 'out/a1-1-index.png' })
 console.log('1/4 index')
