@@ -1,6 +1,7 @@
 // api/classify-applicability — run the classifier over a project's register.
 //
-//   POST { project_id }  → { run_id, rules, exceptions, cost_cents }
+//   POST { project_id, run_id?, offset? }
+//     → { run_id, next_offset, rules, exceptions, cost_cents, done }
 //
 // Reads the register and the project's stage structure and PROPOSES which
 // (type × stage-group) combinations do not apply. Nothing is applied: every
@@ -26,9 +27,14 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
  *  burden scales with types.
  *
  *  KEPT SMALL DELIBERATELY. Reasoning over 40 type-groups against 12 stage groups
- *  is 480 judgements in one call — it blew the function timeout on the first real
- *  run. Several bounded calls beat one that may not return. */
-const BATCH = 30
+ *  is ~480 judgements — it blew the function timeout twice on the first real run.
+ *
+ *  ONE BATCH PER REQUEST. The platform ceiling here is 60s and no maxDuration
+ *  raises it, so the fix is not a longer timeout but BOUNDED WORK: the caller
+ *  passes an offset, gets one batch back with the next offset, and loops. Each
+ *  request finishes comfortably, the UI can show progress, and a slow batch costs
+ *  a retry rather than the whole run. */
+const BATCH = 15
 
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res)) return
@@ -77,54 +83,64 @@ export default async function handler(req: any, res: any) {
                                : `${u.n} unit${u.n === 1 ? '' : 's'}`,
     }))
 
-    const runId = randomUUID()
-    const allRules: any[] = []
-    const allExceptions: any[] = []
-    let cents = 0
-
-    for (let i = 0; i < units.length; i += BATCH) {
-      const slice = units.slice(i, i + BATCH)
-      const run = await runAgent<ClassifierOutput>('classifier',
-        { units: slice, stage_groups },
-        { task:
-            'Propose which commissioning stage groups DO NOT APPLY to which equipment ' +
-            'types on this project, so the index reports honest denominators.\n\n' +
-            'RULES FIRST: one rule per (equipment_type, stage_group) settles every unit ' +
-            'of that type. Only raise an EXCEPTION where a specific unit differs from ' +
-            'its type. A per-unit answer for every unit is the wrong shape.\n\n' +
-            'Use the DESCRIPTOR and CATEGORY to decide what a thing is. A tag prefix is ' +
-            'not evidence of type — on this register RP is a radiant panel on the ' +
-            'mechanical drawings and a receptacle panel on the electrical.\n\n' +
-            'Set life_safety: true on anything touching integrated systems testing, ' +
-            'fire or smoke control, emergency power transfer, or stair pressurization.\n\n' +
-            'Where the register does not say enough to decide, give a LOW confidence and ' +
-            'say why. Do not guess.\n\n' +
-            'Return JSON only: { "rules": [ { "equipment_type", "stage_group", "column", ' +
-            '"applicable", "rationale", "confidence", "units_affected", "life_safety" } ], ' +
-            '"exceptions": [ { "tag", "stage_group", "column", "applicable", "rationale", ' +
-            '"confidence", "life_safety" } ] }',
-        })
-      await logAgentRun(service, {
-        agentKey: 'classifier', feature: 'cx-index:classify', projectId: project_id,
-        run, createdBy: user.userId, runId,
-      })
-      if (!run.ok) {
-        return res.status(502).json({
-          error: 'The classifier could not be read. Nothing was proposed.',
-          reason: run.failure, retryable: true,
-        })
-      }
-      allRules.push(...(run.value!.rules ?? []))
-      allExceptions.push(...(run.value!.exceptions ?? []))
-      if (run.usage) {
-        cents += run.usage.inputTokens / 1e6 * 300 + run.usage.outputTokens / 1e6 * 1500
-      }
+    // The caller drives the loop; we do exactly one batch.
+    const runId: string = req.body?.run_id ?? randomUUID()
+    const offset: number = Math.max(0, Number(req.body?.offset ?? 0))
+    const slice = units.slice(offset, offset + BATCH)
+    if (slice.length === 0) {
+      return res.status(200).json({ run_id: runId, next_offset: null, done: true,
+                                    rules: 0, exceptions: 0, cost_cents: 0 })
     }
 
-    // Replace any previous UNRULED proposal set for this project. A ratified or
-    // rejected proposal is a decision and is never overwritten by a re-run.
-    await service.from('cx_applicability_proposals')
-      .delete().eq('project_id', project_id).eq('status', 'proposed')
+    const run = await runAgent<ClassifierOutput>('classifier',
+      { units: slice, stage_groups },
+      { task: [
+          'Propose which commissioning stage groups DO NOT APPLY to which equipment',
+          'types on this project, so the index reports honest denominators.',
+          '',
+          'RULES FIRST: one rule per (equipment_type, stage_group) settles every unit',
+          'of that type. Only raise an EXCEPTION where a specific unit differs from',
+          'its type. A per-unit answer for every unit is the wrong shape.',
+          '',
+          'Use the DESCRIPTOR and CATEGORY to decide what a thing is. A tag prefix is',
+          'not evidence of type — on this register RP is a radiant panel on the',
+          'mechanical drawings and a receptacle panel on the electrical.',
+          '',
+          'Set life_safety: true on anything touching integrated systems testing,',
+          'fire or smoke control, emergency power transfer, or stair pressurization.',
+          '',
+          'Where the register does not say enough to decide, give a LOW confidence',
+          'and say why. Do not guess.',
+          '',
+          'Return JSON only: { "rules": [ { "equipment_type", "stage_group", "column",',
+          '"applicable", "rationale", "confidence", "units_affected", "life_safety" } ],',
+          '"exceptions": [ { "tag", "stage_group", "column", "applicable", "rationale",',
+          '"confidence", "life_safety" } ] }',
+        ].join('\n'),
+      })
+
+    await logAgentRun(service, {
+      agentKey: 'classifier', feature: 'cx-index:classify', projectId: project_id,
+      run, createdBy: user.userId, runId,
+    })
+    if (!run.ok) {
+      return res.status(502).json({
+        error: 'The classifier could not be read. Nothing was proposed for this batch.',
+        reason: run.failure, retryable: true, run_id: runId, offset,
+      })
+    }
+    const allRules = run.value!.rules ?? []
+    const allExceptions = run.value!.exceptions ?? []
+    const cents = run.usage
+      ? run.usage.inputTokens / 1e6 * 300 + run.usage.outputTokens / 1e6 * 1500 : 0
+
+    // Clear prior UNRULED proposals on the FIRST batch only — clearing on every
+    // batch would delete the proposals the previous batches just wrote. A ratified
+    // or rejected proposal is a decision and is never overwritten by a re-run.
+    if (offset === 0) {
+      await service.from('cx_applicability_proposals')
+        .delete().eq('project_id', project_id).eq('status', 'proposed')
+    }
 
     const byTag = new Map(equip.map((e: any) => [e.tag.toUpperCase(), e.id]))
     const rows = [
@@ -153,10 +169,14 @@ export default async function handler(req: any, res: any) {
       if (error) return res.status(500).json({ error: error.message })
     }
 
+    const nextOffset = offset + BATCH
     return res.status(200).json({
       run_id: runId,
+      next_offset: nextOffset < units.length ? nextOffset : null,
+      done: nextOffset >= units.length,
       units_considered: equip.length,
       type_groups: units.length,
+      progress: `${Math.min(nextOffset, units.length)}/${units.length}`,
       rules: allRules.length,
       exceptions: allExceptions.length,
       life_safety: rows.filter(r => r.life_safety).length,

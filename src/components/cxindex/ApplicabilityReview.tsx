@@ -48,16 +48,32 @@ export function ApplicabilityReview({ projectId, onApplied }: {
 
   useEffect(() => { void fetchAll() }, [fetchAll])
 
+  /** THE CLIENT DRIVES THE LOOP. The platform caps a function at 60s and no
+   *  setting raises it, so the endpoint does ONE batch and hands back the next
+   *  offset. Bounded work per request, visible progress, and a slow batch costs a
+   *  retry rather than the whole run. */
   async function classify() {
-    setBusy(true); setNote(null)
+    setBusy(true); setNote('Classifying…')
     try {
       const { authedFetch } = await import('../../lib/api')
-      const res = await authedFetch('/api/classify-applicability', { project_id: projectId })
-      const body = await res.json().catch(() => ({}))
-      setNote(res.ok
-        ? `${body.rules} rule(s), ${body.exceptions} exception(s) across ${body.type_groups} ` +
-          `type groups · ${body.units_considered} units · ${body.cost_cents}c`
-        : (body.error ?? 'The classifier failed.'))
+      let offset: number | null = 0
+      let runId: string | undefined
+      let rules = 0, excs = 0, cents = 0, guard = 0
+
+      while (offset !== null && guard++ < 40) {
+        const res = await authedFetch('/api/classify-applicability',
+          { project_id: projectId, offset, run_id: runId })
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) { setNote(body.error ?? 'The classifier failed.'); return }
+        runId = body.run_id
+        rules += body.rules ?? 0
+        excs  += body.exceptions ?? 0
+        cents += body.cost_cents ?? 0
+        setNote(`Classifying… ${body.progress ?? ''} · ${rules} rules, ${excs} exceptions`)
+        offset = body.next_offset
+        await fetchAll()
+      }
+      setNote(`${rules} rule(s), ${excs} exception(s) · ${cents.toFixed(2)}c`)
       await fetchAll()
     } finally { setBusy(false) }
   }

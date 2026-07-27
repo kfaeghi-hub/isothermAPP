@@ -16,13 +16,13 @@
       "maxDuration": 60
     },
     "api/classify-applicability.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "api/cx-plan-draft.ts": {
-      "maxDuration": 120
+      "maxDuration": 60
     },
     "api/librarian-harvest.ts": {
-      "maxDuration": 120
+      "maxDuration": 60
     }
   }
 }
