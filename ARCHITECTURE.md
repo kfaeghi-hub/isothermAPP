@@ -1064,6 +1064,29 @@ Two habits that go with it:
   0 (must be 0)`). A cleanup that silently did nothing looks identical to one that
   worked.
 
+### Ops: a tool that writes to a real project carries a resolve-and-refuse guard
+
+The test harness is guarded one way — `pw-config` forbids touching anything except
+ZZ-TEST. **A tool that deliberately writes to a real client project needs the
+inverse guard**, and it is not optional: it must resolve its target at run time
+and refuse if what comes back is not what it expected.
+
+Resolving by a stable key (`com_number`) and then **asserting the resolved name**
+is the shape that works. Either half alone is weak: an id can be stale, and a
+name can be edited. Together they catch the realistic failure — a copied script,
+an edited constant, a project renumbered between runs.
+
+**Fire it at the wrong target once, and record the refusal.** A guard that has
+never refused anything is a guard nobody has tested; it is indistinguishable from
+a guard with the comparison inverted. `seneca-import.mjs` was pointed at Humber
+and produced:
+
+> `REFUSING: com_number 257882 resolved to "Humber College New Mechanical RM Cx",
+> expected "Seneca Health and Wellness Center".`
+
+Same family as prove-the-mechanism: the proof is the refusal, not the absence of
+damage.
+
 ### Wait for the condition, never for the clock
 
 **`waitForTimeout(n)` before an assertion is an assumption about how long

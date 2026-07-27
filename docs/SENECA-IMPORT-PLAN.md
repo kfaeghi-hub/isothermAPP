@@ -481,7 +481,104 @@ expected name. Proven, not assumed — pointed at Humber (`257882`) it refuses:
 > `REFUSING: com_number 257882 resolved to "Humber College New Mechanical RM Cx",
 > expected "Seneca Health and Wellness Center".`
 
-**Stages 4-9 not started.**
+### Stage 4 — Cx Index cells · **COMPLETE** 2026-07-27
+
+**372 cells**, all `done`, into 2 of the project's 88 columns. Sparse by design.
+
+#### Reconciliation — 384 raw is not 372 written
+
+| Step | Count |
+|---|---|
+| Green (`FF00B050`) cells above the divider | **384** |
+| less: greens on rows carrying no tag in column D | −4 |
+| less: greens on the 8 duplicate source tags collapsed in stage 3 | −8 |
+| **written** | **372** |
+
+Greens found **below** row 433: **0** — the row-433 exclusion holds without
+needing to be applied. The 62 amber cells all sit on row 433 itself, a
+`SYSTEM-BASED REQUIRED REPORTS` divider with no tag, so **no `in_progress` cell
+was imported at all** and the check asserting "0 cells with a status other than
+done" is the proof.
+
+| Column | Cells |
+|---|---|
+| `IFC Drawings / Specifications` | 367 |
+| `Shop Dwgs` | 5 |
+
+The project's index structure (12 stage groups, 88 columns) was already
+materialized from the firm defaults, so the importer resolves columns by label
+rather than creating any — the grid is identical to one initialized in the UI.
+
+| Check | Result |
+|---|---|
+| Cells on the project | **372** (expected 372) |
+| Batch coverage | 372 of 372 |
+| Tags / columns unresolved | **0 / 0** |
+| Status other than `done` | **0** |
+| Populated columns | **2 of 88** |
+| Idempotency | `UNIQUE (equipment_id, column_id)` + upsert — re-run holds at 372 |
+
+### Stage 5 — design-review findings · **COMPLETE** 2026-07-27
+
+**126 findings**, origin `design_review`, `DR-` prefixed. **9 closed / 117 open**,
+matching the measured split in §8.2 exactly.
+
+| Category (the document's own sections) | Items |
+|---|---|
+| HVAC / Plumbing | 73 |
+| Envelope Commissioning (BECx) | 37 |
+| Electrical Systems | 8 |
+| M&E Specifications | 5 |
+| General, LEED v4 & Net-Zero Energy | 3 |
+
+Categories preserve the review document's own taxonomy rather than being forced
+into `project_trades` — three of the five sections have no trade equivalent, and
+mapping the other two while inventing three would make the register's structure
+look like a trade breakdown it is not. Adjustable if trade filtering is wanted.
+
+#### The prefix is load-bearing, and it was proven
+
+`auto_set_finding_number()` takes `MAX` over numbers matching `^\d+$` only, so
+`DR-` numbers are invisible to it. Verified by running **the trigger's own
+expression against live Seneca data** — a read, no write, no test row in a real
+project:
+
+> `next_app_created_finding_number = 1` · `numeric_numbers_present = 0`
+
+The project's own construction findings will start at **#1**, with the 126
+design-review items sitting in a visibly separate register. No collision is
+possible, and the import is fully reversible by batch id.
+
+#### Dates — carried where the document carried them, NULL where it did not
+
+- `date_raised` = **2025-09-24** (the document's revision date) for all 126.
+  Individual items carry no raise date; one honest uniform date beats 126
+  invented ones.
+- `date_closed` set on **5 of 9** closed items, from the date on the closing
+  response. The other **4 are NULL** — the source closed them without a date.
+  `trg_finding_close_date` is **BEFORE UPDATE only**, so the insert did not stamp
+  `CURRENT_DATE`; asserted explicitly (`closed findings stamped with today's
+  date: 0`).
+- 49 of 126 carry a recorded response in `corrective_action`.
+
+#### A source defect preserved rather than smoothed
+
+Item **2.63 appears twice**, carrying two genuinely different comments — IST
+questions, and M9.01 equipment-schedule outdoor-air requirements. Collapsing to
+125 would have silently dropped a real review comment. Both are imported; the
+second is **`DR-2.63b`**, so the source number stays legible and the suffix marks
+the disambiguation rather than hiding it.
+
+| Check | Result |
+|---|---|
+| Findings on the project | **126** (expected 126) |
+| Batch coverage | 126 of 126 |
+| Status split | **9 closed / 117 open** |
+| Not marked `design_review` | **0** |
+| Numeric numbers consumed | **0** — next app finding is #1 |
+| Closed findings stamped today | **0** |
+
+**Stages 6-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
 normal API as `dev.admin`, every row carrying its import batch id, historical
