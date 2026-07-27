@@ -14,7 +14,7 @@ import {
   SECTIONS, APPENDIX_MENU, OPTION_LABELS, narrativeKeys,
   fetchPlan, fetchRevisions, fetchSections, fetchAnswers,
   saveAnswer, saveBackground, saveRoleDesignation, createPlan,
-  acceptSection, approvePlan, draftSection, generatePlan,
+  acceptSection, approvePlan, draftSection, generatePlan, DraftError,
   type CxPlan, type PlanSection, type Tier,
 } from '../lib/cxPlan'
 import { SectionReview } from '../components/cxplan/ReviewScreen'
@@ -34,6 +34,11 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // A drafting failure is shown INLINE with its reason and a Retry, not as an
+  // alert() with an OK button. "Nothing was saved" is only reassuring if the
+  // next step is obvious.
+  const [draftError, setDraftError] = useState<
+    { section: string; message: string; reason?: string } | null>(null)
 
   const tier: Tier = (plan?.tier ?? 'standard')
   const options: Record<string, boolean> = JSON.parse(answers.options || '{}')
@@ -114,23 +119,38 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
     } finally { setBusy(null) }
   }
 
-  async function draftAll() {
-    if (!plan) return
-    for (const k of nKeys) {
-      setBusy(`draft:${k}`)
-      try { await draftSection(plan.id, k) }
-      catch (e: any) { reportError(e, `draft ${k}`); break }
+  async function draftOne(k: string, note?: string): Promise<boolean> {
+    if (!plan) return false
+    setBusy(`draft:${k}`)
+    try {
+      await draftSection(plan.id, k, note)
+      setDraftError(null)
+      return true
+    } catch (e: unknown) {
+      if (e instanceof DraftError) {
+        setDraftError({ section: k, message: e.message, reason: e.reason })
+      } else {
+        reportError(e as Error, `draft ${k}`)
+      }
+      return false
+    } finally {
+      setBusy(null)
+      setSections(await fetchSections(plan.id))
     }
-    setBusy(null); setSections(await fetchSections(plan.id)); setStep(6)
   }
 
-  async function redraft(key: string, note?: string) {
+  async function draftAll() {
     if (!plan) return
-    setBusy(`draft:${key}`)
-    try { await draftSection(plan.id, key, note); setSections(await fetchSections(plan.id)) }
-    catch (e: any) { reportError(e, `redraft ${key}`) }
-    finally { setBusy(null) }
+    setDraftError(null)
+    for (const k of nKeys) {
+      // Stop at the first failure so the error names the section it belongs to,
+      // rather than burying it under later sections that may also fail.
+      if (!await draftOne(k)) { setStep(6); return }
+    }
+    setStep(6)
   }
+
+  const redraft = (key: string, note?: string) => draftOne(key, note)
 
   async function accept(key: string, text: string) {
     if (!plan) return
@@ -385,6 +405,29 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
               {busy?.startsWith('draft') ? `Drafting ${busy.split(':')[1]}…` : 'Draft all sections'}
             </button>
           </Screen>
+        )}
+
+        {draftError && (
+          <div className="mb-3 p-3 rounded-md bg-red-50 border border-red-200">
+            <p className="text-sm font-semibold text-red-800">
+              Couldn't draft {SECTIONS.find(s => s.key === draftError.section)?.title ?? draftError.section}
+            </p>
+            <p className="text-xs text-red-700 mt-1">{draftError.message}</p>
+            {draftError.reason === 'truncated' && (
+              <p className="text-[11px] text-red-700 mt-1">
+                This section produced more text than its length budget allows. Retrying
+                usually works; if it keeps happening the section has too many facts.
+              </p>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => draftOne(draftError.section)} disabled={!!busy}
+                className="text-xs px-3 py-1.5 rounded bg-red-600 text-white font-medium disabled:opacity-50">
+                {busy ? 'Retrying…' : 'Retry this section'}
+              </button>
+              <button onClick={() => setDraftError(null)}
+                className="text-xs px-2 py-1.5 text-red-700">Dismiss</button>
+            </div>
+          </div>
         )}
 
         {/* 7 · REVIEW */}

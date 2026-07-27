@@ -147,10 +147,21 @@ export async function approvePlan(planId: string, userId: string) {
   }).eq('id', planId).select('id')
 }
 
+/** A drafting failure the UI can act on: it carries the reason and whether a
+ *  retry is worth offering, instead of collapsing to a string in an alert(). */
+export class DraftError extends Error {
+  constructor(message: string, public reason?: string, public retryable = false) {
+    super(message)
+  }
+}
+
 export async function draftSection(planId: string, sectionKey: string, note?: string) {
   const res = await authedFetch('/api/cx-plan-draft', { plan_id: planId, section_key: sectionKey, note })
   const body = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(body.error ?? apiErrorMessage(res.status, body))
+  if (!res.ok) {
+    throw new DraftError(
+      body.error ?? apiErrorMessage(res.status, body), body.reason, !!body.retryable)
+  }
   return body as { prose: string; claims: { text: string; supported_by: string }[]; flags: Flag[] }
 }
 

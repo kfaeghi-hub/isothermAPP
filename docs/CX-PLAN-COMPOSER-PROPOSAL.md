@@ -22,6 +22,29 @@ D6, D7) and §13 accepted. Shipped across six commits; gate `pw-cx-plan.mjs`
 > (`400 — deprecated for this model`), and Vercel bakes env vars into a deployment
 > at build time, so the key needed a redeploy to take effect.
 
+## As-built notes from the first human calibration run (2026-07-27)
+
+**The two-call design worked on its first outing.** On the Background section the
+verification pass flagged *"Isotherm Engineering Ltd."* as **contradicting the
+supplied facts** — the ZZ-TEST matrix seats the sister entity *Isotherm
+Commissioning Ltd.*, and the drafting model followed the corpus's identity over
+the facts it was given. That is exactly the failure the adversarial second call
+exists to catch: a claim that is plausible, house-style-correct, and wrong for
+this project. It was caught, surfaced beside the facts, and left for the CxA to
+rule on. Recorded because it is the design's first real evidence, not a hope.
+
+**Roles and Responsibilities failed to draft** — truncation, diagnosed from
+`ai_generations` alone: two draft calls at exactly 1200 output tokens (the flat
+ceiling) with no verification call after either, because the JSON was cut off
+mid-object. Fixed as a class rather than an instance: per-section token budgets
+(Roles is the only section whose length scales with the team matrix, and the
+claims array roughly doubles every section's output), truncation raised as its
+own error distinct from a parse failure, one automatic retry for the parse cases
+only, the raw response always logged server-side, and an inline retryable error
+in the UI instead of an alert with an OK button.
+
+---
+
 Calibrated against the three real plans, copied out of ShareSync into gitignored
 `samples/cx-plans/` and analysed locally (`extract.mjs`): **Humber** and
 **Mulock** (standard tier, both .docx) and **Seneca** (tender tier, PDF). No

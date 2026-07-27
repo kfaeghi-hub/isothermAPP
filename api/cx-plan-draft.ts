@@ -20,7 +20,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 import {
-  buildContext, callModel, logGeneration, parseJson, knowledgeVersion, AiError,
+  buildContext, callModel, logGeneration, parseJson, parseModelJson,
+  JSON_RETRY_REMINDER, knowledgeVersion, AiError,
 } from './_shared/ai-common.js'
 import { SECTIONS } from './_shared/cx-plan-assembly.js'
 
@@ -37,6 +38,33 @@ const INTENT: Record<string, string> = {
   ils:         'Two to four sentences on integrated life safety systems testing for this project.',
   tab:         'Two to four sentences on the testing, adjusting and balancing scope and Isotherm\'s verification role.',
   schedule:    'Three to five sentences on commissioning sequencing across the project phases supplied.',
+}
+
+/**
+ * PER-SECTION TOKEN BUDGET.
+ *
+ * The first calibration run failed on Roles and Responsibilities at exactly 1200
+ * output tokens — the flat ceiling — with no verification call after it, because
+ * the JSON was cut off mid-object. Roles writes one line per participating
+ * company, so its length scales with the team matrix while every other section
+ * is a fixed few sentences.
+ *
+ * And the CLAIMS ARRAY ROUGHLY DOUBLES THE OUTPUT: every sentence of prose comes
+ * back a second time as a claim with its supporting fact key. A budget sized for
+ * the prose alone is therefore about half of what the contract actually needs.
+ * These numbers are prose-estimate x2 plus headroom.
+ */
+function budgetFor(sectionKey: string): number {
+  const BUDGETS: Record<string, number> = {
+    background: 1500,    // 2-4 sentences
+    roles: 3000,         // one line PER COMPANY — the only section that scales
+    process: 2000,       // 3-5 sentences
+    operational: 1800,   // 2-4 sentences
+    ils: 1800,
+    tab: 1800,
+    schedule: 2200,      // 3-5 sentences across phases
+  }
+  return BUDGETS[sectionKey] ?? 2000
 }
 
 export default async function handler(req: any, res: any) {
@@ -123,15 +151,64 @@ export default async function handler(req: any, res: any) {
       ],
     })
 
-    const draft = await callModel({ system, user: userMsg, maxTokens: 1200 })
+    type Draft = { prose: string; claims: { text: string; supported_by: string }[] }
+    const isDraft = (v: any): v is Draft =>
+      !!v && typeof v.prose === 'string' && v.prose.trim().length > 0 &&
+      (v.claims === undefined || Array.isArray(v.claims))
+
+    // ONE automatic retry with a terse reminder. Most unparseable responses are
+    // fence-wrapping or stray commentary and clear on the second attempt; a
+    // truncation does not, so it is NOT retried — the same budget would produce
+    // the same cut-off, at the same cost.
+    let draft = await callModel({ system, user: userMsg, maxTokens: budgetFor(section_key) })
     await logGeneration(service, {
       feature: 'cx-plan:draft', projectId: plan.project_id,
       result: draft, createdBy: user.userId,
     })
-    const parsed = parseJson<{ prose: string; claims: { text: string; supported_by: string }[] }>(draft.text)
-    if (!parsed?.prose) {
-      return res.status(502).json({ error: 'The draft could not be read. Nothing was saved.' })
+    let outcome = parseModelJson<Draft>(draft, isDraft)
+
+    if (!outcome.ok && outcome.failure !== 'truncated') {
+      console.warn(`[cx-plan-draft] ${section_key}: ${outcome.failure} — retrying once. Raw:\n` +
+        String(outcome.raw ?? '').slice(0, 2000))
+      draft = await callModel({
+        system, user: userMsg + JSON_RETRY_REMINDER, maxTokens: budgetFor(section_key),
+      })
+      await logGeneration(service, {
+        feature: 'cx-plan:draft:retry', projectId: plan.project_id,
+        result: draft, createdBy: user.userId,
+      })
+      outcome = parseModelJson<Draft>(draft, isDraft)
     }
+
+    if (!outcome.ok) {
+      // ALWAYS log the raw response. This is the diagnosis; without it the only
+      // signal is a generic message and a guess. Server-side only — the raw text
+      // never goes to a browser.
+      console.error(`[cx-plan-draft] ${section_key}: ${outcome.failure} after retry. ` +
+        `stop_reason=${draft.stopReason} output_tokens=${draft.outputTokens} ` +
+        `budget=${budgetFor(section_key)}\nRAW:\n` + String(outcome.raw ?? '').slice(0, 4000))
+
+      // A TRUNCATION IS ITS OWN ERROR, not a parse failure. They have different
+      // fixes — one needs a bigger budget, the other a better prompt — and the
+      // message must say which so a human is not left guessing.
+      const messages: Record<string, string> = {
+        truncated:
+          `The ${def.title} draft ran past its length budget and was cut off ` +
+          `(${draft.outputTokens} tokens). Nothing was saved. Try again, or shorten ` +
+          `the facts this section draws on.`,
+        unparseable:
+          `The ${def.title} draft came back in a form we could not read, twice. ` +
+          `Nothing was saved.`,
+        'wrong-shape':
+          `The ${def.title} draft was missing its prose, twice. Nothing was saved.`,
+      }
+      return res.status(502).json({
+        error: messages[outcome.failure!] ?? 'The draft could not be read. Nothing was saved.',
+        reason: outcome.failure,
+        retryable: true,
+      })
+    }
+    const parsed = outcome.value!
 
     // ── Call 2: adversarial verification, separate context ─────────────────
     const verify = await callModel({
@@ -141,7 +218,9 @@ export default async function handler(req: any, res: any) {
         'facts do not support, contradict, or leave vague. Return JSON only: ' +
         '{ "flags": [ { "span": string, "claim": string, "severity": "unsupported"|"contradicted"|"vague", "why": string } ] }',
       user: JSON.stringify({ prose: parsed.prose, facts }),
-      maxTokens: 800,
+      // Flags carry a span, a claim and a reason each, so this scales with the
+      // number of problems found — not with the prose length.
+      maxTokens: 1500,
     })
     await logGeneration(service, {
       feature: 'cx-plan:verify', projectId: plan.project_id,

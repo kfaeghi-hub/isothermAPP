@@ -124,6 +124,13 @@ export interface ModelResult {
   inputTokens: number
   outputTokens: number
   model: string
+  /** The API's own reason for stopping. `max_tokens` means the response was
+   *  CUT OFF mid-sentence — and, for a JSON contract, mid-object. That is a
+   *  budget failure, not a parse failure, and callers must be able to tell them
+   *  apart: one is fixed by raising the ceiling, the other by fixing the prompt.
+   *  Inferring it from `outputTokens === maxTokens` also works but is a guess;
+   *  this is the API saying so. */
+  stopReason: string | null
 }
 
 export class AiError extends Error {
@@ -166,8 +173,47 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
     inputTokens: j.usage?.input_tokens ?? 0,
     outputTokens: j.usage?.output_tokens ?? 0,
     model: j.model ?? MODEL,
+    stopReason: j.stop_reason ?? null,
   }
 }
+
+/** Distinguishes the two ways a JSON contract fails, because they have different
+ *  fixes and different messages. */
+export type JsonFailure = 'truncated' | 'unparseable' | 'wrong-shape'
+export interface JsonOutcome<T> {
+  ok: boolean
+  value?: T
+  failure?: JsonFailure
+  /** The raw text, for the server log. Never returned to a browser. */
+  raw?: string
+}
+
+/**
+ * Parse a model's JSON response and VALIDATE ITS SHAPE.
+ *
+ * `parseJson` alone answered "did JSON.parse succeed" — which is not the
+ * question. A response can parse cleanly and still be the wrong object, and a
+ * truncated response fails identically to a fenced one while needing the
+ * opposite fix. This separates all three.
+ */
+export function parseModelJson<T>(
+  result: ModelResult, validate: (v: any) => v is T,
+): JsonOutcome<T> {
+  if (result.stopReason === 'max_tokens') {
+    return { ok: false, failure: 'truncated', raw: result.text }
+  }
+  const parsed = parseJson<any>(result.text)
+  if (parsed === null) return { ok: false, failure: 'unparseable', raw: result.text }
+  if (!validate(parsed)) return { ok: false, failure: 'wrong-shape', raw: result.text }
+  return { ok: true, value: parsed }
+}
+
+/** Appended verbatim on the ONE automatic retry. Terse on purpose: a long
+ *  scolding costs input tokens and changes the model's register. */
+export const JSON_RETRY_REMINDER =
+  '\n\nYour previous response could not be parsed. Return ONLY the JSON object. ' +
+  'No code fences, no preamble, no commentary. Keep the prose within the stated ' +
+  'sentence limit so the response is not cut off.'
 
 /** Rough cost in cents. Rates are a deploy-time constant, not a live lookup —
  *  an approximate logged cost is useful; a failed call to price a call is not. */
@@ -200,9 +246,37 @@ export async function logGeneration(service: any, row: {
 /** Models wrap JSON in prose or fences more often than they should. One parser,
  *  used by every feature, so no feature reinvents a fragile one. */
 export function parseJson<T>(text: string): T | null {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-  const raw = (fenced ? fenced[1] : text).trim()
+  let raw = text.trim()
+
+  // Strip code fences FIRST, and handle the unclosed case: a response cut off
+  // mid-object often opens ```json and never closes it, so a closing-fence-
+  // required regex misses exactly the responses most likely to be fenced.
+  const closed = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (closed) raw = closed[1].trim()
+  else raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+
   const start = raw.search(/[[{]/)
   if (start < 0) return null
-  try { return JSON.parse(raw.slice(start)) as T } catch { return null }
+  const body = raw.slice(start)
+  try { return JSON.parse(body) as T } catch { /* fall through */ }
+
+  // Last resort: trim to the outermost balanced brace. Recovers a response with
+  // trailing commentary after valid JSON. Does NOT try to repair a truncated
+  // object — a half-written document section must never be silently completed.
+  let depth = 0, inStr = false, esc = false
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i]
+    if (esc) { esc = false; continue }
+    if (c === '\\') { esc = true; continue }
+    if (c === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (c === '{' || c === '[') depth++
+    else if (c === '}' || c === ']') {
+      depth--
+      if (depth === 0) {
+        try { return JSON.parse(body.slice(0, i + 1)) as T } catch { return null }
+      }
+    }
+  }
+  return null
 }
