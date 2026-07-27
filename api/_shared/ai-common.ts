@@ -357,6 +357,10 @@ export interface AgentContract {
    *  the decision has a home and the data has a shape; promotion is a future build
    *  justified by a future track record. */
   autonomyTier: number
+  /** An optional NARROWER ceiling than the budget class. It may only reduce:
+   *  widening would let a contract escape its class, which is the thing the class
+   *  exists to prevent. */
+  maxTokens?: number
   /** The proposal categories this agent emits. Declared here so the ledger and the
    *  health view carry one line PER CATEGORY from day one — classifier's
    *  applicability-rule and fire-integration are separate track records, and a
@@ -445,6 +449,7 @@ export function loadAgent(agentKey: string): AgentContract {
     reviewSurface: fm.review_surface ?? '',
     verifier: !fm.verifier || fm.verifier === 'none' ? null : fm.verifier,
     autonomyTier: tier,
+    maxTokens: fm.max_tokens ? Number(fm.max_tokens) : undefined,
     proposalCategories: (fm.proposal_categories ?? '[]').replace(/^\[|\]$/g, '')
       .split(',').map(x => x.trim()).filter(Boolean),
     costExpectation: fm.cost_expectation ?? '',
@@ -534,7 +539,11 @@ export async function runAgent<T>(
     system = parts.filter(Boolean).join('\n\n---\n\n')
   }
 
-  let budget = opts.budgetOverride ?? BUDGET_CLASS[c.budgetClass]
+  // The class sets the ceiling; a contract may NARROW it (never widen). Law 4
+  // holds either way — the number still comes from the registry, not the caller.
+  const classCeiling = BUDGET_CLASS[c.budgetClass]
+  let budget = opts.budgetOverride
+    ?? (c.maxTokens ? Math.min(c.maxTokens, classCeiling) : classCeiling)
   const user = `${opts.task}\n\n${JSON.stringify(input)}`
   const validOut = SCHEMAS[c.outputSchema] as Validator<T>
 

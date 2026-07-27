@@ -3,6 +3,7 @@ key: classifier
 purpose: Propose applicability rules and per-unit exceptions for a project's Cx Index.
 slices: [identity, terminology, domain-rules]
 budget_class: reasoning
+max_tokens: 5000
 input_schema: ClassifierInput
 output_schema: ClassifierOutput
 review_surface: cx_applicability_proposals
@@ -73,5 +74,15 @@ stated, never as a silent default.
 
 ## Budget
 
-`reasoning`. It compares every type against every stage group against the firm's
-domain rules.
+`reasoning`, **narrowed to 5,000** — and the narrowing is the point.
+
+Measured against this register: at a 16,000 ceiling the model spent the whole
+budget thinking (15,173 reasoning tokens even when given a SINGLE stage group)
+and took **130 seconds**. At 5,000 it skipped extended thinking entirely,
+answered in **13 seconds**, and returned a complete answer with `end_turn`.
+
+**A ceiling is a latency budget as well as a cost budget.** Headroom is free in
+money — you are billed for what is used — but it is not free in time: a large
+ceiling invites the model to fill it, and filling it is what takes the seconds.
+Against a 60-second request ceiling, that difference decides whether the feature
+works at all.

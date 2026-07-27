@@ -35,11 +35,15 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
  * units — the units are a list to consult, the groups are the judgements.
  *
  * The platform ceiling is 60s (measured: the function dies at 60.3s) and no
- * maxDuration raises it on this plan. So the fix is not a longer timeout but a
- * correct decomposition: a few stage groups per request against the whole
- * register, with the caller looping over the offset.
+ * maxDuration raises it on this plan.
+ *
+ * BUT THE DECIDING FACTOR WAS THE TOKEN CEILING, NOT THE BATCH. At a 16,000
+ * budget the model spent all of it thinking — 15,173 reasoning tokens even for a
+ * SINGLE stage group — and took 130s. classifier.md now declares max_tokens 5000,
+ * at which the model answers directly in ~13s. Two groups per call is then
+ * comfortable rather than marginal.
  */
-const GROUPS_PER_CALL = 3
+const GROUPS_PER_CALL = 2
 
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res)) return

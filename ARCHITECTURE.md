@@ -1399,6 +1399,30 @@ feature contract *references* its agents and never restates their constraints.
 | `extraction` | 8k | transcribes structure — **per page**, never per document |
 
 The ceiling is a property of the **task shape**, not a number a caller invents.
+A contract may declare `max_tokens` to **narrow** its class ceiling — never to
+widen it, which would let a contract escape the class the class exists to impose.
+
+#### A ceiling is a LATENCY budget too — correcting the note above
+
+The earlier guidance here said headroom is free because you are billed for what is
+*used*, not what is *reserved*. **That is true of money and false of time**, and
+the classifier proved it:
+
+| Ceiling | Stage groups | Thinking | Result |
+|---|---|---|---|
+| 16,000 | 3 | 10,904 | 131s, hit the ceiling |
+| 16,000 | **1** | **15,173** | 141s, hit the ceiling |
+| **5,000** | 2 | **0** | **13s, `end_turn`, complete answer** |
+
+Given one stage group the model still spent 15,173 tokens thinking — **a large
+ceiling invites the model to fill it**, and filling it is what takes the seconds.
+Narrowing to 5,000 made it skip extended thinking and simply answer, ten times
+faster and *more* complete.
+
+So: size a ceiling for the answer the task needs, not for the worst case you can
+imagine. Against a 60-second platform limit that difference decides whether a
+feature works at all — three timeout "fixes" chased the batch size before anyone
+measured the budget.
 Measured on the first run through the runtime: the writer spent 3,407 of 3,908
 tokens thinking; the **verifier** spent 1,119 of 1,950 — which is why it is
 `reasoning` and not `prose` despite returning a short flag list.
