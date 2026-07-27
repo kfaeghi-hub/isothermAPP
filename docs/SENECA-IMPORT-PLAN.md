@@ -714,6 +714,90 @@ resolved (0 rows remain).
 
 None minted. The rows carry `equipment_type` NULL until ruled.
 
+### Category audit — every category swept · 2026-07-27
+
+All 40 categories checked for equipment that does not belong. **Clean, apart from
+the rows already flagged.** No new misfilings.
+
+| Category | Outlier | Status |
+|---|---|---|
+| PUMPS (37) | `RHC` 3, `GI` 2, `PRV-NG` 2 | held — no schedule, no descriptor |
+| AIR HANDLING UNIT (7) | `DBF` 2 | held — no schedule, no descriptor |
+| all others | none | internally coherent |
+
+Five tags read as prose (`Solar PV Disconnect`, `UTILITY TRANSFORMER`,
+`Load Bank Connection Panel`, `Utility Meter & Digital Metering`,
+`Fire Pump Disconnect/ATS`). These are **real equipment the source never tagged**
+— kept verbatim per C4 (drawing tags are register tags).
+
+`RP` appearing under both RECEPTACLE PANEL and RADIANT PANEL SCHEDULE is the
+known cross-discipline collision, now correctly separated. Not a defect.
+
+### SDR review evidence — verified, and one method retracted
+
+#### The SDR folder claim is PROVEN
+
+All five SDR reports carry **`/Author = Adam Cheney`** — Senior CxA at
+`Isotherm Engineering LTD.` in the directory — and their internal timestamps match
+their filenames exactly:
+
+| Report | Authored | Timestamp |
+|---|---|---|
+| SDrev#1 AHUs/DOAS | Adam Cheney | 2025-10-17 |
+| SDrev#1.1 | Adam Cheney | 2025-11-13 |
+| SDrev#1.2 | Adam Cheney | 2025-11-14 |
+| SDrev#2 RAFs | Adam Cheney | 2026-03-31 |
+| SDrev#3 Hydronic Pumps | Adam Cheney | 2026-06-29 |
+
+**Authorship metadata is better evidence than a stamp search** — it is structural,
+not visual, and it survives scanning.
+
+#### The `-IEL` convention is corroborated, not proven
+
+Shop-drawing PDFs carry no `/Author` (contractor tools strip it). The corroboration
+is the **timestamp pattern**, consistent across every comparable pair:
+
+| Package | Submission | `-IEL` copy |
+|---|---|---|
+| Air Separator | 2026-06-25 18:12 | 2026-06-29 10:29 |
+| Hydronic Pumps | 2026-06-25 18:14 | 2026-06-29 10:29 |
+| RAF | 2026-07-13 17:58 | 2026-07-15 12:09 |
+| TFCU | 2026-06-17 21:30 | 2026-06-19 10:41 |
+| Switchboard | 2026-06-17 21:50 | 2026-06-19 10:32 |
+| Panelboards 1.1 | 2026-06-17 22:02 | 2026-06-19 10:31 |
+| Metering Cabinet | 2026-06-17 22:08 | 2026-06-19 10:28 |
+
+**Every submission lands in the evening; every `-IEL` copy is re-saved 2-4 days
+later during business hours.** That is exactly the shape of review-after-receipt,
+7 of 7.
+
+#### RETRACTED: the page-text stamp search
+
+A first attempt searched decompressed page streams for "ISOTHERM", "REVIEWED",
+"NO EXCEPTION TAKEN" and reported "STAMP FOUND" on 13 files. **That result was
+worthless and is withdrawn.** Inspecting what it had actually extracted showed
+OpenType feature tags (`pnum`, `rlig`, `salt`) and PDF structure keywords
+(`endobj`, `Length`, `Filter`) — it was reading font tables, not page content,
+because the documents use subsetted fonts with custom encodings.
+
+Both directions were unreliable: the positives matched structure rather than
+stamps, and the negatives proved nothing at all — the five SDR reports, which are
+*certainly* ours, returned "no stamp text".
+
+**No cell was written on the basis of that check** — Stage 4b ran before it, on
+the filename convention plus the SDR reports plus the log's CLS status, so the
+imported data is unaffected. The lesson is the standing one: a detector that
+cannot see the thing it is looking for reports absence, and absence from a blind
+instrument is not evidence.
+
+#### Evidence tiers, stated plainly
+
+| Tier | Packages | Basis |
+|---|---|---|
+| **Proven** | AHU/DOAS, RAF, Hydronic Pumps | SDR report authored by Isotherm |
+| **Corroborated** | Air Sep, TFCU, HX, Transformers, Switchgear, Switchboard, Metering, PV, ATS, Manual TS | `-IEL` file + timestamp pattern |
+| **Log only — weakest** | Expansion Tanks, Buffer Tanks (10 tags / 20 cells) | submittal log `CLS`; no file in 4_Shops, no SDR report |
+
 **Stages 6-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
