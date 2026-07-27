@@ -301,6 +301,16 @@ Evidence available for the split:
 **Recommendation: all 6 → `Bird Construction`.** Flagged rather than guessed,
 per quarantine discipline. Stage 2 holds until ruled.
 
+**RULED 2026-07-27: all 6 → `Bird Construction`.** The three pieces of evidence
+above settle it — item 5.7 seating Bird as CM, `Bird Mechanical`'s directory
+roster being bid-phase estimating staff rather than the construction-phase team,
+and the single clean `@bird.ca` domain. Recorded in the batch note so the basis
+travels with the rows rather than living only here.
+
+Consequence carried forward: because the minutes carry no role or title,
+**`contacts.trade` is NULL for all 14**. That is the honest state — a plausible
+title inferred from a company would be indistinguishable from a recorded one.
+
 ---
 
 ## 9 · Phase 3 — EXECUTED appendix
@@ -333,7 +343,56 @@ Migration `migrations/import-provenance-migration.sql`, applied as
 Found en route: `equipment.kind` is **NOT NULL** with no default (existing rows
 all use `'equipment'`) — Stage 3 must supply it.
 
-**No project data has been written. Stages 2-9 not started.**
+### Stage 2 — directory / team · **COMPLETE** 2026-07-27
+
+Two batches, because contacts and team assignments are different entity types and
+a batch that spans entities cannot be rolled back cleanly.
+
+| Batch | Entity | Expected | Created |
+|---|---|---|---|
+| `contacts` | `contacts` + `contact_emails` | 14 | **14** (+14 emails) |
+| `project_team_assignments` | company seats | 5 | **5** |
+
+Both sourced from `…/Minutes/Isotherm257889-SenecaH&WCenter-CxMeetingMASTER.docx`
+(attendee table, 2025-09-17).
+
+**Company rename (D6):** `Seneca College of Applied Arts & Technology` →
+**`Seneca Polytechnic`**. The abbreviation was **NULL** — there was none to keep,
+so "keep the abbreviation" is satisfied vacuously and recorded as such rather
+than reported as done.
+
+**Team seats:**
+
+| Company | Role |
+|---|---|
+| Isotherm Engineering LTD. | CxA |
+| Seneca Polytechnic | Client/Owner |
+| Bird Construction | General/Main Contractor |
+| DIALOG | Architect |
+| BuildingBio (Envelope Commissioning) | Envelope Cx Provider |
+
+`Client/Owner` follows the established convention (×3 across existing projects,
+versus the unused `Client`/`Owner` split). **DIALOG seated as `Architect` is a
+narrowing** — it is the prime consultant across disciplines (files are
+`DLG-A-S-M-E`) and one assignment row takes one `role_type_id`. Flagged in the
+batch note, not silently decided.
+
+**Verification:**
+
+| Check | Result |
+|---|---|
+| Roster resolution | **19 of 19** now resolve to a directory contact |
+| Idempotency — identical re-run | **0 contacts, 0 emails, 0 assignments** added |
+| Reconciliation | 14/14 · 5/5, `rows_expected` = `rows_created` on both batches |
+| Batch coverage | 14 of 14 contacts and 5 of 5 seats carry `import_batch_id` |
+| Blast radius | **0** batch-tagged rows in any other project |
+
+**Observed, not acted on:** the directory carries a pre-existing duplicate,
+`Dave Gillingham` under both `Cos Theta Solutions Inc.` and `Brosz Group of
+Companies` (created 2026-07-24, no batch tag). Not from this import and outside
+its scope — noted for directory hygiene.
+
+**Stages 3-9 not started.**
 
 Per the brief, Phase 3 runs one entity type per commit-and-verify step, via the
 normal API as `dev.admin`, every row carrying its import batch id, historical
