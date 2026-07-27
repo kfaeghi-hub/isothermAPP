@@ -1358,6 +1358,142 @@ Versioned in the repo, reviewed in PRs, deployed with the app that reads it.
 bullets, ratified corrections) merge OVER them at assembly time. Files win on
 identity and style; the DB only adds.
 
+## THE AGENT ARCHITECTURE — one brain, many agents, one keeper
+
+The standing AI model. **Features compose agents; agents read the brain; the
+librarian keeps the brain; nothing writes without a human.**
+
+### The registry — `firm-knowledge/agents/<key>.md`
+
+One front-mattered contract per agent. **Front-matter is runtime configuration**
+(slices, budget class, schemas, review surface) and is never sent to a model; the
+prose below it is the agent's instruction set and the only place its guarantees
+are written.
+
+| Agent | Class | Slices | Review surface |
+|---|---|---|---|
+| `writer` | prose | identity, style, terminology, domain-rules, exemplar | Cx Plan review screen |
+| `verifier` | reasoning | **none** | flags on the review screen |
+| `classifier` | reasoning | identity, terminology, domain-rules | `cx_applicability_proposals` |
+| `extractor` | extraction | identity, terminology, domain-rules | intake review screen |
+| `analyst` *(stub)* | reasoning | identity, terminology, domain-rules | `ai_candidate_findings` |
+| `librarian` | reasoning | identity, style, terminology, domain-rules | `firm_corrections` |
+
+### The runtime — `runAgent(agentKey, input, opts)`
+
+Resolve the contract → **validate input before spending a token** → assemble the
+declared slices → apply the class budget → call → **validate output fail-closed**
+→ log per agent.
+
+**Context is three layers, and the order is the precedence:** corpus slices, then
+the **agent** contract (`agents/<key>.md`), then the **feature** contract
+(`contracts/<feature>.md`) when a caller names one. Features compose agents: a
+feature contract *references* its agents and never restates their constraints.
+
+### Budget classes — the generation-budget lesson, generalised
+
+| Class | Ceiling | Shape |
+|---|---|---|
+| `reasoning` | 16k | compares many things against many rules |
+| `prose` | 10k | writes a few hundred words under a style card |
+| `extraction` | 8k | transcribes structure — **per page**, never per document |
+
+The ceiling is a property of the **task shape**, not a number a caller invents.
+Measured on the first run through the runtime: the writer spent 3,407 of 3,908
+tokens thinking; the **verifier** spent 1,119 of 1,950 — which is why it is
+`reasoning` and not `prose` despite returning a short flag list.
+
+### The universal laws
+
+1. **Every agent reads the brain through `ai-common`.** No private prompts.
+   *Enforced:* `callModel` and `buildContext` have zero callers outside the module.
+2. **Every agent proposes; none writes.** All output lands in a human
+   ratification or review surface.
+3. **Corrections feed the corpus through the ledger**, never by hand-editing a
+   prompt.
+4. **Budgets are per class; parse failures fail closed with the raw logged.**
+   *Enforced:* the ceiling comes from `budget_class`, not from a caller.
+5. **The verifier never shares context with what it verifies.** *Enforced:*
+   `verifier.md` declares `slices: []`, so the runtime sends it an empty system
+   prompt. **The isolation is a data fact, not a habit at a call site.**
+6. **No agent self-modifies — the librarian included.** Contracts are read-only in
+   the runtime.
+7. **Nothing autonomous touches the record.** Findings, cells, documents and
+   corpus changes all carry a human approval.
+8. **Tag strings never decide type or applicability.** On one project `RP` was a
+   radiant panel on the mechanical drawings and a receptacle panel on the
+   electrical. The source's own descriptor decides; a tag may corroborate.
+
+### Autonomy is graduated and earned
+
+**Promotion of a category beyond individual ratification requires a demonstrated
+acceptance track record in the health view, is ruled by the owner, and is revoked
+by the same instrument if the rate slips.**
+
+**Categories touching the signed record are never promoted** — findings, issued
+documents, the issues log, and life-safety scope. That is not a threshold anyone
+can clear; it is a permanent exclusion.
+
+Every agent contract declares `autonomy_tier`, and **every category is fixed at
+tier 1 (individually ratified). No other tier is implemented**, and the runtime
+*refuses* a contract claiming one — a field that silently permits what no code
+enforces is worse than no field at all.
+
+The mechanics of promotion are a future build justified by future evidence. What
+exists now is the **evidence base**: the ledger and the health view are keyed
+**per proposal category**, not per agent, because a per-category ruling can only
+be made on data captured before anyone thought to ask for it. `classifier:
+applicability-rule` and `classifier:fire-integration` are separate track records
+from the first row.
+
+### The ledger — `agent_feedback`
+
+Every review surface writes one row when a human touches an agent proposal:
+`agent_key · category · disposition · before · after · evidence`.
+Dispositions: `accepted` · `edited` · `rejected` · `dismissed` · `confirmed`.
+
+**Only corrections cluster for the harvest.** An accepted draft is evidence the
+corpus is *right* — it belongs in the health view, not in a proposal to change
+something. What the librarian reads is where a human disagreed.
+
+**A dismissed flag is as informative as a confirmed one**, and more so in
+aggregate: a verifier that keeps raising something the CxA keeps waving off is
+telling you the corpus is wrong, not the reviewer.
+
+The ledger is **evidence**, so staff may write to it but only admin/owner may
+amend or delete — evidence the measured party can quietly edit is not evidence.
+Ledger writes are **non-fatal**: losing a measurement is a cost; losing an
+accepted section is a loss.
+
+### `firm_corrections` — the librarian's queue, and the gap it keeps visible
+
+Ratified is **not** applied. Ratifying records the decision; landing it in the
+corpus is a deliberate second step — a `firm-knowledge/` PR or a row write — and
+`applied_at` stays null until then, so *ratified-but-unapplied* is a visible
+state rather than an assumed one.
+
+### Contract validation is real, not decorative
+
+`agent-schemas.ts` holds runnable validators. Two encode lessons paid for in
+production:
+
+- **`VerifierOutput` requires `flags` to be present even when empty.** An absent
+  array and an empty array mean different things — *"the check did not run"*
+  versus *"the check found nothing"* — and collapsing them is exactly what let a
+  truncated verification read as a clean bill of health.
+- **`LibrarianOutput` requires non-empty evidence.** A proposal without evidence
+  is an opinion, and the ratification screen exists to weigh evidence.
+
+### Telemetry — one log, read per specialist
+
+`ai_generations` carries `agent_key`, `run_id`, `budget_class`, `max_tokens`,
+`thinking_tokens` and `outcome`. **Failures are logged too**: a run that produced
+nothing still cost money, and silence there would hide exactly the failures worth
+counting.
+
+`ai_analysis_runs` (BAS-SPEC §3.7) is **superseded** by this table as of
+2026-07-27. `ai_candidate_findings` survives as the analyst's ratification queue.
+
 ### `ai-common` surface
 
 - `buildContext({ feature, slices, exemplar, dbAdditions })` → the SYSTEM prompt.

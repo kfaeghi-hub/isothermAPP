@@ -7,6 +7,8 @@ input_schema: VerifierInput
 output_schema: VerifierOutput
 review_surface: cx_plan_sections
 verifier: none
+autonomy_tier: 1
+proposal_categories: [factual-flag]
 cost_expectation: "~1c per section (measured 504 tokens / 1.02c), but budgeted as reasoning — the comparison is the expensive part, not the flag list"
 ---
 

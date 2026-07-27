@@ -14,7 +14,8 @@ import {
   SECTIONS, APPENDIX_MENU, OPTION_LABELS, narrativeKeys,
   fetchPlan, fetchRevisions, fetchSections, fetchAnswers,
   saveAnswer, saveBackground, saveRoleDesignation, createPlan,
-  acceptSection, approvePlan, draftSection, generatePlan, DraftError,
+  acceptSection, approvePlan, draftSection, generatePlan, DraftError, recordFeedback,
+  type Flag,
   type CxPlan, type PlanSection, type Tier,
 } from '../lib/cxPlan'
 import { SectionReview } from '../components/cxplan/ReviewScreen'
@@ -156,7 +157,34 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
     if (!plan) return
     const res = await acceptSection(plan.id, key, text)
     if (reportWriteBlocked(res as any, 'accept section')) return
+
+    // Ledger: accepted VERBATIM or accepted AFTER EDITING. The distinction is the
+    // whole signal — a draft taken as written and a draft rewritten before use are
+    // the difference between an agent that is working and one that is not, and
+    // only the ledger can tell them apart later.
+    const drafted = sections.find(x => x.section_key === key)?.drafted_text ?? ''
+    if (drafted) {
+      const edited = text.trim() !== drafted.trim()
+      void recordFeedback({
+        agentKey: 'writer', category: 'narrative-draft',
+        projectId, subjectRef: key,
+        disposition: edited ? 'edited' : 'accepted',
+        before: drafted, after: edited ? text : null,
+      })
+    }
     setSections(await fetchSections(plan.id))
+  }
+
+  /** Verifier flags: a dismissed flag is as informative as a confirmed one, and
+   *  more so in aggregate — a verifier that keeps raising something the CxA keeps
+   *  waving off is telling you the corpus is wrong, not the reviewer. */
+  function ruleOnFlag(key: string, flag: Flag, confirmed: boolean) {
+    void recordFeedback({
+      agentKey: 'verifier', category: 'factual-flag',
+      projectId, subjectRef: `${key}:${flag.span.slice(0, 60)}`,
+      disposition: confirmed ? 'confirmed' : 'dismissed',
+      before: flag.why, evidence: { severity: flag.severity, claim: flag.claim },
+    })
   }
 
   async function approveAndGenerate(issue: boolean) {
@@ -440,6 +468,7 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
                   section={byKey[k]} facts={factsFor()}
                   busy={busy === `draft:${k}`}
                   onAccept={t => accept(k, t)}
+                  onRuleOnFlag={(f, ok) => ruleOnFlag(k, f, ok)}
                   onRegenerate={note => redraft(k, note)} />
               ))}
             </div>

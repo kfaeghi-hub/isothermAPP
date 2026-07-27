@@ -352,6 +352,17 @@ export interface AgentContract {
   outputSchema: string
   reviewSurface: string
   verifier: string | null
+  /** GRADUATED AUTONOMY, forward-provisioned. Every category is fixed at tier 1 —
+   *  individually ratified — and NO OTHER TIER IS IMPLEMENTED. The field exists so
+   *  the decision has a home and the data has a shape; promotion is a future build
+   *  justified by a future track record. */
+  autonomyTier: number
+  /** The proposal categories this agent emits. Declared here so the ledger and the
+   *  health view carry one line PER CATEGORY from day one — classifier's
+   *  applicability-rule and fire-integration are separate track records, and a
+   *  future per-category ruling can only be made on data that was captured before
+   *  anyone thought to ask for it. */
+  proposalCategories: string[]
   costExpectation: string
 }
 
@@ -415,6 +426,15 @@ export function loadAgent(agentKey: string): AgentContract {
       throw new AiError(500, `agent "${agentKey}" names schema "${nm}" which does not exist`)
     }
   }
+  const tier = Number(fm.autonomy_tier ?? '1')
+  // Tier 1 is the ONLY tier this build implements. A contract claiming otherwise
+  // is refused rather than honoured — a field that silently permits what no code
+  // enforces is worse than no field.
+  if (tier !== 1) {
+    throw new AiError(500,
+      `agent "${agentKey}" declares autonomy_tier ${tier}; only tier 1 ` +
+      `(individually ratified) is implemented`)
+  }
   const c: AgentContract = {
     key: fm.key || agentKey,
     purpose: fm.purpose ?? '',
@@ -424,6 +444,9 @@ export function loadAgent(agentKey: string): AgentContract {
     outputSchema: fm.output_schema,
     reviewSurface: fm.review_surface ?? '',
     verifier: !fm.verifier || fm.verifier === 'none' ? null : fm.verifier,
+    autonomyTier: tier,
+    proposalCategories: (fm.proposal_categories ?? '[]').replace(/^\[|\]$/g, '')
+      .split(',').map(x => x.trim()).filter(Boolean),
     costExpectation: fm.cost_expectation ?? '',
   }
   if (c.key !== agentKey) {

@@ -147,6 +147,42 @@ export async function approvePlan(planId: string, userId: string) {
   }).eq('id', planId).select('id')
 }
 
+/**
+ * THE LEDGER WRITE. Every review surface calls this when a human touches an
+ * agent's proposal — it is the only channel by which corrections reach the corpus
+ * (law 3), and the sole evidence a future autonomy ruling can rest on.
+ *
+ * KEYED PER CATEGORY, not per agent: `narrative-draft` and `factual-flag` are
+ * separate track records because they will be ruled separately.
+ *
+ * NON-FATAL. A ledger failure must never block the human's actual work — losing a
+ * measurement is a cost; losing an accepted section is a loss.
+ */
+export async function recordFeedback(row: {
+  agentKey: string
+  category: string
+  projectId?: string | null
+  subjectRef?: string | null
+  disposition: 'accepted' | 'edited' | 'rejected' | 'dismissed' | 'confirmed'
+  before?: string | null
+  after?: string | null
+  evidence?: unknown
+}) {
+  const { data: auth } = await supabase.auth.getUser()
+  const { error } = await supabase.from('agent_feedback').insert({
+    agent_key: row.agentKey,
+    category: row.category,
+    project_id: row.projectId ?? null,
+    subject_ref: row.subjectRef ?? null,
+    disposition: row.disposition,
+    before_text: row.before ?? null,
+    after_text: row.after ?? null,
+    evidence: row.evidence ?? null,
+    created_by: auth?.user?.id ?? null,
+  })
+  if (error) console.warn('[ledger] agent_feedback write failed (non-fatal):', error.message)
+}
+
 /** A drafting failure the UI can act on: it carries the reason and whether a
  *  retry is worth offering, instead of collapsing to a string in an alert(). */
 export class DraftError extends Error {

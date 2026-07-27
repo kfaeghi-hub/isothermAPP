@@ -7,6 +7,8 @@ input_schema: ClassifierInput
 output_schema: ClassifierOutput
 review_surface: cx_applicability_proposals
 verifier: none
+autonomy_tier: 1
+proposal_categories: [applicability-rule, applicability-exception, fire-integration]
 cost_expectation: "~12-18c per project register (batched, roughly one call per 80 units)"
 ---
 

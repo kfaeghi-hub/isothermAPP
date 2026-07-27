@@ -190,6 +190,15 @@ create table sequence_clauses (
 );
 
 -- 3.8 AI candidate findings (BAS-2) — never auto-create issues
+--
+-- SUPERSEDED 2026-07-27 (ruling D2): ai_analysis_runs is NOT built. The Agent
+-- Architecture consolidated AI telemetry onto ai_generations, which already
+-- existed and carried real cost data; it gained agent_key, run_id, budget_class,
+-- max_tokens, thinking_tokens and outcome. Two logs for one fact is the drift
+-- that architecture exists to prevent. The table below is kept for the record of
+-- what was specced — do not create it.
+--
+-- ai_candidate_findings SURVIVES as the analyst agent's ratification queue.
 create table ai_analysis_runs (
   id               uuid primary key default gen_random_uuid(),
   project_id       uuid not null references projects(id) on delete cascade,

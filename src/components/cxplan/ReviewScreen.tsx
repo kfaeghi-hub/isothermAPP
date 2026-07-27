@@ -19,18 +19,23 @@ const SEVERITY: Record<Flag['severity'], { label: string; cls: string }> = {
 }
 
 export function SectionReview({
-  title, section, facts, busy, onAccept, onRegenerate,
+  title, section, facts, busy, onAccept, onRegenerate, onRuleOnFlag,
 }: {
   title: string
   section: PlanSection | undefined
   facts: Record<string, unknown>
   busy: boolean
   onAccept: (text: string) => void
+  /** Ruling on a flag feeds the ledger. Flags never blocked and still do not —
+   *  this records what the CxA thought of each one. */
+  onRuleOnFlag?: (flag: Flag, confirmed: boolean) => void
   onRegenerate: (note?: string) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(section?.final_text ?? section?.drafted_text ?? '')
   const [noteOpen, setNoteOpen] = useState(false)
+  // Ruled-on flags stay visible — a dismissed flag is a record, not a deletion.
+  const [ruled, setRuled] = useState<Record<number, 'confirmed' | 'dismissed'>>({})
   const [note, setNote] = useState('')
   const flags = section?.flags ?? []
   const current = section?.final_text ?? section?.drafted_text ?? ''
@@ -96,6 +101,22 @@ export function SectionReview({
                   </p>
                   <p className="mt-1 text-gray-700">“{f.span}”</p>
                   <p className="text-gray-500">{f.why}</p>
+                  {onRuleOnFlag && (
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => { onRuleOnFlag(f, true); setRuled(r => ({ ...r, [i]: 'confirmed' })) }}
+                        disabled={!!ruled[i]}
+                        className="text-[10px] font-semibold text-amber-800 hover:underline disabled:no-underline disabled:opacity-50">
+                        {ruled[i] === 'confirmed' ? '✓ confirmed' : 'Confirm'}
+                      </button>
+                      <button
+                        onClick={() => { onRuleOnFlag(f, false); setRuled(r => ({ ...r, [i]: 'dismissed' })) }}
+                        disabled={!!ruled[i]}
+                        className="text-[10px] text-gray-500 hover:underline disabled:no-underline disabled:opacity-50">
+                        {ruled[i] === 'dismissed' ? '✓ dismissed' : 'Dismiss'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

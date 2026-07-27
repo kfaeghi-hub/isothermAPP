@@ -7,6 +7,8 @@ input_schema: LibrarianInput
 output_schema: LibrarianOutput
 review_surface: firm_corrections
 verifier: none
+autonomy_tier: 1
+proposal_categories: [corpus-proposal]
 cost_expectation: "~15-25c per harvest; run on demand"
 ---
 

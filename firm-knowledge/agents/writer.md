@@ -7,6 +7,8 @@ input_schema: WriterInput
 output_schema: WriterOutput
 review_surface: cx_plan_sections
 verifier: verifier
+autonomy_tier: 1
+proposal_categories: [narrative-draft]
 cost_expectation: "~10c per section (Roles, the heaviest, measured at 5,211 tokens / 10.44c)"
 ---
 

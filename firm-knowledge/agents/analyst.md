@@ -7,6 +7,8 @@ input_schema: AnalystInput
 output_schema: AnalystOutput
 review_surface: ai_candidate_findings
 verifier: none
+autonomy_tier: 1
+proposal_categories: [candidate-finding]
 cost_expectation: "not yet measured — stub"
 ---
 

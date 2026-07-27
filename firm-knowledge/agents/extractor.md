@@ -7,6 +7,8 @@ input_schema: ExtractorInput
 output_schema: ExtractorOutput
 review_surface: intake_rows
 verifier: none
+autonomy_tier: 1
+proposal_categories: [register-row, enrich-proposal, type-proposal]
 cost_expectation: "~3-6c per page; a 20-page schedule set is under $1.50"
 ---
 

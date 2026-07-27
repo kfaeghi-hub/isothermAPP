@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
+import { AgentHealth } from '../components/admin/AgentHealth'
 import type {
   ClassificationDimension, ClassificationOption, DeliverableTemplate, SelectionMode, TradeType,
   CompanyRoleType, MeetingType, MeetingTypeDefaultTopic,
@@ -644,6 +645,8 @@ export function ClassificationsPage() {
           </>
         )}
       </section>
+
+      <AgentHealth />
 
       {/* ── Equipment Types + the ratification queue ─────────────────────── */}
       {/* THE TAXONOMY LEARNS. Types are rows, not a hardcoded list and not a

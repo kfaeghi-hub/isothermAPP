@@ -1,6 +1,20 @@
 # Agent Architecture + Cx Index Upgrade — PROPOSAL
 
-**Status: PROPOSED. No code written. Awaiting ruling.**
+**Status: RULED 2026-07-27 — all seven decisions taken. Build in progress.**
+
+| Step | State |
+|---|---|
+| **0a** registry + runtime + composer refactor | **COMPLETE** — `pw-cx-plan` 30/30 incl. real-AI |
+| 0b ledger · 0c librarian | not started |
+| A1-A4 · B1-B3 | not started |
+
+Rulings: **D1** orthogonal overlay, `na` deprecated in place, taken now ·
+**D2** `ai_generations` absorbs, BAS-SPEC struck with a dated note ·
+**D3** `firm_corrections` = librarian proposals, `agent_feedback` = ledger ·
+**D4** front-mattered `.md` · **D5** the feature contract stays above the agent
+split — features compose agents, reference never duplicate · **D6** on-demand
+harvest, revisit trigger recorded (≥2 agents actively feeding) · **D7(b)**
+classifier proposes fire-integration from the register cold.
 
 Formalises the AI layer as **one brain, many agents, one keeper**, then implements
 applicability/filtering/search (Part A) and mass intake (Part B) as the first
