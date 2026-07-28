@@ -18,6 +18,14 @@
 //                           document-generator changes
 //   pw-pdf-shot.mjs / pw-ui-shots.mjs / pw-landing.mjs   screenshot generators,
 //                           no assertions
+//   pw-applicability-review-render.mjs   asserts, self-checks, and runs bare —
+//                           but reads a CLIENT project (Seneca), because ZZ-TEST
+//                           holds no classifier proposals and rendering there
+//                           would assert nothing about the screen a CxA uses. It
+//                           is strictly read-only and proves it with a before/
+//                           after census, but the rule above says ZZ-TEST family
+//                           only, so it stays a deliberate manual check rather
+//                           than a quiet exception inside an all-green run.
 //
 // Adding a suite: append here ONLY if it runs bare, self-cleans (re-entrant),
 // and touches nothing outside the ZZ-TEST family (pw-config.mjs rule).
