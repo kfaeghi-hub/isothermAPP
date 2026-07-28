@@ -51,3 +51,46 @@ update cx_applicability_proposals p
          group by project_id, equipment_type) c
  where p.status = 'proposed' and p.kind = 'rule'
    and c.project_id = p.project_id and c.equipment_type = p.equipment_type;
+
+-- ── Applied immediately after, as `applicability_proposals_rehome_untyped_rules`
+-- Six "rules" carried a CATEGORY name in equipment_type — AIR SEPARATOR, BUFFER
+-- TANK SCHEDULE, EXPANSION TANK SCHEDULE, HEAT EXCHANGER, HYDRAULIC SEPARATOR,
+-- LOUVRED PENTHOUSE. Every unit in those categories has equipment_type NULL, so
+-- when the classifier was asked for a type it used the only label it had. Same
+-- defect as the tag-keyed exceptions, second surface.
+--
+-- Ratifying one would have upserted into cx_applicability_rules — the FIRM-level
+-- table — under a key matching no equipment anywhere. Inert, and permanently so,
+-- while reporting success.
+--
+-- They cannot become firm rules: that table keys on equipment_type because a rule
+-- outlives the project that taught it, and a category is a per-project source
+-- header off Seneca's own schedule. So they become project-scoped exceptions.
+-- The real remedy is upstream and already queued — mint types for these families
+-- through proposed_equipment_types and a genuine firm rule becomes possible.
+update cx_applicability_proposals p
+   set kind = 'exception', category = 'applicability-exception',
+       equipment_category = p.equipment_type, equipment_type = null,
+       units_affected = (select count(*) from equipment e
+                          where e.project_id = p.project_id
+                            and upper(e.category) = upper(p.equipment_type))
+ where p.status = 'proposed' and p.kind = 'rule' and p.equipment_type is not null
+   and not exists (select 1 from equipment e
+                    where e.project_id = p.project_id and e.equipment_type = p.equipment_type)
+   and exists (select 1 from equipment e
+                where e.project_id = p.project_id
+                  and upper(e.category) = upper(p.equipment_type));
+
+-- A category exception reads better naming the type it sits inside: "SUMP PUMP in
+-- pump" says the type rule above it does not cover this sub-group. Backfilled
+-- ONLY where every unit in the category shares one non-null type; where they do
+-- not, or are untyped, blank is the honest answer.
+update cx_applicability_proposals p
+   set equipment_type = t.only_type
+  from (select project_id, upper(category) as cat, min(equipment_type) as only_type
+          from equipment where equipment_type is not null
+         group by project_id, upper(category)
+        having count(distinct equipment_type) = 1) t
+ where p.equipment_category is not null and p.equipment_type is null
+   and p.status = 'proposed'
+   and t.project_id = p.project_id and t.cat = upper(p.equipment_category);

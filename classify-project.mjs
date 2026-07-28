@@ -169,6 +169,13 @@ const fire = await ask('fire / life-safety integration',
   `clear, give a LOW confidence and say so.\n\n${RETURN}`)
 
 // ── assemble deterministically ────────────────────────────────────────────
+// RESOLVE EVERY KEY THE MODEL RETURNS AGAINST THE REGISTER. Twice now a proposal
+// has been keyed to something that matches no equipment: an exception keyed by a
+// tag the input never contained, and a "rule" keyed by a category name because the
+// units in it have equipment_type NULL and the model was asked for a type anyway.
+// Both would have ratified into silence. So the assembler never trusts a key — it
+// resolves it, re-homes it to the grain that actually matches, or drops it loudly.
+const typeSet = new Set(equip.map(e => e.equipment_type).filter(Boolean))
 const unitsByCategory = new Map()
 for (const e of equip) {
   if (!e.category) continue
@@ -182,14 +189,34 @@ const rows = []
 for (const { g, out } of groupResults) {
   if (!out) continue
   for (const r of out.inapplicable ?? []) {
-    if (!r.equipment_type) continue
-    rows.push({
-      project_id: proj.id, run_id: runId, kind: 'rule', category: 'applicability-rule',
-      equipment_type: r.equipment_type, stage_group_name: g.name, column_label: null,
-      applicable: false, rationale: r.rationale, confidence: r.confidence,
-      units_affected: unitsByType.get(r.equipment_type) ?? null,
-      life_safety: false,
-    })
+    const key = r.equipment_type
+    if (!key) continue
+    if (typeSet.has(key)) {
+      rows.push({
+        project_id: proj.id, run_id: runId, kind: 'rule', category: 'applicability-rule',
+        equipment_type: key, stage_group_name: g.name, column_label: null,
+        applicable: false, rationale: r.rationale, confidence: r.confidence,
+        units_affected: unitsByType.get(key) ?? null, life_safety: false,
+      })
+      continue
+    }
+    // Not a type. If it names a CATEGORY, it is a project-scoped exception — a
+    // firm rule cannot be keyed on a per-project source header without making the
+    // firm vocabulary project-local, which is what cx_applicability_rules exists
+    // to prevent.
+    const cat = unitsByCategory.get(String(key).toUpperCase())
+    if (cat) {
+      console.log(`  ~ "${key}" is a category, not a type — filed as a project exception`)
+      rows.push({
+        project_id: proj.id, run_id: runId, kind: 'exception', category: 'applicability-exception',
+        equipment_category: cat.name, equipment_type: null,
+        stage_group_name: g.name, column_label: null, applicable: false,
+        rationale: r.rationale, confidence: r.confidence,
+        units_affected: cat.n, life_safety: false,
+      })
+      continue
+    }
+    console.log(`  ! dropped rule on unknown key "${key}" — matches no type and no category`)
   }
   for (const e of out.exceptions ?? []) {
     const cat = e.category ?? e.tag           // tolerate the older key
@@ -210,12 +237,20 @@ for (const { g, out } of groupResults) {
 
 if (fire && istGroup) {
   for (const r of fire.inapplicable ?? []) {
-    if (!r.equipment_type) continue
+    const key = r.equipment_type
+    if (!key) continue
+    const cat = typeSet.has(key) ? null : unitsByCategory.get(String(key).toUpperCase())
+    if (!typeSet.has(key) && !cat) {
+      console.log(`  ! dropped fire proposal on unknown key "${key}"`)
+      continue
+    }
     rows.push({
-      project_id: proj.id, run_id: runId, kind: 'rule', category: 'fire-integration',
-      equipment_type: r.equipment_type, stage_group_name: istGroup.name, column_label: null,
+      project_id: proj.id, run_id: runId,
+      kind: cat ? 'exception' : 'rule', category: 'fire-integration',
+      equipment_type: cat ? null : key, equipment_category: cat ? cat.name : null,
+      stage_group_name: istGroup.name, column_label: null,
       applicable: false, rationale: r.rationale, confidence: r.confidence,
-      units_affected: unitsByType.get(r.equipment_type) ?? null,
+      units_affected: cat ? cat.n : (unitsByType.get(key) ?? null),
       life_safety: true,
     })
   }
