@@ -144,8 +144,9 @@ const groupCalls = stageGroups.map(g => ({
     `${typeList}\n\n` +
     `QUESTION: which of these equipment types does this stage group NOT apply to?\n` +
     `Judge by the descriptor and category, never by a tag prefix. List only types ` +
-    `where the whole group is inapplicable. Add an "exceptions" entry only if a ` +
-    `specific unit differs from its type. If unsure, give a low confidence and say ` +
+    `where the whole group is inapplicable. Add an "exceptions" entry only where one ` +
+    `CATEGORY behaves unlike the rest of its equipment_type — use the category ` +
+    `string exactly as it appears in the list above. If unsure, give a low confidence and say ` +
     `why — do not guess.\n\n${RETURN}`,
 }))
 
@@ -168,7 +169,14 @@ const fire = await ask('fire / life-safety integration',
   `clear, give a LOW confidence and say so.\n\n${RETURN}`)
 
 // ── assemble deterministically ────────────────────────────────────────────
-const byTag = new Map(equip.map(e => [e.tag.toUpperCase(), e.id]))
+const unitsByCategory = new Map()
+for (const e of equip) {
+  if (!e.category) continue
+  const k = e.category.toUpperCase()
+  const hit = unitsByCategory.get(k)
+  if (hit) hit.n++
+  else unitsByCategory.set(k, { name: e.category, n: 1 })
+}
 const rows = []
 
 for (const { g, out } of groupResults) {
@@ -184,12 +192,18 @@ for (const { g, out } of groupResults) {
     })
   }
   for (const e of out.exceptions ?? []) {
-    if (!e.tag) continue
+    const cat = e.category ?? e.tag           // tolerate the older key
+    if (!cat) continue
+    const known = unitsByCategory.get(String(cat).toUpperCase())
+    // A proposal nobody can apply is worse than one nobody makes: it occupies a
+    // reviewer's attention and then ratifies into silence. Drop it loudly.
+    if (!known) { console.log(`  ! dropped exception on unknown category "${cat}"`); continue }
     rows.push({
       project_id: proj.id, run_id: runId, kind: 'exception', category: 'applicability-exception',
-      tag: e.tag, equipment_id: byTag.get(String(e.tag).toUpperCase()) ?? null,
+      equipment_category: known.name, equipment_type: e.equipment_type ?? null,
       stage_group_name: g.name, column_label: null, applicable: false,
-      rationale: e.rationale, confidence: e.confidence, life_safety: false,
+      rationale: e.rationale, confidence: e.confidence,
+      units_affected: known.n, life_safety: false,
     })
   }
 }
@@ -211,7 +225,7 @@ if (fire && istGroup) {
 // The life-safety verdict wins, because it is the one a human must read.
 const keyed = new Map()
 for (const r of rows) {
-  const k = `${r.kind}:${r.equipment_type ?? r.tag}:${r.stage_group_name}`
+  const k = `${r.kind}:${r.equipment_category ?? r.equipment_type}:${r.stage_group_name}`
   const prev = keyed.get(k)
   if (!prev || (r.life_safety && !prev.life_safety)) keyed.set(k, r)
 }

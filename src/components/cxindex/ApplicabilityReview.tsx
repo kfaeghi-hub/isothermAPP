@@ -21,6 +21,7 @@ interface Proposal {
   equipment_type: string | null
   equipment_id: string | null
   tag: string | null
+  equipment_category: string | null
   stage_group_name: string
   column_label: string | null
   applicable: boolean
@@ -70,18 +71,41 @@ export function ApplicabilityReview({ projectId, onApplied }: {
           ratified_at: new Date().toISOString(),
         }, { onConflict: 'equipment_type,stage_group_name,column_label' })
         if (error) { alert(error.message); return }
-      } else if (p.equipment_id) {
+      } else {
+        // An exception scopes to ONE UNIT (equipment_id) or to a CATEGORY within a
+        // type — SUMP PUMP inside `pump`, which the type rule cannot express.
+        let units: string[] = []
+        if (p.equipment_id) units = [p.equipment_id]
+        else if (p.equipment_category) {
+          const { data } = await supabase.from('equipment')
+            .select('id').eq('project_id', projectId).eq('category', p.equipment_category)
+          units = (data ?? []).map(e => e.id)
+        }
+
         const cols = await supabase.from('project_cx_stage_groups')
           .select('id, project_cx_columns(id, label)')
           .eq('project_id', projectId).eq('name', p.stage_group_name).maybeSingle()
         const list = (cols.data?.project_cx_columns ?? []) as any[]
         const targets = p.column_label ? list.filter(c => c.label === p.column_label) : list
-        if (targets.length && !p.applicable) {
+
+        // RESOLVING TO NOTHING IS A FAILURE, NOT A NO-OP. The first run of this
+        // screen had ten exceptions keyed to a tag that matched no unit; every
+        // Ratify would have marked the row settled and written zero cells. A
+        // button that reports success for work it did not do is the worst thing
+        // in this system, so say so and leave the proposal standing.
+        if (!units.length || !targets.length) {
+          alert(`Cannot ratify: this proposal resolves to ${units.length} unit(s) ` +
+                `and ${targets.length} column(s). Nothing would be written, so nothing ` +
+                `has been. Reject it, or fix what it points at.`)
+          return
+        }
+
+        if (!p.applicable) {
           const { error } = await supabase.from('cx_cell_applicability').upsert(
-            targets.map(c => ({
-              project_id: projectId, equipment_id: p.equipment_id,
+            units.flatMap(eid => targets.map(c => ({
+              project_id: projectId, equipment_id: eid,
               column_id: c.id, applicable: false, source: 'rule',
-            })), { onConflict: 'equipment_id,column_id' })
+            }))), { onConflict: 'equipment_id,column_id' })
           if (error) { alert(error.message); return }
         }
       }
@@ -93,7 +117,7 @@ export function ApplicabilityReview({ projectId, onApplied }: {
       // earns its own track record separate from ordinary rules.
       void recordFeedback({
         agentKey: 'classifier', category: p.category, projectId,
-        subjectRef: `${p.equipment_type ?? p.tag}:${p.stage_group_name}`,
+        subjectRef: `${p.equipment_category ?? p.tag ?? p.equipment_type}:${p.stage_group_name}`,
         disposition: 'accepted', before: p.rationale,
         evidence: { confidence: p.confidence, life_safety: p.life_safety },
       })
@@ -106,7 +130,7 @@ export function ApplicabilityReview({ projectId, onApplied }: {
       .update({ status: 'rejected', ratified_at: new Date().toISOString() }).eq('id', p.id)
     void recordFeedback({
       agentKey: 'classifier', category: p.category, projectId,
-      subjectRef: `${p.equipment_type ?? p.tag}:${p.stage_group_name}`,
+      subjectRef: `${p.equipment_category ?? p.tag ?? p.equipment_type}:${p.stage_group_name}`,
       disposition: 'rejected', before: p.rationale,
       evidence: { confidence: p.confidence, life_safety: p.life_safety },
     })
@@ -128,7 +152,12 @@ export function ApplicabilityReview({ projectId, onApplied }: {
     <div className="flex items-start gap-2 py-1.5 border-b border-gray-100">
       <div className="min-w-0 flex-1">
         <div className="text-xs text-gray-800">
-          <span className="font-mono text-gray-600">{p.equipment_type ?? p.tag}</span>
+          <span className="font-mono text-gray-600">
+            {p.equipment_category ?? p.tag ?? p.equipment_type}
+          </span>
+          {p.equipment_category && p.equipment_type && (
+            <span className="text-gray-400 text-[10px]"> in {p.equipment_type}</span>
+          )}
           <span className="text-gray-300"> · </span>
           {p.stage_group_name}
           {p.column_label && <span className="text-gray-400"> / {p.column_label}</span>}
@@ -206,8 +235,8 @@ export function ApplicabilityReview({ projectId, onApplied }: {
           {excs.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-gray-700 mb-1">
-                Per-unit exceptions — {excs.length}
-                <span className="font-normal text-gray-400"> · lowest confidence first</span>
+                Category exceptions — {excs.length}
+                <span className="font-normal text-gray-400"> · a sub-group its type rule cannot express · lowest confidence first</span>
               </h4>
               {excs.map(p => <Line key={p.id} p={p} />)}
             </div>

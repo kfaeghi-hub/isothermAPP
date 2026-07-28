@@ -96,7 +96,12 @@ export const ClassifierOutput: Validator<ClassifierOutput> = (v): v is Classifie
 export interface ClassifierGroupOutput {
   inapplicable: { equipment_type: string; rationale: string
                   confidence: number; life_safety?: boolean }[]
-  exceptions?: { tag: string; rationale: string
+  // KEYED BY CATEGORY, NOT BY TAG. The input carries (equipment_type, category,
+  // n, sample) and no tags whatsoever, so a tag is something this agent cannot
+  // know. Asking for one produced ten proposals that resolved to no equipment and
+  // would have ratified into silence. An agent must only be asked for keys its
+  // declared input can actually supply.
+  exceptions?: { category: string; equipment_type?: string; rationale: string
                  confidence: number; life_safety?: boolean }[]
 }
 export const ClassifierGroupOutput: Validator<ClassifierGroupOutput> = (v): v is ClassifierGroupOutput =>
@@ -104,7 +109,7 @@ export const ClassifierGroupOutput: Validator<ClassifierGroupOutput> = (v): v is
   v.inapplicable.every((r: any) => isObj(r) && isStr(r.equipment_type) &&
     isStr(r.rationale) && isConf(r.confidence)) &&
   (v.exceptions === undefined || (isArr(v.exceptions) &&
-    v.exceptions.every((e: any) => isObj(e) && isStr(e.tag) && isConf(e.confidence))))
+    v.exceptions.every((e: any) => isObj(e) && isStr(e.category) && isConf(e.confidence))))
 
 export interface ClassifierGroupInput {
   stage_group: string

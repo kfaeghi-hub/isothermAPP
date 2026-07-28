@@ -1,6 +1,6 @@
 ---
 key: classifier
-purpose: Propose applicability rules and per-unit exceptions for a project's Cx Index.
+purpose: Propose applicability rules and category exceptions for a project's Cx Index.
 slices: [identity, terminology, domain-rules]
 budget_class: prose
 max_tokens: 4000
@@ -30,7 +30,7 @@ to fill whatever room it is given.
 So each call asks one bounded question:
 
 > Given **this** stage group and its columns, which of these equipment types does
-> it not apply to, and which individual units are exceptions?
+> it not apply to, and which categories within them are exceptions?
 
 The stage group is known by the caller and attached deterministically afterwards.
 The model never restates it, so it cannot get it wrong, and the answer is a short
@@ -42,9 +42,27 @@ read on its own terms.
 ## Rules first, exceptions second
 
 Output is **two lists, and the order matters**. A type-level rule settles every
-unit of that type in one ratification click; an exception settles one unit. An
-agent that returned 367 per-unit judgements would be technically correct and
-practically useless — **the burden must scale with types, never units.**
+unit of that type in one ratification click; an exception settles one **category**
+within that type. An agent that returned 367 per-unit judgements would be
+technically correct and practically useless — **the burden must scale with types,
+never units.**
+
+### An exception is keyed by CATEGORY, and that is not a preference
+
+This agent's input carries `(equipment_type, category, n, sample)` and **no tags
+at all**. An earlier revision asked it for a `tag`; it answered with category
+names, because that is what it had. Ten proposals resulted, every one resolving to
+zero equipment, every one of which would have been marked ratified while writing
+nothing.
+
+The model was not wrong — the question was unanswerable as posed. **Never ask an
+agent for a key its declared input cannot supply.** Where a review surface can act
+on the answer is part of the contract, not an implementation detail downstream.
+
+The category grain is also the *useful* one. Within `pump`, the SUMP PUMP category
+is float-switch controlled and unlike the circulation pumps beside it; within
+`fan`, a CEILING FAN is unlike the exhaust and return fans. That is finer than a
+type rule and settles every unit in the category at once.
 
 ## Tag strings never decide
 
@@ -76,7 +94,7 @@ forbids.
 
 Every proposal carries a confidence and a rationale in plain language.
 **Quarantine rather than guess** (EXTRACTION-PLAYBOOK R16): a unit the register
-does not describe well enough lands as a low-confidence exception with the reason
+does not describe well enough lands as a low-confidence proposal with the reason
 stated, never as a silent default.
 
 ## Return shape
@@ -87,9 +105,10 @@ stated, never as a silent default.
                "column": null, "applicable": false,
                "rationale": "…", "confidence": 0.9, "units_affected": 113,
                "life_safety": false } ],
-  "exceptions": [ { "tag": "AHU-3", "stage_group": "Plumbing / Domestic",
+  "exceptions": [ { "category": "SUMP PUMP", "equipment_type": "pump",
+                    "stage_group": "BAS Static Verification",
                     "column": null, "applicable": false,
-                    "rationale": "…", "confidence": 0.62 } ] }
+                    "rationale": "…", "confidence": 0.45 } ] }
 ```
 
 ## Budget
