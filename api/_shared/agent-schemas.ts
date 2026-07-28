@@ -86,6 +86,35 @@ export const ClassifierOutput: Validator<ClassifierOutput> = (v): v is Classifie
   v.exceptions.every((e: any) => isObj(e) && isStr(e.tag) && isStr(e.stage_group) &&
     typeof e.applicable === 'boolean' && isStr(e.rationale) && isConf(e.confidence))
 
+/** ONE STAGE GROUP AT A TIME. The whole-matrix question ("work out every type
+ *  against every group") has no natural stopping point, and the model reasoned
+ *  until it exhausted any budget it was given — 15,999 thinking tokens and zero
+ *  text, repeatedly. This asks a bounded question with a short answer: given ONE
+ *  group, which types does it not apply to? The stage group is known by the
+ *  caller and assembled deterministically afterwards, so the model never restates
+ *  it and cannot get it wrong. */
+export interface ClassifierGroupOutput {
+  inapplicable: { equipment_type: string; rationale: string
+                  confidence: number; life_safety?: boolean }[]
+  exceptions?: { tag: string; rationale: string
+                 confidence: number; life_safety?: boolean }[]
+}
+export const ClassifierGroupOutput: Validator<ClassifierGroupOutput> = (v): v is ClassifierGroupOutput =>
+  isObj(v) && isArr(v.inapplicable) &&
+  v.inapplicable.every((r: any) => isObj(r) && isStr(r.equipment_type) &&
+    isStr(r.rationale) && isConf(r.confidence)) &&
+  (v.exceptions === undefined || (isArr(v.exceptions) &&
+    v.exceptions.every((e: any) => isObj(e) && isStr(e.tag) && isConf(e.confidence))))
+
+export interface ClassifierGroupInput {
+  stage_group: string
+  columns: string[]
+  types: { equipment_type: string | null; category: string | null
+           n: number; sample: string | null }[]
+}
+export const ClassifierGroupInput: Validator<ClassifierGroupInput> = (v): v is ClassifierGroupInput =>
+  isObj(v) && isStr(v.stage_group) && isArr(v.columns) && isArr(v.types) && v.types.length > 0
+
 // ── extractor ───────────────────────────────────────────────────────────────
 export interface ExtractorInput {
   source_kind: 'pdf' | 'image' | 'single_line'
@@ -146,6 +175,7 @@ export const SCHEMAS: Record<string, Validator<any>> = {
   WriterInput, WriterOutput,
   VerifierInput, VerifierOutput,
   ClassifierInput, ClassifierOutput,
+  ClassifierGroupInput, ClassifierGroupOutput,
   ExtractorInput, ExtractorOutput,
   AnalystInput, AnalystOutput,
   LibrarianInput, LibrarianOutput,

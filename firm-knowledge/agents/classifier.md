@@ -2,10 +2,10 @@
 key: classifier
 purpose: Propose applicability rules and per-unit exceptions for a project's Cx Index.
 slices: [identity, terminology, domain-rules]
-budget_class: reasoning
-max_tokens: 5000
-input_schema: ClassifierInput
-output_schema: ClassifierOutput
+budget_class: prose
+max_tokens: 4000
+input_schema: ClassifierGroupInput
+output_schema: ClassifierGroupOutput
 review_surface: cx_applicability_proposals
 verifier: none
 autonomy_tier: 1
@@ -18,6 +18,26 @@ cost_expectation: "~12-18c per project register (batched, roughly one call per 8
 Reads an equipment register and the project's stage structure, and proposes which
 (type × stage-group) combinations do not apply — so the index's denominators tell
 the truth.
+
+## One stage group per call — the question must have a floor
+
+**The whole-matrix framing does not work, at any budget.** Asked to work out every
+equipment type against every stage group, the model reasons until its allowance is
+gone: 15,999 thinking tokens and *zero* text, repeatedly, even when given a single
+stage group alongside 42 types. A question with no natural stopping point expands
+to fill whatever room it is given.
+
+So each call asks one bounded question:
+
+> Given **this** stage group and its columns, which of these equipment types does
+> it not apply to, and which individual units are exceptions?
+
+The stage group is known by the caller and attached deterministically afterwards.
+The model never restates it, so it cannot get it wrong, and the answer is a short
+list rather than a matrix.
+
+Fire integration is **its own call** for the same reason — one focused question,
+read on its own terms.
 
 ## Rules first, exceptions second
 
@@ -74,15 +94,15 @@ stated, never as a silent default.
 
 ## Budget
 
-`reasoning`, **narrowed to 5,000** — and the narrowing is the point.
+`prose`, narrowed to **4,000**. A bounded question has a short answer.
 
-Measured against this register: at a 16,000 ceiling the model spent the whole
-budget thinking (15,173 reasoning tokens even when given a SINGLE stage group)
-and took **130 seconds**. At 5,000 it skipped extended thinking entirely,
-answered in **13 seconds**, and returned a complete answer with `end_turn`.
+The history is worth keeping, because it cost real money to learn. At a 16,000
+ceiling on the whole-matrix question the model burned the entire allowance
+thinking and returned nothing — six times, about $1.58. Narrowing the ceiling
+alone did not fix it: at 5,000 it still spent all 5,000 reasoning and emitted zero
+text.
 
-**A ceiling is a latency budget as well as a cost budget.** Headroom is free in
-money — you are billed for what is used — but it is not free in time: a large
-ceiling invites the model to fill it, and filling it is what takes the seconds.
-Against a 60-second request ceiling, that difference decides whether the feature
-works at all.
+**The budget was never the problem; the question was.** A ceiling is a latency
+budget as well as a cost budget, but no ceiling rescues a question that has no
+floor. Reshaping the task to one group per call is what made a small budget
+sufficient rather than merely cheap.

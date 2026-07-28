@@ -15,9 +15,6 @@
     "api/generate-minutes.ts": {
       "maxDuration": 60
     },
-    "api/classify-applicability.ts": {
-      "maxDuration": 60
-    },
     "api/cx-plan-draft.ts": {
       "maxDuration": 60
     },

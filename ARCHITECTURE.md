@@ -1374,10 +1374,23 @@ are written.
 |---|---|---|---|
 | `writer` | prose | identity, style, terminology, domain-rules, exemplar | Cx Plan review screen |
 | `verifier` | reasoning | **none** | flags on the review screen |
-| `classifier` | reasoning | identity, terminology, domain-rules | `cx_applicability_proposals` |
+| `classifier` | prose *(narrowed to 4,000)* | terminology, domain-rules | `cx_applicability_proposals` |
 | `extractor` | extraction | identity, terminology, domain-rules | intake review screen |
 | `analyst` *(stub)* | reasoning | identity, terminology, domain-rules | `ai_candidate_findings` |
 | `librarian` | reasoning | identity, style, terminology, domain-rules | `firm_corrections` |
+
+#### Some agent work is a JOB, not a request
+
+A review surface is not always fed by a button. A full applicability pass is 13
+bounded calls plus retries; the platform caps a function at 60 seconds and no
+setting raises it on this plan (`maxDuration: 300` is accepted and silently
+ignored). So the classifier ships as `classify-project.mjs`, run by an
+administrator, and `ApplicabilityReview` reads the proposals it leaves behind.
+
+The rule this makes concrete: **decide job-versus-request by the measured shape of
+the work, and when it is a job, do not ship a button that always times out.** An
+empty review surface that says where proposals come from is honest; a control that
+fails after sixty seconds teaches the user the feature is broken.
 
 ### The runtime — `runAgent(agentKey, input, opts)`
 
@@ -1408,21 +1421,35 @@ The earlier guidance here said headroom is free because you are billed for what 
 *used*, not what is *reserved*. **That is true of money and false of time**, and
 the classifier proved it:
 
-| Ceiling | Stage groups | Thinking | Result |
+| Ceiling | The question asked | Thinking | Result |
 |---|---|---|---|
-| 16,000 | 3 | 10,904 | 131s, hit the ceiling |
-| 16,000 | **1** | **15,173** | 141s, hit the ceiling |
-| **5,000** | 2 | **0** | **13s, `end_turn`, complete answer** |
+| 16,000 | whole matrix, 3 stage groups | 10,904 | 131s, hit the ceiling |
+| 16,000 | whole matrix, **1** stage group | **15,173** | 141s, hit the ceiling |
+| 5,000 | whole matrix | **5,000** | 53s, **zero text**, hit the ceiling |
+| **4,000** | **one stage group, bounded** | 0–4,000 | **~30s, complete answer** |
 
-Given one stage group the model still spent 15,173 tokens thinking — **a large
-ceiling invites the model to fill it**, and filling it is what takes the seconds.
-Narrowing to 5,000 made it skip extended thinking and simply answer, ten times
-faster and *more* complete.
+A large ceiling invites the model to fill it, and filling it is what takes the
+seconds — but **narrowing the ceiling alone does not help**. Row 3 is the proof:
+at 5,000 the whole-matrix question spent every token thinking and returned nothing.
+An unbounded question has no natural stopping point, so it expands into whatever
+allowance it is given and then dies at the edge.
 
-So: size a ceiling for the answer the task needs, not for the worst case you can
-imagine. Against a 60-second platform limit that difference decides whether a
-feature works at all — three timeout "fixes" chased the batch size before anyone
-measured the budget.
+What fixed it was changing the **question**, not the budget. "Which types does
+*this one stage group* not apply to?" has a floor: a dozen types, a sentence each.
+At 4,000 it answers in about thirty seconds, and 5 of 12 groups that still hit the
+ceiling recovered on one retry at 8,000.
+
+**Two lessons, and the second is the expensive one:**
+
+1. Size a ceiling for the answer the task needs. Against a 60-second platform
+   limit that decides whether a feature works at all.
+2. **Measure the real artifact, not an approximation.** The 13s figure that
+   originally sat in row 3 of this table came from a hand-written *approximation*
+   of the prompt; the real assembled prompt at the same ceiling took 53s and
+   produced no text. That single wrong number pointed four fixes in the wrong
+   direction. It is the same failure as the page-text stamp check that was reading
+   OpenType feature tags instead of page content — an approximate oracle is not a
+   weak measurement, it is a confident wrong one.
 Measured on the first run through the runtime: the writer spent 3,407 of 3,908
 tokens thinking; the **verifier** spent 1,119 of 1,950 — which is why it is
 `reasoning` and not `prose` despite returning a short flag list.
