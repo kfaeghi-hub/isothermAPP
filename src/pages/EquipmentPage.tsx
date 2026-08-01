@@ -4,7 +4,7 @@ import { reportError } from '../lib/mutationError'
 import { Combobox } from '../components/ui/Combobox'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
-import { IntakeUpload } from '../components/intake/IntakeUpload'
+import { IntakePanel } from '../components/intake/IntakePanel'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
   EquipmentAttachment, NameplateExtra,
@@ -458,7 +458,7 @@ export function EquipmentPage({ projectId }: Props) {
 
         {intakeOpen && (
           <div className="border-b border-gray-100 bg-gray-50/60 shrink-0 max-h-[55vh] overflow-y-auto">
-            <IntakeUpload projectId={projectId} onStaged={() => { setIntakeOpen(false); void fetchEquipment() }} />
+            <IntakePanel projectId={projectId} onChanged={() => void fetchEquipment()} />
           </div>
         )}
 
