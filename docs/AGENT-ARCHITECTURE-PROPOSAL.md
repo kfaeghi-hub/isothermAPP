@@ -1,12 +1,35 @@
-# Agent Architecture + Cx Index Upgrade — PROPOSAL
+# Agent Architecture + Cx Index Upgrade — AS BUILT
 
-**Status: RULED 2026-07-27 — all seven decisions taken. Build in progress.**
+**Status: COMPLETE 2026-08-01.** Ruled 2026-07-27; every step in the split is
+built, gated and in production. This document is now the as-built record —
+where the build departed from the proposal, the departure is marked and the
+reason given, because a design doc that quietly matches the code teaches
+nothing about why the code is the way it is.
 
 | Step | State |
 |---|---|
 | **0a** registry + runtime + composer refactor | **COMPLETE** — `pw-cx-plan` 30/30 incl. real-AI |
-| 0b ledger · 0c librarian | not started |
-| A1-A4 · B1-B3 | not started |
+| **0b** ledger · **0c** librarian | **COMPLETE** — `pw-agent-arch` 18 |
+| **A1** search + filter + panel | **COMPLETE** — battery 21/21 at the gate |
+| **A2** applicability overlay + progress math | **COMPLETE** — `pw-applicability` 11 |
+| **A3** rules + apply + precedence | **COMPLETE** — `pw-applicability-rules` 10 |
+| **A4** classifier + ratification UX | **COMPLETE** — Seneca: 67 proposals loaded, awaiting the CxA |
+| **B1** upload + deterministic Excel | **COMPLETE** — no model, proven 71→71 |
+| **B2** extractor + intake review | **COMPLETE** — both paths agree, PNG and PDF |
+| **B3** approval writes + rules + idempotency | **COMPLETE** — `pw-intake` 61 |
+
+Battery **25/25**. `vitest` 24 on the parser.
+
+## Where the build departed from this proposal
+
+| Proposed | Built | Why |
+|---|---|---|
+| `intake_rows.proposed_type` FK'd, unknown ⇒ null | plus `observed_type_name` beside it | A bare null erases what the SOURCE said, and the review surface is asked to resolve the type. Law 9: never ask for a ruling without supplying the means to make it. |
+| exception keyed by `tag` | keyed by CATEGORY | The classifier is never shown tags. Ten proposals resolved to zero equipment and would have ratified into silence. |
+| `storage_url` | `storage_path` | A signed URL expires; a column holding one is a fact with a shelf life. Already migrated away from once. |
+| one endpoint per action | `api/intake.ts`, `action: extract\|approve` | Forced: this plan takes 12 serverless functions and the 13th builds cleanly then fails at "Deploying outputs" with no message naming the limit. The merge is the better shape anyway — both actions share the upload resolution, the guard and the role check. |
+| PDFs to the extractor | PDFs as **document** blocks, images as image blocks | A PDF sent as a picture discards the text layer it already carries, then charges for reading the pixels. |
+| — | enrich taken FIELD BY FIELD | The first real render showed `descriptor: ZZ seeded pump → PUMP` under one Accept — a human-written value about to be replaced by a schedule's generic one. Additive lines are ticked by default; replacements never are. |
 
 Rulings: **D1** orthogonal overlay, `na` deprecated in place, taken now ·
 **D2** `ai_generations` absorbs, BAS-SPEC struck with a dated note ·
@@ -401,6 +424,14 @@ automatically**, so intake lands with honest denominators and a live *"what's st
 needed"* — only genuinely new types and exceptions surfacing for a human.
 
 **Idempotent: re-uploading the same schedule proposes zero rows.**
+
+*As built, idempotency is enforced at BOTH ends and by construction rather than
+by care.* The upload is refused up front on a SHA-256 of its bytes, naming the
+prior upload and its date — re-uploading is almost always someone unsure whether
+the first attempt worked, and the answer is to show them, not to double it. And
+approval reads only rows whose `created_equipment_id` is null, so running it
+twice writes nothing the second time and **says it was already done** rather than
+reporting a silent success.
 
 ---
 

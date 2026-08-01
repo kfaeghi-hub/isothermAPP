@@ -1379,6 +1379,31 @@ are written.
 | `analyst` *(stub)* | reasoning | identity, terminology, domain-rules | `ai_candidate_findings` |
 | `librarian` | reasoning | identity, style, terminology, domain-rules | `firm_corrections` |
 
+#### The platform takes 12 serverless functions, and the 13th lies about it
+
+A thirteenth function BUILDS cleanly — every asset emitted, no error, 54 seconds
+— and then fails at **"Deploying outputs"** with no message naming the limit.
+From the outside the symptom is: a green local build, an unchanged bundle hash in
+production, and new endpoints answering 404 while the previous deployment keeps
+serving perfectly. Nothing in that picture points at a function count.
+
+**Diagnosing it without the Vercel connector**, which is not always available:
+
+```
+GET https://api.github.com/repos/<owner>/<repo>/deployments?per_page=1
+GET .../deployments/<id>/statuses      -> state + the `npx vercel inspect` command
+npx vercel inspect <dpl_id> --logs     -> build log; note where it STOPS
+```
+
+A build that completes and then errors is a *deploy-stage* failure, which is a
+different class from a compile error and has different causes.
+
+The response is not to campaign for a bigger plan. It is to ask whether two
+endpoints were ever two things: `extract-page` and `intake-approve` shared their
+upload resolution, their resolve-and-refuse guard and their role check, and are
+now one `api/intake.ts` with an `action`. **Count functions when adding one, and
+prefer merging siblings over spending the last slot.**
+
 #### Some agent work is a JOB, not a request
 
 A review surface is not always fed by a button. A full applicability pass is 13
