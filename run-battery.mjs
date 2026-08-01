@@ -6,6 +6,17 @@
 // fixture — never parallelize) and prints one PASS/FAIL line per suite plus a
 // summary. Exit 0 only if every suite passed.
 //
+// NEVER PARALLELIZE IS NOT ADVICE, and it has now been paid for: one battery was
+// started in the background while a second battery plus two individual suites ran
+// against the same fixture. The result was pw-checklist-offline failing 9
+// assertions, pw-signoff-order reporting non-deterministic ordering, and
+// pw-project-delete announcing that ZZ-TEST did not exist — three convincing,
+// entirely fictional regressions. A clean sequential run was 25/25.
+//
+// The cost is not the wasted run. It is that a fake failure in a suite about
+// OFFLINE DURABILITY reads exactly like a real one, and the next instinct is to
+// go and "fix" working code.
+//
 // SUITE DISCOVERY IS AN EXPLICIT ALLOW-LIST, deliberately. A glob over pw-*.mjs
 // once swept in the arg-requiring manual audit tools, which exit 1 with a usage
 // message when run bare — false reds that trained us to explain away failures.
@@ -18,6 +29,10 @@
 //                           document-generator changes
 //   pw-pdf-shot.mjs / pw-ui-shots.mjs / pw-landing.mjs   screenshot generators,
 //                           no assertions
+//   pw-extractor.mjs runs BARE in the battery (mocked: contract + endpoint
+//                           refusal only, no spend). The real extraction is
+//                           `--real-ai`, run deliberately, because a battery that
+//                           bills on every commit gets run less often.
 //   pw-applicability-review-render.mjs   asserts, self-checks, and runs bare —
 //                           but reads a CLIENT project (Seneca), because ZZ-TEST
 //                           holds no classifier proposals and rendering there
@@ -48,6 +63,7 @@ const SUITES = [
   'pw-finding-register',
   'pw-generate-auth',
   'pw-intake',
+  'pw-extractor',
   'pw-meetings',
   'pw-pfc-verify',
   'pw-photo-capture',
