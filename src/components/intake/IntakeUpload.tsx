@@ -11,6 +11,7 @@
 // B3's approval. Law 2.
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { authedFetch } from '../../lib/api'
 import { readWorkbook, parseSheet, fileHash, type ParsedSheet, type TypeVocab } from '../../lib/intakeExcel'
 
 interface Staged extends ParsedSheet {
@@ -27,6 +28,61 @@ export function IntakeUpload({ projectId, onStaged }: {
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [matches, setMatches] = useState<Map<string, string>>(new Map())
+
+  const isImage = (f: File) => /\.(png|jpe?g|webp)$/i.test(f.name)
+
+  /**
+   * A PAGE, NOT A SPREADSHEET — upload it and let the extractor read it.
+   *
+   * There is no client-side preview for this path, and that is honest rather
+   * than lazy: the mapping a spreadsheet preview shows is derived from a header
+   * row this file does not have. The review screen is where an extracted page
+   * gets checked, row by row, which is what its confidence deserves.
+   */
+  async function extractImage(f: File) {
+    setError(null); setSheets(null); setFile(f); setBusy(true)
+    try {
+      const hash = await fileHash(f)
+      const { data: prior } = await supabase.from('intake_uploads')
+        .select('id, filename, uploaded_at, status')
+        .eq('project_id', projectId).eq('content_sha256', hash)
+        .order('uploaded_at', { ascending: false }).limit(1)
+      if (prior?.length) {
+        const p0 = prior[0]
+        setError(`This exact page was already uploaded as "${p0.filename}" on ` +
+          `${new Date(p0.uploaded_at).toLocaleDateString()} (status: ${p0.status}). ` +
+          `Open that upload rather than paying for a second reading of the same image.`)
+        return
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const safe = f.name.replace(/[^A-Za-z0-9._-]+/g, '_')
+      const path = `${projectId}/${Date.now()}_${safe}`
+      const up = await supabase.storage.from('intake-files').upload(path, f)
+      if (up.error) throw new Error(`storage: ${up.error.message}`)
+
+      const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
+        project_id: projectId, filename: f.name, storage_path: path,
+        kind: 'image', content_sha256: hash, status: 'uploaded',
+        uploaded_by: user?.id ?? null,
+      }).select('id').single()
+      if (uErr) throw new Error(uErr.message)
+
+      const res = await authedFetch('/api/extract-page', { upload_id: upload.id })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        // The upload row survives a failed reading on purpose: the file is
+        // stored, the failure is logged against it, and a retry costs one call
+        // rather than another upload.
+        throw new Error(body?.error ?? `extraction failed (${res.status})`)
+      }
+
+      onStaged(upload.id)
+      setFile(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally { setBusy(false) }
+  }
 
   async function choose(f: File) {
     setError(null); setSheets(null); setFile(f); setBusy(true)
@@ -164,17 +220,22 @@ export function IntakeUpload({ projectId, onStaged }: {
     <div className="px-4 py-3">
       <div className="flex items-center gap-3">
         <label className="text-xs border border-gray-200 rounded px-3 py-1.5 cursor-pointer hover:border-teal-400 hover:text-teal-700">
-          Choose a schedule (.xlsx)
-          <input type="file" accept=".xlsx" className="hidden" disabled={busy}
-            onChange={e => { const f = e.target.files?.[0]; if (f) void choose(f) }} />
+          Choose a schedule
+          <input type="file" accept=".xlsx,.png,.jpg,.jpeg,.webp" className="hidden" disabled={busy}
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) void (isImage(f) ? extractImage(f) : choose(f))
+            }} />
         </label>
         {file && <span className="text-[11px] text-gray-500 font-mono truncate">{file.name}</span>}
         {busy && <span className="text-[11px] text-gray-400">working…</span>}
       </div>
 
       <p className="text-[11px] text-gray-400 mt-1.5">
-        Typed Excel is read directly — no AI, no cost, and the same file always
-        reads the same way. Scanned drawings and PDFs go through the extractor instead.
+        <span className="font-mono">.xlsx</span> is read directly — no AI, no cost, and the
+        same file always reads the same way, so you check the column mapping once.
+        {' '}<span className="font-mono">.png .jpg .webp</span> pages are read by the
+        extractor, one call each, and every row is checked in the review.
       </p>
 
       {error && (

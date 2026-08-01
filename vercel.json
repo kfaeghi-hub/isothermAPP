@@ -23,6 +23,9 @@
     },
     "api/extract-page.ts": {
       "maxDuration": 60
+    },
+    "api/intake-approve.ts": {
+      "maxDuration": 60
     }
   }
 }

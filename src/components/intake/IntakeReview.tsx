@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { recordFeedback } from '../../lib/cxPlan'
+import { authedFetch } from '../../lib/api'
 
 interface Row {
   id: string
@@ -37,6 +38,7 @@ interface Row {
   duplicate_of: string | null
   disposition: string
   edited: Record<string, string | null> | null
+  created_equipment_id: string | null
 }
 
 interface Existing {
@@ -46,8 +48,8 @@ interface Existing {
 
 const CLEAN_AT = 0.85
 
-export function IntakeReview({ uploadId, projectId, onClose }: {
-  uploadId: string; projectId: string; onClose: () => void
+export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
+  uploadId: string; projectId: string; onClose: () => void; onApplied?: () => void
 }) {
   const [rows, setRows]   = useState<Row[]>([])
   const [upload, setUpload] = useState<{ filename: string; kind: string; parse_note: string | null } | null>(null)
@@ -57,6 +59,7 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [picks, setPicks] = useState<Map<string, Set<string>>>(new Map())
+  const [result, setResult] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
     const [{ data: u }, { data: r }, { data: t }] = await Promise.all([
@@ -126,6 +129,11 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
   const clean    = pending.filter(r => !r.duplicate_of && !r.match_equipment_id &&
                                        (r.confidence ?? 0) >= CLEAN_AT && !!r.proposed_type)
   const settled  = rows.length - pending.length
+  // Only rows that were RULED ON and have not already been written. A row
+  // carrying created_equipment_id is done; offering to write it again would be
+  // offering an action with no effect.
+  const approvable = rows.filter(r =>
+    ['accepted', 'edited'].includes(r.disposition) && !r.created_equipment_id).length
 
   async function acceptClean() {
     if (!clean.length) return
@@ -144,6 +152,37 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
       }).in('id', clean.map(r => r.id))
       if (error) { alert(error.message); return }
       await fetchAll()
+    } finally { setBusy(false) }
+  }
+
+  /**
+   * THE ONLY STEP THAT WRITES TO THE RECORD. Everything above it decided; this
+   * performs. It is deliberately a separate, named act rather than a side effect
+   * of the last Accept — a reviewer should be able to rule on 200 rows, walk
+   * away, and come back before anything becomes equipment.
+   */
+  async function approve() {
+    const ready = rows.filter(r => ['accepted', 'edited'].includes(r.disposition))
+    if (!ready.length) return
+    if (!window.confirm(
+      `Write ${ready.length} approved row(s) to the equipment register?\n\n` +
+      (pending.length
+        ? `${pending.length} row(s) are still undecided and will be left for later.\n\n`
+        : '') +
+      `New units are created; enrich rows change only the fields you ticked. ` +
+      `Ratified applicability rules are applied so the index shows honest ` +
+      `denominators straight away.`)) return
+    setBusy(true); setResult(null)
+    try {
+      const res = await authedFetch('/api/intake-approve', { upload_id: uploadId })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) { alert(body?.error ?? `Approval failed (${res.status})`); return }
+      setResult(
+        body.note ??
+        `${body.created} created · ${body.enriched} enriched` +
+        (body.queued_types ? ` · ${body.queued_types} type name(s) queued for ratification` : '') +
+        (body.still_pending ? ` · ${body.still_pending} still undecided` : ''))
+      await fetchAll(); onApplied?.()
     } finally { setBusy(false) }
   }
 
@@ -387,12 +426,25 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
             Accept all {clean.length} clean
           </button>
         )}
+        {approvable > 0 && (
+          <button onClick={approve} disabled={busy}
+            className="text-[11px] bg-teal-700 text-white rounded px-2.5 py-0.5 hover:bg-teal-800 disabled:opacity-50">
+            Write {approvable} to the register
+          </button>
+        )}
         <button onClick={onClose} className="ml-auto text-[11px] text-gray-400 hover:text-gray-700">Close</button>
       </div>
+
+      {result && (
+        <p className="text-[11px] text-teal-800 bg-teal-50 border border-teal-200 rounded px-3 py-1.5 mb-3">
+          {result}
+        </p>
+      )}
 
       {pending.length === 0 ? (
         <p className="text-xs text-gray-400 italic">
           Every row has been ruled on. {settled} decision{settled === 1 ? '' : 's'} recorded.
+          {approvable > 0 && ' Nothing is in the register until you write it.'}
         </p>
       ) : (
         <>

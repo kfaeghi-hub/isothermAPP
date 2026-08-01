@@ -28,7 +28,7 @@ const { data: zz } = await adm.from('projects').select('id, name').eq('name', TE
 if (!zz) { console.error(`REFUSING: no project named "${TEST_PROJECT}"`); process.exit(1) }
 console.log(`target: ${zz.name}\n`)
 
-const made = { uploads: [], equipment: [] }
+const made = { uploads: [], equipment: [], batches: [], rules: [], types: [] }
 let browser
 
 try {
@@ -52,6 +52,8 @@ try {
   // muted test is worse than none.
   const { count: equipBefore } = await adm.from('equipment')
     .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
+  const { count: typesBefore } = await adm.from('equipment_types')
+    .select('key', { count: 'exact', head: true })
 
   browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
@@ -221,6 +223,110 @@ try {
     .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
   check(rowsAfter === 5, `re-upload staged nothing more (${rowsAfter} rows, still 5)`)
 
+  // ══ B3 — APPROVAL: the only step that writes to the register ═════════════
+  //
+  // A firm rule is seeded first, so "ratified rules apply to what just arrived"
+  // is tested against a real rule rather than asserted about an empty table. A
+  // rule table with no rows would let this pass while doing nothing.
+  const { data: grp } = await adm.from('project_cx_stage_groups')
+    .select('name, project_cx_columns(id)').eq('project_id', zz.id).limit(1).single()
+  const groupCols = (grp.project_cx_columns ?? []).length
+
+  const { data: rule } = await adm.from('cx_applicability_rules').insert({
+    equipment_type: 'pump', stage_group_name: grp.name, column_label: null,
+    applicable: false, rationale: 'ZZ-INTAKE fixture rule', active: true,
+    ratified_at: new Date().toISOString(),
+  }).select('id').single()
+  made.rules.push(rule.id)
+
+  const naBefore = (await adm.from('cx_cell_applicability')
+    .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)).count
+
+  const { data: sess } = await adm.auth.getSession()
+  const apiToken = sess.session.access_token
+  const approve = async (uploadId) => page.evaluate(async ({ base, uploadId, token }) => {
+    const r = await fetch(`${base}/api/intake-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ upload_id: uploadId }),
+    })
+    return { status: r.status, body: await r.json().catch(() => null) }
+  }, { base: BASE_URL, uploadId, token: apiToken })
+
+  const app1 = await approve(up.id)
+  console.log(`\n  approve: ${app1.status} — ${JSON.stringify(app1.body)}\n`)
+  check(app1.status === 200, `approval succeeded (${app1.status})`)
+
+  // 4 clean rows accepted + 1 enrich taken as a subset = 4 creates, 1 enrich.
+  check(app1.body?.created === 4, `4 units created (${app1.body?.created})`)
+  check(app1.body?.enriched === 1, `1 unit enriched (${app1.body?.enriched})`)
+  made.batches.push(app1.body?.batch_id)
+
+  const { data: newEquip } = await adm.from('equipment')
+    .select('id, kind, tag, descriptor, equipment_type, location, category, nameplate_extra, import_batch_id')
+    .eq('import_batch_id', app1.body.batch_id)
+  made.equipment.push(...(newEquip ?? []).map(e => e.id))
+
+  check((newEquip ?? []).length === 4, `4 equipment rows carry the batch (${newEquip?.length})`)
+  check((newEquip ?? []).every(e => e.kind === 'equipment'),
+    'kind is set on every created unit — the NOT NULL constraint is satisfied deliberately, not by luck')
+  check((newEquip ?? []).every(e => !!e.import_batch_id),
+    'every created unit carries its provenance batch')
+
+  const p02 = (newEquip ?? []).find(e => e.tag === 'P-02')
+  check(p02?.equipment_type === 'pump' && p02?.category === 'HYDRONIC PUMP',
+    'type and category carried through from the parse')
+  check(JSON.stringify(p02?.nameplate_extra?.spec) === JSON.stringify({ GPM: '120', 'HEAD (FT)': '45' }),
+    'schedule columns landed in nameplate_extra.SPEC — design intent, not an installed reading')
+  check(!p02?.nameplate_extra?.installed || Object.keys(p02.nameplate_extra.installed).length === 0,
+    'nothing was filed as INSTALLED — the register does not claim a verification nobody performed')
+
+  // ── the enrich took ONLY what was ticked ─────────────────────────────────
+  const { data: seedNow } = await adm.from('equipment')
+    .select('descriptor, location, equipment_type').eq('id', seed.id).single()
+  check(seedNow.descriptor === 'ZZ-INTAKE seeded pump',
+    'THE HUMAN-WRITTEN DESCRIPTOR SURVIVED — the unticked replacement was not applied')
+  check(seedNow.location === 'Mech Room 1' && seedNow.equipment_type === 'pump',
+    'the two ticked additive fields WERE applied')
+
+  // ── ratified rules applied to what just arrived ──────────────────────────
+  const naAfter = (await adm.from('cx_cell_applicability')
+    .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)).count
+  check(naAfter > naBefore,
+    `ratified rules applied on arrival (${naBefore} → ${naAfter} not-applicable cells)`)
+
+  const pumpIds = (newEquip ?? []).filter(e => e.equipment_type === 'pump').map(e => e.id)
+  const { count: pumpNa } = await adm.from('cx_cell_applicability')
+    .select('id', { count: 'exact', head: true }).in('equipment_id', pumpIds)
+  check(pumpNa === pumpIds.length * groupCols,
+    `every new pump got the rule across all ${groupCols} columns of "${grp.name}" ` +
+    `(${pumpNa} cells for ${pumpIds.length} units)`)
+
+  // ── unknown types queued, never minted ───────────────────────────────────
+  const { data: q } = await adm.from('proposed_equipment_types')
+    .select('id, observed_name, status').eq('project_id', zz.id).eq('status', 'proposed')
+  made.types.push(...(q ?? []).map(x => x.id))
+  const { count: typeCount } = await adm.from('equipment_types')
+    .select('key', { count: 'exact', head: true })
+  check(typeCount === typesBefore,
+    `NO TYPE WAS MINTED by an import (${typesBefore} → ${typeCount})`)
+
+  // ── IDEMPOTENT ───────────────────────────────────────────────────────────
+  const app2 = await approve(up.id)
+  check(app2.status === 200 && app2.body?.created === 0 && app2.body?.enriched === 0,
+    `RE-APPROVING WRITES NOTHING — created ${app2.body?.created}, enriched ${app2.body?.enriched}`)
+  check(/[Aa]lready approved/.test(app2.body?.note ?? ''),
+    'and it SAYS it was already done rather than reporting a silent success')
+
+  const { count: equipFinal } = await adm.from('equipment')
+    .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
+  check(equipFinal === equipBefore + 4,
+    `the register grew by exactly 4, once (${equipBefore} → ${equipFinal})`)
+
+  const { data: upFinal } = await adm.from('intake_uploads')
+    .select('status, import_batch_id').eq('id', up.id).single()
+  check(upFinal.status === 'approved', `the upload closed as approved (${upFinal.status})`)
+
   // ── a repeated tag inside one workbook is flagged, never dropped ──────────
   await page.locator('input[type="file"]').first().setInputFiles('fixtures/intake-dupes.xlsx')
   await page.waitForTimeout(2500)
@@ -251,7 +357,19 @@ try {
     if (u?.storage_path) await adm.storage.from('intake-files').remove([u.storage_path])
     await adm.from('intake_uploads').delete().eq('id', id)
   }
-  for (const id of made.equipment) await adm.from('equipment').delete().eq('id', id)
+  // Order matters: cells and staged rows reference equipment, and import_batches
+  // is ON DELETE RESTRICT from the units it explains, so the batch goes last.
+  for (const id of made.equipment) {
+    await adm.from('cx_cell_applicability').delete().eq('equipment_id', id)
+    await adm.from('equipment').delete().eq('id', id)
+  }
+  for (const id of made.types)   await adm.from('proposed_equipment_types').delete().eq('id', id)
+  for (const id of made.rules)   await adm.from('cx_applicability_rules').delete().eq('id', id)
+  for (const id of made.batches) if (id) await adm.from('import_batches').delete().eq('id', id)
+
+  const { count: leftRules } = await adm.from('cx_applicability_rules')
+    .select('id', { count: 'exact', head: true }).eq('rationale', 'ZZ-INTAKE fixture rule')
+  check(leftRules === 0, `self-clean: fixture rule removed (${leftRules} left)`)
 
   const { count: leftRows } = await adm.from('intake_rows')
     .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)

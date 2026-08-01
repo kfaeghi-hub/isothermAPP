@@ -41,6 +41,7 @@ export function IntakePanel({ projectId, onChanged }: {
   if (open) {
     return (
       <IntakeReview uploadId={open} projectId={projectId}
+        onApplied={onChanged}
         onClose={() => { setOpen(null); void fetchAll(); onChanged() }} />
     )
   }
