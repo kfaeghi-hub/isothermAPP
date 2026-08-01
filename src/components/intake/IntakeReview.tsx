@@ -174,7 +174,7 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
       `denominators straight away.`)) return
     setBusy(true); setResult(null)
     try {
-      const res = await authedFetch('/api/intake-approve', { upload_id: uploadId })
+      const res = await authedFetch('/api/intake', { upload_id: uploadId, action: 'approve' })
       const body = await res.json().catch(() => null)
       if (!res.ok) { alert(body?.error ?? `Approval failed (${res.status})`); return }
       setResult(

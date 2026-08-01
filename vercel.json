@@ -21,10 +21,7 @@
     "api/librarian-harvest.ts": {
       "maxDuration": 60
     },
-    "api/extract-page.ts": {
-      "maxDuration": 60
-    },
-    "api/intake-approve.ts": {
+    "api/intake.ts": {
       "maxDuration": 60
     }
   }

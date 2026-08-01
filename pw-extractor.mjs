@@ -92,10 +92,10 @@ try {
   const token = sess.session.access_token
 
   const callExtract = async (uploadId) => page.evaluate(async ({ base, uploadId, token }) => {
-    const r = await fetch(`${base}/api/extract-page`, {
+    const r = await fetch(`${base}/api/intake`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ upload_id: uploadId }),
+      body: JSON.stringify({ upload_id: uploadId, action: 'extract' }),
     })
     return { status: r.status, body: await r.json().catch(() => null) }
   }, { base: BASE_URL, uploadId, token })

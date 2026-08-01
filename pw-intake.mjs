@@ -245,10 +245,10 @@ try {
   const { data: sess } = await adm.auth.getSession()
   const apiToken = sess.session.access_token
   const approve = async (uploadId) => page.evaluate(async ({ base, uploadId, token }) => {
-    const r = await fetch(`${base}/api/intake-approve`, {
+    const r = await fetch(`${base}/api/intake`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ upload_id: uploadId }),
+      body: JSON.stringify({ upload_id: uploadId, action: 'approve' }),
     })
     return { status: r.status, body: await r.json().catch(() => null) }
   }, { base: BASE_URL, uploadId, token: apiToken })

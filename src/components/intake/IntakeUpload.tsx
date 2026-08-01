@@ -68,7 +68,7 @@ export function IntakeUpload({ projectId, onStaged }: {
       }).select('id').single()
       if (uErr) throw new Error(uErr.message)
 
-      const res = await authedFetch('/api/extract-page', { upload_id: upload.id })
+      const res = await authedFetch('/api/intake', { upload_id: upload.id, action: 'extract' })
       const body = await res.json().catch(() => null)
       if (!res.ok) {
         // The upload row survives a failed reading on purpose: the file is
