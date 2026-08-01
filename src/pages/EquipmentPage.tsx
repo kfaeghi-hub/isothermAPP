@@ -4,6 +4,7 @@ import { reportError } from '../lib/mutationError'
 import { Combobox } from '../components/ui/Combobox'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
+import { IntakeUpload } from '../components/intake/IntakeUpload'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
   EquipmentAttachment, NameplateExtra,
@@ -75,6 +76,7 @@ export function EquipmentPage({ projectId }: Props) {
   const [loading, setLoading]         = useState(true)
 
   // Add modal
+  const [intakeOpen, setIntakeOpen] = useState(false)
   const [addOpen, setAddOpen]           = useState(false)
   const [addForm, setAddForm]           = useState<AddForm>(EMPTY_FORM)
   const [tagQuery, setTagQuery]         = useState('')
@@ -441,12 +443,24 @@ export function EquipmentPage({ projectId }: Props) {
           </span>
           <span className="text-[10px] text-gray-400 font-mono">{equipment.length}</span>
           <button
+            onClick={() => setIntakeOpen(o => !o)}
+            className="px-2.5 py-1 text-xs border border-gray-200 rounded text-gray-600 hover:border-teal-400 hover:text-teal-700"
+          >
+            Import
+          </button>
+          <button
             onClick={() => { setAddOpen(true); setTagQuery(''); setGlossarySuggestions([]) }}
             className="px-2.5 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800"
           >
             + Add
           </button>
         </div>
+
+        {intakeOpen && (
+          <div className="border-b border-gray-100 bg-gray-50/60 shrink-0 max-h-[55vh] overflow-y-auto">
+            <IntakeUpload projectId={projectId} onStaged={() => { setIntakeOpen(false); void fetchEquipment() }} />
+          </div>
+        )}
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
