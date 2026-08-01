@@ -79,6 +79,27 @@ try {
   check(strayCall.length === 0,
     `LAW 1 — callModel has no caller outside ai-common (${strayCall.join(', ') || 'none'})`)
 
+  console.log('\n── Law 9: resolved against the register, never trusted ───────')
+  // Two defects in one session shared a cause: an agent was asked for a key its
+  // declared input could not supply, answered at the grain it had, and the
+  // assembler wrote the answer down unchecked. Sixteen proposals would have been
+  // marked ratified while writing nothing.
+  //
+  // Both halves of the enforcement are scanned, because either alone still ends
+  // in a silent success: the ASSEMBLER must resolve a key before storing it, and
+  // the RATIFICATION SURFACE must refuse to settle a proposal that resolves to
+  // nothing. Grep the mechanism rather than trusting that it is still there.
+  const asm = readFileSync('classify-project.mjs', 'utf8')
+  check(/typeSet\.has\(/.test(asm) && /unitsByCategory\.get\(/.test(asm),
+    'LAW 9 — the assembler resolves every returned key against the register')
+  check(/dropped .* unknown/.test(asm),
+    'LAW 9 — an unresolvable key is dropped with a logged reason, not written')
+
+  const surface = readFileSync('src/components/cxindex/ApplicabilityReview.tsx', 'utf8')
+  check(/!units\.length \|\| !targets\.length/.test(surface) &&
+        /Cannot ratify/.test(surface),
+    'LAW 9 — ratifying something that resolves to nothing FAILS rather than no-ops')
+
   console.log('\n── Ledger ────────────────────────────────────────────────────')
   const { error: ledErr } = await adm.from('agent_feedback').select('id').limit(1)
   check(!ledErr, `agent_feedback readable by staff${ledErr ? ': ' + ledErr.message : ''}`)

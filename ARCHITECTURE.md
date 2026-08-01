@@ -1379,39 +1379,6 @@ are written.
 | `analyst` *(stub)* | reasoning | identity, terminology, domain-rules | `ai_candidate_findings` |
 | `librarian` | reasoning | identity, style, terminology, domain-rules | `firm_corrections` |
 
-#### Never ask an agent for a key its declared input cannot supply
-
-**Candidate for universal law 9 — proposed, not ruled.** It has now failed twice
-in one build, on two different surfaces, which is what separates a class from an
-incident.
-
-The classifier's input carries `(equipment_type, category, n, sample)`. It was
-asked for:
-
-| Asked for | Input contained | It answered with | Result |
-|---|---|---|---|
-| a **tag** | no tags at all | category names | 10 proposals resolving to zero equipment |
-| an **equipment_type** | `null` for untyped units | the category name | 6 "firm rules" matching no equipment anywhere |
-
-Neither answer was wrong. Both questions were unanswerable as posed, and the model
-did the only reasonable thing: it answered at the grain it had. Every one of those
-sixteen would have been marked **ratified** while writing nothing — the silent
-success this architecture exists to prevent, arriving through the front door.
-
-Two obligations follow:
-
-1. **A contract's `input_schema` and `output_schema` must be reconcilable.** If the
-   output names a key, the input must be able to identify it. This is checkable by
-   reading the two schemas side by side, and nobody did.
-2. **The assembler resolves; it never trusts.** `classify-project.mjs` now checks
-   every returned key against the register, re-homes a category-grain answer to
-   the surface that can act on it, and drops an unresolvable one with a logged
-   reason. A proposal nobody can apply is worse than one nobody makes: it takes a
-   reviewer's attention and then ratifies into silence.
-
-The general form: **where a review surface can act on an answer is part of the
-contract, not an implementation detail downstream.**
-
 #### Some agent work is a JOB, not a request
 
 A review surface is not always fed by a button. A full applicability pass is 13
@@ -1507,6 +1474,29 @@ tokens thinking; the **verifier** spent 1,119 of 1,950 — which is why it is
 8. **Tag strings never decide type or applicability.** On one project `RP` was a
    radiant panel on the mechanical drawings and a receptacle panel on the
    electrical. The source's own descriptor decides; a tag may corroborate.
+9. **Never ask an agent for a key its declared input cannot supply.** A contract's
+   `input_schema` and `output_schema` must be reconcilable: if the output names a
+   key, the input must be able to identify it. *Enforced:* the assembler resolves
+   every returned key against the register — re-homing an answer given at a
+   coarser grain to the surface that can act on it, and dropping an unresolvable
+   one with a logged reason. **Resolved against the register, never trusted.**
+
+   *Evidence — two defects, one session, one class:*
+
+   | Asked for | Input contained | Answered with | Would have produced |
+   |---|---|---|---|
+   | a **tag** | no tags at all | category names | 10 proposals resolving to zero equipment |
+   | an **equipment_type** | `null` on untyped units | the category name | 6 firm rules matching no equipment anywhere |
+
+   Neither answer was wrong; both questions were unanswerable as posed, and the
+   model answered at the grain it had. All sixteen would have been marked
+   **ratified** while writing nothing — the silent success this architecture
+   exists to prevent, arriving through the front door. Ratification surfaces now
+   fail loudly on a proposal that resolves to nothing rather than reporting
+   success for work they did not do.
+
+   The general form: **where a review surface can act on an answer is part of the
+   contract, not an implementation detail downstream.**
 
 ### Autonomy is graduated and earned
 
