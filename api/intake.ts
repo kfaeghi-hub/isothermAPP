@@ -29,8 +29,10 @@ import type { ExtractorOutput } from './_shared/agent-schemas.js'
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const MEDIA: Record<string, 'image/png' | 'image/jpeg' | 'image/webp'> = {
+const MEDIA: Record<string, 'image/png' | 'image/jpeg' | 'image/webp' | 'application/pdf'> = {
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+  // A PDF goes as a document block, which keeps its pages and its text layer.
+  pdf: 'application/pdf',
 }
 
 /** The fields an ENRICH may fill. A row changes only what the reviewer ticked. */

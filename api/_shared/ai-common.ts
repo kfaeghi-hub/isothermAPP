@@ -109,11 +109,18 @@ export function buildContext(req: ContextRequest): string {
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const MODEL = process.env.AI_MODEL ?? 'claude-sonnet-5'
 
-/** An image the model should LOOK at, not read as text. */
-export interface ImageAttachment {
+/** A page the model should LOOK at rather than read as text.
+ *
+ *  A PDF is not an image and must not be sent as one — the API takes it as a
+ *  `document` block, which preserves its page structure and its embedded text.
+ *  Flattening a typed PDF schedule into a picture would throw away the machine
+ *  readable half of it and then charge for reading the pixels. */
+export interface PageAttachment {
   base64: string
-  mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
+  mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' | 'application/pdf'
 }
+/** @deprecated kept so existing callers keep compiling; use PageAttachment. */
+export type ImageAttachment = PageAttachment
 
 export interface ModelCall {
   system: string
@@ -506,7 +513,7 @@ export interface RunAgentOpts {
    *  An agent whose input declares an image and receives none is a law 9 failure
    *  — it was asked for keys nothing in its input could supply — so the caller
    *  asserts the two agree before spending a token. */
-  images?: ImageAttachment[]
+  images?: PageAttachment[]
 }
 
 /**
@@ -568,7 +575,10 @@ export async function runAgent<T>(
     opts.images?.length
       ? [
           ...opts.images.map(im => ({
-            type: 'image',
+            // The block TYPE follows the media type. Sending a PDF as an image
+            // block is rejected by the API, and sending it as a picture would
+            // discard the text layer it already carries.
+            type: im.mediaType === 'application/pdf' ? 'document' : 'image',
             source: { type: 'base64', media_type: im.mediaType, data: im.base64 },
           })),
           { type: 'text', text: t },

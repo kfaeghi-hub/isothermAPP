@@ -58,15 +58,24 @@ const made = { uploads: [] }
 let browser
 
 try {
-  // ── stage the IMAGE upload ────────────────────────────────────────────────
-  const bytes = readFileSync('fixtures/intake-sample-page.png')
-  const path = `${zz.id}/ZZ-EXTRACT-${Date.now()}_page.png`
-  const up = await adm.storage.from('intake-files').upload(path, bytes, { contentType: 'image/png' })
+  // ── stage the PAGE upload ─────────────────────────────────────────────────
+  // Both media paths are exercised: a rendered PNG and a typed PDF carrying the
+  // same three pumps. A PDF goes to the API as a DOCUMENT block, not an image —
+  // sending it as a picture would discard the text layer it already has.
+  const PAGE = process.argv.includes('--pdf')
+    ? { file: 'fixtures/intake-sample-page.pdf', kind: 'pdf',   ct: 'application/pdf' }
+    : { file: 'fixtures/intake-sample-page.png', kind: 'image', ct: 'image/png' }
+  console.log(`  page: ${PAGE.file}`)
+
+  const bytes = readFileSync(PAGE.file)
+  const ext = PAGE.file.split('.').pop()
+  const path = `${zz.id}/ZZ-EXTRACT-${Date.now()}_page.${ext}`
+  const up = await adm.storage.from('intake-files').upload(path, bytes, { contentType: PAGE.ct })
   if (up.error) throw new Error(`storage: ${up.error.message}`)
 
   const { data: upload, error: uErr } = await adm.from('intake_uploads').insert({
-    project_id: zz.id, filename: 'intake-sample-page.png', storage_path: path,
-    kind: 'image', status: 'uploaded',
+    project_id: zz.id, filename: PAGE.file.split('/').pop(), storage_path: path,
+    kind: PAGE.kind, status: 'uploaded',
   }).select('id').single()
   if (uErr) throw new Error(`upload row: ${uErr.message}`)
   made.uploads.push(upload.id)

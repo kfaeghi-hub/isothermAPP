@@ -29,7 +29,8 @@ export function IntakeUpload({ projectId, onStaged }: {
   const [error, setError] = useState<string | null>(null)
   const [matches, setMatches] = useState<Map<string, string>>(new Map())
 
-  const isImage = (f: File) => /\.(png|jpe?g|webp)$/i.test(f.name)
+  /** Anything that is not a spreadsheet is a PAGE for the extractor. */
+  const isPage = (f: File) => /\.(png|jpe?g|webp|pdf)$/i.test(f.name)
 
   /**
    * A PAGE, NOT A SPREADSHEET — upload it and let the extractor read it.
@@ -39,7 +40,7 @@ export function IntakeUpload({ projectId, onStaged }: {
    * row this file does not have. The review screen is where an extracted page
    * gets checked, row by row, which is what its confidence deserves.
    */
-  async function extractImage(f: File) {
+  async function extractPage(f: File) {
     setError(null); setSheets(null); setFile(f); setBusy(true)
     try {
       const hash = await fileHash(f)
@@ -63,7 +64,8 @@ export function IntakeUpload({ projectId, onStaged }: {
 
       const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
         project_id: projectId, filename: f.name, storage_path: path,
-        kind: 'image', content_sha256: hash, status: 'uploaded',
+        kind: /\.pdf$/i.test(f.name) ? 'pdf' : 'image',
+        content_sha256: hash, status: 'uploaded',
         uploaded_by: user?.id ?? null,
       }).select('id').single()
       if (uErr) throw new Error(uErr.message)
@@ -221,10 +223,10 @@ export function IntakeUpload({ projectId, onStaged }: {
       <div className="flex items-center gap-3">
         <label className="text-xs border border-gray-200 rounded px-3 py-1.5 cursor-pointer hover:border-teal-400 hover:text-teal-700">
           Choose a schedule
-          <input type="file" accept=".xlsx,.png,.jpg,.jpeg,.webp" className="hidden" disabled={busy}
+          <input type="file" accept=".xlsx,.png,.jpg,.jpeg,.webp,.pdf" className="hidden" disabled={busy}
             onChange={e => {
               const f = e.target.files?.[0]
-              if (f) void (isImage(f) ? extractImage(f) : choose(f))
+              if (f) void (isPage(f) ? extractPage(f) : choose(f))
             }} />
         </label>
         {file && <span className="text-[11px] text-gray-500 font-mono truncate">{file.name}</span>}
