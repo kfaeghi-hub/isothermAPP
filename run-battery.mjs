@@ -47,6 +47,7 @@ const SUITES = [
   'pw-directory',
   'pw-finding-register',
   'pw-generate-auth',
+  'pw-intake',
   'pw-meetings',
   'pw-pfc-verify',
   'pw-photo-capture',

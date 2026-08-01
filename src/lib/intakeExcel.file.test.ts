@@ -57,6 +57,24 @@ describe('a real workbook through the real reader', () => {
     expect(out.rows[0].proposed_type).toBe('vav')
   })
 
+  it('LOSES NO VALUE UNDER A MERGED HEADER', async () => {
+    // Found by rendering the preview and reading it: the summary said
+    // "kept as nameplate: AIRFLOW, AIRFLOW". Forward-fill gave two columns one
+    // name, so writing the second nameplate key overwrote the first and MIN CFM
+    // vanished into MAX CFM — with the parser reporting success throughout.
+    // No assertion here caught it, because none was comparing the number of
+    // values IN to the number OUT.
+    const sheets = await readFixture()
+    const out = parseSheet(sheets[1].data as Cell[][], 'VAV', VOCAB)
+    expect(out.unmapped).toEqual(['AIRFLOW MIN CFM', 'AIRFLOW MAX CFM'])
+    expect(out.rows[0].nameplate).toEqual({
+      'AIRFLOW MIN CFM': '100', 'AIRFLOW MAX CFM': '400',
+    })
+    // The general property, stated so it holds for headers nobody anticipated:
+    // no two columns may share a nameplate key.
+    expect(new Set(out.unmapped).size).toBe(out.unmapped.length)
+  })
+
   it('reports zero rows on a cover page and says what it looked for', async () => {
     const sheets = await readFixture()
     const out = parseSheet(sheets[2].data as Cell[][], 'Cover', VOCAB)

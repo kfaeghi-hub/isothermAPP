@@ -18,7 +18,8 @@ import { createClient } from '@supabase/supabase-js'
 import { loginAs, adminCredentials, BASE_URL, TEST_PROJECT } from './pw-config.mjs'
 
 const fails = []
-const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
+let passed = 0
+const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (ok) passed++; else fails.push(msg) }
 
 const adm = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 await adm.auth.signInWithPassword(adminCredentials())
@@ -32,13 +33,25 @@ let browser
 
 try {
   // ── seed one existing unit so ENRICH detection has something to find ──────
-  const { data: seed } = await adm.from('equipment').insert({
-    project_id: zz.id, tag: 'P-01', descriptor: 'ZZ-INTAKE seeded pump',
+  // `kind` is NOT NULL on equipment and constrained to equipment|system. Worth
+  // recording here because B3's approval writes hit the same constraint, and a
+  // NOT NULL discovered at write time is a failed import, not a warning.
+  const seeded = await adm.from('equipment').insert({
+    project_id: zz.id, kind: 'equipment', tag: 'P-01', descriptor: 'ZZ-INTAKE seeded pump',
   }).select('id').single()
+  // Surface the reason rather than dying on `null.id` three lines later.
+  if (seeded.error) throw new Error(`seed equipment: ${seeded.error.message}`)
+  const seed = seeded.data
   made.equipment.push(seed.id)
 
   const { count: aiBefore } = await adm.from('ai_generations')
     .select('id', { count: 'exact', head: true })
+  // ZZ-TEST carries standing fixtures, so law 2 is asserted as a DELTA. An
+  // absolute count here would encode today's fixture list and break the next time
+  // anyone adds one — a test that fails for the wrong reason gets muted, and a
+  // muted test is worse than none.
+  const { count: equipBefore } = await adm.from('equipment')
+    .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
 
   browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
@@ -106,7 +119,8 @@ try {
 
   const { count: equipNow } = await adm.from('equipment')
     .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
-  check(equipNow === 1, `LAW 2 — equipment untouched: still ${equipNow} unit (only the seed)`)
+  check(equipNow === equipBefore,
+    `LAW 2 — staging created no equipment (${equipBefore} before, ${equipNow} after)`)
 
   // ── THE GATE ──────────────────────────────────────────────────────────────
   const { count: aiAfter } = await adm.from('ai_generations')
@@ -169,4 +183,4 @@ try {
 
 console.log(`\n${'='.repeat(64)}`)
 if (fails.length) { console.log(`FAIL — ${fails.length}:`); fails.forEach(f => console.log(`  - ${f}`)); process.exit(1) }
-console.log('PASS — intake: preview before write, enrich matched, duplicates flagged, no model. 22 checks.')
+console.log(`PASS — intake: preview before write, enrich matched, duplicates flagged, no model. ${passed} checks.`)

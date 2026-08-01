@@ -89,6 +89,44 @@ function forwardFill(row: Cell[]): string[] {
 }
 
 /**
+ * Compose the header labels for a candidate row, folding in a SUB-HEADER when the
+ * row above it is a merged span.
+ *
+ * "AIRFLOW" merged across two columns forward-fills to AIRFLOW, AIRFLOW — two
+ * columns with one name. Every value written under the second overwrites the
+ * first, so MIN CFM silently disappears into MAX CFM and the parser reports
+ * success. The row beneath holds the real names, so the label is the pair:
+ * "AIRFLOW MIN CFM", "AIRFLOW MAX CFM".
+ *
+ * The final de-duplication is a backstop rather than a nicety: as long as two
+ * columns can share a key, a nameplate value can be lost without anyone seeing a
+ * failure, and that is the exact class of defect this build keeps paying for.
+ */
+function composeHeader(grid: Cell[][], r: number): { labels: string[]; dataStart: number } {
+  const base = forwardFill(grid[r] ?? [])
+  const raw  = (grid[r] ?? []).map(txt)
+  const next = (grid[r + 1] ?? []).map(txt)
+
+  // A column is SPANNED when forward-fill gave it a value its own cell did not.
+  const spanned = base.map((v, i) => !!v && !raw[i])
+  const subHeader = spanned.some((sp, i) => sp && next[i])
+
+  const labels = subHeader
+    ? base.map((v, i) => (next[i] ? `${v} ${next[i]}`.trim() : v))
+    : base
+
+  const seen = new Map<string, number>()
+  const unique = labels.map((l, i) => {
+    if (!l) return l
+    const n = seen.get(l)
+    seen.set(l, (n ?? 0) + 1)
+    return n === undefined ? l : `${l} (col ${i + 1})`
+  })
+
+  return { labels: unique, dataStart: subHeader ? r + 2 : r + 1 }
+}
+
+/**
  * Find the header row by SCORING every candidate, not by assuming row 1.
  *
  * Real schedules open with a title, sometimes a revision block, sometimes a blank
@@ -96,11 +134,11 @@ function forwardFill(row: Cell[]): string[] {
  * parser silently reads the title as data — it produces rows, so it looks like it
  * worked.
  */
-function findHeader(grid: Cell[][]): { row: number; labels: string[]; score: number } | null {
-  let best: { row: number; labels: string[]; score: number } | null = null
+function findHeader(grid: Cell[][]): { row: number; labels: string[]; score: number; dataStart: number } | null {
+  let best: { row: number; labels: string[]; score: number; dataStart: number } | null = null
 
   for (let r = 0; r < Math.min(grid.length, 25); r++) {
-    const labels = forwardFill(grid[r] ?? [])
+    const { labels, dataStart } = composeHeader(grid, r)
     const filled = labels.filter(Boolean)
     if (filled.length < 2) continue
 
@@ -128,7 +166,7 @@ function findHeader(grid: Cell[][]): { row: number; labels: string[]; score: num
     const next = (grid[r + 1] ?? []).map(txt).filter(Boolean)
     if (next.length >= 2) score += 2
 
-    if (!best || score > best.score) best = { row: r, labels, score }
+    if (!best || score > best.score) best = { row: r, labels, score, dataStart }
   }
   return best && best.score >= 5 ? best : null
 }
@@ -232,7 +270,7 @@ export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]
   // like equipment tags. This is locating a column, not typing a unit.
   let tagInferred = false
   if (colFor.tag === undefined) {
-    const body = grid.slice(head.row + 1)
+    const body = grid.slice(head.dataStart)
     let bestCol = -1, bestHits = 0
     const width = Math.max(...body.slice(0, 40).map(r => r?.length ?? 0), 0)
     for (let c = 0; c < width; c++) {
@@ -257,7 +295,7 @@ export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]
   const rows: ParsedRow[] = []
   let skipped = 0
 
-  for (let r = head.row + 1; r < grid.length; r++) {
+  for (let r = head.dataStart; r < grid.length; r++) {
     const raw = grid[r] ?? []
     const cells = raw.map(txt)
     if (cells.every(c => !c)) { skipped++; continue }
