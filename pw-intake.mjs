@@ -128,8 +128,88 @@ try {
   check(aiAfter === aiBefore,
     `NO MODEL INVOLVED — ai_generations unchanged (${aiBefore} → ${aiAfter})`)
 
+  // ── THE REVIEW SCREEN ─────────────────────────────────────────────────────
+  // Staging opens the review, so the screen under test is the one a user lands
+  // on rather than one reached by a route only the test knows.
+  await page.waitForTimeout(1500)
+  const review = await page.locator('body').innerText()
+
+  check(/Intake review/.test(review), 'staging opens the review screen')
+  check(/CHANGES EXISTING EQUIPMENT/.test(review),
+    'the enrich block is present and named for what it does, not for its data shape')
+  check(/Clean — 4/.test(review), 'four clean rows (5 staged, 1 is the enrich)')
+
+  // THE DIFF SHOWS ONLY WHAT WOULD CHANGE. The seeded P-01 has no location, and
+  // the schedule proposes one — so exactly that line should appear.
+  check(/location:.*Mech Room 1/s.test(review), 'the enrich diff names the field it would fill')
+  check(/ZZ-INTAKE seeded pump/.test(review),
+    'the diff shows the EXISTING value being replaced, not just the new one')
+
+  const { count: fbBefore } = await adm.from('agent_feedback')
+    .select('id', { count: 'exact', head: true })
+
+  // ── bulk-accept settles the body and NOTHING ELSE ─────────────────────────
+  page.once('dialog', d => d.accept())
+  await page.getByRole('button', { name: /Accept all 4 clean/ }).click()
+  await page.waitForTimeout(2500)
+
+  const { data: afterBulk } = await adm.from('intake_rows')
+    .select('tag, disposition, match_equipment_id').eq('upload_id', up.id)
+  const acceptedTags = (afterBulk ?? []).filter(r => r.disposition === 'accepted').map(r => r.tag).sort()
+  check(acceptedTags.length === 4, `bulk accepted exactly 4 (${acceptedTags.length})`)
+  check(!acceptedTags.includes('P-01'),
+    'THE ENRICH ROW WAS NOT BULK-ACCEPTED — the one row that could alter an existing unit')
+  const stillPending = (afterBulk ?? []).filter(r => r.disposition === 'pending')
+  check(stillPending.length === 1 && stillPending[0].tag === 'P-01',
+    'P-01 is still pending an individual decision')
+
+  // ── the ledger is for AGENTS, and this upload had none ────────────────────
+  const { count: fbAfter } = await adm.from('agent_feedback')
+    .select('id', { count: 'exact', head: true })
+  check(fbAfter === fbBefore,
+    `NO LEDGER ROWS FROM A DETERMINISTIC PARSE — agent_feedback unchanged (${fbBefore} → ${fbAfter}). ` +
+    `Crediting the extractor for an Excel read would corrupt the acceptance rate the promotion rule reads.`)
+
+  const { count: equipStill } = await adm.from('equipment')
+    .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
+  check(equipStill === equipBefore,
+    `LAW 2 — accepting is a DECISION, not a write: equipment still ${equipStill}`)
+
+  // ── NEVER OVERWRITE, BY DEFAULT AND NOT BY HOPE ───────────────────────────
+  // The seeded P-01 carries a human-written descriptor. The schedule proposes
+  // the generic "PUMP" over it, and offers a location and a type for fields that
+  // are empty. Additive lines are ticked; the replacement is not, so a reviewer
+  // who clicks straight through never silently downgrades an entered value.
+  const enrichView = await page.locator('body').innerText()
+  check(/replaces an entered value/.test(enrichView),
+    'the replacement is LABELLED as replacing something, not shown as a neutral change')
+
+  const boxes = page.locator('input[type="checkbox"]')
+  const states = await boxes.evaluateAll(els => els.map(e => e.checked))
+  check(states.length === 3, `three diff lines offered (${states.length})`)
+  check(states.filter(Boolean).length === 2,
+    `two ticked by default, one left for the reviewer (${states.filter(Boolean).length} ticked)`)
+
+  await page.getByRole('button', { name: 'Apply selected' }).click()
+  await page.waitForTimeout(2500)
+
+  const { data: enrichRow } = await adm.from('intake_rows')
+    .select('disposition, edited').eq('upload_id', up.id).eq('tag', 'P-01').maybeSingle()
+  check(enrichRow?.disposition === 'edited',
+    `taking a SUBSET records 'edited', not 'accepted' (${enrichRow?.disposition}) — ` +
+    `the extractor's acceptance rate must not count a partial take as a clean hit`)
+  check(enrichRow?.edited && !('descriptor' in enrichRow.edited),
+    'the human-written descriptor was NOT carried into the approved change set')
+  check(enrichRow?.edited?.location === 'Mech Room 1' && enrichRow?.edited?.proposed_type === 'pump',
+    'the two additive fields WERE carried')
+
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.waitForTimeout(1000)
+
   // ── re-uploading the same bytes is refused, not doubled ───────────────────
-  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  // No Import click here: closing the review returns to the panel, which is
+  // still open. Clicking Import again would TOGGLE it shut — the button is a
+  // toggle, and treating it as "open" is how this step failed the first time.
   await page.locator('input[type="file"]').first().setInputFiles('fixtures/intake-sample.xlsx')
   await page.waitForTimeout(2500)
   await page.getByRole('button', { name: /Stage \d+ rows/ }).click()

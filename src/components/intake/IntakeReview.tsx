@@ -56,6 +56,7 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
   const [busy, setBusy]   = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<Record<string, string>>({})
+  const [picks, setPicks] = useState<Map<string, Set<string>>>(new Map())
 
   const fetchAll = useCallback(async () => {
     const [{ data: u }, { data: r }, { data: t }] = await Promise.all([
@@ -157,22 +158,82 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
 
   const typeName = (k: string | null) => vocab.find(v => v.key === k)?.name ?? k
 
-  /** The diff a reviewer actually needs: only fields that would CHANGE. */
-  function diffFor(r: Row): { field: string; from: string; to: string }[] {
+  /** Which intake column each diff line reads from, for writing `edited`. */
+  const FIELD_COL = {
+    descriptor: 'descriptor', type: 'proposed_type',
+    location: 'location', area_served: 'area_served',
+  } as const
+  type DiffField = keyof typeof FIELD_COL
+
+  /**
+   * The diff a reviewer needs, SPLIT BY WHAT IT WOULD COST.
+   *
+   *   add     — the existing field is empty. Purely additive, nothing at risk.
+   *   replace — the field holds a value someone put there, and the schedule
+   *             disagrees with it.
+   *
+   * The split is not cosmetic. On the first real render this diff read
+   * "descriptor: ZZ seeded pump → PUMP" — a specific, human-written descriptor
+   * about to be replaced by a schedule's generic one, under a single Accept
+   * button that took the whole row. That is overwriting with a preview attached,
+   * not the never-overwrite standard it claimed to be.
+   *
+   * So `add` is ticked by default and `replace` is not. Taking a replacement is
+   * an act, and the reviewer performs it.
+   */
+  function diffFor(r: Row): { field: DiffField; from: string; to: string; kind: 'add' | 'replace' }[] {
     const e = r.match_equipment_id ? existing.get(r.match_equipment_id) : undefined
     if (!e) return []
-    const pairs: [string, string | null, string | null][] = [
+    const pairs: [DiffField, string | null, string | null][] = [
       ['descriptor', e.descriptor, r.descriptor],
       ['type', e.equipment_type, r.proposed_type],
       ['location', e.location, r.location],
-      ['area served', e.area_served, r.area_served],
+      ['area_served', e.area_served, r.area_served],
     ]
     return pairs
-      // A blank proposal is not a proposal to blank the field. Enrichment ADDS;
-      // it never clears something a human wrote — that is the directory-import
-      // standard and the reason this block is never bulk-accepted.
+      // A blank proposal is not a proposal to blank the field. Enrichment never
+      // clears something a human wrote.
       .filter(([, from, to]) => to && to !== from)
-      .map(([field, from, to]) => ({ field, from: from || '—', to: to as string }))
+      .map(([field, from, to]) => ({
+        field, from: from || '—', to: to as string,
+        kind: (from ? 'replace' : 'add') as 'add' | 'replace',
+      }))
+  }
+
+  /** Default selection: everything additive, nothing that replaces. */
+  function defaultPicks(r: Row): Set<string> {
+    return new Set(diffFor(r).filter(d => d.kind === 'add').map(d => d.field as string))
+  }
+
+  function togglePick(rowId: string, field: string, r: Row) {
+    setPicks(p => {
+      const next = new Map(p)
+      const cur = new Set(next.get(rowId) ?? defaultPicks(r))
+      if (cur.has(field)) cur.delete(field); else cur.add(field)
+      next.set(rowId, cur)
+      return next
+    })
+  }
+
+  async function acceptEnrich(r: Row) {
+    const diff = diffFor(r)
+    const chosen = picks.get(r.id) ?? defaultPicks(r)
+    const edited: Record<string, string | null> = {}
+    for (const d of diff) if (chosen.has(d.field as string)) edited[FIELD_COL[d.field]] = d.to
+
+    if (Object.keys(edited).length === 0) {
+      // Nothing selected is a real decision: "this row adds nothing I want".
+      // Recording it as accepted would claim a change that will never happen, so
+      // it is a rejection — and the reviewer is told that is what it becomes.
+      if (!window.confirm(
+        `Nothing is selected on ${r.tag ?? 'this row'}, so accepting would change nothing.\n\n` +
+        `Record it as rejected instead?`)) return
+      await dispose(r, 'rejected')
+      return
+    }
+    // Took everything proposed = accepted. Took a subset = edited. The ledger
+    // needs that distinction, or the extractor's acceptance rate overstates it.
+    await dispose(r, Object.keys(edited).length === diff.length ? 'accepted' : 'edited', edited)
   }
 
   const Line = ({ r, showDiff }: { r: Row; showDiff?: boolean }) => {
@@ -224,14 +285,34 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
             )}
 
             {diff.length > 0 && (
-              <div className="mt-0.5 text-[11px]">
-                {diff.map(d => (
-                  <div key={d.field} className="text-gray-600">
-                    <span className="text-gray-400">{d.field}:</span>{' '}
-                    <span className="line-through text-gray-400">{d.from}</span>
-                    {' → '}<span className="text-teal-800">{d.to}</span>
-                  </div>
-                ))}
+              <div className="mt-0.5 text-[11px] space-y-0.5">
+                {diff.map(d => {
+                  const chosen = (picks.get(r.id) ?? defaultPicks(r)).has(d.field as string)
+                  return (
+                    <label key={d.field} className="flex items-start gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={chosen} disabled={busy}
+                        onChange={() => togglePick(r.id, d.field as string, r)}
+                        className="mt-0.5 accent-teal-700" />
+                      <span className={chosen ? 'text-gray-700' : 'text-gray-400'}>
+                        <span className="text-gray-400">{d.field.replace('_', ' ')}:</span>{' '}
+                        {d.kind === 'replace' ? (
+                          <>
+                            <span className="text-amber-900">{d.from}</span>
+                            {' → '}<span className="text-gray-800">{d.to}</span>
+                            <span className="ml-1.5 text-[10px] text-amber-900 bg-amber-100 rounded px-1 py-0.5">
+                              replaces an entered value
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-gray-400">empty</span>
+                            {' → '}<span className="text-teal-800">{d.to}</span>
+                          </>
+                        )}
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
             )}
             {showDiff && diff.length === 0 && (
@@ -258,9 +339,9 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
               </>
             ) : (
               <>
-                <button onClick={() => void dispose(r, 'accepted')} disabled={busy}
+                <button onClick={() => void (showDiff ? acceptEnrich(r) : dispose(r, 'accepted'))} disabled={busy}
                   className="text-[11px] bg-teal-700 text-white rounded px-2 py-0.5 hover:bg-teal-800 disabled:opacity-50">
-                  Accept
+                  {showDiff ? 'Apply selected' : 'Accept'}
                 </button>
                 <button onClick={() => startEdit(r)} disabled={busy}
                   className="text-[11px] text-gray-500 hover:text-teal-700 disabled:opacity-50">Edit</button>
@@ -322,8 +403,9 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
 
           <Block tone="warn" title="✎ CHANGES EXISTING EQUIPMENT" list={enrich} showDiff
             hint="This tag is already on the project. Only fields that would CHANGE are shown,
-                  and a blank proposal never clears a value someone entered. This is the one
-                  block that can alter an existing record, so it is read one at a time." />
+                  and a blank proposal never clears a value someone entered. Filling an EMPTY field
+                  is ticked for you; REPLACING something already entered is not — taking that
+                  is an act, and it is yours." />
 
           <Block title="Needs a look" list={looks}
             hint={`Confidence below ${CLEAN_AT}, or a type outside the firm vocabulary. ` +
@@ -337,7 +419,7 @@ export function IntakeReview({ uploadId, projectId, onClose }: {
       )}
 
       {upload?.parse_note && (
-        <p className="text-[10px] text-gray-300 mt-3 font-mono">{upload.parse_note}</p>
+        <p className="text-[10px] text-gray-400 mt-3 font-mono">{upload.parse_note}</p>
       )}
     </div>
   )
