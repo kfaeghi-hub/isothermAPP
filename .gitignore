@@ -62,3 +62,4 @@ site-report-*.pdf
 .impeccable/hook.cache.json
 .impeccable/config.local.json
 .shots/
+dist-test/

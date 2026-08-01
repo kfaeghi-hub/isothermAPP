@@ -124,7 +124,19 @@ export const ClassifierGroupInput: Validator<ClassifierGroupInput> = (v): v is C
 export interface ExtractorInput {
   source_kind: 'pdf' | 'image' | 'single_line'
   page: number
-  content: string
+  /** The page's TEXT, when the page has extractable text. */
+  content?: string
+  /** True when the rendered page is attached to this call as an image.
+   *
+   *  LAW 9. The first version of this interface had `content: string` and nothing
+   *  else, so a photographed page had to smuggle base64 through a field named
+   *  for text — a contract that lies about what it carries. Worse, the validator
+   *  would have passed an input describing a page the agent could neither read
+   *  nor see, and the agent would have answered anyway.
+   *
+   *  The validator now requires text OR an image: a page with neither is not a
+   *  page, and asking about it is asking for keys nothing can supply. */
+  has_image?: boolean
   known_types: string[]
 }
 export interface ExtractorOutput {
@@ -137,8 +149,13 @@ export interface ExtractorOutput {
 }
 
 export const ExtractorInput: Validator<ExtractorInput> = (v): v is ExtractorInput =>
-  isObj(v) && isStr(v.source_kind) && isNum(v.page) && isStr(v.content) &&
-  isArr(v.known_types)
+  isObj(v) && isStr(v.source_kind) && isNum(v.page) && isArr(v.known_types) &&
+  // Text or an image — never neither.
+  ((isStr(v.content) && v.content.trim().length > 0) || v.has_image === true) &&
+  // `known_types` is what makes `proposed_type` answerable at all. An empty
+  // vocabulary means every row comes back unresolved, which is a silent
+  // misconfiguration rather than a finding.
+  (v.known_types as unknown[]).length > 0
 
 export const ExtractorOutput: Validator<ExtractorOutput> = (v): v is ExtractorOutput =>
   isObj(v) && isArr(v.rows) &&

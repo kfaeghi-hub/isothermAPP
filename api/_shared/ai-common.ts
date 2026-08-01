@@ -109,9 +109,19 @@ export function buildContext(req: ContextRequest): string {
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const MODEL = process.env.AI_MODEL ?? 'claude-sonnet-5'
 
+/** An image the model should LOOK at, not read as text. */
+export interface ImageAttachment {
+  base64: string
+  mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
+}
+
 export interface ModelCall {
   system: string
-  user: string
+  /** A plain string, or content blocks when the call carries images. Blocks live
+   *  HERE rather than at a call site because law 1 puts every model interaction
+   *  in this module — a feature that hand-rolled an image request would be a
+   *  second way to talk to the model, and two ways drift. */
+  user: string | unknown[]
   /** THE TOTAL GENERATION BUDGET, REASONING INCLUDED — not the length of the
    *  answer. These models think before they write and the thinking is drawn
    *  from here: a Cx Plan section that returns ~450 tokens of prose spends
@@ -490,6 +500,13 @@ export interface RunAgentOpts {
   /** The FEATURE composing this agent — loads contracts/<feature>.md above the
    *  agent contract (D5). Omit for an agent invoked outside any feature. */
   feature?: string
+  /** Pages the agent must SEE. Attached ahead of the task text, because a model
+   *  reads an instruction better when it already has the thing being discussed.
+   *
+   *  An agent whose input declares an image and receives none is a law 9 failure
+   *  — it was asked for keys nothing in its input could supply — so the caller
+   *  asserts the two agree before spending a token. */
+  images?: ImageAttachment[]
 }
 
 /**
@@ -544,7 +561,20 @@ export async function runAgent<T>(
   const classCeiling = BUDGET_CLASS[c.budgetClass]
   let budget = opts.budgetOverride
     ?? (c.maxTokens ? Math.min(c.maxTokens, classCeiling) : classCeiling)
-  const user = `${opts.task}\n\n${JSON.stringify(input)}`
+  const text = `${opts.task}\n\n${JSON.stringify(input)}`
+  // Images first, then the instruction. The text is kept separate so a retry can
+  // append its JSON reminder without rebuilding the attachments.
+  const withImages = (t: string): string | unknown[] =>
+    opts.images?.length
+      ? [
+          ...opts.images.map(im => ({
+            type: 'image',
+            source: { type: 'base64', media_type: im.mediaType, data: im.base64 },
+          })),
+          { type: 'text', text: t },
+        ]
+      : t
+  const user = withImages(text)
   const validOut = SCHEMAS[c.outputSchema] as Validator<T>
 
   let result = await callModel({ system, user, maxTokens: budget })
@@ -558,7 +588,9 @@ export async function runAgent<T>(
       `\nRaw:\n` + String(outcome.raw ?? '').slice(0, 2000))
     if (ranOutOfRoom) budget *= 2
     result = await callModel({
-      system, user: ranOutOfRoom ? user : user + JSON_RETRY_REMINDER, maxTokens: budget,
+      system,
+      user: ranOutOfRoom ? user : withImages(text + JSON_RETRY_REMINDER),
+      maxTokens: budget,
     })
     outcome = parseModelJson<T>(result, validOut)
   }
