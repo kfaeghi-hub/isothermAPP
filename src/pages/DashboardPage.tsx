@@ -34,21 +34,36 @@ function ageChip(age: number): string {
 }
 
 /**
- * Y-AXIS CATEGORY LABELS ARE TRUNCATED, NOT WRAPPED.
+ * Y-AXIS CATEGORY LABELS: ONE LINE, ALWAYS.
  *
- * recharts wraps a long category name onto extra lines inside a fixed-width
- * gutter, so "Alexander Muir JSPS Steam to HW Conversion and AHU Replacement"
- * became four stacked lines that collided with its neighbours and read as noise.
- * Three projects with long names made the whole axis unreadable.
+ * recharts wraps a long category name inside the gutter, so "Alexander Muir JSPS
+ * Steam to HW Conversion and AHU Replacement" became four stacked lines that
+ * collided with its neighbours; three long names made the axis unreadable.
  *
- * A wider gutter only moves the width at which it happens, and steals it from
- * the bars, which are the actual encoding. Truncating keeps one line per row and
- * the FULL name stays available on hover, where recharts already puts it as the
- * tooltip label.
+ * Truncating by CHARACTER COUNT is guessing at font metrics — 18 characters
+ * still wrapped to two lines at 10px in a 124px gutter. This renders the tick
+ * itself, so wrapping is not something recharts gets to decide: one <text>, no
+ * word-break, ellipsised by SVG rather than by arithmetic.
+ *
+ * A wider gutter would only move the width at which it breaks, and it steals
+ * space from the bars, which are the actual encoding. The full name stays on
+ * hover in the tooltip label, and in the title element for anyone reading it
+ * with assistive tech.
  */
-const AXIS_CHARS = 18
-const axisLabel = (v: string) =>
-  v.length > AXIS_CHARS ? `${v.slice(0, AXIS_CHARS - 1)}…` : v
+const AXIS_W = 124
+function AxisTick({ x, y, payload }: any) {
+  const full = String(payload?.value ?? '')
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{full}</title>
+      <text x={-6} y={0} dy={3} textAnchor="end" fill={CHART.tick.fill}
+            fontSize={CHART.tick.fontSize}
+            style={{ pointerEvents: 'none' }}>
+        {full.length > 17 ? `${full.slice(0, 16)}…` : full}
+      </text>
+    </g>
+  )
+}
 
 export function DashboardPage() {
   const { profile } = useAuth()
@@ -273,8 +288,7 @@ export function DashboardPage() {
                 <BarChart data={radar} layout="vertical" margin={{ left: 8, right: 24, top: 14 }}>
                   <CartesianGrid horizontal={false} stroke={CHART.grid} />
                   <XAxis type="number" tick={CHART.tickMono} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={124} tick={CHART.tick}
-                    tickFormatter={axisLabel} interval={0}
+                  <YAxis type="category" dataKey="name" width={AXIS_W} tick={<AxisTick />} interval={0}
                     axisLine={false} tickLine={false} />
                   <Tooltip {...CHART.tooltip} cursor={CHART.cursor}
                     formatter={(v: any, _n: any, e: any) => [e?.payload?.never ? 'never visited' : `${v} days`, 'since visit']} />
@@ -302,8 +316,7 @@ export function DashboardPage() {
                 <BarChart data={timeline} layout="vertical" margin={{ left: 8, right: 24, top: 14 }}>
                   <CartesianGrid horizontal={false} stroke={CHART.grid} />
                   <XAxis type="number" tickFormatter={tlDateLabel} tick={CHART.tickMono} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={124} tick={CHART.tick}
-                    tickFormatter={axisLabel} interval={0}
+                  <YAxis type="category" dataKey="name" width={AXIS_W} tick={<AxisTick />} interval={0}
                     axisLine={false} tickLine={false} />
                   <Tooltip {...CHART.tooltip} cursor={CHART.cursor}
                     formatter={(v: any, name: any) => name === 'duration' ? [`${v} days`, 'duration'] : [null, null]}
