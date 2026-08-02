@@ -83,6 +83,8 @@ export function EquipmentPage({ projectId }: Props) {
   // which meant the taxonomy could not learn from a project. Now it is rows in
   // equipment_types, minted by ratification in the admin screen.
   const [typeKeys, setTypeKeys]       = useState<string[]>([])
+  /** Which unit string new field defs are seeded with. Read once per project. */
+  const [unitSystem, setUnitSystem]   = useState<'metric' | 'imperial'>('metric')
   const [attachments, setAttachments] = useState<EquipmentAttachment[]>([])
   const [selectedId, setSelectedId]   = useState<string | null>(null)
   const [loading, setLoading]         = useState(true)
@@ -126,6 +128,12 @@ export function EquipmentPage({ projectId }: Props) {
     setEquipment((data ?? []) as Equipment[])
   }, [projectId])
 
+  const fetchUnitSystem = useCallback(async () => {
+    const { data } = await supabase.from('projects')
+      .select('unit_system').eq('id', projectId).maybeSingle()
+    setUnitSystem((data?.unit_system as 'metric' | 'imperial') ?? 'metric')
+  }, [projectId])
+
   const fetchGlossary = useCallback(async () => {
     const { data } = await supabase
       .from('equipment_tag_glossary')
@@ -155,9 +163,10 @@ export function EquipmentPage({ projectId }: Props) {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([fetchEquipment(), fetchGlossary(), fetchFieldDefs(), fetchAttachments()])
+    Promise.all([fetchEquipment(), fetchGlossary(), fetchFieldDefs(), fetchAttachments(),
+                 fetchUnitSystem()])
       .then(() => setLoading(false))
-  }, [fetchEquipment, fetchGlossary, fetchFieldDefs, fetchAttachments])
+  }, [fetchEquipment, fetchGlossary, fetchFieldDefs, fetchAttachments, fetchUnitSystem])
 
   // The base set is seeded once per project, on first load, so an UNTYPED unit
   // has somewhere to record identity without anyone choosing a type first.
@@ -255,7 +264,11 @@ export function EquipmentPage({ projectId }: Props) {
         equipment_type: d.equipment_type,
         section:        d.section,
         field_name:     d.field_name,
-        unit:           d.unit,
+        // THE PROJECT'S SYSTEM DECIDES THE LABEL, AT SEEDING TIME ONLY.
+        // `unit_imperial` is null for the units both systems share — CFM, MBH,
+        // NPS, V, A, Hz — because those are already what a local engineer
+        // writes. Only five quantities actually swap.
+        unit:           unitSystem === 'imperial' ? (d.unit_imperial ?? d.unit) : d.unit,
         sort_order:     d.sort_order,
       }))
     )

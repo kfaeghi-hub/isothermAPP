@@ -23,6 +23,7 @@ const FILTER_DIMENSIONS = ['Project Lifecycle', 'Facility Type', 'Sustainable Pr
 interface ProjectForm {
   name: string
   com_number: string
+  unit_system: string
   address: string
   client_company_id: string
   start_date: string
@@ -36,6 +37,7 @@ interface ProjectForm {
 const EMPTY_FORM: ProjectForm = {
   name: '',
   com_number: '',
+  unit_system: 'metric',
   address: '',
   client_company_id: '',
   start_date: '',
@@ -232,6 +234,7 @@ export function ProjectsPage() {
         id: projectId,
         name: form.name.trim(),
         com_number: form.com_number.trim() || null,
+        unit_system: form.unit_system,
         address: form.address.trim() || null,
         client_company_id: form.client_company_id || null,
         start_date: form.start_date || null,
@@ -631,6 +634,30 @@ export function ProjectsPage() {
                 placeholder="e.g. Seneca Health & Wellness"
                 autoFocus
               />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Units</label>
+              <div className="flex gap-2">
+                {(['metric', 'imperial'] as const).map(u => (
+                  <button key={u} type="button"
+                    onClick={() => setForm(f => ({ ...f, unit_system: u }))}
+                    className={`flex-1 border rounded px-3 py-2 text-sm capitalize transition-colors ${
+                      form.unit_system === u
+                        ? 'border-teal-500 bg-teal-50 text-teal-800 font-medium'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+              {/* SAYS WHAT IT DOES AND WHAT IT DOES NOT. The setting decides the
+                  unit a field def is SEEDED with; it never relabels a nameplate
+                  that already holds numbers, because relabelling without
+                  converting is exactly how "225 GPM" becomes "225 L/s". */}
+              <p className="text-[11px] text-gray-400 mt-1">
+                Sets the units new nameplate fields are created with. Fields already
+                in use keep their units — changing them is a per-field decision with
+                a conversion, in the project's field structure.
+              </p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">COM #</label>
