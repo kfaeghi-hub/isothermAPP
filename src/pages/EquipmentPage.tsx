@@ -280,13 +280,111 @@ export function EquipmentPage({ projectId }: Props) {
 
   // ── Delete equipment ───────────────────────────────────────────────────────
 
+  /**
+   * REFERENCE-AWARE DELETE — count first, then block, warn, or allow.
+   *
+   * The old version asked "Delete this? It also removes Cx Index progress data
+   * and attachments" — the same sentence whether the unit was untouched or
+   * carried fifty verified cells. A warning that never changes is a warning
+   * nobody reads.
+   *
+   * NOTE ON THE BRIEF: it asked to block when a CHECKLIST targets the unit.
+   * Checklists do not reference equipment at all — they hold a
+   * `nameplate_snapshot`, deliberately, so an issued checklist stays true after
+   * the register moves. The reference that genuinely must block is a FINDING:
+   * findings.linked_equipment_id is ON DELETE SET NULL, so deleting the unit
+   * would silently strip the link from part of the signed record and leave a
+   * finding pointing at nothing.
+   */
   async function deleteEquipment(id: string) {
     const eq = equipment.find(e => e.id === id)
-    if (!confirm(`Delete ${eq?.tag ?? eq?.descriptor ?? 'this item'}? This also removes its Cx Index progress data and attachments.`)) return
+    const name = eq?.tag ?? eq?.descriptor ?? 'this item'
+
+    const [findings, cells, atts] = await Promise.all([
+      supabase.from('findings').select('finding_number, title', { count: 'exact' })
+        .eq('linked_equipment_id', id).limit(5),
+      supabase.from('cx_cell_values').select('id', { count: 'exact', head: true })
+        .eq('equipment_id', id),
+      supabase.from('equipment_attachments').select('id', { count: 'exact', head: true })
+        .eq('equipment_id', id),
+    ])
+
+    // BLOCKED, with the reason and the specific findings named. Not "cannot
+    // delete" — which sends someone hunting — but which findings, so they can go
+    // and unlink them deliberately if that is really what they want.
+    if ((findings.count ?? 0) > 0) {
+      const list = (findings.data ?? [])
+        .map(f => `  · ${f.finding_number ?? ''} ${String(f.title ?? '').slice(0, 60)}`)
+        .join('\n')
+      alert(
+        `Cannot delete ${name} — ${findings.count} finding${findings.count === 1 ? '' : 's'} ` +
+        `link${findings.count === 1 ? 's' : ''} to it:\n\n${list}` +
+        ((findings.count ?? 0) > 5 ? `\n  …and ${(findings.count ?? 0) - 5} more` : '') +
+        `\n\nA finding is part of the signed record. Unlink them first if this unit ` +
+        `really should go.`)
+      return
+    }
+
+    const losses = [
+      (cells.count ?? 0) > 0 && `${cells.count} Cx Index cell${cells.count === 1 ? '' : 's'} of recorded progress`,
+      (atts.count ?? 0) > 0 && `${atts.count} attachment${atts.count === 1 ? '' : 's'}`,
+    ].filter(Boolean)
+
+    const msg = losses.length
+      ? `Delete ${name}?\n\nThis also destroys:\n${losses.map(l => `  · ${l}`).join('\n')}\n\n` +
+        `That work cannot be recovered.`
+      : `Delete ${name}?\n\nNothing references it — no findings, no recorded progress, ` +
+        `no attachments.`
+    if (!confirm(msg)) return
+
     const { error } = await supabase.from('equipment').delete().eq('id', id)
     if (reportError(error, 'delete the equipment')) return
     setSelectedId(null)
     fetchEquipment()
+  }
+
+  /**
+   * COPY — the template, never the verification.
+   *
+   * Duplicating a unit copies what it IS: type, category, nameplate, location.
+   * It must never copy what was VERIFIED about it — no Cx Index cells, no
+   * attachments, no findings, and no serial number, because a serial identifies
+   * one physical machine and two rows sharing one is a register that cannot be
+   * trusted.
+   *
+   * The tag is cleared rather than suffixed. "P-01 copy" is a tag somebody will
+   * ship, and an empty tag is a question the register asks out loud.
+   */
+  async function copyEquipment(eq: Equipment) {
+    setSavingAdd(true)
+    const np = eq.nameplate_extra
+      ? JSON.parse(JSON.stringify(eq.nameplate_extra)) as NameplateExtra
+      : null
+    // The serial belongs to the machine, not to the model.
+    if (np?.installed) delete (np.installed as Record<string, unknown>)['Serial Number']
+
+    const maxSort = equipment.reduce((m, e) => Math.max(m, e.sort_order), 0)
+    const { data: made, error } = await supabase.from('equipment').insert({
+      project_id: projectId,
+      kind: eq.kind,
+      equipment_type: eq.equipment_type,
+      category: eq.category,
+      tag: null,
+      descriptor: eq.descriptor,
+      location: eq.location,
+      area_served: eq.area_served,
+      nameplate_extra: np,
+      sort_order: maxSort + 1,
+    }).select('id').single()
+    setSavingAdd(false)
+    if (reportError(error, 'copy the equipment')) return
+    await fetchEquipment()
+    setSelectedId(made?.id ?? null)
+    // Straight into edit, because the tag is the one thing that must be filled in.
+    if (made) {
+      const fresh = { ...eq, id: made.id, tag: null } as Equipment
+      startEdit(fresh)
+    }
   }
 
   // ── Edit equipment (inline in detail panel) ────────────────────────────────
@@ -724,6 +822,12 @@ export function EquipmentPage({ projectId }: Props) {
                         onClick={() => startEdit(selected)}
                         className="px-3 py-1.5 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-300"
                       >Edit</button>
+                      <button
+                        onClick={() => copyEquipment(selected)}
+                        disabled={savingAdd}
+                        title="Duplicate this unit's type, category and nameplate. Verification state is never copied."
+                        className="px-3 py-1.5 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-300 disabled:opacity-50"
+                      >Copy</button>
                       {/* Equipment hard-delete: admin/dev + owner (C3) */}
                       {['admin', 'developer', 'owner'].includes(profile?.role ?? '') && (
                         <button
