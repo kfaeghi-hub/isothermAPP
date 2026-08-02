@@ -1136,6 +1136,20 @@ i18n/token extraction, CSS-in-JS moves, query builders, log formatters:
 - **Count what you converted and re-run the detector to zero.** "24 found,
   24 converted, detector now reports 0" is a proof; "looks right" is not.
 
+### Ops: a user-visible ship appends to docs/RELEASES.md in the same commit series
+
+Two sections per entry, and they are for different readers:
+
+- **For the team** — plain language, how-to-use. This is what goes out in update
+  emails, so it is written for someone who will act on it, not for someone
+  reviewing the diff.
+- **Technical record** — mechanisms, rules, what moved underneath. For developers
+  and for a future session reconstructing why something is the way it is.
+
+**In the same commit series as the work**, per the standing docs rule. A release
+note written later is written from memory; one written alongside the change is
+written from the diff — and the difference shows in which details survive.
+
 ### Ops: bounded waits — new assertions from birth, old ones when touched
 
 `pw-config` exports `waitUntil` / `waitForCount` / `waitForText`. They bound a
