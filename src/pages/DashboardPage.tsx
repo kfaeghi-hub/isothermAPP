@@ -33,6 +33,23 @@ function ageChip(age: number): string {
   return '30+'
 }
 
+/**
+ * Y-AXIS CATEGORY LABELS ARE TRUNCATED, NOT WRAPPED.
+ *
+ * recharts wraps a long category name onto extra lines inside a fixed-width
+ * gutter, so "Alexander Muir JSPS Steam to HW Conversion and AHU Replacement"
+ * became four stacked lines that collided with its neighbours and read as noise.
+ * Three projects with long names made the whole axis unreadable.
+ *
+ * A wider gutter only moves the width at which it happens, and steals it from
+ * the bars, which are the actual encoding. Truncating keeps one line per row and
+ * the FULL name stays available on hover, where recharts already puts it as the
+ * tooltip label.
+ */
+const AXIS_CHARS = 18
+const axisLabel = (v: string) =>
+  v.length > AXIS_CHARS ? `${v.slice(0, AXIS_CHARS - 1)}…` : v
+
 export function DashboardPage() {
   const { profile } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -150,7 +167,19 @@ export function DashboardPage() {
                     </Link>
                   ))}
                 </div>
-                <table className="w-full text-xs hidden lg:table" data-testid="attention-queue">
+                {/* THE lg BREAKPOINT IS NOT THE SAME AS "THERE IS ROOM".
+                    This table switches on at 1024px and needs about 1146px, so
+                    between those widths it rendered 881px wide inside an 812px
+                    card and the right-hand column was cut off. The mobile audit
+                    covered below-lg; the desktop case covered well-above. Nobody
+                    stood in the 120px band between them.
+
+                    Same treatment the other two dashboard tables already had:
+                    scroll INSIDE the card. The page body must never scroll
+                    horizontally, and a clipped column is worse than a scrollbar
+                    because it does not announce itself. */}
+                <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-xs min-w-[880px]" data-testid="attention-queue">
                   <tbody>
                     {queue.map((q, i) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
@@ -174,6 +203,7 @@ export function DashboardPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 {data.queue.length > 10 && (
                   <button onClick={() => setShowAllQueue(s => !s)}
                     className="w-full py-2 text-[11px] text-teal-700 hover:bg-teal-50/40">
@@ -234,7 +264,9 @@ export function DashboardPage() {
                 <BarChart data={radar} layout="vertical" margin={{ left: 8, right: 24, top: 14 }}>
                   <CartesianGrid horizontal={false} stroke={CHART.grid} />
                   <XAxis type="number" tick={CHART.tickMono} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={110} tick={CHART.tick} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={124} tick={CHART.tick}
+                    tickFormatter={axisLabel} interval={0}
+                    axisLine={false} tickLine={false} />
                   <Tooltip {...CHART.tooltip} cursor={CHART.cursor}
                     formatter={(v: any, _n: any, e: any) => [e?.payload?.never ? 'never visited' : `${v} days`, 'since visit']} />
                   {/* Thresholds as annotations — bar LENGTH is the encoding, color never carries it alone */}
@@ -261,7 +293,9 @@ export function DashboardPage() {
                 <BarChart data={timeline} layout="vertical" margin={{ left: 8, right: 24, top: 14 }}>
                   <CartesianGrid horizontal={false} stroke={CHART.grid} />
                   <XAxis type="number" tickFormatter={tlDateLabel} tick={CHART.tickMono} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={110} tick={CHART.tick} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={124} tick={CHART.tick}
+                    tickFormatter={axisLabel} interval={0}
+                    axisLine={false} tickLine={false} />
                   <Tooltip {...CHART.tooltip} cursor={CHART.cursor}
                     formatter={(v: any, name: any) => name === 'duration' ? [`${v} days`, 'duration'] : [null, null]}
                     labelFormatter={l => String(l)} />
@@ -329,7 +363,8 @@ export function DashboardPage() {
             {data.responsible.length === 0 ? (
               <p className="px-4 py-6 text-sm text-gray-400 text-center">No open assigned items.</p>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[560px]">
                 <thead>
                   <tr className="text-left text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
                     <th className="px-4 py-2">Responsible</th>
@@ -347,6 +382,7 @@ export function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </section>
