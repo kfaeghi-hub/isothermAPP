@@ -631,19 +631,39 @@ export function EquipmentPage({ projectId }: Props) {
                         <div className="px-6 py-3 grid grid-cols-2 gap-x-8 gap-y-2">
                           {defs.map(def => (
                             <div key={def.id}>
+                              {/* THE UNIT SITS WITH THE VALUE, NOT ONLY IN THE HEADING.
+                                  The drawings are imperial and the defs are largely
+                                  metric, so a CxA reads "225 GPM" off a pump schedule
+                                  and types 225 into a field whose unit is two rows up
+                                  in a heading they stopped reading an hour ago. The
+                                  number is then wrong in the database and nothing ever
+                                  says so — it renders, prints, and only misleads when
+                                  something computes with it.
+
+                                  This does not decide the metric/imperial question. It
+                                  puts the answer where the mistake happens. */}
                               <label className="block text-[9px] text-gray-400 uppercase tracking-wide font-semibold">
-                                {def.field_name}{def.unit ? ` (${def.unit})` : ''}
+                                {def.field_name}
                               </label>
                               {editing ? (
-                                <input
-                                  value={values[def.field_name] ?? ''}
-                                  onChange={e => setFieldValue(key, def.field_name, e.target.value)}
-                                  className="w-full text-xs border-b border-gray-200 focus:outline-none focus:border-teal-400 py-0.5 bg-transparent"
-                                  placeholder="—"
-                                />
+                                <div className="flex items-baseline gap-1 border-b border-gray-200 focus-within:border-teal-400">
+                                  <input
+                                    value={values[def.field_name] ?? ''}
+                                    onChange={e => setFieldValue(key, def.field_name, e.target.value)}
+                                    className="min-w-0 flex-1 text-xs focus:outline-none py-0.5 bg-transparent"
+                                    placeholder="—"
+                                  />
+                                  {def.unit && (
+                                    <span className="text-[10px] text-gray-400 shrink-0 pr-0.5"
+                                          aria-hidden="true">{def.unit}</span>
+                                  )}
+                                </div>
                               ) : (
                                 <p className="text-xs text-gray-700 font-medium">
-                                  {values[def.field_name] || <span className="text-gray-300">—</span>}
+                                  {values[def.field_name]
+                                    ? <>{values[def.field_name]}
+                                        {def.unit && <span className="text-gray-400 font-normal ml-1">{def.unit}</span>}</>
+                                    : <span className="text-gray-300">—</span>}
                                 </p>
                               )}
                             </div>
