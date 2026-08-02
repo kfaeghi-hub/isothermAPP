@@ -1046,6 +1046,46 @@ wrong, and only opening it said so. That is the argument for render-and-look
 being a step rather than a courtesy — not that assertions are unreliable, but
 that at the feature level there is nothing else looking.
 
+### An absence assertion proves ARRIVAL first, then absence
+
+The same disease, aimed at nothing. `check(!body.includes(X))` is true of a page
+that never loaded, of a half-rendered one, and of the login screen. It is true
+before the feature runs and true if the feature is deleted. It is only *evidence*
+once you know the page you are reading is the page you meant.
+
+Found by sweeping the harness rather than by a failure — this one had been green
+for months:
+
+```js
+await page.waitForTimeout(3500)
+const body = await page.locator('body').innerText()
+check(!body.includes('ZZ-TEST — Do Not Use'), 'dashboard shows no ZZ-TEST after removal')
+```
+
+**Measured at that moment: the body is 236 characters** — the sidebar shell. The
+assertion had never tested anything, and would have passed identically had the
+membership never been removed at all.
+
+The shape of the fix, in two steps that must stay in that order:
+
+```js
+const ARRIVED = /No projects assigned yet|Portfolio Register/i   // holds in BOTH outcomes
+await waitForText(page, t => ARRIVED.test(t), { what: 'the dashboard to render' })
+check(ARRIVED.test(body), 'the page actually rendered (so the next check means something)')
+check(!body.includes(X), 'and X is absent')
+```
+
+**Choosing the arrival marker is the hard part, and it is where the first two
+attempts failed.** A marker that only holds in the *positive* outcome — here,
+"ACTIVE PROJECTS", which the trimmed user has none of — makes the guard fail
+exactly when it matters. The marker must be true in every outcome the assertion
+sits between, or it is testing the outcome rather than the arrival.
+
+*(That hunt also produced a false alarm worth recording: mid-investigation the
+empty state looked like a hung dashboard. It is not — with no memberships the
+page says "No projects assigned yet — ask an owner to add you to a project",
+which is correct and clear. The check was the defect; the product was right.)*
+
 **The test.** For any guard you are about to write or keep, ask: *what does it do
 differently in the failing case?* If the answer is "nothing observable", it is
 decoration. Give it a count, an error code, a named subject — something that
@@ -1095,6 +1135,27 @@ i18n/token extraction, CSS-in-JS moves, query builders, log formatters:
   sites then performed the fix, so nothing outside a real match could be touched.
 - **Count what you converted and re-run the detector to zero.** "24 found,
   24 converted, detector now reports 0" is a proof; "looks right" is not.
+
+### Ops: bounded waits — new assertions from birth, old ones when touched
+
+`pw-config` exports `waitUntil` / `waitForCount` / `waitForText`. They bound a
+condition rather than betting on a sleep, and they cover both directions —
+"not there" vs "not there YET", and its mirror "gone" vs "not gone YET".
+
+**The standing policy, ruled 2026-08-02:**
+
+> Instantaneous reads are converted to bounded waits **when their suite is next
+> touched**. New assertions use the wait helpers **from birth**.
+
+Roughly 150 instantaneous reads remain across the suites, most preceded by a
+sleep that masks them. Converting them wholesale is mechanical churn on green
+tests, and churn carries more regression risk than the masked reads do. The four
+that actually cost battery runs — plus the delete-side cousins found by pattern —
+are done.
+
+A bounded wait weakens nothing. A condition that never becomes true still fails;
+it just reports what was expected, what was last seen, and how long it waited,
+instead of blaming the feature.
 
 ### Ops: harness cleanup belongs in `finally`, never as a trailing statement
 
