@@ -5,6 +5,7 @@ import { Combobox } from '../components/ui/Combobox'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import { IntakePanel } from '../components/intake/IntakePanel'
+import { TypeAssignmentReview } from '../components/equipment/TypeAssignmentReview'
 import { alternatesFor, convertValue, type Conversion } from '../lib/unitConvert'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
@@ -599,6 +600,12 @@ export function EquipmentPage({ projectId }: Props) {
             + Add
           </button>
         </div>
+
+        {/* Sits above the list, unconditionally: a project with pending type
+            proposals should not have to go looking for them. It renders nothing
+            when there are none. */}
+        <TypeAssignmentReview projectId={projectId}
+          onApplied={() => { void fetchEquipment(); void fetchFieldDefs() }} />
 
         {intakeOpen && (
           <div className="border-b border-gray-100 bg-gray-50/60 shrink-0 max-h-[55vh] overflow-y-auto">

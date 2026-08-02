@@ -41,7 +41,8 @@ console.log(`target: ${zz.name}  ${REAL ? '(REAL AI)' : '(mocked)'}\n`)
 // and the whole point is to compare two live paths.
 execFileSync('npx', ['esbuild',
   'src/lib/intakeExcel.ts', 'api/_shared/agent-schemas.ts',
-  '--format=esm', '--platform=node', '--outdir=dist-test', '--log-level=error',
+  '--format=esm', '--platform=node', '--outdir=dist-test', '--outbase=.',
+  '--log-level=error',
 ], { stdio: 'inherit', shell: process.platform === 'win32' })
 
 const readXlsxFile = (await import('read-excel-file/node')).default

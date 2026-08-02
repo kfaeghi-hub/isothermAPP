@@ -211,7 +211,11 @@ function findTitle(grid: Cell[][], headerRow: number): string | null {
  *
  * Returns null rather than a near-miss — quarantine, never guess (R16).
  */
-function resolveType(text: string, vocab: TypeVocab[]): string | null {
+// EXPORTED because the type-assignment sweep runs the SAME matcher over existing
+// units' descriptors. Two matchers would be two sets of rules that drift, and the
+// law-8 separation of RADIANT CEILING PANEL from RECEPTACLE PANEL is the kind of
+// thing you only get right once.
+export function resolveType(text: string, vocab: TypeVocab[]): string | null {
   const n = norm(text)
   if (!n) return null
   const words = new Set(n.split(' '))
@@ -222,7 +226,13 @@ function resolveType(text: string, vocab: TypeVocab[]): string | null {
     const core = norm(t.name.replace(/\(.*?\)/g, ''))             // drop the qualifier
     if (!core) continue
     const tokens = core.split(' ').filter(Boolean)
-    if (!tokens.length || !tokens.every(w => words.has(w))) continue
+    // A SOURCE HEADER IS OFTEN PLURAL. "UNIT HEATERS" is the schedule's title for
+    // a set of Unit Heaters, and refusing it on the 's' would send eight real
+    // matches to the unknown queue. Relaxed in ONE DIRECTION only — a singular
+    // vocabulary word may match a plural source word, never the reverse — so
+    // this cannot invent a match that the words do not support.
+    const has = (w: string) => words.has(w) || words.has(`${w}s`) || words.has(`${w}es`)
+    if (!tokens.length || !tokens.every(has)) continue
     if (!best || tokens.length > best.specificity) best = { key: t.key, specificity: tokens.length }
   }
   return best?.key ?? null

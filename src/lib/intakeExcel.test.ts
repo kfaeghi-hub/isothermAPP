@@ -207,3 +207,34 @@ describe('confidence is honest', () => {
     expect(out.rows[0].confidence).toBeLessThan(0.95)
   })
 })
+
+describe('a source header is often plural', () => {
+  it('matches "UNIT HEATERS" to a Unit Heater', () => {
+    // Found by the type sweep: Clairlea's category header is UNIT HEATERS and
+    // eight real Force Flow Heaters were landing in the unknown queue over an 's'.
+    const grid: Cell[][] = [
+      ['UNIT HEATERS'],
+      ['TAG', 'DESCRIPTION'],
+      ['UH-1', 'UNIT HEATERS'],
+    ]
+    expect(parseSheet(grid, 'UH', [...VOCAB, { key: 'unit_heater', name: 'Unit Heater' }])
+      .rows[0].proposed_type).toBe('unit_heater')
+  })
+
+  it('does NOT relax in the other direction', () => {
+    // A PLURAL vocabulary term must not match a SINGULAR source word. Only
+    // singular-vocab -> plural-source is allowed, so "Unit Heater" reaches
+    // "UNIT HEATERS" while "Louvres" never reaches "louvre".
+    //
+    // The first version of this test was wrong and passed for the wrong reason:
+    // it put the term in the schedule TITLE, which resolves the type by a
+    // different path entirely. A neutral title isolates the descriptor.
+    const grid: Cell[][] = [
+      ['EQUIPMENT SCHEDULE'],
+      ['TAG', 'DESCRIPTION'],
+      ['L-1', 'LOUVRE'],
+    ]
+    expect(parseSheet(grid, 'L', [{ key: 'louvres', name: 'Louvres' }])
+      .rows[0].proposed_type).toBeNull()
+  })
+})
