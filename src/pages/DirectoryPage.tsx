@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
 import type {
@@ -360,6 +361,38 @@ export function DirectoryPage() {
     setAddingTrade(false)
     setNewTradeName('')
   }
+
+  /**
+   * DEEP LINK — /directory?contact=<id> opens that contact.
+   *
+   * NAVIGATION, NOT A MODAL ON THE TEAM TAB, and the reason is scope. The Team
+   * tab is per-project; a contact is FIRM-WIDE. Editing one inside a project
+   * screen quietly suggests the edit is project-scoped, and it is not — changing
+   * a phone number there changes it on every project that person appears on.
+   * Moving to the Directory makes that change of scope visible, which is the
+   * honest affordance and costs one navigation.
+   *
+   * It also avoids a second contact modal. Two modals over one save path is two
+   * things to keep in step, and the contact save path is the one that just cost
+   * a production bug.
+   */
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinked = useRef<string | null>(null)
+
+  useEffect(() => {
+    const want = searchParams.get('contact')
+    if (!want || loading || deepLinked.current === want) return
+    const c = contacts.find(x => x.id === want)
+    if (!c) return
+    deepLinked.current = want
+    setSelectedCompanyId(c.company_id ?? null)
+    openEditContact(c, { stopPropagation: () => {} } as React.MouseEvent)
+    // Consume the parameter so a refresh does not reopen the modal over work.
+    const next = new URLSearchParams(searchParams)
+    next.delete('contact')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, contacts, loading])
 
   // ── Contact CRUD ─────────────────────────────────────────────────────────
 

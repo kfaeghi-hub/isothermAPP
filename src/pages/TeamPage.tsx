@@ -5,6 +5,7 @@
 // title + primary phone/email from the directory (primary ?? legacy).
 
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { resolveEmail, resolvePhone } from '../lib/contactInfo'
 import { reportError } from '../lib/mutationError'
@@ -336,7 +337,18 @@ export function TeamPage({ projectId }: Props) {
                         </span>
                         <div className="min-w-0">
                           <div className="flex items-baseline gap-2">
-                            <span className="text-sm text-gray-800">{c.name}</span>
+                            {/* SINGLE CLICK — mobile has no double-click, and a
+                                team member's name is the most obvious thing on
+                                the row to press. Goes to the Directory rather
+                                than opening a modal here: a contact is
+                                firm-wide, and editing one inside a project
+                                screen would imply the change is project-scoped
+                                when it reaches every project that person is on. */}
+                            <Link to={`/directory?contact=${c.id}`}
+                              title={`Open ${c.name} in the Directory`}
+                              className="text-sm text-gray-800 hover:text-teal-700 hover:underline">
+                              {c.name}
+                            </Link>
                             {c.trade && <span className="text-xs text-gray-400 truncate">{c.trade}</span>}
                           </div>
                           <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
