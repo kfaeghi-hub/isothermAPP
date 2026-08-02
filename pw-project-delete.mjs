@@ -30,7 +30,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { loginAs, adminCredentials } from './pw-config.mjs'
+import { loginAs, adminCredentials , waitForCount } from './pw-config.mjs'
 
 const RUN = Date.now().toString(36)
 const PROJECT_NAME = `ZZ-TEST-DELETE ${RUN} — Do Not Use`
@@ -112,20 +112,29 @@ check(await row.count() === 1, 'fixture project visible in the list')
 // Row actions are owner-only and revealed on hover; the click auto-hovers.
 await row.first().hover()
 await row.getByRole('button', { name: 'Delete', exact: true }).click()
-await page.waitForTimeout(500)
-
 const modal = page.locator('.fixed')
+// Appearance, bounded.
+await waitForCount(() => modal.getByText('Permanently delete').count(), n => n > 0,
+  { what: 'the delete confirmation modal' })
 check(await modal.getByText('Permanently delete').count() > 0, 'delete confirmation modal opened')
 await modal.getByRole('button', { name: 'Delete Project' }).click()
-await page.waitForTimeout(2500)
 
 // ── Assert real success ─────────────────────────────────────────────────────
 check(dialogs.length === 0,
   `no error dialog fired during delete${dialogs.length ? ` (got: ${dialogs.join(' | ')})` : ''}`)
-check(await page.locator('.fixed').getByRole('button', { name: 'Delete Project' }).count() === 0,
+// DISAPPEARANCE, BOUNDED — "gone" and "NOT GONE YET" are different states, and a
+// fixed sleep bets on the machine rather than waiting for the fact. Both of these
+// used to read once, 2.5s after the click.
+const modalGone = await waitForCount(
+  () => page.locator('.fixed').getByRole('button', { name: 'Delete Project' }).count(),
+  n => n === 0, { what: 'the delete modal to close' })
+check(modalGone === 0,
   'delete modal closed (confirmDelete did not early-return on a blocked write)')
-check(await page.locator('tr', { hasText: PROJECT_NAME }).count() === 0,
-  'project no longer shown in the list')
+
+const rowGone = await waitForCount(
+  () => page.locator('tr', { hasText: PROJECT_NAME }).count(),
+  n => n === 0, { what: 'the project row to disappear' })
+check(rowGone === 0, 'project no longer shown in the list')
 
 await browser.close()
 
