@@ -378,6 +378,56 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
     fetchAll()
   }
 
+  /**
+   * ADD FROM TEAM — one click, deduped, and it stays a CURATED LIST.
+   *
+   * The distribution is who receives issued documents. That is not the same
+   * question as who sits on the team matrix, which is why this copies the team
+   * IN rather than syncing to it: adding a seat later must not silently start
+   * mailing a new person, and removing someone from distribution must stick.
+   *
+   * A snapshot you asked for beats a subscription you did not.
+   *
+   * Contacts with no email are still added — the distribution is the list of
+   * recipients, and a recipient missing an address is a gap somebody should SEE
+   * rather than a row quietly withheld. The count says how many.
+   */
+  async function addTeamToDistribution() {
+    const { data: seats } = await supabase.from('project_team_assignments')
+      .select('contact_id').eq('project_id', projectId).not('contact_id', 'is', null)
+    const ids = [...new Set((seats ?? []).map(r => r.contact_id as string))]
+      .filter(id => !distContactIds.has(id))
+
+    if (ids.length === 0) {
+      alert((seats ?? []).length === 0
+        ? 'No team members with a Directory contact yet. Add them on the Team tab first.'
+        : 'Everyone on the team is already on the distribution.')
+      return
+    }
+
+    const { data: cs } = await supabase.from('contacts')
+      .select('id, name, contact_emails(email, is_primary)').in('id', ids)
+    const noEmail = (cs ?? []).filter(c => !(c.contact_emails ?? []).length)
+
+    if (!window.confirm(
+      `Add ${ids.length} team contact${ids.length === 1 ? '' : 's'} to the distribution?\n\n` +
+      (noEmail.length
+        ? `${noEmail.length} of them ${noEmail.length === 1 ? 'has' : 'have'} no email address ` +
+          `(${noEmail.slice(0, 3).map(c => c.name).join(', ')}` +
+          `${noEmail.length > 3 ? '…' : ''}). They will be added and shown without one, so ` +
+          `the gap is visible rather than silent.\n\n`
+        : '') +
+      `This copies the team as it is now. It does NOT stay in sync — a seat added ` +
+      `later will not start receiving documents on its own.`)) return
+
+    setAddingDist(true)
+    const { error } = await supabase.from('project_distribution')
+      .insert(ids.map(contact_id => ({ project_id: projectId, contact_id })))
+    setAddingDist(false)
+    if (reportError(error, 'add the team to distribution')) return
+    fetchAll()
+  }
+
   async function removeFromDistribution(rowId: string) {
     const { error } = await supabase.from('project_distribution').delete().eq('id', rowId)
     if (reportError(error, 'remove the contact from distribution')) return
@@ -598,6 +648,18 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
               {/* Distribution */}
               <div className="sm:col-span-2 card-tile bg-white rounded-xl border border-gray-200 p-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Distribution List</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={addTeamToDistribution}
+                    disabled={addingDist}
+                    className="text-[11px] border border-teal-700 text-teal-700 rounded px-2 py-0.5 hover:bg-teal-50 disabled:opacity-50"
+                  >
+                    Add from team
+                  </button>
+                  <span className="text-[10px] text-gray-400">
+                    copies the team as it is now — not a live sync
+                  </span>
+                </div>
                 {distribution.length === 0 ? (
                   <p className="text-xs text-gray-400 mb-3">No contacts on the distribution yet — add them below.</p>
                 ) : (
