@@ -55,6 +55,7 @@ const SUITES = [
   'pw-checklist-offline',
   'pw-classification',
   'pw-contact-channels',
+  'pw-contact-modal',
   'pw-copy',
   'pw-cx-plan',
   'pw-dashboard',
