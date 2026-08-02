@@ -51,6 +51,7 @@ const SUITES = [
   'pw-agent-arch',
   'pw-applicability',
   'pw-applicability-rules',
+  'pw-base-fields',
   'pw-checklist-offline',
   'pw-classification',
   'pw-contact-channels',

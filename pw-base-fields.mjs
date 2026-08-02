@@ -81,7 +81,11 @@ try {
   await page.waitForTimeout(1200)
   const body = await page.locator('body').innerText()
 
-  check(/Manufacturer/.test(body) && /Serial Number/.test(body),
+  // CASE-INSENSITIVE: the labels are uppercased by CSS, so innerText returns
+  // "MANUFACTURER". The first run of this gate failed on that and the product
+  // was fine — a reminder that a text assertion tests the rendered string, not
+  // the string in the source.
+  check(/manufacturer/i.test(body) && /serial number/i.test(body),
     'AN UNTYPED UNIT NOW RENDERS IDENTITY FIELDS — the primary fix')
   check(/Installed/i.test(body), 'and it renders them inside the Installed section')
   check(!/Set an equipment type to unlock/.test(body),
@@ -102,11 +106,8 @@ try {
   await page.getByText('ZZ base-fields fixture', { exact: false }).first().click()
   await page.waitForTimeout(1200)
   const typedBody = await page.locator('body').innerText()
-  const mfrCount = (typedBody.match(/Manufacturer/g) ?? []).length
-  const { data: secCounts } = await adm.from('equipment_type_field_defs')
-    .select('section').eq('equipment_type', 'pump')
-  const sectionsWithMfr = new Set((pumpDefs ?? []).length ? ['installed'] : [])
-  check(mfrCount <= 3,
+  const mfrCount = (typedBody.match(/manufacturer/gi) ?? []).length
+  check(mfrCount >= 1 && mfrCount <= 3,
     `Manufacturer is not DOUBLED on a typed unit (${mfrCount} occurrences across ` +
     `three sections — the type's own row wins, base is deduped by field name)`)
 
