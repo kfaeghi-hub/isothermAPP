@@ -94,10 +94,26 @@ export async function login(page) {
  */
 export async function openTestProject(page) {
   const target = page.getByText(TEST_PROJECT, { exact: false })
-  if (await target.count() === 0) {
+
+  // WAIT BEFORE JUDGING. This used to be a bare `count() === 0`, an INSTANT
+  // check against a list that renders asynchronously — so a slow load failed the
+  // guard and reported "the test project was not found. Create the test project
+  // first" about a project that plainly exists.
+  //
+  // It cost two battery reds in three runs, in two different suites, and both
+  // times the message sent the investigation somewhere the bug was not. A guard
+  // that cries wolf gets explained away, and this one exists to protect client
+  // data from test writes.
+  //
+  // The refusal still stands — absence after a bounded wait is still a refusal —
+  // but the two states are now told apart and the message says which happened.
+  try {
+    await target.first().waitFor({ state: 'visible', timeout: 15000 })
+  } catch {
     throw new Error(
-      `Refusing to run: the test project "${TEST_PROJECT}" was not found.\n` +
-      `Playwright must never run against a real project. Create the test project first.`,
+      `Refusing to run: "${TEST_PROJECT}" did not appear in the projects list within 15s. ` +
+      `Either it does not exist, or this account cannot see it. Playwright must never ` +
+      `run against a real project, so this stops here either way.`,
     )
   }
   await target.first().click()
