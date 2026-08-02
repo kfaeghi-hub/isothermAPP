@@ -291,3 +291,37 @@ somewhere other than at the unit (Sound Rating, Supply ESP, Refrigerant Charge).
 
 **Not applied. Project field-structures untouched either way** — a trim to the
 firm set changes what NEW usage seeds, never an in-flight nameplate.
+
+---
+
+# SEEDED BASELINE — step 3b applied 2026-08-02
+
+Ruled as drafted. `heat_pump`'s trim is NOT included; it awaits its own ruling
+on the cut list above.
+
+| Type | Own rows | + base | Rendered | Ruled |
+|---|---|---|---|---|
+| `panel` | 8 | 3 | **11** | 11 ✓ |
+| `humidifier` | 8 | 3 | **11** | 11 ✓ |
+| `radiant_panel` | 6 | 3 | **9** | 9 ✓ (held) |
+| `unit_heater` *(minted)* | 9 | 3 | **12** | 12 ✓ |
+
+| Type | Addition | Rendered rows |
+|---|---|---|
+| `boiler` | Fluid Type | 19 → 20 |
+| `pump` | VFD | 19 → 20 |
+| `fan` | Heating Capacity (MBH) | 12 → 13 |
+
+**Identity is not restated in the type sets.** The drafted tables each opened
+with Manufacturer / Model Number / Serial Number because they predate `__base`.
+Those three now arrive from the base set on every unit and the resolver dedups by
+field name, so restating them would be dead rows at best and, at worst, a second
+definition free to drift from the base one and silently win. Each type carries
+only what is its own; the rendered totals above match the ruling exactly.
+
+**Units seeded at the firm's convention** — the metric set deliberately keeps
+CFM, MBH and NPS (see the units proposal).
+
+**Project field-structures untouched.** These are firm defs; a project's copy is
+seeded on first use and stays sovereign thereafter. No in-flight nameplate was
+rewritten.
