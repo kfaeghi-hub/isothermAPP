@@ -5,6 +5,7 @@ import { Combobox } from '../components/ui/Combobox'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import { IntakePanel } from '../components/intake/IntakePanel'
+import { alternatesFor, convertValue, type Conversion } from '../lib/unitConvert'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
   EquipmentAttachment, NameplateExtra,
@@ -498,6 +499,71 @@ export function EquipmentPage({ projectId }: Props) {
     return [...base.filter(f => !ownNames.has(f.field_name)), ...own]
   }
 
+  /**
+   * CHANGE A FIELD'S UNIT — never a silent relabel.
+   *
+   * Relabelling alone is how "225" entered as GPM becomes "225 L/s": the number
+   * stays, the meaning changes, and nothing anywhere says so. It renders, it
+   * prints, and it is only wrong once something computes with it.
+   *
+   * So the count comes first. The human is told how many values exist and what
+   * the arithmetic will be, and chooses. Cancelling changes nothing at all —
+   * not even the label — because a label that disagrees with its values is the
+   * state this exists to prevent.
+   */
+  async function changeFieldUnit(def: ProjectEquipmentFieldDef, c: Conversion) {
+    // Count the values this would touch, across every unit on the project.
+    const section = def.section as keyof NameplateExtra
+    const affected: { id: string; raw: string }[] = []
+    for (const e of equipment) {
+      const v = (e.nameplate_extra?.[section] ?? {})[def.field_name]
+      if (typeof v === 'string' && v.trim()) affected.push({ id: e.id, raw: v })
+    }
+    const convertible = affected.filter(a => convertValue(a.raw, c) !== null)
+    const stubborn = affected.length - convertible.length
+
+    if (affected.length === 0) {
+      // Nothing recorded yet — the relabel is free and needs no ceremony.
+      const { error } = await supabase.from('project_equipment_field_defs')
+        .update({ unit: c.to }).eq('id', def.id)
+      if (reportError(error, 'change the unit')) return
+      await fetchFieldDefs()
+      return
+    }
+
+    const ok = window.confirm(
+      `Change ${def.field_name} from ${def.unit} to ${c.to}?\n\n` +
+      `${affected.length} value${affected.length === 1 ? '' : 's'} already recorded ` +
+      `on this project.\n\n` +
+      `OK — convert them (${c.label}) and change the label.\n` +
+      `Cancel — change nothing.\n\n` +
+      (stubborn
+        ? `${stubborn} of them are not plain numbers (things like "1 1/2" or ` +
+          `"N/A") and CANNOT be converted. Converting would leave those at their ` +
+          `old magnitude under the new label, so they are left exactly as they ` +
+          `are for you to fix by hand.`
+        : `All ${affected.length} are plain numbers and convert cleanly.`))
+    if (!ok) return
+
+    // Values first, label last. If a value write fails the label still says the
+    // old unit, which is true of the data; the reverse order would leave the
+    // label lying about numbers that never moved.
+    for (const a of convertible) {
+      const eq = equipment.find(x => x.id === a.id)
+      if (!eq) continue
+      const next = { ...(eq.nameplate_extra ?? { spec: {}, shop_drawing: {}, installed: {} }) }
+      next[section] = { ...(next[section] ?? {}), [def.field_name]: convertValue(a.raw, c)! }
+      const { error } = await supabase.from('equipment')
+        .update({ nameplate_extra: next, updated_at: new Date().toISOString() }).eq('id', a.id)
+      if (reportError(error, `convert ${eq.tag ?? 'a unit'}`)) return
+    }
+
+    const { error } = await supabase.from('project_equipment_field_defs')
+      .update({ unit: c.to }).eq('id', def.id)
+    if (reportError(error, 'change the unit')) return
+    await Promise.all([fetchFieldDefs(), fetchEquipment()])
+  }
+
   function equipAttachments(equipId: string) {
     return attachments.filter(a => a.equipment_id === equipId)
   }
@@ -921,6 +987,17 @@ export function EquipmentPage({ projectId }: Props) {
                               {def.field_name}{def.unit ? <span className="text-gray-400 ml-1">({def.unit})</span> : ''}
                             </span>
                           )}
+                          {/* Offered only where a real counterpart exists. CFM,
+                              MBH, NPS and the electrical units have none — on an
+                              Ontario drawing they are already what both systems
+                              write, and offering a swap would invite one. */}
+                          {alternatesFor(def.unit).map(c => (
+                            <button key={c.to} onClick={() => changeFieldUnit(def, c)}
+                              title={`Change to ${c.to} — ${c.label}`}
+                              className="text-[9px] text-gray-300 hover:text-teal-700 px-1 shrink-0">
+                              →{c.to}
+                            </button>
+                          ))}
                           <button onClick={() => moveField(def.id, 'up', currentType, key)} disabled={ci === 0} className="text-[9px] text-gray-300 hover:text-gray-600 disabled:opacity-20 px-0.5">↑</button>
                           <button onClick={() => moveField(def.id, 'down', currentType, key)} disabled={ci === defs.length - 1} className="text-[9px] text-gray-300 hover:text-gray-600 disabled:opacity-20 px-0.5">↓</button>
                           <button onClick={() => deleteField(def.id)} className="text-[9px] text-gray-300 hover:text-red-500 px-0.5">×</button>
