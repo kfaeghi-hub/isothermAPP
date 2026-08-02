@@ -1033,6 +1033,19 @@ about the screen, and the cheapest honest answer is to open it. This one was
 found because a screenshot was requested for a log — not because anything was
 suspected.
 
+
+**The fourth row recurred within the same session.** Extracting the contact modal
+produced a patch bug that duplicated an entire block of the assign dialog — the
+people list, the "Company only" checkbox and the new-contact button rendered
+twice. `pw-contact-modal` passed all seventeen checks, because every one of them
+was true: the modal opened, the company was locked, the contact was created with
+its channels. Nothing asserted that the dialog contained ONE of each thing.
+
+Twice in one session, the same shape: the mechanics were right and the screen was
+wrong, and only opening it said so. That is the argument for render-and-look
+being a step rather than a courtesy — not that assertions are unreliable, but
+that at the feature level there is nothing else looking.
+
 **The test.** For any guard you are about to write or keep, ask: *what does it do
 differently in the failing case?* If the answer is "nothing observable", it is
 decoration. Give it a count, an error code, a named subject — something that
@@ -1102,6 +1115,41 @@ Two habits that go with it:
 - **Assert the resting state after cleanup** and print it (`meetings table total:
   0 (must be 0)`). A cleanup that silently did nothing looks identical to one that
   worked.
+
+### Ops: a patch script searches FORWARD and asserts what it is about to splice
+
+Editing source by string surgery is normal here — it keeps a large change
+reviewable as one deliberate diff. It has one failure mode, and it is silent.
+
+```python
+start = s.index(NEEDLE_A)
+end   = s.index(NEEDLE_B)          # searches from 0 — may land BEFORE start
+s = s[:start] + new + s[end:]      # end < start ⇒ this PASTES, it does not replace
+```
+
+`NEEDLE_B` was `{assignError && …}`, which appears in the step-1 block as well as
+the step-2 one. `end` landed on the earlier copy, and the splice duplicated
+everything between them: the people list, the "Company only" checkbox and the
+new-contact button all rendered twice. **Every assertion still passed** — the
+feature worked — and only the screenshot showed it.
+
+Two habits, both cheap:
+
+```python
+end = s.index(NEEDLE_B, start)                 # forward-search from `start`
+assert end > start, 'anchor ordering'
+assert s.count(ANCHOR) == 1, f'{s.count(ANCHOR)} matches'   # before any .replace
+```
+
+**Count the target before splicing on it.** A `.replace(x, y, 1)` on a string
+that occurs three times edits whichever comes first, quietly. If the count is not
+what you expect, the file is not what you think it is, and that is worth stopping
+for.
+
+Corollary already learned twice: a Python patch that fails its `assert` writes
+nothing, which is why every script here asserts before it opens the file for
+writing. A half-applied edit to a page like `DirectoryPage` is far worse than a
+failed run.
 
 ### Ops: sanitise storage object keys, and read an "RLS error" on a write twice
 
