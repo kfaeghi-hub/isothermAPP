@@ -136,8 +136,18 @@ try {
 
   // A category nobody has fed must be ABSENT rather than zero-filled — a rate of
   // 0% and "no data yet" are different claims.
+  //
+  // THE KEY IS SYNTHETIC ON PURPOSE. This used to assert that `classifier` had no
+  // health row, which was true the day it was written and became false the moment
+  // someone ratified a classifier proposal — i.e. the moment the feature was used
+  // as designed. The battery then reported a failure caused by the product
+  // working. A test that breaks on correct use is worse than no test: it trains
+  // you to explain away red.
+  //
+  // The invariant is "the view does not zero-fill", so assert it with a key no
+  // agent can ever have.
   const { data: unfed } = await adm.from('agent_health')
-    .select('*').eq('agent_key', 'classifier').maybeSingle()
+    .select('*').eq('agent_key', '__never_fed_synthetic__').maybeSingle()
   check(!unfed, 'an unfed category has NO health row (absent, not a misleading 0%)')
 
   console.log('\n── Librarian ─────────────────────────────────────────────────')
