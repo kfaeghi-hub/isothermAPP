@@ -131,3 +131,67 @@ export async function openTestProject(page) {
     )
   }
 }
+
+// ── Bounded condition-waits ─────────────────────────────────────────────────
+//
+// THE FLAKE CLASS THESE EXIST FOR. A suite acts, then reads:
+//
+//   await save()
+//   const n = await locator.count()      // ← instant. The UI may not have caught up.
+//   check(n === 3, '...')
+//
+// The read cannot tell "not there" from "NOT THERE YET", so it fails whenever the
+// machine is slow — and the message blames the feature. It cost four battery reds
+// in one week, in four different suites, and every one of them sent the
+// investigation somewhere the bug was not.
+//
+// THE COUSIN IS THE SAME DISEASE FACING THE OTHER WAY. After a delete or a drain:
+//
+//   await remove()
+//   check(await locator.count() === 0, 'gone')   // ← "gone" vs "NOT GONE YET"
+//
+// Both directions are one predicate that has to become true within a bound. A
+// fixed `waitForTimeout` before the read is not a fix — it is a bet on the
+// machine's speed, and it slows every green run to pay for the rare slow one.
+//
+// These do not weaken any assertion. A condition that never becomes true still
+// fails, with the same verdict and a better message: what was expected, what was
+// last seen, and how long it waited.
+
+/**
+ * Poll `fn` until it returns truthy, or the bound expires.
+ * Returns the last value — truthy on success, falsy on timeout — so the caller
+ * still does its own `check()` and still goes red when the condition never held.
+ */
+export async function waitUntil(fn, { timeout = 12000, interval = 200, what = 'condition' } = {}) {
+  const started = Date.now()
+  let last
+  for (;;) {
+    last = await fn()
+    if (last) return last
+    if (Date.now() - started > timeout) {
+      console.log(`      (waited ${((Date.now() - started) / 1000).toFixed(1)}s for ${what}; last: ${JSON.stringify(last)})`)
+      return last
+    }
+    await new Promise(r => setTimeout(r, interval))
+  }
+}
+
+/** Wait for a count to satisfy `pred`. Covers appearance AND disappearance —
+ *  `n => n === 3` and `n => n === 0` are the same shape. */
+export async function waitForCount(read, pred, opts = {}) {
+  const out = await waitUntil(async () => {
+    const n = await read()
+    return pred(n) ? { n } : null
+  }, { what: opts.what ?? 'a count', ...opts })
+  return out ? out.n : await read()   // on timeout, report what is actually there
+}
+
+/** Wait for text to appear on the page (or for a predicate over it to hold). */
+export async function waitForText(page, pred, opts = {}) {
+  const test = typeof pred === 'string' ? (t => t.includes(pred)) : pred
+  return !!(await waitUntil(async () => {
+    const t = await page.locator('body').innerText()
+    return test(t) ? t : null
+  }, { what: opts.what ?? `text ${typeof pred === 'string' ? JSON.stringify(pred) : 'predicate'}`, ...opts }))
+}

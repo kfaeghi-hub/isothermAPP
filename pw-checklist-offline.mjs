@@ -12,7 +12,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { login, openTestProject, TEST_PROJECT } from './pw-config.mjs'
+import { login, openTestProject, TEST_PROJECT, waitUntil } from './pw-config.mjs'
 
 // Same accumulation defect as pw-signoff-order: one new instance per run,
 // never deleted. Cleanup deletes instances THIS run created, as admin.
@@ -134,10 +134,22 @@ console.log(`  queued ops: ${queuedRaw ? JSON.parse(queuedRaw).length : 0}`)
 console.log('\n--- BACK ONLINE ---')
 await context.setOffline(false)
 await page.evaluate(() => window.dispatchEvent(new Event('online')))
-await page.waitForTimeout(6000)   // let the outbox drain
-
-const drained = await page.evaluate(() => localStorage.getItem('isotherm.checklist.outbox.v1'))
-check(!drained, 'reconnect: outbox drained to empty')
+// WAIT FOR THE CONDITION, NOT THE CLOCK. This was a flat 6s sleep then an instant
+// read, so on a slow machine the outbox had simply not finished draining and the
+// suite reported "outbox drained to empty: FAIL" on an offline DURABILITY test.
+// There is no scarier false alarm in this repo: it reads as silent data loss,
+// the exact thing this suite exists to disprove.
+//
+// "Gone" and "NOT GONE YET" are different states. Bounded, so a genuine failure
+// to drain still fails — it just says how long it waited first.
+const isEmpty = raw => !raw || raw === '[]'
+await waitUntil(
+  async () => isEmpty(await page.evaluate(() => localStorage.getItem('isotherm.checklist.outbox.v1'))),
+  { timeout: 20000, what: 'the outbox to drain' },
+)
+const outboxLeft = await page.evaluate(() => localStorage.getItem('isotherm.checklist.outbox.v1'))
+check(isEmpty(outboxLeft),
+  `reconnect: outbox drained to empty${isEmpty(outboxLeft) ? '' : ` (still: ${String(outboxLeft).slice(0, 80)})`}`)
 await page.screenshot({ path: 'ss-off-4-drained.png' })
 
 // ── 4. THE REAL TEST: reload, and see if the data came back from the SERVER ─

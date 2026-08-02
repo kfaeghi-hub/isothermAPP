@@ -15,7 +15,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-access.mjs
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { BASE_URL } from './pw-config.mjs'
+import { BASE_URL , waitForText } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 const PROBE_NAME = 'ZZ-TEST-ACCESS Probe'
@@ -230,8 +230,21 @@ try {
   await page.locator('input[type="email"]').fill(process.env.email)
   await page.locator('input[type="password"]').fill(process.env.password)
   await page.getByRole('button', { name: 'Sign In' }).click()
-  await page.waitForTimeout(3500)
+  // AN ABSENCE ASSERTION MUST FIRST PROVE THE PAGE ARRIVED.
+  // This was a fixed sleep then `!includes(...)`, which passes just as happily
+  // against a page that has not rendered — or against the login screen. Measured:
+  // at that moment the body is 236 characters. The check has never meant anything.
+  //
+  // The marker has to hold in BOTH outcomes this runs between. With the
+  // membership trimmed the dashboard renders its empty state ("No projects
+  // assigned yet — ask an owner to add you to a project"), which is correct
+  // product behaviour; with it intact it renders the portfolio. Either proves
+  // the page arrived, so the absence check below can mean something.
+  const ARRIVED = /No projects assigned yet|Portfolio Register/i
+  await waitForText(page, t => ARRIVED.test(t), { what: 'the dashboard to render either state' })
   const bodyText = await page.locator('body').innerText()
+  check(ARRIVED.test(bodyText),
+    'TRIM: the dashboard actually rendered (so the next check means something)')
   check(!bodyText.includes('ZZ-TEST — Do Not Use'), 'TRIM: dashboard shows no ZZ-TEST after membership removal')
   await browser.close()
   await restoreZZMembership()
@@ -382,7 +395,9 @@ try {
   await pg2.locator('input[type="email"]').fill(process.env.owner_email)
   await pg2.locator('input[type="password"]').fill(process.env.owner_password)
   await pg2.getByRole('button', { name: 'Sign In' }).click()
-  await pg2.waitForTimeout(3500)
+  // Presence, bounded: "not there" and "NOT THERE YET" are different states, and
+  // this one flaked a battery red claiming a membership had not taken effect.
+  await waitForText(pg2, 'ZZ-TEST — Do Not Use', { what: 'the member project on the dashboard' })
   const dashText = await pg2.locator('body').innerText()
   check(dashText.includes('ZZ-TEST — Do Not Use'), 'OWNER dashboard: member project visible')
   await b2.close()
