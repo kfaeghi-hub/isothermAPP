@@ -174,12 +174,14 @@ export function DashboardPage() {
                     covered below-lg; the desktop case covered well-above. Nobody
                     stood in the 120px band between them.
 
-                    Same treatment the other two dashboard tables already had:
-                    scroll INSIDE the card. The page body must never scroll
-                    horizontally, and a clipped column is worse than a scrollbar
-                    because it does not announce itself. */}
+                    The real fix is on the description cell below — it was
+                    setting a 448px FLOOR on a column that already truncates. The
+                    overflow-x wrapper stays as honest insurance: if some future
+                    column does need more room than exists, it scrolls inside the
+                    card rather than being cut, because a clipped column is worse
+                    than a scrollbar — it does not announce itself. */}
                 <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-xs min-w-[880px]" data-testid="attention-queue">
+                <table className="w-full text-xs" data-testid="attention-queue">
                   <tbody>
                     {queue.map((q, i) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
@@ -194,7 +196,14 @@ export function DashboardPage() {
                           )}
                         </td>
                         <td className="px-2 py-2 w-48 text-gray-500 truncate max-w-[12rem]">{projName(q.projectId)}</td>
-                        <td className="px-2 py-2 text-gray-800 truncate max-w-md">{q.description}</td>
+                        {/* max-w-0 + w-full is the flexible truncating cell: the
+                            column takes whatever space the fixed ones leave and
+                            ellipsises the rest. It was max-w-md (448px), which is
+                            a FLOOR, and that floor is what pushed the table to
+                            881px and cut the last column off inside an 812px
+                            card. A description that is already truncated has no
+                            business setting the table's minimum width. */}
+                        <td className="px-2 py-2 text-gray-800 truncate max-w-0 w-full">{q.description}</td>
                         <td className="px-2 py-2 w-24 text-gray-400 font-mono whitespace-nowrap">{q.detail}</td>
                         <td className="px-4 py-2 w-16 text-right">
                           <Link to={`/projects/${q.projectId}?tab=${q.tab}`} className="text-teal-700 hover:underline">Open</Link>
