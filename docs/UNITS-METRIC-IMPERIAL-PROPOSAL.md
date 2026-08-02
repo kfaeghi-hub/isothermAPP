@@ -127,3 +127,63 @@ not pre-empt any option above.
    defs to one system as part of this, or leave the historical mix and let the
    project preference sort it going forward?
 4. The unit-beside-the-input change — take it now, separately?
+
+---
+
+# RULED 2026-08-02 — C + A built, B deferred
+
+## B is deferred, and the reason is stronger than cost
+
+The proposal argued against B on retrofit grounds: canonical storage needs the
+unit each existing number was entered in, which was never recorded.
+
+The ruling adds the argument that actually settles it — **dual display creates
+verification-provenance ambiguity**. A commissioning record's job is to say what
+the CxA *read off the nameplate*. Showing `225 GPM (14.2 L/s)` makes both numbers
+equally present on the page and in any document generated from it, and a year
+later nobody can tell which one the engineer actually saw. That is a defect in
+the *record*, not in the arithmetic — and this system's whole premise is that the
+record is trustworthy.
+
+Layered on top of a footprint that touches every nameplate render and all three
+document generators, B is not merely expensive; it would make the register less
+honest in exchange for convenience. **Deferred, and if it ever returns it must
+carry a "which number was read" answer with it.**
+
+## The existing mix is CORRECT, not accretion
+
+Recorded as ruled: the firm's metric set deliberately keeps **CFM, MBH and NPS**.
+That is Ontario drawing practice — air is scheduled in CFM, heating capacity in
+MBH, pipe in NPS, on drawings that are otherwise metric. The proposal was wrong
+to call it accretion.
+
+Consequence in the build: those units carry **no imperial counterpart**, and the
+per-field picker offers them **no alternate**, because they are already what a
+local engineer writes. Offering a swap would invite one.
+
+## The five that swap
+
+| Metric | Imperial | Defs | Conversion |
+|---|---|---|---|
+| `°C` | `°F` | 20 | ×1.8 **then +32** — affine |
+| `L/s` | `GPM` | 19 | ×15.85 |
+| `mm` | `in` | 8 | ÷25.4 |
+| `kPa` | `ft` | 7 | ×0.3346 (head) · `PSI` offered per-field |
+| `kg/h` | `lb/h` | 3 | ×2.2046 |
+
+`kPa → ft` rather than PSI is deliberate: every kPa in the current sets is a pump
+head or a hydronic pressure, and imperial drawings express head in feet. PSI is
+right for a gas or vessel pressure, so it is a per-field override under A rather
+than a global rule.
+
+## As built
+
+- **C** — `projects.unit_system` (metric | imperial) chooses the unit string at
+  **seeding time only**. Not retroactive, and the UI says so rather than leaving
+  it to be discovered.
+- **A** — a `→GPM` control on each field in the project's field-structure editor.
+  It counts the values first, states the arithmetic, names how many are *not
+  plain numbers* and therefore cannot be converted, and writes values **before**
+  the label. Cancelling changes nothing, including the label.
+- **Immediate, independent** — the unit now renders with the value, in the input
+  and in the read view.
