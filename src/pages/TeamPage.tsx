@@ -132,8 +132,8 @@ export function TeamPage({ projectId }: Props) {
    *
    * It now opens the SAME modal the Directory uses, with the company locked to
    * the seat being filled. Not a copy of that modal: one component over one save
-   * path, because that path is `replace_contact_channels`, which exists because
-   * the previous version failed silently for every non-admin.
+   * path, because that path is the RPC that exists because the previous version
+   * failed silently for every non-admin.
    */
   async function onContactCreated(contactId: string) {
     const { data } = await supabase.from('contacts')
@@ -483,48 +483,6 @@ export function TeamPage({ projectId }: Props) {
                 + New company (created in the directory with this role)
               </button>
             )}
-            {assignError && <p className="text-sm text-red-600">{assignError}</p>}
-          </div>
-        )}
-
-        {assign?.step === 2 && (
-          <div className="space-y-3">
-            <div className="max-h-64 overflow-auto space-y-0.5">
-              {pickableContacts.map(c => {
-                const email = resolveEmail(c)
-                const on = selectedContactIds.includes(c.id)
-                return (
-                  <label key={c.id}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded cursor-pointer transition-colors ${
-                      on ? 'bg-teal-50' : 'hover:bg-gray-50'
-                    } ${companyOnly ? 'opacity-40 pointer-events-none' : ''}`}>
-                    <input type="checkbox" checked={on}
-                      onChange={() => setSelectedContactIds(ids =>
-                        on ? ids.filter(id => id !== c.id) : [...ids, c.id])} />
-                    <span className="text-sm text-gray-800">{c.name}</span>
-                    {c.trade && <span className="text-xs text-gray-400">{c.trade}</span>}
-                    {email && <span className="text-xs text-gray-400 ml-auto truncate max-w-[180px]">{email}</span>}
-                  </label>
-                )
-              })}
-              {pickableContacts.length === 0 && (
-                <p className="text-xs text-gray-400 px-1 py-2">
-                  No unassigned contacts at this company yet — add one below, or use "Company only".
-                </p>
-              )}
-            </div>
-
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer border-t border-gray-100 pt-3">
-              <input type="checkbox" checked={companyOnly}
-                onChange={e => { setCompanyOnly(e.target.checked); if (e.target.checked) setSelectedContactIds([]) }} />
-              Company only — no contact
-            </label>
-
-            <button onClick={() => setContactModalOpen(true)}
-              className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-3 py-1.5 transition-colors">
-              + New contact at {assignCompany?.name ?? 'this company'}
-            </button>
-
             {assignError && <p className="text-sm text-red-600">{assignError}</p>}
           </div>
         )}

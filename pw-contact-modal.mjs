@@ -37,8 +37,13 @@ try {
   const team = readFileSync('src/pages/TeamPage.tsx', 'utf8')
   check(dir.includes('<ContactModal') && team.includes('<ContactModal'),
     'both pages render the SHARED ContactModal')
-  check(!dir.includes('replace_contact_channels') && !team.includes('replace_contact_channels'),
-    'neither page calls replace_contact_channels directly — one save path, in one place')
+  // MATCH THE CALL, NOT THE NAME. The first version of this check searched for
+  // the bare string and went red on a COMMENT explaining why the save path is
+  // shared — a substring assertion that cannot tell code from prose. The product
+  // was correct; the test was reading English.
+  const callsRpc = src => /supabase\.rpc\(\s*'replace_contact_channels'/.test(src)
+  check(!callsRpc(dir) && !callsRpc(team),
+    'neither page CALLS replace_contact_channels — one save path, in one place')
   check(!team.includes('addNewContactInline'),
     'the name-and-title quick-add is GONE, not merely bypassed')
 
