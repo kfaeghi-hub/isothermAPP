@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { ContactModal } from '../components/directory/ContactModal'
 import { resolveEmail, resolvePhone } from '../lib/contactInfo'
 import { reportError } from '../lib/mutationError'
 import { Modal } from '../components/ui/Modal'
@@ -40,9 +41,7 @@ export function TeamPage({ projectId }: Props) {
   // Inline adds
   const [newCompanyName, setNewCompanyName] = useState('')
   const [addingCompany, setAddingCompany] = useState(false)
-  const [newContactName, setNewContactName] = useState('')
-  const [newContactTitle, setNewContactTitle] = useState('')
-  const [addingContact, setAddingContact] = useState(false)
+  const [contactModalOpen, setContactModalOpen] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
   const [newRoleName, setNewRoleName] = useState('')
   const [newRoleAbbr, setNewRoleAbbr] = useState('')
@@ -90,13 +89,13 @@ export function TeamPage({ projectId }: Props) {
   function openAssign(roleTypeId: string) {
     setAssign({ open: true, roleTypeId, step: 1, companyId: '' })
     setCompanySearch(''); setSelectedContactIds([]); setCompanyOnly(false)
-    setAddingCompany(false); setAddingContact(false); setAssignError(null)
+    setAddingCompany(false); setContactModalOpen(false); setAssignError(null)
   }
 
   function openAddPerson(roleTypeId: string, companyId: string) {
     setAssign({ open: true, roleTypeId, step: 2, companyId })
     setSelectedContactIds([]); setCompanyOnly(false)
-    setAddingContact(false); setAssignError(null)
+    setContactModalOpen(false); setAssignError(null)
   }
 
   function pickCompany(companyId: string) {
@@ -123,18 +122,28 @@ export function TeamPage({ projectId }: Props) {
     pickCompany(data.id)
   }
 
-  async function addNewContactInline() {
-    if (!assign?.companyId) return
-    const name = newContactName.trim()
-    if (!name) return
-    const { data, error } = await supabase.from('contacts')
-      .insert({ name, company_id: assign.companyId, trade: newContactTitle.trim() || null })
+  /**
+   * A CONTACT BORN ON THE TEAM TAB IS A COMPLETE CITIZEN FROM BIRTH.
+   *
+   * This used to be an inline name-and-title field. It minted Directory contacts
+   * with no phones, no emails and no primary flags — invisible to distribution
+   * lists and to every mailto link — and nobody found out until they went looking
+   * for a number that had never existed (Adam Cheney's report).
+   *
+   * It now opens the SAME modal the Directory uses, with the company locked to
+   * the seat being filled. Not a copy of that modal: one component over one save
+   * path, because that path is `replace_contact_channels`, which exists because
+   * the previous version failed silently for every non-admin.
+   */
+  async function onContactCreated(contactId: string) {
+    const { data } = await supabase.from('contacts')
       .select('*, companies(id, name, abbreviation), contact_phones(*), contact_emails(*)')
-      .single()
-    if (error || !data) { setAssignError(error?.message ?? 'Could not create contact.'); return }
-    setContacts(cs => [...cs, data as ContactWithDetail].sort((a, b) => a.name.localeCompare(b.name)))
-    setSelectedContactIds(ids => [...ids, data.id])
-    setNewContactName(''); setNewContactTitle(''); setAddingContact(false)
+      .eq('id', contactId).single()
+    if (!data) return
+    setContacts(cs => [...cs.filter(c => c.id !== contactId), data as ContactWithDetail]
+      .sort((a, b) => a.name.localeCompare(b.name)))
+    // Tick it straight away — creating a person here means you want them in the seat.
+    setSelectedContactIds(ids => ids.includes(contactId) ? ids : [...ids, contactId])
   }
 
   async function saveAssignment() {
@@ -511,24 +520,52 @@ export function TeamPage({ projectId }: Props) {
               Company only — no contact
             </label>
 
-            {addingContact ? (
-              <div className="flex items-center gap-1.5">
-                <input value={newContactName} onChange={e => setNewContactName(e.target.value)}
-                  placeholder="Name…" autoFocus
-                  className="flex-1 border border-teal-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                <input value={newContactTitle} onChange={e => setNewContactTitle(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') addNewContactInline() }}
-                  placeholder="Title…"
-                  className="w-40 border border-teal-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                <button onClick={addNewContactInline} className="text-teal-700 text-lg leading-none px-1">✓</button>
-                <button onClick={() => setAddingContact(false)} className="text-gray-400 text-lg leading-none px-1">✕</button>
-              </div>
-            ) : (
-              <button onClick={() => setAddingContact(true)}
-                className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-3 py-1.5 transition-colors">
-                + New contact at {assignCompany?.name ?? 'this company'}
-              </button>
-            )}
+            <button onClick={() => setContactModalOpen(true)}
+              className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-3 py-1.5 transition-colors">
+              + New contact at {assignCompany?.name ?? 'this company'}
+            </button>
+
+            {assignError && <p className="text-sm text-red-600">{assignError}</p>}
+          </div>
+        )}
+
+        {assign?.step === 2 && (
+          <div className="space-y-3">
+            <div className="max-h-64 overflow-auto space-y-0.5">
+              {pickableContacts.map(c => {
+                const email = resolveEmail(c)
+                const on = selectedContactIds.includes(c.id)
+                return (
+                  <label key={c.id}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded cursor-pointer transition-colors ${
+                      on ? 'bg-teal-50' : 'hover:bg-gray-50'
+                    } ${companyOnly ? 'opacity-40 pointer-events-none' : ''}`}>
+                    <input type="checkbox" checked={on}
+                      onChange={() => setSelectedContactIds(ids =>
+                        on ? ids.filter(id => id !== c.id) : [...ids, c.id])} />
+                    <span className="text-sm text-gray-800">{c.name}</span>
+                    {c.trade && <span className="text-xs text-gray-400">{c.trade}</span>}
+                    {email && <span className="text-xs text-gray-400 ml-auto truncate max-w-[180px]">{email}</span>}
+                  </label>
+                )
+              })}
+              {pickableContacts.length === 0 && (
+                <p className="text-xs text-gray-400 px-1 py-2">
+                  No unassigned contacts at this company yet — add one below, or use "Company only".
+                </p>
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer border-t border-gray-100 pt-3">
+              <input type="checkbox" checked={companyOnly}
+                onChange={e => { setCompanyOnly(e.target.checked); if (e.target.checked) setSelectedContactIds([]) }} />
+              Company only — no contact
+            </label>
+
+            <button onClick={() => setContactModalOpen(true)}
+              className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-3 py-1.5 transition-colors">
+              + New contact at {assignCompany?.name ?? 'this company'}
+            </button>
 
             {assignError && <p className="text-sm text-red-600">{assignError}</p>}
 
@@ -543,6 +580,16 @@ export function TeamPage({ projectId }: Props) {
                   {saving ? 'Assigning…' : 'Assign'}
                 </button>
               </div>
+
+            {/* The Directory's own modal, company locked to this seat. */}
+            <ContactModal
+              open={contactModalOpen}
+              editing={null}
+              companies={companies}
+              lockedCompanyId={assign?.companyId ?? null}
+              onClose={() => setContactModalOpen(false)}
+              onSaved={onContactCreated}
+            />
             </div>
           </div>
         )}

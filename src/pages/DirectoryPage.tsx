@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../components/ui/Modal'
+import { ContactModal } from '../components/directory/ContactModal'
 import type {
   CompanyWithDetail, ContactWithDetail,
-  CompanyRoleType, TradeType, PhoneType,
+  CompanyRoleType, TradeType,
 } from '../types/database'
 
-import { PHONE_TYPES, phoneLabel, primaryOf } from '../lib/contactInfo'
+import { phoneLabel, primaryOf } from '../lib/contactInfo'
 import { reportError } from '../lib/mutationError'
 
 // ── Form state types ───────────────────────────────────────────────────────
@@ -21,8 +22,6 @@ interface LocationRow {
   active: boolean
 }
 
-interface PhoneRow  { phone_type: PhoneType; number: string; extension: string; is_primary: boolean }
-interface EmailRow  { label: string; email: string; is_primary: boolean }
 
 interface CompanyForm {
   name: string
@@ -36,21 +35,10 @@ interface CompanyForm {
   locations: LocationRow[]
 }
 
-interface ContactForm {
-  name: string
-  company_id: string
-  trade: string          // job title — rendered as "Title"
-  location_id: string
-  phones: PhoneRow[]
-  emails: EmailRow[]
-}
 
 const EMPTY_COMPANY: CompanyForm = {
   name: '', abbreviation: '', notes: '', phone: '', website: '', email: '',
   roleTypeIds: [], tradeIds: [], locations: [],
-}
-const EMPTY_CONTACT: ContactForm = {
-  name: '', company_id: '', trade: '', location_id: '', phones: [], emails: [],
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -86,9 +74,6 @@ export function DirectoryPage() {
 
   // Contact modal
   const [contactModal, setContactModal] = useState<{ open: boolean; editing: ContactWithDetail | null }>({ open: false, editing: null })
-  const [contactForm, setContactForm] = useState<ContactForm>(EMPTY_CONTACT)
-  const [contactError, setContactError] = useState<string | null>(null)
-  const [savingContact, setSavingContact] = useState(false)
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
@@ -397,116 +382,13 @@ export function DirectoryPage() {
   // ── Contact CRUD ─────────────────────────────────────────────────────────
 
   function openAddContact() {
-    setContactForm({ ...EMPTY_CONTACT, company_id: selectedCompanyId ?? '' })
-    setContactError(null)
     setContactModal({ open: true, editing: null })
   }
 
+  /** Also the deep-link target — see the ?contact= effect above. */
   function openEditContact(contact: ContactWithDetail, e: React.MouseEvent) {
     e.stopPropagation()
-    setContactForm({
-      name: contact.name,
-      company_id: contact.company_id,
-      trade: contact.trade ?? '',
-      location_id: contact.location_id ?? '',
-      phones: (contact.contact_phones ?? []).map(p => ({
-        phone_type: p.phone_type, number: p.number, extension: p.extension ?? '', is_primary: p.is_primary,
-      })),
-      emails: (contact.contact_emails ?? []).map(em => ({
-        label: em.label ?? '', email: em.email, is_primary: em.is_primary,
-      })),
-    })
-    setContactError(null)
     setContactModal({ open: true, editing: contact })
-  }
-
-  async function saveContact() {
-    if (!contactForm.name.trim()) { setContactError('Name is required.'); return }
-    if (!contactForm.company_id)  { setContactError('Company is required.'); return }
-    const phones = contactForm.phones.filter(p => p.number.trim())
-    const emails = contactForm.emails.filter(em => em.email.trim())
-    // Exactly-one-primary in app state (the partial unique index backstops it)
-    if (phones.length > 0 && !phones.some(p => p.is_primary)) phones[0].is_primary = true
-    if (emails.length > 0 && !emails.some(em => em.is_primary)) emails[0].is_primary = true
-
-    setSavingContact(true)
-    setContactError(null)
-
-    // Moving a contact to a different company is blocked while they hold project
-    // team seats — the assignments' composite FK would reject it anyway; this
-    // check turns that into an honest message instead of a constraint error.
-    if (contactModal.editing && contactModal.editing.company_id !== contactForm.company_id) {
-      const { count } = await supabase.from('project_team_assignments')
-        .select('id', { count: 'exact', head: true })
-        .eq('contact_id', contactModal.editing.id)
-      if ((count ?? 0) > 0) {
-        setContactError(
-          `${contactModal.editing.name} is assigned on ${count} project team${count === 1 ? '' : 's'}. ` +
-          `Remove those team assignments first, then change the company.`,
-        )
-        setSavingContact(false)
-        return
-      }
-    }
-
-    const primaryPhone = phones.find(p => p.is_primary)
-    const primaryEmail = emails.find(em => em.is_primary)
-
-    const payload = {
-      name: contactForm.name.trim(),
-      company_id: contactForm.company_id,
-      trade: contactForm.trade.trim() || null,
-      location_id: contactForm.location_id || null,
-      // DUAL-WRITE: legacy single columns mirror the primaries until the removal pass.
-      email: primaryEmail?.email.trim() || null,
-      phone: primaryPhone?.number.trim() || null,
-    }
-
-    let contactId: string
-    if (contactModal.editing) {
-      const { error } = await supabase.from('contacts').update(payload).eq('id', contactModal.editing.id)
-      if (error) { setContactError(error.message); setSavingContact(false); return }
-      contactId = contactModal.editing.id
-    } else {
-      const { data, error } = await supabase.from('contacts').insert(payload).select('id').single()
-      if (error || !data) { setContactError(error?.message ?? 'Insert failed.'); setSavingContact(false); return }
-      contactId = data.id
-    }
-
-    // ONE TRANSACTION, SERVER SIDE. This used to be four sequential requests —
-    // delete phones, insert phones, delete emails, insert emails — and it failed
-    // for every user who was not an admin.
-    //
-    // The DELETE policy on these tables was narrower than the INSERT policy, so
-    // a staff user's delete removed ZERO ROWS AND RETURNED NO ERROR. The guard
-    // here saw no error and carried on to insert a second primary, which the
-    // partial unique index rejected. The user was editing EMAILS and got told
-    // about PHONES, because the phones block ran first.
-    //
-    // Two things were wrong and both are fixed: the policy now matches the edit
-    // right, and the replacement is atomic, so a failed insert can no longer
-    // leave a contact with no phone numbers at all. The function also decides
-    // the primary flag itself, so the index is a last line of defence rather
-    // than the only one.
-    const { error: chanError } = await supabase.rpc('replace_contact_channels', {
-      p_contact_id: contactId,
-      p_phones: phones
-        .filter(p => p.number.trim())
-        .map(p => ({
-          phone_type: p.phone_type, number: p.number.trim(),
-          extension: p.extension.trim() || null, is_primary: p.is_primary,
-        })),
-      p_emails: emails
-        .filter(em => em.email.trim())
-        .map(em => ({
-          label: em.label.trim() || null, email: em.email.trim(), is_primary: em.is_primary,
-        })),
-    })
-    if (chanError) { setContactError(chanError.message); setSavingContact(false); return }
-
-    setSavingContact(false)
-    setContactModal({ open: false, editing: null })
-    fetchData()
   }
 
   async function deleteContact(contact: ContactWithDetail, e: React.MouseEvent) {
@@ -516,11 +398,6 @@ export function DirectoryPage() {
     if (error) { alert(error.message); return }
     fetchData()
   }
-
-  // Locations available to the contact modal (selected company's active offices)
-  const contactCompanyLocations = (companies.find(c => c.id === contactForm.company_id)?.company_locations ?? [])
-    .filter(l => l.active || l.id === contactForm.location_id)
-    .sort((a, b) => a.sort_order - b.sort_order)
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -1010,171 +887,15 @@ export function DirectoryPage() {
         </div>
       </Modal>
 
-      {/* ── Contact modal ─────────────────────────────────── */}
-      <Modal
-        title={contactModal.editing ? 'Edit Contact' : 'Add Contact'}
+      {/* ── Contact modal — the SHARED one, also used by the Team tab ────── */}
+      <ContactModal
         open={contactModal.open}
+        editing={contactModal.editing}
+        companies={companies}
+        defaultCompanyId={selectedCompanyId}
         onClose={() => setContactModal({ open: false, editing: null })}
-        maxWidth="lg"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                Name <span className="text-red-400">*</span>
-              </label>
-              <input type="text" value={contactForm.name}
-                onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
-                className={`w-full ${inputCls}`} placeholder="Full name" autoFocus />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Title</label>
-              <input type="text" value={contactForm.trade}
-                onChange={e => setContactForm(f => ({ ...f, trade: e.target.value }))}
-                className={`w-full ${inputCls}`} placeholder="e.g. Mechanical Engineer, Project Manager" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                Company <span className="text-red-400">*</span>
-              </label>
-              <select value={contactForm.company_id}
-                onChange={e => setContactForm(f => ({ ...f, company_id: e.target.value, location_id: '' }))}
-                className={`w-full ${inputCls}`}>
-                <option value="">Select a company…</option>
-                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Location</label>
-              <select value={contactForm.location_id}
-                onChange={e => setContactForm(f => ({ ...f, location_id: e.target.value }))}
-                disabled={contactCompanyLocations.length === 0}
-                className={`w-full ${inputCls} disabled:bg-gray-50 disabled:text-gray-400`}>
-                <option value="">
-                  {contactCompanyLocations.length === 0 ? 'No locations for this company' : '— Unspecified —'}
-                </option>
-                {contactCompanyLocations.map(l => (
-                  <option key={l.id} value={l.id}>{l.label}{!l.active ? ' (inactive)' : ''}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Phones */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phones</label>
-            {contactForm.phones.length > 0 && (
-              <div className="space-y-1.5 mb-2">
-                {contactForm.phones.map((p, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <input type="radio" name="primary-phone" checked={p.is_primary} title="Primary phone"
-                      onChange={() => setContactForm(f => ({
-                        ...f, phones: f.phones.map((x, j) => ({ ...x, is_primary: j === i })),
-                      }))} />
-                    <select value={p.phone_type}
-                      onChange={e => setContactForm(f => ({
-                        ...f, phones: f.phones.map((x, j) => j === i ? { ...x, phone_type: e.target.value as PhoneType } : x),
-                      }))}
-                      className={`${smallInputCls} bg-white w-24`}>
-                      {PHONE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <input type="tel" value={p.number} placeholder="Number"
-                      onChange={e => setContactForm(f => ({
-                        ...f, phones: f.phones.map((x, j) => j === i ? { ...x, number: e.target.value } : x),
-                      }))}
-                      className={`${smallInputCls} flex-1`} />
-                    <input type="text" value={p.extension} placeholder="Ext."
-                      onChange={e => setContactForm(f => ({
-                        ...f, phones: f.phones.map((x, j) => j === i ? { ...x, extension: e.target.value } : x),
-                      }))}
-                      className={`${smallInputCls} w-16`} />
-                    <button
-                      onClick={() => setContactForm(f => {
-                        const phones = f.phones.filter((_, j) => j !== i)
-                        if (p.is_primary && phones.length > 0 && !phones.some(x => x.is_primary)) {
-                          phones[0] = { ...phones[0], is_primary: true }
-                        }
-                        return { ...f, phones }
-                      })}
-                      className="text-gray-300 hover:text-red-500 text-sm leading-none px-1">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button type="button"
-              onClick={() => setContactForm(f => ({
-                ...f,
-                phones: [...f.phones, { phone_type: 'mobile', number: '', extension: '', is_primary: f.phones.length === 0 }],
-              }))}
-              className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-3 py-1 transition-colors">
-              + Add phone
-            </button>
-          </div>
-
-          {/* Emails */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Emails</label>
-            {contactForm.emails.length > 0 && (
-              <div className="space-y-1.5 mb-2">
-                {contactForm.emails.map((em, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <input type="radio" name="primary-email" checked={em.is_primary} title="Primary email — used in report distribution"
-                      onChange={() => setContactForm(f => ({
-                        ...f, emails: f.emails.map((x, j) => ({ ...x, is_primary: j === i })),
-                      }))} />
-                    <input type="text" value={em.label} placeholder="Label (optional)"
-                      onChange={e => setContactForm(f => ({
-                        ...f, emails: f.emails.map((x, j) => j === i ? { ...x, label: e.target.value } : x),
-                      }))}
-                      className={`${smallInputCls} w-28`} />
-                    <input type="email" value={em.email} placeholder="Email"
-                      onChange={e => setContactForm(f => ({
-                        ...f, emails: f.emails.map((x, j) => j === i ? { ...x, email: e.target.value } : x),
-                      }))}
-                      className={`${smallInputCls} flex-1`} />
-                    <button
-                      onClick={() => setContactForm(f => {
-                        const emails = f.emails.filter((_, j) => j !== i)
-                        if (em.is_primary && emails.length > 0 && !emails.some(x => x.is_primary)) {
-                          emails[0] = { ...emails[0], is_primary: true }
-                        }
-                        return { ...f, emails }
-                      })}
-                      className="text-gray-300 hover:text-red-500 text-sm leading-none px-1">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button type="button"
-              onClick={() => setContactForm(f => ({
-                ...f,
-                emails: [...f.emails, { label: '', email: '', is_primary: f.emails.length === 0 }],
-              }))}
-              className="text-xs border border-dashed border-gray-200 text-gray-400 hover:border-teal-400 hover:text-teal-600 rounded px-3 py-1 transition-colors">
-              + Add email
-            </button>
-            <p className="text-[11px] text-gray-400 mt-1.5">
-              The primary email is what site report distribution lists use.
-            </p>
-          </div>
-
-          {contactError && <p className="text-sm text-red-600">{contactError}</p>}
-
-          <div className="flex justify-end gap-2 pt-1">
-            <button onClick={() => setContactModal({ open: false, editing: null })}
-              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
-              Cancel
-            </button>
-            <button onClick={saveContact} disabled={savingContact}
-              className="px-4 py-2 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50 transition-colors font-medium">
-              {savingContact ? 'Saving…' : contactModal.editing ? 'Save Changes' : 'Add Contact'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onSaved={() => fetchData()}
+      />
     </div>
   )
 }
