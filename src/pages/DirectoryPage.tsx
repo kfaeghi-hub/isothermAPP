@@ -440,29 +440,36 @@ export function DirectoryPage() {
       contactId = data.id
     }
 
-    // Phones/emails are leaf rows (nothing references them): delete-then-insert.
-    const { error: phoneDelError } = await supabase.from('contact_phones').delete().eq('contact_id', contactId)
-    if (reportError(phoneDelError, "update the contact's phone numbers")) { setSavingContact(false); return }
-    if (phones.length > 0) {
-      const { error } = await supabase.from('contact_phones').insert(
-        phones.map(p => ({
-          contact_id: contactId, phone_type: p.phone_type, number: p.number.trim(),
+    // ONE TRANSACTION, SERVER SIDE. This used to be four sequential requests —
+    // delete phones, insert phones, delete emails, insert emails — and it failed
+    // for every user who was not an admin.
+    //
+    // The DELETE policy on these tables was narrower than the INSERT policy, so
+    // a staff user's delete removed ZERO ROWS AND RETURNED NO ERROR. The guard
+    // here saw no error and carried on to insert a second primary, which the
+    // partial unique index rejected. The user was editing EMAILS and got told
+    // about PHONES, because the phones block ran first.
+    //
+    // Two things were wrong and both are fixed: the policy now matches the edit
+    // right, and the replacement is atomic, so a failed insert can no longer
+    // leave a contact with no phone numbers at all. The function also decides
+    // the primary flag itself, so the index is a last line of defence rather
+    // than the only one.
+    const { error: chanError } = await supabase.rpc('replace_contact_channels', {
+      p_contact_id: contactId,
+      p_phones: phones
+        .filter(p => p.number.trim())
+        .map(p => ({
+          phone_type: p.phone_type, number: p.number.trim(),
           extension: p.extension.trim() || null, is_primary: p.is_primary,
         })),
-      )
-      if (error) { setContactError(error.message); setSavingContact(false); return }
-    }
-    const { error: emailDelError } = await supabase.from('contact_emails').delete().eq('contact_id', contactId)
-    if (reportError(emailDelError, "update the contact's emails")) { setSavingContact(false); return }
-    if (emails.length > 0) {
-      const { error } = await supabase.from('contact_emails').insert(
-        emails.map(em => ({
-          contact_id: contactId, label: em.label.trim() || null,
-          email: em.email.trim(), is_primary: em.is_primary,
+      p_emails: emails
+        .filter(em => em.email.trim())
+        .map(em => ({
+          label: em.label.trim() || null, email: em.email.trim(), is_primary: em.is_primary,
         })),
-      )
-      if (error) { setContactError(error.message); setSavingContact(false); return }
-    }
+    })
+    if (chanError) { setContactError(chanError.message); setSavingContact(false); return }
 
     setSavingContact(false)
     setContactModal({ open: false, editing: null })

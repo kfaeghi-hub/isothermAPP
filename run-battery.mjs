@@ -53,6 +53,7 @@ const SUITES = [
   'pw-applicability-rules',
   'pw-checklist-offline',
   'pw-classification',
+  'pw-contact-channels',
   'pw-copy',
   'pw-cx-plan',
   'pw-dashboard',
