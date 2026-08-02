@@ -1019,6 +1019,19 @@ Three instances in a single batch, on three unrelated surfaces:
 | **RLS DELETE on `contact_phones`** | A delete filtered out by policy removes zero rows and returns **no error** — indistinguishable from a delete that worked. `if (error)` passed, and the next statement inserted a duplicate primary. The user saw a constraint about PHONES while editing EMAILS. | The policy was widened to match the edit right, and the whole replacement moved into one transaction that normalises the primary flag itself. The unique index went back to being the last line of defence rather than the first line of validation. |
 | **The equipment delete confirm** | "This also removes its Cx Index progress data and attachments" — said whether the unit was untouched or carried fifty verified cells. A warning that never varies is a warning nobody reads. | Count first. Name what will actually be destroyed, or say plainly that nothing references this unit. BLOCK on a linked finding, naming the findings, because that link is part of the signed record. |
 | **`openTestProject` in the harness** | `await target.count() === 0` on an asynchronously rendered list: "the test project was not found — create it first", about a project that plainly existed. Two battery reds in three runs, two different suites, and both times the message sent the investigation to the wrong place. | Wait, bounded, before judging. Absence after the wait is still a refusal — but "not there" and "not there YET" are now told apart, and the message says which happened. |
+| **The retroactive type assignment** *(feature level)* | STRUCTURALLY GREEN, PURPOSIVELY EMPTY. 118 units were typed, batch-tagged, and every check passed — the script reported success and the counts were right. But `ensureFieldDefs` seeds a project's field defs lazily, only when a human sets a type THROUGH THE UI, so a bulk write bypassed it. The units pointed at def sets that existed at firm level and had never been copied down, and their nameplates rendered empty. The claim "the registers come alive" was made and was false. | Nothing in the code was asserting the FEATURE'S PURPOSE, only its mechanics. A screenshot of one Wall Fin found it in seconds. The backfill is now a general gap-filler for any (project, type) pair with equipment and no defs, because every future bulk write has the same hole. |
+
+The fourth row is a different level from the first three and belongs here anyway.
+The first three are guards in code that could not fail. That one is a **claim
+about a feature** that could not fail: every mechanical assertion was true —
+rows updated, batches written, counts correct — while the thing the work existed
+to achieve had not happened. No assertion was wrong; none was aimed at the point.
+
+**RENDER AND LOOK IS NOT A COURTESY, IT IS THE ONLY CHECK AT THAT LEVEL.** A test
+suite verifies mechanics. Whether the feature does what it was for is a question
+about the screen, and the cheapest honest answer is to open it. This one was
+found because a screenshot was requested for a log — not because anything was
+suspected.
 
 **The test.** For any guard you are about to write or keep, ask: *what does it do
 differently in the failing case?* If the answer is "nothing observable", it is
