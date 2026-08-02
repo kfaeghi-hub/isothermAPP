@@ -12,6 +12,18 @@ import type {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
+/** The def set every unit gets, prepended ahead of its type's own. Not an
+ *  equipment type: neither def table has an FK to equipment_types, so this key
+ *  can never be assigned to a unit or appear in the type picker. */
+const BASE_KEY = '__base'
+
+/** The single-column ancestors of nameplate_extra that still hold data.
+ *  Identity is deliberately absent — it lives in the base def set now. */
+const LEGACY_NAMEPLATE: [string, keyof Equipment][] = [
+  ['Voltage (V)', 'voltage'], ['Phase', 'phase'], ['Hz', 'hz'],
+  ['Amperage (A)', 'amperage'], ['Flow', 'flow'], ['Capacity', 'capacity'],
+]
+
 const SECTIONS: { key: keyof NameplateExtra; label: string }[] = [
   { key: 'spec',         label: 'Spec (Design)' },
   { key: 'shop_drawing', label: 'Shop Drawing' },
@@ -147,6 +159,15 @@ export function EquipmentPage({ projectId }: Props) {
       .then(() => setLoading(false))
   }, [fetchEquipment, fetchGlossary, fetchFieldDefs, fetchAttachments])
 
+  // The base set is seeded once per project, on first load, so an UNTYPED unit
+  // has somewhere to record identity without anyone choosing a type first.
+  useEffect(() => {
+    if (loading) return
+    if (fieldDefs.some(f => f.equipment_type === BASE_KEY)) return
+    void ensureFieldDefs(BASE_KEY)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, fieldDefs])
+
   // ── Glossary autocomplete ──────────────────────────────────────────────────
 
   function updateTagQuery(q: string) {
@@ -218,6 +239,7 @@ export function EquipmentPage({ projectId }: Props) {
 
   useEffect(() => { void fetchTypeVocabulary() }, [fetchTypeVocabulary])
 
+  /** Seed a project's copy of a firm def set. `type` may be BASE_KEY. */
   async function ensureFieldDefs(type: string) {
     const existing = fieldDefs.filter(f => f.equipment_type === type)
     if (existing.length > 0) return
@@ -270,10 +292,26 @@ export function EquipmentPage({ projectId }: Props) {
 
   async function saveEdit(eq: Equipment) {
     setSavingEdit(true)
+    // THE LEGACY IDENTITY COLUMNS ARE MIRRORED, IN THE SAME UPDATE.
+    // manufacturer/model/serial_number are the single-column ancestors of
+    // nameplate_extra — the same shape as contacts.email/phone — and other
+    // readers (the report and checklist generators among them) still read the
+    // columns. Editing identity through the base def set and not mirroring it
+    // would leave the columns holding a value the nameplate has since changed,
+    // which is the dual-write drift that has already cost this build once.
+    //
+    // One statement, so there is no window where the two disagree.
+    const installed = editNameplate.installed ?? {}
+    const mirror = {
+      manufacturer:  installed['Manufacturer']  ?? null,
+      model:         installed['Model Number']  ?? null,
+      serial_number: installed['Serial Number'] ?? null,
+    }
     const { error } = await supabase
       .from('equipment')
       .update({
         ...editValues,
+        ...mirror,
         nameplate_extra: editNameplate,
         updated_at: new Date().toISOString(),
       })
@@ -420,10 +458,31 @@ export function EquipmentPage({ projectId }: Props) {
   // reviews it.
   const locations = [...new Set(equipment.map(e => e.location ?? '').filter(Boolean))].sort()
 
+  /**
+   * THE UNIVERSAL BASE SET IS ALWAYS PREPENDED — typed or not.
+   *
+   * 55% of the register had no equipment type, and an untyped unit used to get
+   * no defs at all: `ensureFieldDefs` returned early on a null type and the
+   * nameplate rendered empty. On the two live retrofit projects that was nearly
+   * everything (Clairlea 92 of 99, Muir 57 of 89) — which is why three field
+   * users independently reported fields "missing" that their type already had.
+   * They were looking at units the system did not consider to be that type.
+   *
+   * Identity is the floor beneath every unit, so it comes from a def set rather
+   * than from a type. Dedup by field name: a type that already declares its own
+   * Manufacturer keeps its own row and its own unit.
+   */
   function defsForType(type: string, section: string) {
-    return fieldDefs
-      .filter(f => f.equipment_type === type && f.section === section)
+    const base = fieldDefs
+      .filter(f => f.equipment_type === BASE_KEY && f.section === section)
       .sort((a, b) => a.sort_order - b.sort_order)
+    const own = type
+      ? fieldDefs
+          .filter(f => f.equipment_type === type && f.section === section)
+          .sort((a, b) => a.sort_order - b.sort_order)
+      : []
+    const ownNames = new Set(own.map(f => f.field_name))
+    return [...base.filter(f => !ownNames.has(f.field_name)), ...own]
   }
 
   function equipAttachments(equipId: string) {
@@ -611,7 +670,10 @@ export function EquipmentPage({ projectId }: Props) {
             </div>
 
             {/* ── Field sections ────────────────────────────────────────── */}
-            {currentType ? (
+            {/* Both branches now render defs. The untyped one shows the base
+                identity group plus whatever legacy electrical values a unit
+                still carries — see the note on the legacy block below. */}
+            {(currentType || fieldDefs.some(f => f.equipment_type === BASE_KEY)) ? (
               <div className="divide-y divide-gray-100">
                 {SECTIONS.map(({ key, label }) => {
                   const defs = defsForType(currentType, key)
@@ -674,16 +736,35 @@ export function EquipmentPage({ projectId }: Props) {
                   )
                 })}
               </div>
-            ) : (
-              /* No equipment type — show basic nameplate fields */
-              <div className="px-6 py-4">
-                <p className="text-[10px] text-gray-400 mb-3 uppercase tracking-wide font-semibold">Nameplate Data</p>
+            ) : null}
+
+            {/* ── LEGACY COLUMN VALUES ──────────────────────────────────────
+                Identity (manufacturer / model / serial) moved to the base def
+                set and was copied into nameplate_extra.installed by the
+                migration, so it is NOT repeated here.
+
+                These six are what remains: single columns on `equipment`, the
+                ancestor of the nameplate_extra mechanism, still holding real
+                data — 32 units carry voltage/phase/hz, 2 carry
+                amperage/flow/capacity. No type def exists to receive them until
+                a type is assigned, and simply dropping the inputs would leave
+                that data in the database and uneditable, which is the register
+                quietly disagreeing with itself.
+
+                So it renders only for units that actually HAVE such values, and
+                it says what it is. Assigning a type gives these fields a proper
+                home; until then they stay reachable rather than orphaned. */}
+            {LEGACY_NAMEPLATE.some(([, k]) => (selected[k] as string | null)) && (
+              <div className="px-6 py-4 border-t border-gray-100">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
+                  Legacy nameplate values
+                </p>
+                <p className="text-[10px] text-gray-400 mb-3">
+                  Recorded before this unit had a type. Assign a type to give them a
+                  proper home in its nameplate structure.
+                </p>
                 <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                  {([
-                    ['Manufacturer', 'manufacturer'], ['Model', 'model'], ['Serial No.', 'serial_number'],
-                    ['Voltage (V)', 'voltage'], ['Phase', 'phase'], ['Hz', 'hz'],
-                    ['Amperage (A)', 'amperage'], ['Flow', 'flow'], ['Capacity', 'capacity'],
-                  ] as [string, keyof Equipment][]).map(([label, key]) => (
+                  {LEGACY_NAMEPLATE.map(([label, key]) => (
                     <div key={key}>
                       <label className="block text-[9px] text-gray-400 uppercase tracking-wide font-semibold">{label}</label>
                       {editing ? (
@@ -701,13 +782,15 @@ export function EquipmentPage({ projectId }: Props) {
                     </div>
                   ))}
                 </div>
-                {!editing && (
-                  <p className="mt-4 text-[10px] text-gray-400">
-                    Set an equipment type to unlock type-specific Spec / Shop Drawing / Installed sections.{' '}
-                    <button onClick={() => startEdit(selected)} className="text-teal-600 underline">Edit</button>
-                  </p>
-                )}
               </div>
+            )}
+
+            {!currentType && !editing && (
+              <p className="px-6 pb-4 text-[10px] text-gray-400">
+                No equipment type set — this unit shows identity only. Assign a type
+                to unlock its Spec / Shop Drawing / Installed fields.{' '}
+                <button onClick={() => startEdit(selected)} className="text-teal-600 underline">Edit</button>
+              </p>
             )}
 
             {/* ── Attachments ───────────────────────────────────────────── */}
