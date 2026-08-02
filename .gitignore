@@ -63,3 +63,4 @@ site-report-*.pdf
 .impeccable/config.local.json
 .shots/
 dist-test/
+probe.sql
