@@ -557,6 +557,15 @@ export function DirectoryPage() {
                 </span>
               </div>
 
+              {/* THE NOTE WAS EDITABLE AND NEVER SHOWN. Two companies here differ
+                  by one word — Isotherm Engineering LTD. and Isotherm
+                  Commissioning Ltd. — and the difference matters (firm seats use
+                  Engineering). Keeping them separate is deliberate; a reader
+                  having to already know that is not. */}
+              {company.notes && (
+                <p className="text-[11px] text-gray-500 mt-1 leading-snug">{company.notes}</p>
+              )}
+
               {company.company_roles.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {company.company_roles.slice(0, 3).map(r => (

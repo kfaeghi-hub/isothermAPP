@@ -413,6 +413,12 @@ export function EquipmentPage({ projectId }: Props) {
   const selected = equipment.find(e => e.id === selectedId) ?? null
 
   const categories = [...new Set(equipment.map(e => e.category ?? ''))].sort()
+  // Locations this project already uses. A room is written down dozens of times
+  // across a register and gets spelled a different way most of them — "L1 Mech",
+  // "L1 Mech Rm", "Level 1 Mechanical". Offering what is already there is how the
+  // category field stopped drifting, and location drifts harder because nobody
+  // reviews it.
+  const locations = [...new Set(equipment.map(e => e.location ?? '').filter(Boolean))].sort()
 
   function defsForType(type: string, section: string) {
     return fieldDefs
@@ -590,7 +596,8 @@ export function EquipmentPage({ projectId }: Props) {
                 {editing ? (
                   <>
                     <MetaField label="Category" value={editValues.category ?? ''} onChange={v => setEditValues(x => ({ ...x, category: v }))} />
-                    <MetaField label="Location" value={editValues.location ?? ''} onChange={v => setEditValues(x => ({ ...x, location: v }))} />
+                    <MetaField label="Location" value={editValues.location ?? ''} options={locations}
+                      onChange={v => setEditValues(x => ({ ...x, location: v }))} />
                     <MetaField label="Area Served" value={editValues.area_served ?? ''} onChange={v => setEditValues(x => ({ ...x, area_served: v }))} />
                     <MetaField label="Type" value={editValues.equipment_type ?? ''} onChange={v => setEditValues(x => ({ ...x, equipment_type: v }))} />
                   </>
@@ -937,8 +944,12 @@ export function EquipmentPage({ projectId }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Location</label>
-                  <input value={addForm.location} onChange={e => setAddForm(f => ({ ...f, location: e.target.value }))}
+                  <Combobox
+                    value={addForm.location}
+                    options={locations}
+                    onChange={v => setAddForm(f => ({ ...f, location: v }))}
                     placeholder="L1 Mech Room"
+                    ariaLabel="Location"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
                 </div>
                 <div>
@@ -986,16 +997,29 @@ function Section({ label, count, children }: { label: string; count: number; chi
   )
 }
 
-function MetaField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function MetaField({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (v: string) => void
+  /** Existing values to offer. A native datalist rather than the Combobox
+   *  because this field lives inline in a dense meta row — a popover here would
+   *  cover the fields beside it. Suggestions without taking the layout hostage. */
+  options?: string[]
+}) {
+  const listId = options?.length ? `meta-${label.replace(/\W+/g, '-').toLowerCase()}` : undefined
   return (
     <div className="flex items-center gap-1">
       <span className="text-[9px] text-gray-400 uppercase tracking-wide font-semibold">{label}:</span>
       <input
         value={value}
+        list={listId}
         onChange={e => onChange(e.target.value)}
         className="text-xs text-gray-600 border-b border-gray-200 focus:outline-none focus:border-teal-400 bg-transparent min-w-0 w-28"
         placeholder="—"
       />
+      {listId && (
+        <datalist id={listId}>
+          {options!.map(o => <option key={o} value={o} />)}
+        </datalist>
+      )}
     </div>
   )
 }
