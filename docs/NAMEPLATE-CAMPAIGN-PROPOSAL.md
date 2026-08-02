@@ -228,3 +228,66 @@ its size. Not doing that unasked — flagging it for your call.
 3. **§3 three additions** — as drafted.
 4. **`heat_pump`** — trim to ~14 rows, or leave at 25?
 5. **`unit_heater`** — mint in this pass, confirmed.
+
+---
+
+# ADDENDUM — `heat_pump` trim, cut list for ruling (2026-08-02)
+
+**Nothing applied.** Ruled: "propose the trim to ~14 — show me the cut list
+before applying."
+
+## Today: 25 rendered rows, 42 defs, 4 units in the whole system
+
+```
+Connected kW · Connection Size · Cooling Capacity · Cooling EER · EWT Cooling ·
+EWT Heating · FLA · Heating Capacity · Heating COP · Hz · LRA · Manufacturer ·
+MCA · MOCP · Model Number · Phase · Refrigerant Charge · Refrigerant Type ·
+RLA · Serial Number · Sound Rating · Supply CFM · Supply ESP · Voltage · Water Flow
+```
+
+## KEEP — 14 rows
+
+| Field | Unit | Why it stays |
+|---|---|---|
+| Manufacturer | — | identity (now from `__base`) |
+| Model Number | — | identity (now from `__base`) |
+| Serial Number | — | identity (now from `__base`) |
+| Heating Capacity | kW | the unit's reason for existing |
+| Cooling Capacity | kW | as above |
+| Heating COP | — | the efficiency actually verified against design |
+| Cooling EER | — | as above |
+| EWT Heating | °C | a water-source heat pump is meaningless without entering water temp |
+| EWT Cooling | °C | as above |
+| Water Flow | L/s | commissioned by balancing; a number the CxA reads on site |
+| Supply CFM | CFM | air side, balanced and witnessed |
+| Voltage | V | electrical identity |
+| Phase | Ø | electrical identity |
+| MCA | A | the number that sizes the circuit — the one a CxA checks against the panel |
+
+## CUT — 11 rows
+
+| Field | Why it goes |
+|---|---|
+| Hz | Constant at 60 across every unit this firm will ever commission in Ontario. A field whose value is never in doubt is a row of noise on every nameplate. |
+| FLA | Superseded by MCA/RLA for a compressor-bearing unit; three current fields for one machine is two too many. |
+| LRA | Startup inrush. Real, and a manufacturer datum nobody verifies on a commissioning walk. |
+| RLA | Same family as MCA; keeping MCA is enough to size and check the circuit. |
+| MOCP | Paired with MCA on the plate, but it is the *maximum permitted* device — a design constraint, not a measurement. |
+| Connected kW | Derivable from V × A; a second way to say the same thing invites the two to disagree. |
+| Refrigerant Type | Belongs on the equipment record, not the commissioning nameplate — it does not change between spec, shop and installed. |
+| Refrigerant Charge | A service datum. Nobody weighs the charge during commissioning. |
+| Sound Rating | A selection criterion, checked at submittal review, never at the unit. |
+| Supply ESP | Fan-side static; verified on the AHU/fan serving it, not duplicated here. |
+| Connection Size | Read off the pipe when connecting; not a verification. |
+
+**Result: 25 → 14 rows**, and three of the fourteen now arrive from `__base`
+rather than being restated, so the type's own set carries eleven.
+
+**Argument for the cut, stated plainly:** four units exist and the set has never
+been filled in. A 25-row nameplate is not more rigorous than a 14-row one — it is
+a form people abandon. Every cut field above is either constant (Hz), derivable
+(Connected kW), a duplicate of a kept field (RLA/FLA vs MCA), or a datum verified
+somewhere other than at the unit (Sound Rating, Supply ESP, Refrigerant Charge).
+
+**Not applied. Project field-structures untouched either way** — a trim to the
+firm set changes what NEW usage seeds, never an in-flight nameplate.
