@@ -674,7 +674,21 @@ export function EquipmentPage({ projectId }: Props) {
   if (loading) return <div className="p-8 text-gray-400 text-sm">Loading…</div>
 
   return (
-    <div className="flex h-full min-h-0 rise">
+    <div className="flex flex-col h-full min-h-0 rise">
+
+      {/* THE REVIEW SPANS BOTH COLUMNS.
+          It first sat inside the equipment-list column, which collapses to w-72
+          the moment a unit is selected — so a rationale like "no match on the
+          descriptor; category 'UNIT HEATERS' matches unit_heater" wrapped into a
+          twelve-line ribbon and became unreadable exactly when someone had a unit
+          open to compare it against.
+
+          It is a project-level decision surface, not a property of the list, so
+          it belongs above both. Renders nothing when there is nothing to rule on. */}
+      <TypeAssignmentReview projectId={projectId}
+        onApplied={() => { void fetchEquipment(); void fetchFieldDefs() }} />
+
+      <div className="flex flex-1 min-h-0">
 
       {/* ── Left panel: equipment list ──────────────────────────────────── */}
       {/* RC2 — below lg: detail open hides the list (full-width detail + back). */}
@@ -698,12 +712,6 @@ export function EquipmentPage({ projectId }: Props) {
             + Add
           </button>
         </div>
-
-        {/* Sits above the list, unconditionally: a project with pending type
-            proposals should not have to go looking for them. It renders nothing
-            when there are none. */}
-        <TypeAssignmentReview projectId={projectId}
-          onApplied={() => { void fetchEquipment(); void fetchFieldDefs() }} />
 
         {intakeOpen && (
           <div className="border-b border-gray-100 bg-gray-50/60 shrink-0 max-h-[55vh] overflow-y-auto">
@@ -1278,6 +1286,7 @@ export function EquipmentPage({ projectId }: Props) {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

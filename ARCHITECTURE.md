@@ -1004,6 +1004,32 @@ that has many possible causes. Learned three times, at three different layers:
 | **Data** (Supabase writes) | RLS-blocked UPDATE/DELETE returns **success with 0 rows affected** — identical to a legitimate no-op. | Assert the affected-row count, not the absence of an error (`reportWriteBlocked`). |
 | **Function grants** | `revoke … from anon` on the portal RPCs looked like a lock and was **inert** (PUBLIC still granted EXECUTE; anon inherits it). The calls returned 0 rows only because `portal_can_view()` fails closed — the fail-safe was doing the control's job. | Assert the **error code** (`42501`), not the row count. A row count passes whether or not the grant exists. |
 
+### The sibling rule: a guard that answers the same in both states is not a guard
+
+The silence family above is about ASSERTIONS that cannot fail. This is the same
+disease in shipped code: a check, warning or refusal whose output does not change
+between the state it is meant to catch and the state it is meant to allow. It
+looks like protection, costs nothing to keep, and teaches everyone to click past
+it — so when it finally does mean something, nobody reads it.
+
+Three instances in a single batch, on three unrelated surfaces:
+
+| Guard | Same answer in both states | What it became |
+|---|---|---|
+| **RLS DELETE on `contact_phones`** | A delete filtered out by policy removes zero rows and returns **no error** — indistinguishable from a delete that worked. `if (error)` passed, and the next statement inserted a duplicate primary. The user saw a constraint about PHONES while editing EMAILS. | The policy was widened to match the edit right, and the whole replacement moved into one transaction that normalises the primary flag itself. The unique index went back to being the last line of defence rather than the first line of validation. |
+| **The equipment delete confirm** | "This also removes its Cx Index progress data and attachments" — said whether the unit was untouched or carried fifty verified cells. A warning that never varies is a warning nobody reads. | Count first. Name what will actually be destroyed, or say plainly that nothing references this unit. BLOCK on a linked finding, naming the findings, because that link is part of the signed record. |
+| **`openTestProject` in the harness** | `await target.count() === 0` on an asynchronously rendered list: "the test project was not found — create it first", about a project that plainly existed. Two battery reds in three runs, two different suites, and both times the message sent the investigation to the wrong place. | Wait, bounded, before judging. Absence after the wait is still a refusal — but "not there" and "not there YET" are now told apart, and the message says which happened. |
+
+**The test.** For any guard you are about to write or keep, ask: *what does it do
+differently in the failing case?* If the answer is "nothing observable", it is
+decoration. Give it a count, an error code, a named subject — something that
+differs — or delete it, because a decorative guard is worse than none. It occupies
+the place where a real one would go.
+
+This one has a particular cost when the guard protects something serious. The
+harness guard exists to stop test writes reaching a client's commissioning record.
+Training people to shrug at it is the expensive part, not the wasted runs.
+
 Corollaries that follow from it:
 - A test that cannot fail is a comment. Before adding a check, ask what would have
   to break for it to go red — if nothing plausible would, rewrite it.
@@ -1550,6 +1576,23 @@ from the first row.
 Every review surface writes one row when a human touches an agent proposal:
 `agent_key · category · disposition · before · after · evidence`.
 Dispositions: `accepted` · `edited` · `rejected` · `dismissed` · `confirmed`.
+
+**ONLY AGENT-ORIGINATED PROPOSALS FEED THE LEDGER.** A deterministic sweep and an
+owner's ruling are not agent work, and writing them here would inflate the very
+acceptance rates the autonomy dial reads — the ledger would report an agent
+performing well on decisions it never made.
+
+Ruled 2026-08-02, with two live examples on either side of the line:
+
+| Wrote to the ledger | Did NOT write |
+|---|---|
+| The classifier's applicability proposals, ratified one at a time on the Cx Index — an agent proposed, a human ruled, and the disagreement rate is real evidence about that agent. | The Excel intake path. It is a parser, not an agent; the gate proves it (`ai_generations` 71 → 71 across a full run). Crediting the extractor for a string match would be crediting nobody. |
+| The extractor's intake rows, keyed to the category the contract declares (`register-row` · `enrich-proposal` · `type-proposal`). | The type-assignment sweep and the ratifications that followed it — 118 units typed by the same deterministic all-words matcher, on the owner's ruling. Provenance for those is `import_batches`, the mechanism for human-ruled writes. |
+
+The distinction is not bookkeeping. **The ledger is the evidence base a future
+promotion decision reads.** A category showing 95% acceptance because most of its
+rows were deterministic string matches would be an argument for autonomy built on
+work no agent did.
 
 **Only corrections cluster for the harvest.** An accepted draft is evidence the
 corpus is *right* — it belongs in the health view, not in a proposal to change
