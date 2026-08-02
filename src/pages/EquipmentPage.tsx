@@ -1199,26 +1199,39 @@ function Section({ label, count, children }: { label: string; count: number; chi
 
 function MetaField({ label, value, onChange, options }: {
   label: string; value: string; onChange: (v: string) => void
-  /** Existing values to offer. A native datalist rather than the Combobox
-   *  because this field lives inline in a dense meta row — a popover here would
-   *  cover the fields beside it. Suggestions without taking the layout hostage. */
   options?: string[]
 }) {
-  const listId = options?.length ? `meta-${label.replace(/\W+/g, '-').toLowerCase()}` : undefined
+  /* THE NATIVE <datalist> IS GONE.
+   *
+   * It rendered the browser's own dropdown — a ▼ affordance and a box on an
+   * input whose neighbours are borderless underlines, and an OS-drawn popup this
+   * app deliberately does not use anywhere else. Playwright could not even
+   * screenshot it, which is a fair summary of how far outside the design system
+   * it sat.
+   *
+   * The dense-row worry that led me to it was real, and the answer was to fix
+   * the Combobox rather than reach for the native control: its list now anchors
+   * right and flips above when it would collide. */
   return (
     <div className="flex items-center gap-1">
       <span className="text-[9px] text-gray-400 uppercase tracking-wide font-semibold">{label}:</span>
-      <input
-        value={value}
-        list={listId}
-        onChange={e => onChange(e.target.value)}
-        className="text-xs text-gray-600 border-b border-gray-200 focus:outline-none focus:border-teal-400 bg-transparent min-w-0 w-28"
-        placeholder="—"
-      />
-      {listId && (
-        <datalist id={listId}>
-          {options!.map(o => <option key={o} value={o} />)}
-        </datalist>
+      {options?.length ? (
+        <Combobox
+          value={value}
+          options={options}
+          onChange={onChange}
+          ariaLabel={label}
+          wrapperClassName="min-w-0 w-28"
+          className="w-full text-xs text-gray-600 border-b border-gray-200 focus:outline-none focus:border-teal-400 bg-transparent"
+          placeholder="—"
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="text-xs text-gray-600 border-b border-gray-200 focus:outline-none focus:border-teal-400 bg-transparent min-w-0 w-28"
+          placeholder="—"
+        />
       )}
     </div>
   )

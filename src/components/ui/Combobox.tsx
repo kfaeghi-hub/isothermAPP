@@ -73,6 +73,35 @@ export function Combobox({
     }
   }
 
+  /**
+   * COLLISION-AWARE PLACEMENT.
+   *
+   * The list is min-w-[10rem] and used to always drop down-and-left. In a wide
+   * form that is fine; in the dense meta row on the equipment panel the input is
+   * about 7rem, so the list overhung its neighbours and covered Area Served and
+   * Type — the fields you are most likely to want to read while choosing a
+   * location.
+   *
+   * Measured against the viewport on open: anchor RIGHT when the list would run
+   * off the right edge, and flip ABOVE when there is not room below. This is why
+   * the inline editor does not need a native <datalist> to survive a tight row.
+   */
+  const [placement, setPlacement] = useState<{ right: boolean; above: boolean }>(
+    { right: false, above: false })
+
+  useEffect(() => {
+    if (!open) return
+    const el = rootRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const LIST_W = 160   // min-w-[10rem]
+    const LIST_H = 220   // max-h-52 + padding
+    setPlacement({
+      right: r.left + Math.max(r.width, LIST_W) > window.innerWidth - 8,
+      above: r.bottom + LIST_H > window.innerHeight - 8 && r.top > LIST_H,
+    })
+  }, [open, matches.length])
+
   return (
     <div ref={rootRef} className={`relative ${wrapperClassName ?? ''}`}>
       <input
@@ -93,7 +122,10 @@ export function Combobox({
         className={className ?? 'w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500'}
       />
       {open && matches.length > 0 && (
-        <div className="absolute left-0 z-30 mt-1 w-full min-w-[10rem] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+        <div className={`absolute z-30 w-full min-w-[10rem] bg-white border border-gray-200 ` +
+            `rounded-lg shadow-lg overflow-hidden ` +
+            `${placement.right ? 'right-0' : 'left-0'} ` +
+            `${placement.above ? 'bottom-full mb-1' : 'mt-1'}`}
           role="listbox">
           <div className="max-h-52 overflow-auto py-1">
             {matches.map((o, i) => (
