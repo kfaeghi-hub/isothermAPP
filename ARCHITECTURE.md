@@ -2017,6 +2017,64 @@ was refactoring four live portal endpoints in the same session.
 router frees three slots. Live security endpoints get their own session with
 their own gates — never as a side effect of a feature.
 
+### Variants are DATA. Splitting a type is a mint ruling, not a drafter decision
+
+**A variant within an equipment class is handled by a discriminator field plus
+conditional rows — never by splitting the type.** A gas-fired unit heater and an
+electric one are both unit heaters; `Heating Medium` says which, and the gas
+fields sit blank on the units that have no gas, exactly as `fan`'s MBH sits blank
+where there is no heating coil. Same for humidifier `Type`.
+
+**Types are equipment classes. Variants are values.**
+
+Splitting is justified **only when the variants diverge in verification scope the
+way distinct equipment does** — the RTU-vs-AHU bar: an RTU carries condensing and
+gas sections an AHU does not, so it is verified differently and is its own type.
+That is a **mint ruling by the owner**, and it is never a drafter decision, never
+an inference from a field set, and never a convenience.
+
+*Two precedents, in both directions.* `booster_pump` was declined: it is a pump
+with a duty, and fragmenting a 53-unit family buys nothing a descriptor does not.
+`unit_heater_gas` was declined on the same reasoning, with the discriminator the
+drafter had already proposed as the mechanism. Against them: `fire_pump`,
+`jockey_pump` and `sump_pump` were minted, because a fire pump's verification
+scope (NFPA 20/25 flow test, churn, driver) is genuinely not a pump's.
+
+The cost of getting this wrong runs one way. A wrongly-split type fragments a
+family that field staff already know how to fill in; a wrongly-merged one costs
+some blank rows. **Blank rows are conditional-field cost, not the half-empty-form
+problem** — that problem is a form with nothing relevant on it, not a form with a
+section that does not apply to this unit.
+
+### Ratification names an ARTIFACT, and the write applies THAT artifact
+
+**Drafting and applying are separate acts on a stored proposal. Never one command
+that does both.**
+
+*The incident, 2026-08-03.* The batch runner's `--apply` flag re-ran the drafter
+and wrote whatever came back. The model is not deterministic, so what landed was
+not what the owner had read and approved: `lighting_panel` gained an `Area
+Served` field that was never in the ratified twelve, `convector` got one addition
+instead of two, and the token counts differed between the two runs. **185 def
+rows and 10 ledger rows were written un-ratified** and had to be reversed by
+insertion timestamp.
+
+Nothing was lost — the reversal was clean and the ratified tables went in
+afterwards from a file. What was nearly lost is the meaning of ratification: an
+owner who approves ten tables has approved *those ten tables*, and a system that
+answers "apply what I approved" by asking the model again has quietly redefined
+approval as permission.
+
+The shape is familiar from the guard family — **"apply the approved thing" and
+"ask again and apply the answer" produce the same output on a deterministic
+source, and only differ where it matters.** A model is exactly where it matters.
+
+The mechanism: the ratified batch is written to `proposals/batch-N-ratified.json`
+by hand from the reviewed output; `apply-ratified.mjs` reads that file, **makes
+no model call at all**, refuses if the target moved since ratification (field
+count changed, or a name would now duplicate), and reads back every field it
+claims to have written.
+
 ### Aliases — exact match only, and a never-alias list with teeth (1.02)
 
 `equipment_type_aliases` makes shorthand **vocabulary data**: a row an admin

@@ -1,0 +1,152 @@
+{
+  "batch": 1,
+  "ratified": "2026-08-03",
+  "note": "The EXACT tables presented for ratification. Written by hand from the reviewed output, not re-drafted. `draft-batch.mjs --apply` reads this file; it never calls the model, because a second call returns a second answer and what gets written must be what was read.",
+  "types": [
+    {
+      "type_key": "convector",
+      "existing_field_count": 6,
+      "standards_anchor": "AHRI Testing and Rating Standard for Baseboard Radiation (I=B=R lineage): output in Btu/hr per linear foot at a stated average water temperature.",
+      "fields": [
+        { "field_name": "Average Water Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Mounting Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] }
+      ]
+    },
+    {
+      "type_key": "wall_fin",
+      "existing_field_count": 6,
+      "standards_anchor": "AHRI Testing and Rating Standard for Baseboard Radiation (I=B=R): output per linear foot at a stated average water temperature; element and fin size determine it.",
+      "fields": [
+        { "field_name": "Element Size", "unit": "NPS", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Enclosure Type", "unit": null, "unit_imperial": null, "sections": ["shop_drawing", "installed"] }
+      ]
+    },
+    {
+      "type_key": "radiant_panel",
+      "existing_field_count": 6,
+      "standards_anchor": "AHRI radiation rating conventions. Mounting Height, Working Pressure and Hydrostatic Test Pressure are FIRM CONVENTION, not AHRI-anchored — flagged by the drafter and accepted as such.",
+      "fields": [
+        { "field_name": "Panel Width", "unit": "mm", "unit_imperial": "in", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Number of Circuits", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Mounting Height", "unit": "mm", "unit_imperial": "in", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Working Pressure", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Hydrostatic Test Pressure", "unit": "kPa", "unit_imperial": "psi", "sections": ["installed"] }
+      ]
+    },
+    {
+      "type_key": "expansion_tank",
+      "existing_field_count": 5,
+      "standards_anchor": "ASME BPVC Section VIII marking (U/UM stamp, MAWP, volume) plus the hydronic sizing basis: fill pressure and relief setting.",
+      "fields": [
+        { "field_name": "ASME Stamp (U/UM)", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "National Board Number", "unit": null, "unit_imperial": null, "sections": ["installed"] },
+        { "field_name": "Max Working Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "System Fill Pressure", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing"] },
+        { "field_name": "System Relief Valve Setting", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Tank Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] }
+      ]
+    },
+    {
+      "type_key": "panel",
+      "existing_field_count": 8,
+      "standards_anchor": "ANSI/NETA ATS panelboard assemblies: nameplate vs drawings, bus and main ratings, interrupting rating, insulation resistance, bolted-connection verification.",
+      "fields": [
+        { "field_name": "Available Fault Current", "unit": "kA", "unit_imperial": null, "sections": ["spec", "installed"] },
+        { "field_name": "Insulation Resistance", "unit": "MΩ", "unit_imperial": null, "sections": ["installed"] },
+        { "field_name": "Bolted Connection Torque Verified", "unit": null, "unit_imperial": null, "sections": ["installed"] },
+        { "field_name": "Main Breaker Trip Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Surge Protective Device Rating", "unit": "kA", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Feeder Conductor Size", "unit": null, "unit_imperial": null, "sections": ["shop_drawing", "installed"] },
+        { "field_name": "Ground Bus Bonding Verified", "unit": null, "unit_imperial": null, "sections": ["installed"] },
+        { "field_name": "Panel Schedule Reference", "unit": null, "unit_imperial": null, "sections": ["spec", "installed"] }
+      ]
+    },
+    {
+      "type_key": "humidifier",
+      "existing_field_count": 8,
+      "standards_anchor": "Manufacturer rating conventions for commercial steam and evaporative humidifiers. Steam Pressure and Water Quality Requirement are CONVENTION rather than hard standard — RULED KEPT 2026-08-03: the firm's world is steam-heavy, and two blank rows on an evaporative unit are ordinary conditional-field cost.",
+      "fields": [
+        { "field_name": "Water Supply Connection Size", "unit": "NPS", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Drain Connection Size", "unit": "NPS", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Water Quality Requirement", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Dispersion Arrangement", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Steam Pressure", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing"] }
+      ]
+    },
+    {
+      "type_key": "unit_heater",
+      "existing_field_count": 9,
+      "standards_anchor": "ANSI Z83.8 / CSA 2.6 for gas-fired unit heaters and duct furnaces; AHRI rating conventions for hydronic and electric. RULED 2026-08-03: variants ride on the Heating Medium discriminator, no type split — the gas fields sit blank on hydronic and electric units, exactly as fan's MBH sits blank where there is no heating coil.",
+      "fields": [
+        { "field_name": "Heating Medium", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Gas Input Rating", "unit": "MBH", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Gas Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Gas Inlet Pressure", "unit": "kPa", "unit_imperial": "in. w.c.", "sections": ["spec", "installed"] },
+        { "field_name": "Venting Category", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Mounting / Discharge Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Heating Element Rating", "unit": "kW", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] }
+      ]
+    },
+    {
+      "type_key": "transformer",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS transformers (dry-type, air-cooled). Per-tap turns ratio is deliberately ABSENT: it is one value per tap — a repeating measurement, not a nameplate field. Parked as a repeating-measurement structure (BACKBURNER).",
+      "fields": [
+        { "field_name": "kVA Rating", "unit": "kVA", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Primary Voltage", "unit": "V", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Secondary Voltage", "unit": "V", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Connection/Vector Group", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Impedance", "unit": "%", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Number of Phases", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Frequency", "unit": "Hz", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Cooling Class", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Insulation Class", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Temperature Rise", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Number of Taps", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Tap Position (as set)", "unit": null, "unit_imperial": null, "sections": ["installed"] },
+        { "field_name": "Winding Resistance", "unit": "Ω", "unit_imperial": null, "sections": ["installed"] },
+        { "field_name": "Insulation Resistance", "unit": "MΩ", "unit_imperial": null, "sections": ["installed"] }
+      ]
+    },
+    {
+      "type_key": "heat_exchanger",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/AHRI Standard 400 (I-P) / 401 (SI), Performance Rating of Liquid to Liquid Heat Exchangers: heat transfer rate with both-side flows, entering/leaving temperatures and pressure drops; plus the pressure-vessel design data.",
+      "fields": [
+        { "field_name": "Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Heat Transfer Capacity", "unit": "MBH", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Primary Side Fluid", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Secondary Side Fluid", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Primary Flow Rate", "unit": "L/s", "unit_imperial": "GPM", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Secondary Flow Rate", "unit": "L/s", "unit_imperial": "GPM", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Primary Entering Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Primary Leaving Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Secondary Entering Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Secondary Leaving Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Primary Pressure Drop", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Secondary Pressure Drop", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Design Pressure", "unit": "kPa", "unit_imperial": "psi", "sections": ["spec", "shop_drawing"] },
+        { "field_name": "Design Temperature", "unit": "°C", "unit_imperial": "°F", "sections": ["spec", "shop_drawing"] }
+      ]
+    },
+    {
+      "type_key": "lighting_panel",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS panelboard assemblies plus the lighting-control content a commissioning record needs: control method, zones/channels, time-clock or photocell inputs, override arrangement.",
+      "fields": [
+        { "field_name": "Voltage", "unit": "V", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Phase Configuration", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Main Breaker Rating", "unit": "A", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Bus Rating", "unit": "A", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Short Circuit Rating", "unit": "kA", "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Number of Branch Circuits", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Enclosure Type", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Mounting", "unit": null, "unit_imperial": null, "sections": ["shop_drawing", "installed"] },
+        { "field_name": "Control Method", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Number of Zones/Channels", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Time-Clock/Photocell Input", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] },
+        { "field_name": "Override Arrangement", "unit": null, "unit_imperial": null, "sections": ["spec", "shop_drawing", "installed"] }
+      ]
+    }
+  ]
+}

@@ -87,6 +87,33 @@ route through `api/intake.ts` instead of taking a function each.
 **Never as a side effect of a feature:** these are live security endpoints and
 they get their own session with their own gates.
 
+### 3d. Repeating-measurement test structures
+**PARKED — born 2026-08-03, from the catalog campaign's transformer table**
+
+A structure for measurements that repeat **within one unit** — one row per tap,
+per winding, per flow point — which a nameplate field cannot hold. The nameplate
+answers "what is this machine"; these answer "what did it read, at each of N
+settings", and forcing the second into the first corrupts the structure to
+capture the standard.
+
+**Founding case: per-tap turns ratio.** ANSI/NETA ATS requires a turns-ratio test
+at *every* tap position, within 0.5% of nameplate. The drafter declined to emit
+it as a field and was right: it is a table within the nameplate. `transformer`
+records `Number of Taps` and `Tap Position (as set)` instead, and the per-tap
+readings wait for this.
+
+**Named siblings — one structure serves all of them:**
+- per-winding insulation-resistance readings (NETA ATS)
+- BECx sample test locations — see [3c](#3c-becx-assemblies-model), which is the
+  same shape at building scale: "test location 3 of 8 passed"
+- NFPA 25 fire-pump flow-test curves (churn, rated, 150% points)
+- TAB readings per terminal, if the balancing track ever lands here
+
+**Wakes when:** a project needs one of them for a real deliverable — most likely
+the first electrical acceptance package or the first fire-pump annual. Building
+it speculatively would produce a structure validated only by its own assumptions,
+which is the same reasoning that parks the FPT agent.
+
 ### 3c. BECx assemblies model
 **PARKED — born 2026-08-03, from the catalog campaign's research**
 

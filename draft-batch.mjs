@@ -1,10 +1,15 @@
 // draft-batch.mjs — run the drafter over a ruled batch, standards-anchored.
 //
-//   node --env-file=.env draft-batch.mjs 1            (draft + print, writes NOTHING)
-//   node --env-file=.env draft-batch.mjs 1 --apply    (write the ratified tables)
+//   node --env-file=.env draft-batch.mjs 1            (draft + print)
 //
-// PROPOSES, NEVER WRITES, unless told. The default run costs model tokens and
-// produces tables for a human to read; --apply writes them and feeds the ledger.
+// THIS SCRIPT CANNOT WRITE. It had an --apply flag once, and that flag RE-RAN
+// THE DRAFTER before writing — so what landed was not what the owner had read
+// and approved (185 def rows, reversed). Applying is now a separate act on a
+// stored artifact: `proposals/batch-N-ratified.json` + `apply-ratified.mjs`,
+// which makes no model call at all.
+//
+// Ratification names an ARTIFACT. "Apply what I approved" cannot be expressed
+// as "ask again".
 //
 // The anchor per type is passed in, not recalled by the model. "What the
 // standard expects a record to hold" is defensible; "what the model felt like"
@@ -13,7 +18,6 @@ import { createClient } from '@supabase/supabase-js'
 import { adminCredentials, BASE_URL } from './pw-config.mjs'
 
 const BATCH = process.argv[2] ?? '1'
-const APPLY = process.argv.includes('--apply')
 
 // Batch order is by LIVE-UNIT WEIGHT, not novelty — ruled 2026-08-03.
 const BATCHES = {
@@ -87,31 +91,6 @@ for (const item of list) {
 console.log(`\n──── batch ${BATCH}: ${results.filter(r => !r.failed).length}/${list.length} drafted`)
 console.log(`     tokens ${spentIn.toLocaleString()} in / ${spentOut.toLocaleString()} out`)
 
-if (APPLY) {
-  let wrote = 0
-  for (const r of results) {
-    if (r.failed || !(r.fields ?? []).length) continue
-    const rows = r.fields.flatMap((f, i) => f.sections.map(section => ({
-      equipment_type: r.type_key, section,
-      field_name: f.field_name.trim(),
-      unit: f.unit ?? null, unit_imperial: f.unit_imperial ?? null,
-      // Enriched rows sort AFTER the existing table rather than interleaving —
-      // a CxA who knows where a field sits should still find it there.
-      sort_order: (r.existing_field_count ?? 0) + i + 1,
-    })))
-    const { error } = await adm.from('equipment_type_field_defs').insert(rows)
-    if (error) { console.log(`  FAILED ${r.type_key}: ${error.message}`); continue }
-    // Ledger-fed per category. This IS an agent-originated proposal.
-    await adm.from('agent_feedback').insert({
-      agent_key: 'drafter', category: 'field-def-set',
-      subject_ref: `equipment_type:${r.type_key}`,
-      disposition: 'accepted',
-      after_text: JSON.stringify(r.fields),
-      evidence: { standards_anchor: r.anchor, mode: r.mode },
-    })
-    wrote += rows.length
-  }
-  console.log(`     APPLIED: ${wrote} def rows written, ledger fed per type.`)
-} else {
-  console.log(`     DRAFT ONLY — nothing written. Re-run with --apply after ratification.`)
-}
+console.log(`     Tables above are a PROPOSAL. To apply: write them into
+     proposals/batch-${BATCH}-ratified.json and run apply-ratified.mjs.
+     This script cannot write, deliberately.`)
