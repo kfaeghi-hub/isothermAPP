@@ -86,6 +86,25 @@ for *grain*: how specific a field name is, whether related values are one field
 or three, how the firm words things. A draft that is correct but reads like a
 different firm's form is a draft the reviewer rewrites line by line.
 
+## Return shape
+
+```json
+{ "fields": [ { "field_name": "Heating Capacity", "unit": "MBH",
+                "unit_imperial": null,
+                "sections": ["spec", "shop_drawing", "installed"],
+                "reasoning": "the duty the schedule states and the nameplate confirms" },
+              { "field_name": "Entering Water Temperature", "unit": "°C",
+                "unit_imperial": "°F",
+                "sections": ["spec", "shop_drawing"] } ],
+  "note": "kept short - a convector is a fin and a casing" }
+```
+
+`sections` must hold at least one of `spec` · `shop_drawing` · `installed`. A
+field in none of them renders nowhere, so the contract rejects it rather than
+letting a draft succeed and show nothing.
+
+Return ONLY the JSON object — no code fence, no preamble.
+
 ## What to do when unsure
 
 Emit fewer fields. A short table a human extends is cheaper than a long one a

@@ -116,6 +116,15 @@ try {
       `a real draft returns fields (${drafted.status}, ${drafted.body.fields?.length ?? 0} fields)`)
 
     const fields = drafted.body.fields ?? []
+    // ARRIVAL BEFORE PROPERTIES. Every check below is a `.every()` or a length
+    // bound, and all of them pass VACUOUSLY on an empty array — which is exactly
+    // what happened on the first real run: the draft 502'd and four assertions
+    // went green on zero fields. Stop here instead.
+    if (!fields.length) {
+      throw new Error(
+        `no fields returned (${drafted.status}: ${drafted.body.error ?? 'no error given'}) ` +
+        `- refusing to assert properties of an empty draft`)
+    }
     const { data: baseDefs } = await adm.from('equipment_type_field_defs')
       .select('field_name').eq('equipment_type', '__base')
     const baseNames = new Set((baseDefs ?? []).map(d => d.field_name.toLowerCase()))
