@@ -4,6 +4,8 @@
 //   POST { upload_id, action: 'approve' }  -> { created, enriched, queued_types, ... }
 //   POST { action: 'draft-field-set', type_key }
 //                                          -> { fields, note, usage }   (1.02)
+//   POST { action: 'find-pages', pages: [{ page, text_excerpt?, image_base64? }] }
+//                                          -> { sorted, usage }         (1.02)
 //
 // TWO ACTIONS, ONE FUNCTION, AND THE MERGE WAS FORCED BEFORE IT WAS CHOSEN.
 // This plan accepts 12 serverless functions. A thirteenth BUILDS cleanly -- 54
@@ -26,9 +28,16 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, AuthError } from './_shared/auth-common.js'
 import { runAgent, logAgentRun, AiError } from './_shared/ai-common.js'
-import type { ExtractorOutput, FieldSetDraftInput, FieldSetDraftOutput } from './_shared/agent-schemas.js'
+import type { ExtractorOutput, FieldSetDraftInput, FieldSetDraftOutput,
+  PageSortInput, PageSortOutput } from './_shared/agent-schemas.js'
 
-const ACTIONS = ['extract', 'approve', 'draft-field-set']
+const ACTIONS = ['extract', 'approve', 'draft-field-set', 'find-pages']
+
+/** One pass sorts at most this many undecided pages. A drawing set is allowed to
+ *  be enormous; a single model call is not. Over the ceiling the user is TOLD,
+ *  with the pre-extracted-pages path named as the alternative — never truncated
+ *  quietly, which would read as "we looked at all of it". */
+const PAGE_SORT_CEILING = 40
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -179,6 +188,92 @@ export default async function handler(req: any, res: any) {
       })
     }
 
+
+    // == FIND PAGES ===========================================================
+    // The AI half of the schedule-page finder. The deterministic half already
+    // ran in the BROWSER, on the file the user is holding, and decided most of
+    // the set for free. Only the pages that filter could not call arrive here.
+    //
+    // Not upload-scoped either: this runs BEFORE anything is uploaded, which is
+    // the point — a 300-page set should never be stored to find out that six
+    // pages mattered.
+    if (action === 'find-pages') {
+      if (!(await isStaff())) return res.status(403).json({ error: 'Intake is a staff action.' })
+
+      const raw = Array.isArray(req.body?.pages) ? req.body.pages : []
+      if (!raw.length) {
+        return res.status(400).json({ error: 'pages is required — nothing to sort.' })
+      }
+      // A HARD CEILING, WITH A MESSAGE. Silently sorting the first N and
+      // reporting success would read as "we looked at your whole set".
+      if (raw.length > PAGE_SORT_CEILING) {
+        return res.status(413).json({
+          error: `${raw.length} pages need a look, over the ${PAGE_SORT_CEILING}-page ceiling ` +
+                 `for one pass. Split the set, or extract the schedule pages yourself and drag ` +
+                 `those in — that path is unchanged and costs nothing.`,
+        })
+      }
+
+      const pages = raw.map((p: any) => ({
+        page: Number(p.page),
+        text_excerpt: typeof p.text_excerpt === 'string' && p.text_excerpt.trim()
+          ? String(p.text_excerpt).slice(0, 4000) : undefined,
+        image_base64: typeof p.image_base64 === 'string' ? p.image_base64 : undefined,
+      }))
+
+      const input: PageSortInput = {
+        pages: pages.map((p: any) => ({
+          page: p.page,
+          text_excerpt: p.text_excerpt,
+          has_image: !!p.image_base64 || undefined,
+        })),
+      }
+
+      const images = pages.filter((p: any) => p.image_base64).map((p: any) => ({
+        base64: String(p.image_base64).replace(/^data:image\/\w+;base64,/, ''),
+        mediaType: 'image/png' as const,
+      }))
+
+      const run = await runAgent<PageSortOutput>('sorter', input, {
+        task: [
+          'For each page below, say whether it is an equipment schedule worth',
+          'extracting into a commissioning register.',
+          '',
+          'Return one entry per page, in the order given, keyed by the page number',
+          'you were given — the human confirms your answer against their own set.',
+          '',
+          'A door, window, or room-finish schedule is a real schedule and the wrong',
+          'discipline: is_schedule false. A legend, point list, or notes page set in',
+          'columns is not a schedule however table-like it looks.',
+          '',
+          'Where you cannot tell, answer false with a LOW confidence and say what',
+          'stopped you. A confident wrong yes costs an extraction and a page of',
+          'nonsense rows; a hedged no costs one scroll.',
+        ].join('\n'),
+        ...(images.length ? { images } : {}),
+      } as any)
+
+      await logAgentRun(service, {
+        agentKey: 'sorter', feature: 'intake:find-pages',
+        projectId: null, runId: null,
+        run, createdBy: user.userId,
+      }).catch(() => {})
+
+      if (!run.ok) {
+        // FAIL OPEN INTO THE HUMAN'S HANDS, NOT INTO AN EXTRACTION. A sort that
+        // could not be made is reported as undecided so the confirmation screen
+        // still shows the pages and lets a person tick them — it must never
+        // silently drop them, and it must never guess them in.
+        return res.status(200).json({
+          sorted: [], failure: run.failure,
+          note: 'The page sort failed; the pages it could not judge are shown undecided.',
+          usage: run.usage,
+        })
+      }
+
+      return res.status(200).json({ sorted: run.value!.pages, usage: run.usage })
+    }
+
     if (!uploadId) return res.status(400).json({ error: 'upload_id is required' })
 
     const { data: up } = await service.from('intake_uploads')
@@ -311,6 +406,10 @@ export default async function handler(req: any, res: any) {
         return {
           upload_id: uploadId, project_id: proj.id,
           source_page: input.page, source_row: r.source_row ?? null,
+          // The sheet number the finder confirmed, carried onto every row it
+          // produced. "Where did this unit come from" must be answerable as
+          // "sheet M-401", not "an upload from Tuesday".
+          source_sheet: typeof req.body?.sheet === 'string' ? req.body.sheet : null,
           tag: r.tag ?? null, descriptor: r.descriptor ?? null,
           proposed_category: r.proposed_category ?? null,
           // The FK is the guarantee, but a value the model invented would fail the

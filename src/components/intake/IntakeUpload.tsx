@@ -13,6 +13,8 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { authedFetch } from '../../lib/api'
 import { readWorkbook, parseSheet, fileHash, type ParsedSheet, type TypeVocab } from '../../lib/intakeExcel'
+import { SchedulePageFinder } from './SchedulePageFinder'
+import { renderPage } from '../../lib/schedulePages'
 
 interface Staged extends ParsedSheet {
   enrich: number       // rows whose tag already exists on this project
@@ -28,6 +30,10 @@ export function IntakeUpload({ projectId, onStaged }: {
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [matches, setMatches] = useState<Map<string, string>>(new Map())
+  // A multi-page PDF goes to the finder first. A single page or an image is
+  // already the page someone meant, and asking about it would be ceremony.
+  const [findingIn, setFindingIn] = useState<File | null>(null)
+  const [pageProgress, setPageProgress] = useState<string | null>(null)
 
   /** Anything that is not a spreadsheet is a PAGE for the extractor. */
   const isPage = (f: File) => /\.(png|jpe?g|webp|pdf)$/i.test(f.name)
@@ -84,6 +90,88 @@ export function IntakeUpload({ projectId, onStaged }: {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally { setBusy(false) }
+  }
+
+
+  /**
+   * Upload and extract exactly the pages the human ticked — one call each.
+   *
+   * ONE UPLOAD PER PAGE, deliberately. The extraction budget is per page (the
+   * extractor's contract says so), so a page is the unit of work, the unit of
+   * cost, and the unit of provenance. It also means a set where page 44 fails
+   * still gives you 41 and 42, rather than losing all three.
+   *
+   * The page is rendered here rather than the whole PDF being sent: the set may
+   * be 300 pages and 90MB, and the six that matter are a few hundred KB.
+   */
+  /** One page? Extract it, as before. Many? Ask which ones. */
+  async function openFinder(f: File) {
+    setError(null); setBusy(true)
+    try {
+      const { getDocument } = await import('pdfjs-dist')
+      const doc = await getDocument({ data: await f.arrayBuffer() }).promise
+      if (doc.numPages <= 1) { setBusy(false); void extractPage(f); return }
+      setFile(f); setFindingIn(f)
+    } catch (e) {
+      // A PDF we cannot even count the pages of still deserves the old path
+      // rather than a dead end.
+      setError(e instanceof Error ? e.message : String(e))
+      void extractPage(f)
+    } finally { setBusy(false) }
+  }
+
+  async function extractConfirmed(f: File, pages: { page: number; sheet: string | null }[]) {
+    setFindingIn(null); setBusy(true); setError(null)
+    const staged: string[] = []
+    const failed: string[] = []
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      for (const [i, p] of pages.entries()) {
+        setPageProgress(`Reading page ${p.page}${p.sheet ? ` (${p.sheet})` : ''} — ${i + 1} of ${pages.length}…`)
+        try {
+          const dataUrl = await renderPage(f, p.page, 2.0)
+          const blob = await (await fetch(dataUrl)).blob()
+          const safe = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9._-]+/g, '_')
+          const path = `${projectId}/${Date.now()}_${safe}_p${p.page}.png`
+          const up = await supabase.storage.from('intake-files').upload(path, blob)
+          if (up.error) throw new Error(`storage: ${up.error.message}`)
+
+          const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
+            project_id: projectId,
+            filename: `${f.name} — page ${p.page}${p.sheet ? ` (${p.sheet})` : ''}`,
+            storage_path: path, kind: 'image',
+            content_sha256: await fileHash(new File([blob], path)),
+            status: 'uploaded', pages: 1,
+            selected_pages: [p.page],
+            uploaded_by: user?.id ?? null,
+          }).select('id').single()
+          if (uErr) throw new Error(uErr.message)
+
+          const res = await authedFetch('/api/intake', {
+            upload_id: upload.id, action: 'extract', page: p.page, sheet: p.sheet,
+          })
+          if (!res.ok) {
+            const body = await res.json().catch(() => null)
+            throw new Error(body?.error ?? `extraction failed (${res.status})`)
+          }
+          staged.push(upload.id)
+        } catch (e) {
+          // ONE BAD PAGE DOES NOT LOSE THE OTHERS, and it is NAMED rather than
+          // counted. "2 pages failed" sends someone hunting; "page 44 failed"
+          // sends them to page 44.
+          failed.push(`page ${p.page}: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+
+      if (failed.length) {
+        setError(`${staged.length} page(s) read. These did not:\n` + failed.join('\n'))
+      }
+      // Open the first staged upload's review. The rest are in the list beside it.
+      if (staged.length) onStaged(staged[0])
+      if (!staged.length && !failed.length) setError('Nothing was extracted.')
+    } finally {
+      setPageProgress(null); setBusy(false)
+    }
   }
 
   async function choose(f: File) {
@@ -226,12 +314,27 @@ export function IntakeUpload({ projectId, onStaged }: {
           <input type="file" accept=".xlsx,.png,.jpg,.jpeg,.webp,.pdf" className="hidden" disabled={busy}
             onChange={e => {
               const f = e.target.files?.[0]
-              if (f) void (isPage(f) ? extractPage(f) : choose(f))
+              // A MULTI-PAGE PDF GOES TO THE FINDER. A single page, or an
+              // image, is already the page someone meant — asking about it
+              // would be ceremony. The pre-extracted-pages path is therefore
+              // untouched by everything item 3 added.
+              if (!f) return
+              if (/\.pdf$/i.test(f.name)) { void openFinder(f); return }
+              void (isPage(f) ? extractPage(f) : choose(f))
             }} />
         </label>
         {file && <span className="text-[11px] text-gray-500 font-mono truncate">{file.name}</span>}
-        {busy && <span className="text-[11px] text-gray-400">working…</span>}
+        {busy && <span className="text-[11px] text-gray-400">{pageProgress ?? 'working…'}</span>}
       </div>
+
+      {findingIn && (
+        <div className="mt-2">
+          <SchedulePageFinder
+            file={findingIn}
+            onConfirm={pages => void extractConfirmed(findingIn, pages)}
+            onCancel={() => { setFindingIn(null); setFile(null) }} />
+        </div>
+      )}
 
       <p className="text-[11px] text-gray-400 mt-1.5">
         <span className="font-mono">.xlsx</span> is read directly — no AI, no cost, and the

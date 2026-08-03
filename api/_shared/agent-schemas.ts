@@ -246,6 +246,32 @@ export const FieldSetDraftOutput: Validator<FieldSetDraftOutput> = (v): v is Fie
     isArr(f.sections) && f.sections.length > 0 &&
     f.sections.every((x: any) => isStr(x) && SECTIONS.has(x)))
 
+
+// ── sorter — is this drawing-set page an equipment schedule? (1.02) ─────────
+//
+// LAW 9 AGAIN, and the same shape as the extractor's: the agent is asked to
+// judge a page, so it must be GIVEN the page. Text or an image, never neither —
+// and `page` is required because the answer is keyed back to a page number the
+// human will confirm.
+export interface PageSortInput {
+  pages: { page: number; text_excerpt?: string; has_image?: boolean }[]
+}
+
+export interface PageSortOutput {
+  pages: { page: number; is_schedule: boolean; confidence: number
+           title?: string | null; reason?: string }[]
+}
+
+export const PageSortInput: Validator<PageSortInput> = (v): v is PageSortInput =>
+  isObj(v) && isArr(v.pages) && (v.pages as unknown[]).length > 0 &&
+  v.pages.every((p: any) => isObj(p) && isNum(p.page) &&
+    ((isStr(p.text_excerpt) && p.text_excerpt.trim().length > 0) || p.has_image === true))
+
+export const PageSortOutput: Validator<PageSortOutput> = (v): v is PageSortOutput =>
+  isObj(v) && isArr(v.pages) && (v.pages as unknown[]).length > 0 &&
+  v.pages.every((p: any) => isObj(p) && isNum(p.page) &&
+    typeof p.is_schedule === 'boolean' && isConf(p.confidence))
+
 // ── the lookup the runtime resolves contract names through ─────────────────
 export const SCHEMAS: Record<string, Validator<any>> = {
   WriterInput, WriterOutput,
@@ -256,4 +282,5 @@ export const SCHEMAS: Record<string, Validator<any>> = {
   AnalystInput, AnalystOutput,
   LibrarianInput, LibrarianOutput,
   FieldSetDraftInput, FieldSetDraftOutput,
+  PageSortInput, PageSortOutput,
 }
