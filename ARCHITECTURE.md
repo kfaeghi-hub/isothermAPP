@@ -1150,6 +1150,21 @@ Two sections per entry, and they are for different readers:
 note written later is written from memory; one written alongside the change is
 written from the diff — and the difference shows in which details survive.
 
+### Ops: parked work lives in docs/BACKBURNER.md, never in chat
+
+**A decided-but-deferred feature is recorded in the register, not in the
+conversation that deferred it.** Each entry carries a two-line spec summary —
+enough to restart cold — and its **wake condition**. Items leave by exactly two
+exits: **woken** into the active queue, or **shipped** into `docs/RELEASES.md`.
+A parked item that turns out to be wrong is marked *dropped* with the reason;
+the reasoning is the part worth keeping.
+
+*The evidence: a session opened with a correctly-empty queue while a queue of
+parked work existed — it had only ever been stated in chat between the owner and
+the architect, so the machine could not find it, and neither could a later
+session. The register was real; its location was not durable. Deferring work is
+a decision, and decisions live in docs like every other one here.*
+
 ### Ops: bounded waits — new assertions from birth, old ones when touched
 
 `pw-config` exports `waitUntil` / `waitForCount` / `waitForText`. They bound a
