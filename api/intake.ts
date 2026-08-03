@@ -91,14 +91,22 @@ export default async function handler(req: any, res: any) {
         .select('key, name').eq('key', typeKey).maybeSingle()
       if (!type) return res.status(404).json({ error: `No such equipment type: ${typeKey}` })
 
-      // A type that already has a table is not drafted over. Approving a draft
-      // for a type already in use would silently compete with defs on real
-      // projects.
-      const { count: existing } = await service.from('equipment_type_field_defs')
-        .select('id', { count: 'exact', head: true }).eq('equipment_type', typeKey)
-      if ((existing ?? 0) > 0) {
+      // A type that already has a table is not drafted OVER. It may be drafted
+      // FOR — additive rows only — and that is a different request, so it is a
+      // different mode rather than a silent widening of this one.
+      const enrich = req.body?.mode === 'enrich'
+      const { data: existingDefs } = await service.from('equipment_type_field_defs')
+        .select('field_name').eq('equipment_type', typeKey)
+      const existingNames = [...new Set((existingDefs ?? []).map(d => d.field_name))]
+      if (existingNames.length > 0 && !enrich) {
         return res.status(409).json({
-          error: `${type.name} already has ${existing} field def(s). Edit them rather than drafting over them.`,
+          error: `${type.name} already has ${existingNames.length} field(s). ` +
+                 `Pass mode:"enrich" to add to it; this mode only drafts a new table.`,
+        })
+      }
+      if (existingNames.length === 0 && enrich) {
+        return res.status(409).json({
+          error: `${type.name} has no table to enrich. Draft one instead.`,
         })
       }
 
@@ -133,6 +141,9 @@ export default async function handler(req: any, res: any) {
           'Ontario mechanical practice: CFM, MBH, NPS, V, A, Hz are written the ' +
           'same in both systems (leave unit_imperial null for these); metric ' +
           'temperatures and lengths take an imperial counterpart.',
+        ...(enrich ? { existing_field_names: existingNames } : {}),
+        ...(typeof req.body?.standards_anchor === 'string' && req.body.standards_anchor.trim()
+          ? { standards_anchor: String(req.body.standards_anchor).slice(0, 600) } : {}),
         sibling_examples: [...byType.entries()].map(([k, fields]) => ({
           type_name: k, fields: fields.slice(0, 12),
         })),
@@ -140,7 +151,11 @@ export default async function handler(req: any, res: any) {
 
       const run = await runAgent<FieldSetDraftOutput>('drafter', input, {
         task: [
-          `Draft the starter nameplate field set for "${type.name}".`,
+          enrich
+            ? `Add the MISSING fields to the existing nameplate table for "${type.name}". ` +
+              `Return only what is absent from existing_field_names — additive rows only. ` +
+              `If the table is already adequate, say so in note and return few or none.`
+            : `Draft the starter nameplate field set for "${type.name}".`,
           '',
           'Return the fields a commissioning agent standing at the unit could',
           'actually record, and that someone would later care about. Target 10-15;',
@@ -174,14 +189,21 @@ export default async function handler(req: any, res: any) {
       // A rule that lives only in prose is a rule the next model version may not
       // follow, and the reviewer must never be shown a row that would duplicate
       // identity.
-      const lowerBase = new Set(baseNames.map(n => n.toLowerCase()))
+      // Base collisions are dropped HERE as well as forbidden in the contract, and
+      // on enrich the EXISTING names are dropped the same way. A rule that lives
+      // only in prose is a rule the next model version may not follow, and a
+      // duplicate row would render twice on every unit of the type.
+      const forbidden = new Set([...baseNames, ...(enrich ? existingNames : [])]
+        .map(n => n.trim().toLowerCase()))
       const drafted = run.value!.fields
       const fields = drafted.filter(
-        (f) => !lowerBase.has(f.field_name.trim().toLowerCase()))
+        (f) => !forbidden.has(f.field_name.trim().toLowerCase()))
       const droppedBase = drafted.length - fields.length
 
       return res.status(200).json({
         type_key: type.key, type_name: type.name,
+        mode: enrich ? 'enrich' : 'draft',
+        existing_field_count: existingNames.length,
         fields, note: run.value!.note ?? null,
         dropped_base_collisions: droppedBase,
         usage: run.usage,

@@ -206,6 +206,15 @@ export interface FieldSetDraftInput {
   type_name: string
   /** Field names already carried by every unit. The draft EXCLUDES these. */
   base_field_names: string[]
+  /** ENRICHMENT: the type's existing table. The draft returns only what is
+   *  MISSING from it — additive rows, never a replacement. Law 9 again: a draft
+   *  told to add without duplicating cannot be asked for without being told what
+   *  is already there. */
+  existing_field_names?: string[]
+  /** The governing standard whose record content the draft answers to, passed
+   *  rather than recalled. "What the standard expects a record to hold" is a
+   *  defensible field set; "what the model felt like" is not. */
+  standards_anchor?: string
   /** Ruled convention, passed rather than assumed: CFM / MBH / NPS beside
    *  metric temperatures and lengths. */
   unit_convention: string

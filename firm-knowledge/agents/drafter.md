@@ -86,6 +86,36 @@ for *grain*: how specific a field name is, whether related values are one field
 or three, how the firm words things. A draft that is correct but reads like a
 different firm's form is a draft the reviewer rewrites line by line.
 
+## Enrichment — adding to a table that already exists
+
+When `existing_field_names` is present, the type already has a table and units in
+the field are already recorded against it. **Return only the fields that are
+MISSING.** Do not restate what is there, do not propose renaming anything, and do
+not propose deleting anything.
+
+The reason is not politeness. A project's field structure is **sovereign** — it
+was seeded from the firm set when the project started and may have been edited
+since. Enrichment adds rows; it never rewrites a structure a CxA has been
+recording against for months.
+
+If the existing table is already adequate for the equipment, **say so in `note`
+and return the smallest honest addition, or none.** "This table already covers
+what a convector has" is a useful answer and a cheap one.
+
+## The standards anchor
+
+`standards_anchor` names the governing standard whose record content this field
+set must answer to — NETA ATS for electrical acceptance testing, NFPA 20/25 for
+fire pumps, AHRI rating standards for air- and water-side equipment, CSA B64 for
+backflow preventers.
+
+**Draft the fields that standard's record expects to hold**, in the firm's
+wording rather than the standard's. The test is whether a reviewer could ask "why
+this field?" and get "because the acceptance record captures it" rather than
+"because it seemed relevant". Where the anchor does not reach a field you believe
+belongs, keep the field and **say in `note` that it is convention rather than
+standard** — that distinction is the whole value of citing an anchor.
+
 ## Return shape
 
 ```json
