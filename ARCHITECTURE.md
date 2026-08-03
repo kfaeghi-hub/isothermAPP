@@ -1933,21 +1933,38 @@ their origin for the life of the project.
 
 ## Standing rules (permanent — apply to every session)
 
-- **Every major change updates the docs in the SAME commit series that ships it.**
+- **Every change maintains its own paper trail, in the SAME commit series.**
   New module, schema change, new architecture layer, new standing pattern — the
-  documentation is part of the change, not follow-up work. Where each kind of
-  state belongs:
+  documentation is part of the change, not follow-up work.
 
-  | Kind of state | Document |
+  **Purpose, stated so the rule is applied rather than performed: drift visible,
+  debugging cheap. A future session must be able to reconstruct what changed, why,
+  and what it touched from the repo alone.** Every row below exists because a
+  session that lacks it re-derives, contradicts, or rebuilds.
+
+  *(Surface expanded 2026-08-02 — the original rule named the first four rows
+  only. RELEASES, BACKBURNER, the queue lists, the graph, and provenance were all
+  in force but recorded elsewhere or nowhere.)*
+
+  | Kind of state | Where it belongs |
   |---|---|
-  | As-built technical state | `ARCHITECTURE.md` |
-  | Product state | Build Spec §1A / §3 / §12 |
+  | As-built technical state, mechanisms, rules + evidence tables | `ARCHITECTURE.md` |
+  | Schema deltas · feature state | Build Spec §3 · §1A / §12 |
   | Roadmap state | `docs/MASTER-BRIEF.md` §4 / §10 |
-  | A completed proposal | The proposal doc itself, **flipped to as-built** |
+  | A completed proposal | The proposal doc itself, **flipped to as-built with a departures table** |
+  | Every user-visible ship | `docs/RELEASES.md` — both voices |
+  | Parked work, in and out | `docs/BACKBURNER.md` |
+  | Open items that must survive a session boundary | The todo / queue lists |
+  | Code structure | **The knowledge graph — re-run `/graphify .`** after a session that moves it |
+  | What a write actually did | Migrations · batch provenance · the commit message's per-file doc-change list |
+
+  **The graph row is not optional tidiness.** A stale graph answers *confidently*
+  about code that has moved — the silence-class failure in a new costume, and
+  worse than no graph, because it converts "I don't know" into a wrong answer
+  delivered with structure.
 
   **The docs are how sessions boot.** A shipped change that is not in them does
-  not exist for the next session — it will be re-derived, contradicted, or
-  rebuilt. That is the whole reason for the rule; it is not bookkeeping.
+  not exist for the next session.
 
   Two obligations that come with it:
   - **Flag stale claims, never silently rewrite them.** A struck line with a dated

@@ -23,27 +23,47 @@ decision or fix) · `WAITING` (blocked on evidence or an event) · `DROPPED`.
 
 ## In progress — tonight's trio
 
-### 1. Finish the type-assignment arc — the open proposals on Clairlea
-**IN PROGRESS**
+**Scope note (corrected 2026-08-02).** This shelf holds **parked builds only**.
+Owner ratification queues are not shelf items — they live in-app and are worked
+there, not scheduled here. See the residue note at the bottom.
 
-Ten proposals remain from the deterministic sweep: 8 Force Flow Heaters @0.70,
-1 Unit Heater @0.95, and 1 Water Softener with no vocabulary term to resolve to.
-The sweep and the retroactive backfill are done; these are the residue the
-matcher declined to decide, held for a ruling rather than guessed — Law 8.
+### 1. Suggestion-as-you-type type picker
+**PARKED → starts tonight**
 
-**Wakes when:** now. Needs the owner's ruling on the ten, plus a mint-or-null
-decision on Water Softener. Then apply, def-backfill, and a before/after census.
+The equipment type field becomes the existing collision-aware Combobox over the
+type vocabulary, ranked live by the **shared `resolveType`** (the B1 export —
+never a second matcher) against display names plus a new admin-editable alias
+list. Selecting a match types the unit on the spot; no match above the bar offers
+*"No matching type — propose '⟨typed text⟩'"*, which **saves the unit anyway**
+with `observed_type_name` and files a deduped queue entry with a waiting-unit
+count. One picker in all three surfaces: Cx Index add form, inline editor, intake
+review.
 
-### 2. *(reserved — tonight's trio, item two)*
-**IN PROGRESS**
+**Wakes when:** now.
 
-Awaiting its naming. Recorded as a slot rather than left blank so the register
-shows what it is holding.
+### 2. AI-drafted starter field sets on mint
+**PARKED → starts after 1**
 
-### 3. *(reserved — tonight's trio, item three)*
-**IN PROGRESS**
+On ratifying a mint, offer **Draft field set**: a new agent category drafts the
+nameplate table in the campaign's exact format (field · unit · spec/shop/
+installed), reviewed inline — edit, cut, approve — before any def is seeded.
+Contract carries the campaign discipline: field-worthy not exhaustive, identity
+via `__base` never duplicated, ruled Ontario unit convention. Proposes, never
+writes; mint-with-base-only stays available.
 
-Awaiting its naming.
+**Wakes when:** after item 1.
+
+### 3. Schedule-page finder
+**PARKED → starts after 2**
+
+Intake accepts a whole drawing-set PDF and proposes the candidate schedule pages:
+deterministic filter first where the text layer allows (tabular density, schedule
+keywords up; plan sheets out), AI classification only where ambiguous or scanned.
+A confirmation screen names the sheets; **only confirmed pages extract**. Batch
+provenance records source sheet numbers per row; the pre-extracted-pages path is
+unchanged.
+
+**Wakes when:** after item 2.
 
 ---
 
@@ -170,6 +190,10 @@ the mailer, template capture, and rendered-appearance verification. §0A of that
 runbook goes live on **share links alone with no mailer**, which is a legitimate
 and arguably better first outing for a read-only viewer. *Wakes when:* the first
 external user needs an attributable account rather than a link.
+
+**Owner queues live in-app, not here** — proposed types and applicability
+proposals are ratification surfaces the owner works in the product. They are
+never shelf entries; a queue with a screen does not need a register.
 
 **Gray-on-color punch items.** UI instances that render gray text on a tinted
 field, against the standing rule (tinted field + same-hue text, e.g.
