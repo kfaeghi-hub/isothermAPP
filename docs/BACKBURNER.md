@@ -87,6 +87,25 @@ route through `api/intake.ts` instead of taking a function each.
 **Never as a side effect of a feature:** these are live security endpoints and
 they get their own session with their own gates.
 
+### 3c. BECx assemblies model
+**PARKED — born 2026-08-03, from the catalog campaign's research**
+
+A register keyed by **assembly and test location**, not by tagged unit. The BECx
+standards draw this line themselves: ASTM E1105/E783 test *installed windows,
+doors and curtain walls* individually, but BECx tests a **sample** of openings —
+the record wanted is "test location 3 of 8 passed", which an equipment row cannot
+express. ASTM E1186 and ASHRAE's own air-barrier definition ("interconnected
+materials, assemblies, and sealed joints and components") describe something
+continuous. CSA Z320 lists architectural as its own system class.
+
+**Do not force assemblies into equipment rows.** One envelope type is proposed
+for the equipment table — `louver`, which is scheduled with marks on the
+mechanical drawings and is genuinely a unit. Everything else waits for this.
+
+**Wakes when:** an awarded project carries a real BECx scope. Envelope BECx is
+already dormant in the deliverable model, so nothing is blocked by waiting.
+Full reasoning: [EQUIPMENT-CATALOG-PROPOSAL.md](EQUIPMENT-CATALOG-PROPOSAL.md) Part D.
+
 ### 4. Units — approach B, dual display with auto-conversion
 **PARKED**
 
