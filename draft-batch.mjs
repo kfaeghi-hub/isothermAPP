@@ -15,6 +15,7 @@
 // standard expects a record to hold" is defensible; "what the model felt like"
 // is not, and the source note under each table is the difference.
 import { createClient } from '@supabase/supabase-js'
+import { writeFile, mkdir } from 'node:fs/promises'
 import { adminCredentials, BASE_URL } from './pw-config.mjs'
 
 const BATCH = process.argv[2] ?? '1'
@@ -43,6 +44,29 @@ const BATCHES = {
       'ANSI/AHRI Standard 400 (I-P) / 401 (SI), Performance Rating of Liquid to Liquid Heat Exchangers: published ratings state heat transfer rate with both-side flow rates, entering and leaving temperatures, and pressure drops; nameplate and marking data requirements. Add the pressure-vessel data (design pressure/temperature) that a commissioning record needs.' },
     { key: 'lighting_panel', enrich: false, anchor:
       'ANSI/NETA ATS panelboard assemblies, as for distribution panelboards, plus the lighting-control content a commissioning record needs: control method (relay, contactor, breaker-controlled), zones/channels, time-clock or photocell inputs, and the override arrangement.' },
+  ],
+  // 5 NETA electrical remainder + the plumbing set
+  2: [
+    { key: 'switchgear', enrich: false, anchor:
+      'ANSI/NETA ATS switchgear and switchboard assemblies: nameplate data compared with drawings and specifications; bus continuity and rating; interrupting rating; insulation resistance phase-to-phase and phase-to-ground; contact/pole resistance; ground and bonding verification; interlock operation and sequencing confirmed correct; protective device settings as-left. Medium-voltage assemblies add power-frequency withstand.' },
+    { key: 'switchboard', enrich: false, anchor:
+      'ANSI/NETA ATS switchboard assemblies, as switchgear but distribution-scale: nameplate vs drawings; main and bus ratings; interrupting rating; insulation resistance; bolted-connection torque; ground bus bonding; metering and instrument transformer complement.' },
+    { key: 'mcc', enrich: false, anchor:
+      'ANSI/NETA ATS motor control centres: nameplate vs drawings; bus rating; each starter/unit size and type; overload element rating and setting; control voltage; insulation resistance; interlock and control-circuit function. The record is per ASSEMBLY, with the unit complement counted rather than enumerated - individual starters are not their own type (variant rule).' },
+    { key: 'vfd', enrich: false, anchor:
+      'ANSI/NETA ATS adjustable-speed drives, with the drive as a commissioned unit in its own right: nameplate vs drawings; input and output voltage/current; horsepower or kW rating; bypass arrangement; line reactor or filter; programmed acceleration/deceleration and min/max speed as-left; control signal type. NOTE the boundary: the `pump` VFD yes/no field answers "does this pump have one", which is a different question.' },
+    { key: 'ups', enrich: false, anchor:
+      'ANSI/NETA ATS uninterruptible power systems: nameplate vs drawings; kVA/kW rating; input and output voltage and configuration; battery type, string voltage and cell/block count; rated autonomy at load; bypass arrangement (static and maintenance); alarm and monitoring complement. Autonomy VERIFIED is a timed test result - keep the field to the RATING and let the test record hold the reading.' },
+    { key: 'dhw_heater', enrich: false, anchor:
+      'ASME BPVC Section IV/VIII marking for the vessel where applicable, plus CSA/AHRI water-heater rating conventions: storage volume, input rating and energy source, recovery rate at a stated temperature rise, thermostat and high-limit settings, T&P relief valve rating. For indirect/semi-instantaneous units the heating-medium side matters as much as the domestic side.' },
+    { key: 'water_softener', enrich: false, anchor:
+      'Manufacturer and CSA B483-family conventions for potable water treatment: service flow rate and pressure drop, resin volume and exchange capacity, regeneration type and control (time/meter), brine tank capacity and salt setting, hardness in and out. NOTE: the anchor here is weaker than the NETA and ASME ones - flag any field that is firm convention rather than standard.' },
+    { key: 'backflow_preventer', enrich: false, anchor:
+      'CSA B64 series (backflow preventers and vacuum breakers) with CSA B64.10 field testing: device TYPE designation (RP/RPDA, DCVA/DCDA, PVB/SVB), size, hazard classification (severe/moderate) and the cross-connection it protects, installation orientation and clearance, relief port discharge arrangement. The annual test READINGS are test-record data; the nameplate carries the device identity and its ratings.' },
+    { key: 'air_compressor', enrich: false, anchor:
+      'ASME BPVC Section VIII for the receiver (stamp, MAWP, volume) plus compressor rating conventions: type (reciprocating/rotary screw/scroll), free air delivery at a stated discharge pressure, motor rating, duty/control mode (load-unload, modulating, VSD), and the air-treatment train (dryer type, dewpoint, filtration). For medical or laboratory air the purity and alarm requirements govern - flag if unknown for this project.' },
+    { key: 'sump_pump', enrich: false, anchor:
+      'Hydronic/plumbing pump rating conventions as for `pump`, plus the sump-specific content a commissioning record needs: simplex or duplex arrangement, alternator, float/level control type and set points (start, stop, high-level alarm), basin size, discharge size and check/isolation arrangement, and whether the pump is on emergency power. Capacity is stated at a duty point (flow at head).' },
   ],
 }
 
@@ -91,6 +115,21 @@ for (const item of list) {
 console.log(`\n──── batch ${BATCH}: ${results.filter(r => !r.failed).length}/${list.length} drafted`)
 console.log(`     tokens ${spentIn.toLocaleString()} in / ${spentOut.toLocaleString()} out`)
 
-console.log(`     Tables above are a PROPOSAL. To apply: write them into
-     proposals/batch-${BATCH}-ratified.json and run apply-ratified.mjs.
-     This script cannot write, deliberately.`)
+// THE DRAFT IS PERSISTED, NOT JUST PRINTED. A proposal that exists only in a
+// terminal buffer cannot be bound to — a scroll, a pipe through `head`, or a
+// closed window and the artifact the human reviewed is gone. The ratification
+// law says approval binds to an artifact; an artifact has to be a file.
+await mkdir('proposals', { recursive: true })
+const draftPath = `proposals/batch-${BATCH}-draft.json`
+await writeFile(draftPath, JSON.stringify({
+  batch: Number(BATCH), drafted_at_tokens: { input: spentIn, output: spentOut },
+  types: results.filter(r => !r.failed).map(r => ({
+    type_key: r.type_key, type_name: r.type_name,
+    existing_field_count: r.existing_field_count ?? 0,
+    standards_anchor: r.anchor, note: r.note ?? null, fields: r.fields ?? [],
+  })),
+}, null, 2), 'utf8')
+
+console.log(`     Draft written to ${draftPath}.`)
+console.log(`     To apply: copy it to proposals/batch-${BATCH}-ratified.json with any`)
+console.log(`     edits you ruled, then run apply-ratified.mjs. This script cannot write.`)
