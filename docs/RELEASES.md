@@ -16,9 +16,158 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.03 — 2026-08-03
+
+### For the team
+
+**Typing equipment now suggests as you go.** Start typing in the Equipment Type
+box: `UH` finds Unit Heater, `FCU` finds Fan Coil Unit, `BLR` finds Boiler, `XFMR`
+finds Transformer. Pick it and the unit is typed on the spot — nameplate fields
+appear immediately. The suggestion tells you *why* it matched, so you never have
+to wonder whether it guessed.
+
+**If nothing matches, you're still not stuck.** The last row in the list offers
+*"No matching type — propose '⟨what you typed⟩'"*. Choosing it **saves the unit**
+with the name you wrote and sends the name to Tony for the firm library. Once it's
+approved, every matching unit picks it up. Same box in the Cx Index add form, the
+equipment editor, and the intake review screen.
+
+**The app drafts nameplate tables now.** When a new equipment type is added, it
+proposes the fields — field, unit, imperial unit, and which of the three columns
+each belongs in — for Tony to edit and approve. Nothing is saved until he does.
+
+**Drop a whole drawing set into equipment intake.** Instead of finding the
+schedule pages and exporting them yourself, drag the whole PDF in. It reads the
+pages, shows you the ones that look like schedules — sheet number, title, and a
+thumbnail — and **only the pages you tick get read**. Your existing habit still
+works and is still fastest when you already know the page numbers.
+
+**The equipment library went from 19 types to 47.** It now covers the whole
+commissioning world you actually work in, not just the mechanical core:
+
+- **Mechanical** — rooftop units, make-up air, HRV, VRF, dehumidifiers, duct
+  heaters, heat exchangers, air separators
+- **Electrical** — transformers, switchgear, switchboards, motor control centres,
+  lighting panels, VFDs, UPS
+- **Plumbing** — domestic hot water heaters, water softeners, backflow
+  preventers, air compressors, sump pumps
+- **Fire and life safety** — fire pumps, jockey pumps, fire alarm panels, fire
+  smoke dampers, and the smoke-control side: smoke control fans and the
+  firefighters' smoke control station
+- **Conveying and envelope** — elevators, louvers
+
+**Every one of those 47 types has proper nameplate fields**, built against the
+standard that governs it — NETA for the electrical gear, NFPA 20/25 for the fire
+pumps, CSA B64 for backflow preventers, AHRI for the air-side equipment, ASME
+markings on the vessels, ASME A17.1/CSA B44 for elevators. Not a generic list:
+what an acceptance record is actually expected to hold.
+
+**Shorthand is yours to edit.** Classifications → Equipment Types has an Aliases
+column. Add the shorthand your projects actually use and it works everywhere
+immediately.
+
+**A fixed crash:** the Classifications screen had been going blank on open. It's
+back — that's where proposed types are approved.
+
+**One habit, unchanged and worth repeating:** when a project has a mechanical
+schedule, don't type equipment by hand. Extract the schedule pages and drag them
+into equipment intake — or now, drag the whole set and let it find them.
+
+### Technical record
+
+**The 1.02 trio** (shipped this arc, folded here): the suggestion-as-you-type
+picker on three surfaces with the shared `resolveType` gaining an exact-only
+alias tier; AI-drafted starter field sets via the `drafter` agent; and the
+schedule-page finder — deterministic text-layer filter in the browser, the
+`sorter` agent only on what the filter cannot call, the extractor only on what a
+human ticks.
+
+**The catalog campaign: 19 → 47 types.** Researched against CSA Z320, ANSI/NETA
+ATS, OmniClass/UniFormat and the ASTM E2813/E2947 BECx framework rather than
+free-associated. Six mints came from *demand evidence* — untyped units already
+sitting on live projects (18 Transformers, 7 Lighting Panels, 7 Heat Exchangers,
+2 Switchboards, 2 Electric DHW Tanks). All minted **base-only**; every table
+arrived afterwards through ratification.
+
+**The census matcher fix.** The retroactive re-check proposed 7 moves and **four
+were wrong**: `Pump - Boiler 1` and `Heating Boiler B-2 Circulating Pump`
+resolved to `boiler`. Both are pumps. `pump` and `boiler` are each one token, both
+matched, and the tie-break was `tokens.length > best.specificity` — *strictly
+greater* — so the first type in **sort order** silently won. The sort order was
+deciding the type, on a live project. Fixed: equal-specificity matches on
+different keys **return null** — the words name two types, so the words do not
+decide and a human does. A more specific term still wins outright. One test
+asserts **sort order cannot change the answer** by running the same descriptor
+against a reversed vocabulary. Census after the fix: 3 moves, all correct,
+batch-tagged, read back.
+
+**Ratification binds to an ARTIFACT — recorded as a law.** The batch runner's
+`--apply` flag re-ran the drafter and wrote whatever came back; the model is not
+deterministic, so **a field was applied that was never ratified**. 185 def rows
+and 10 ledger rows written un-ratified, reversed by insertion timestamp. The law
+now reads: *what is applied is the stored, reviewed content — byte-identical to
+what the human read; draft tools cannot write, apply tools cannot draft, and the
+applier refuses when the target has moved since ratification.* Mechanism:
+`proposals/batch-N-ratified.json` + `apply-ratified.mjs`, which makes no model
+call, refuses on a moved target, and reads back every field it claims to write.
+
+**Every ratification surface audited against it**, rather than assumed: drafter
+(fixed), librarian (complies — inserts `status='proposed'` and says so), mint
+queue (complies), classifier rule ratification (complies), classifier *exception*
+ratification (**partial** — re-queries equipment at apply time; deterministic, so
+not this law's failure, but no moved-target check. On BACKBURNER with the fix
+named).
+
+**Four drafting batches, standards-anchored, delivered for ratification.** 45
+tables, 993 def rows written this arc, ledger fed per type with the anchor as
+evidence. The discipline held in the direction that is hard to get: the drafter
+argued *against* additions on the types with the most live units (*"a fin and a
+casing don't need much more"*), separated standard from convention unprompted,
+declined to draft medical-air fields under a standard it was not given, and
+refused per-tap turns ratio as *"a table within the nameplate"* — which was
+correct and became BACKBURNER 3d.
+
+**The IST addendum.** Anchored on CAN/ULC-S1001, whose scope decides most of the
+question: it verifies the **interconnections** between two or more fire
+protection and life safety systems and **explicitly not those systems
+themselves**. Two mints — `smoke_control_fan` (clearing the RTU-vs-AHU bar on a
+different standard, power source, test and consequence of failure, with a
+`Smoke Control Duty` discriminator inside it) and `smoke_control_panel`.
+Everything else argued *not* to be a type with the reasoning recorded: door
+holders, mag locks, elevator recall (scope on `elevator`), load-bank connections
+(a field on `generator`), and sprinkler supervisory devices (**points on a
+system**).
+
+**The applicability exception, with its edge as a condition of adopting it:**
+*IST-minted types only, the fire-integration stage group only, ruled in the same
+sitting as the mint.* Written down because the argument generalises badly, and
+because **a wrong ruled rule is silently wrong on every future project while a
+wrong proposal is read once and rejected.**
+
+**Variants are DATA** — types are equipment classes, variants are values, and
+splitting is a mint ruling at the RTU-vs-AHU bar, never a drafter decision.
+Precedents both ways: `booster_pump` and `unit_heater_gas` declined;
+`fire_pump`/`jockey_pump`/`sump_pump` minted.
+
+**Coverage closed.** All 47 types carry a nameplate table — **zero without**.
+Four sit below the 10-field bar with their arguments recorded rather than padded:
+`convector` and `wall_fin` at 8 (passive emitters, restraint endorsed),
+`jockey_pump` at 8 (the amendment's own arithmetic), `ats` at 10 (standing).
+
+**Parked this arc** — [BACKBURNER](BACKBURNER.md): portal endpoint consolidation
+(frees 3 of Vercel's 12 function slots; never as a side effect of a feature),
+repeating-measurement test structures (per-tap TTR as founding case, with NETA,
+BECx and NFPA 25 siblings), and the IST module (scenario matrix, deficiencies
+filing into the existing findings register, waking at the first scheduled IST).
+
+**Harness:** `pw-type-picker` 20 · `pw-drafter` 10 bare / 18 with `--real-ai` ·
+`pw-schedule-finder` 13 bare / 17 with `--real-ai`. Battery 31/31.
+
+---
+
 ## Update 1.02 — 2026-08-03
 
-*All three items shipped.*
+*All three items shipped. Folded into 1.03's team note; kept here as the as-built record of the trio itself.*
 
 ### For the team
 

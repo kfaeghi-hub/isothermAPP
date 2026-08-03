@@ -21,10 +21,11 @@ decision or fix) · `WAITING` (blocked on evidence or an event) · `DROPPED`.
 
 ---
 
-## Shipped tonight — the 1.02 trio
+## Shipped — the 1.02 trio and the catalog campaign
 
-*All three complete. These entries are removed at the next shelf edit; they are
-kept for one cycle so the set reads whole.*
+*The trio and the 19→47 catalog campaign are both complete and recorded in
+[RELEASES.md](RELEASES.md) Update 1.03. These entries come off the shelf at the
+next edit; kept one cycle so the set reads whole.*
 
 **Scope note (corrected 2026-08-02).** This shelf holds **parked builds only**.
 Owner ratification queues are not shelf items — they live in-app and are worked
