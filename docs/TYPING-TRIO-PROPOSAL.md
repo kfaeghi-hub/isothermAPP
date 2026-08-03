@@ -1,7 +1,17 @@
 # TYPING-TRIO-PROPOSAL.md — Update 1.02
 
-**Status: PROPOSED 2026-08-02.** Three items, built and gated separately in order.
-Flip to as-built with a departures table when the third ships.
+**Status: item 1 AS-BUILT 2026-08-03; items 2-3 PROPOSED.** Built and gated
+separately in order. Departures are recorded below as each item lands, not
+reconstructed at the end.
+
+### Departures — item 1
+
+| Proposed | As built | Why |
+|---|---|---|
+| Partial unique index on the proposals queue | Same index **plus `NULLS NOT DISTINCT`** | The proposed index was a no-op: `org_id` is NULL on every row and a plain unique index treats NULLs as distinct. Both duplicate inserts succeeded. |
+| Alias tier described as "highest-priority" | Alias tier is **second** — canonical name/key wins first | An alias must never be able to shadow a real type's display name, whatever an admin types into the alias field. |
+| `TypePicker` wrapping the existing Combobox | Same, plus three **optional** Combobox props (`optionMeta`, `extraRow`, `rank`) | The propose row and the "matched UH" caption need richer rows than the component had. All three default to undefined, so every existing caller renders byte-identically. |
+| Not proposed | **A pre-existing Classifications crash was fixed** | Out of scope and shipped anyway: the screen this feature's queue lives on had been blank since 2026-07-27. Leaving it would have made the propose flow lead to a dead screen. |
 
 The through-line: **typing a unit should cost one keystroke sequence, and never
 block a save.** 1.01 made the vocabulary a learning system on the *import* path;

@@ -28,7 +28,10 @@ Owner ratification queues are not shelf items — they live in-app and are worke
 there, not scheduled here. See the residue note at the bottom.
 
 ### 1. Suggestion-as-you-type type picker
-**PARKED → starts tonight**
+**SHIPPED 2026-08-03 — entry moved to [RELEASES.md](RELEASES.md) Update 1.02**
+
+*Kept here until the trio closes so the shelf reads as a set; removed when 1.02
+is complete.*
 
 The equipment type field becomes the existing collision-aware Combobox over the
 type vocabulary, ranked live by the **shared `resolveType`** (the B1 export —
@@ -39,7 +42,7 @@ with `observed_type_name` and files a deduped queue entry with a waiting-unit
 count. One picker in all three surfaces: Cx Index add form, inline editor, intake
 review.
 
-**Wakes when:** now.
+**Woken and shipped.**
 
 ### 2. AI-drafted starter field sets on mint
 **PARKED → starts after 1**
@@ -51,7 +54,7 @@ Contract carries the campaign discipline: field-worthy not exhaustive, identity
 via `__base` never duplicated, ruled Ontario unit convention. Proposes, never
 writes; mint-with-base-only stays available.
 
-**Wakes when:** after item 1.
+**Wakes when:** now — item 1 shipped.
 
 ### 3. Schedule-page finder
 **PARKED → starts after 2**
