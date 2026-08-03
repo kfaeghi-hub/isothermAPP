@@ -2,6 +2,8 @@
 //
 //   POST { upload_id, action: 'extract' }  -> { rows, page_note, usage }
 //   POST { upload_id, action: 'approve' }  -> { created, enriched, queued_types, ... }
+//   POST { action: 'draft-field-set', type_key }
+//                                          -> { fields, note, usage }   (1.02)
 //
 // TWO ACTIONS, ONE FUNCTION, AND THE MERGE WAS FORCED BEFORE IT WAS CHOSEN.
 // This plan accepts 12 serverless functions. A thirteenth BUILDS cleanly -- 54
@@ -24,7 +26,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, AuthError } from './_shared/auth-common.js'
 import { runAgent, logAgentRun, AiError } from './_shared/ai-common.js'
-import type { ExtractorOutput } from './_shared/agent-schemas.js'
+import type { ExtractorOutput, FieldSetDraftInput, FieldSetDraftOutput } from './_shared/agent-schemas.js'
+
+const ACTIONS = ['extract', 'approve', 'draft-field-set']
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -47,10 +51,135 @@ export default async function handler(req: any, res: any) {
     const user = await requireUser(req, service)
     const uploadId = String(req.body?.upload_id ?? '')
     const action = String(req.body?.action ?? '')
-    if (!uploadId) return res.status(400).json({ error: 'upload_id is required' })
-    if (action !== 'extract' && action !== 'approve') {
-      return res.status(400).json({ error: "action must be 'extract' or 'approve'" })
+    if (!ACTIONS.includes(action)) {
+      return res.status(400).json({ error: `action must be one of: ${ACTIONS.join(', ')}` })
     }
+
+    const isStaff = async () => {
+      const { data: p } = await service.from('user_profiles')
+        .select('role').eq('id', user.userId).maybeSingle()
+      return ['admin', 'developer', 'owner', 'employee'].includes(p?.role ?? '')
+    }
+
+    // == DRAFT FIELD SET ======================================================
+    // Not upload-scoped, which is why it is handled before the upload lookup.
+    //
+    // WHY IT LIVES HERE AT ALL: api/ holds exactly 12 serverless functions and
+    // Vercel's ceiling is 12. A 13th builds cleanly and then fails at "Deploying
+    // outputs" - the incident is recorded in ARCHITECTURE. This endpoint already
+    // owns the other agent call in the equipment domain, so the drafter routes
+    // through it rather than costing a deployment. The semantic stretch is
+    // acknowledged; the ceiling is physical.
+    if (action === 'draft-field-set') {
+      if (!(await isStaff())) return res.status(403).json({ error: 'Drafting is a staff action.' })
+
+      const typeKey  = String(req.body?.type_key ?? '').trim()
+      if (!typeKey) return res.status(400).json({ error: 'type_key is required.' })
+
+      // RESOLVE AGAINST THE REGISTER, NEVER TRUST THE BODY. The display name
+      // comes from the row, not from the caller.
+      const { data: type } = await service.from('equipment_types')
+        .select('key, name').eq('key', typeKey).maybeSingle()
+      if (!type) return res.status(404).json({ error: `No such equipment type: ${typeKey}` })
+
+      // A type that already has a table is not drafted over. Approving a draft
+      // for a type already in use would silently compete with defs on real
+      // projects.
+      const { count: existing } = await service.from('equipment_type_field_defs')
+        .select('id', { count: 'exact', head: true }).eq('equipment_type', typeKey)
+      if ((existing ?? 0) > 0) {
+        return res.status(409).json({
+          error: `${type.name} already has ${existing} field def(s). Edit them rather than drafting over them.`,
+        })
+      }
+
+      // LAW 9: everything the contract forbids or requires is SUPPLIED.
+      const { data: baseDefs } = await service.from('equipment_type_field_defs')
+        .select('field_name').eq('equipment_type', '__base')
+      const baseNames = [...new Set((baseDefs ?? []).map(d => d.field_name))]
+      if (!baseNames.length) {
+        // Fail closed, and say why. Drafting without the base set would produce
+        // duplicate identity fields on every unit of the type.
+        return res.status(500).json({
+          error: 'The universal __base field set is missing; a draft cannot be asked to exclude it.',
+        })
+      }
+
+      const { data: siblings } = await service.from('equipment_type_field_defs')
+        .select('equipment_type, field_name, unit')
+        .in('equipment_type', ['pump', 'boiler', 'unit_heater'])
+        .order('sort_order')
+      const byType = new Map<string, { field_name: string; unit: string | null }[]>()
+      for (const d of siblings ?? []) {
+        const list = byType.get(d.equipment_type) ?? []
+        list.push({ field_name: d.field_name, unit: d.unit })
+        byType.set(d.equipment_type, list)
+      }
+
+      const input: FieldSetDraftInput = {
+        type_key: type.key,
+        type_name: type.name,
+        base_field_names: baseNames,
+        unit_convention:
+          'Ontario mechanical practice: CFM, MBH, NPS, V, A, Hz are written the ' +
+          'same in both systems (leave unit_imperial null for these); metric ' +
+          'temperatures and lengths take an imperial counterpart.',
+        sibling_examples: [...byType.entries()].map(([k, fields]) => ({
+          type_name: k, fields: fields.slice(0, 12),
+        })),
+      }
+
+      const run = await runAgent<FieldSetDraftOutput>('drafter', input, {
+        task: [
+          `Draft the starter nameplate field set for "${type.name}".`,
+          '',
+          'Return the fields a commissioning agent standing at the unit could',
+          'actually record, and that someone would later care about. Target 10-15;',
+          'fewer for passive equipment.',
+          '',
+          'Never emit a field whose name appears in base_field_names - those are on',
+          'every unit already, and a duplicate is indistinguishable from the real',
+          'one at the point of entry.',
+          '',
+          'Set unit_imperial ONLY where the quantity genuinely swaps between',
+          'systems. Leave it null for CFM, MBH, NPS, V, A and Hz.',
+          '',
+          'If you are unsure, emit FEWER fields and say why in `note`. A short table',
+          'a human extends beats a long one a human prunes.',
+        ].join('\n'),
+      })
+
+      if (!run.ok) {
+        // Fail closed with the failure named. A drafting call that half-worked
+        // must not present a partial table as a proposal.
+        return res.status(502).json({ error: `The draft failed: ${run.failure}.` })
+      }
+
+      await logAgentRun(service, {
+        agentKey: 'drafter', feature: 'classifications:draft-field-set',
+        projectId: null, runId: type.key,
+        run, createdBy: user.userId,
+      }).catch(() => {})
+
+      // Base collisions are dropped HERE as well as forbidden in the contract.
+      // A rule that lives only in prose is a rule the next model version may not
+      // follow, and the reviewer must never be shown a row that would duplicate
+      // identity.
+      const lowerBase = new Set(baseNames.map(n => n.toLowerCase()))
+      const drafted = run.value!.fields
+      const fields = drafted.filter(
+        (f) => !lowerBase.has(f.field_name.trim().toLowerCase()))
+      const droppedBase = drafted.length - fields.length
+
+      return res.status(200).json({
+        type_key: type.key, type_name: type.name,
+        fields, note: run.value!.note ?? null,
+        dropped_base_collisions: droppedBase,
+        usage: run.usage,
+      })
+    }
+
+    if (!uploadId) return res.status(400).json({ error: 'upload_id is required' })
 
     const { data: up } = await service.from('intake_uploads')
       .select('id, project_id, filename, storage_path, kind, status, import_batch_id')

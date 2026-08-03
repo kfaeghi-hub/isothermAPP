@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { FieldSetDraft } from '../components/equipment/FieldSetDraft'
 import { Modal } from '../components/ui/Modal'
 import { AgentHealth } from '../components/admin/AgentHealth'
 import { ApplicabilityRules } from '../components/admin/ApplicabilityRules'
@@ -43,6 +44,7 @@ export function ClassificationsPage() {
   const [equipTypes, setEquipTypes] = useState<any[]>([])
   const [proposedTypes, setProposedTypes] = useState<any[]>([])
   const [aliases, setAliases] = useState<Record<string, string[]>>({})
+  const [draftingType, setDraftingType] = useState<{ key: string; name: string } | null>(null)
   const [showEquipTypes, setShowEquipTypes] = useState(false)
   const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null)
 
@@ -726,7 +728,8 @@ export function ClassificationsPage() {
               </thead>
               <tbody>
                 {equipTypes.map(t => (
-                  <tr key={t.id} className="border-b border-gray-100">
+                  <React.Fragment key={t.id}>
+                  <tr className="border-b border-gray-100">
                     <td className="py-1.5 pr-3 font-mono text-gray-500">{t.key}</td>
                     <td className="py-1.5 pr-3">
                       <input defaultValue={t.name} className={`${inputCls} w-full max-lg:min-w-[10rem]`}
@@ -745,7 +748,21 @@ export function ClassificationsPage() {
                         className={`${inputCls} w-full max-lg:min-w-[8rem]`}
                         onBlur={e => void saveAliases(t.key, e.target.value)} />
                     </td>
-                    <td className="py-1.5 pr-3 text-gray-400">{defCounts[t.key] ?? 0}</td>
+                    <td className="py-1.5 pr-3">
+                      {(defCounts[t.key] ?? 0) > 0 ? (
+                        <span className="text-gray-400">{defCounts[t.key]}</span>
+                      ) : (
+                        // AN OFFER, NOT A STEP. A type with no table is valid — it
+                        // renders the universal identity set and nothing else — so
+                        // this sits beside the count rather than in the mint flow.
+                        <button
+                          onClick={() => setDraftingType(
+                            draftingType?.key === t.key ? null : { key: t.key, name: t.name })}
+                          className="text-[10px] text-teal-700 hover:text-teal-900 underline decoration-dotted">
+                          {draftingType?.key === t.key ? 'close' : 'draft fields'}
+                        </button>
+                      )}
+                    </td>
                     <td className="py-1.5 pr-3">
                       <input type="number" defaultValue={t.sort_order} className={`${inputCls} w-14`}
                         onBlur={e => { const v = Number(e.target.value); if (v !== t.sort_order) updateRow('equipment_types', t.id, { sort_order: v }) }} />
@@ -755,6 +772,18 @@ export function ClassificationsPage() {
                         onChange={e => updateRow('equipment_types', t.id, { active: e.target.checked })} />
                     </td>
                   </tr>
+                  {draftingType?.key === t.key && (
+                    <tr key={`${t.id}-draft`}>
+                      <td colSpan={6} className="pb-3">
+                        <FieldSetDraft
+                          typeKey={t.key}
+                          typeName={t.name}
+                          onApplied={() => { setDraftingType(null); void fetchAll() }}
+                          onClose={() => setDraftingType(null)} />
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

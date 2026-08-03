@@ -192,6 +192,60 @@ export const LibrarianOutput: Validator<LibrarianOutput> = (v): v is LibrarianOu
   v.proposals.every((p: any) => isObj(p) && isStr(p.scope) && isStr(p.proposed) &&
     isArr(p.evidence) && p.evidence.length > 0 && isConf(p.confidence))
 
+
+// ── drafter — a starter nameplate field set for a newly minted type (1.02) ──
+//
+// LAW 9 AT THE SHAPE. The drafter is asked for a table that must NOT duplicate
+// the universal identity fields, and must use the firm's ruled unit convention.
+// Both of those are things it cannot know, so both are required inputs. A
+// contract that demanded "do not duplicate __base" without saying what __base
+// holds would be asking for a key its declared input cannot supply — which is
+// the whole reason this law exists.
+export interface FieldSetDraftInput {
+  type_key: string
+  type_name: string
+  /** Field names already carried by every unit. The draft EXCLUDES these. */
+  base_field_names: string[]
+  /** Ruled convention, passed rather than assumed: CFM / MBH / NPS beside
+   *  metric temperatures and lengths. */
+  unit_convention: string
+  /** A few sibling tables, so the draft matches the firm's actual granularity
+   *  rather than a model's idea of a nameplate. */
+  sibling_examples?: { type_name: string; fields: { field_name: string; unit: string | null }[] }[]
+}
+
+export interface FieldSetDraftOutput {
+  fields: {
+    field_name: string
+    /** Metric/shared unit, or null for a dimensionless field. */
+    unit: string | null
+    /** Imperial label where the quantity actually swaps; null where both
+     *  systems write the same thing (CFM, MBH, NPS, V, A, Hz). */
+    unit_imperial?: string | null
+    sections: ('spec' | 'shop_drawing' | 'installed')[]
+    reasoning?: string
+  }[]
+  note?: string
+}
+
+const SECTIONS = new Set(['spec', 'shop_drawing', 'installed'])
+
+export const FieldSetDraftInput: Validator<FieldSetDraftInput> = (v): v is FieldSetDraftInput =>
+  isObj(v) && isStr(v.type_key) && isStr(v.type_name) &&
+  isStr(v.unit_convention) && v.unit_convention.trim().length > 0 &&
+  // Non-empty, because "exclude the base fields" is unanswerable without them.
+  isArr(v.base_field_names) && (v.base_field_names as unknown[]).length > 0
+
+export const FieldSetDraftOutput: Validator<FieldSetDraftOutput> = (v): v is FieldSetDraftOutput =>
+  isObj(v) && isArr(v.fields) && (v.fields as unknown[]).length > 0 &&
+  v.fields.every((f: any) => isObj(f) && isStr(f.field_name) && f.field_name.trim().length > 0 &&
+    (f.unit === null || isStr(f.unit)) &&
+    // AT LEAST ONE SECTION, and only real ones. A field belonging to no column
+    // renders nowhere — a draft that "succeeded" and shows nothing is the silent
+    // success this architecture exists to prevent.
+    isArr(f.sections) && f.sections.length > 0 &&
+    f.sections.every((x: any) => isStr(x) && SECTIONS.has(x)))
+
 // ── the lookup the runtime resolves contract names through ─────────────────
 export const SCHEMAS: Record<string, Validator<any>> = {
   WriterInput, WriterOutput,
@@ -201,4 +255,5 @@ export const SCHEMAS: Record<string, Validator<any>> = {
   ExtractorInput, ExtractorOutput,
   AnalystInput, AnalystOutput,
   LibrarianInput, LibrarianOutput,
+  FieldSetDraftInput, FieldSetDraftOutput,
 }
