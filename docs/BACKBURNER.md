@@ -259,6 +259,16 @@ external user needs an attributable account rather than a link.
 proposals are ratification surfaces the owner works in the product. They are
 never shelf entries; a queue with a screen does not need a register.
 
+**Classifier exception ratification — no moved-target check.** Ratifying a
+category-scoped applicability exception re-queries the equipment table at apply
+time to expand the category into units. The re-derivation is deterministic (a
+database read, not a model call), so it is not the failure the ratification law
+exists to prevent — but the unit count written can differ from the count the
+human read. The screen refuses on *zero* units; it does not notice a *changed*
+count. Fix: a count check at ratify time, matching `apply-ratified.mjs`'s
+moved-target refusal. *Found by the 2026-08-03 audit of every ratification
+surface; recorded, not fixed that night.*
+
 **Gray-on-color punch items.** UI instances that render gray text on a tinted
 field, against the standing rule (tinted field + same-hue text, e.g.
 `bg-green-50 text-green-700`, never gray-on-color — ARCHITECTURE §UI). Collected

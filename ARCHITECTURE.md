@@ -2046,7 +2046,58 @@ some blank rows. **Blank rows are conditional-field cost, not the half-empty-for
 problem** — that problem is a form with nothing relevant on it, not a form with a
 section that does not apply to this unit.
 
-### Ratification names an ARTIFACT, and the write applies THAT artifact
+### Law of the ratification machinery — ratification binds to an ARTIFACT
+
+*A law, not a note. It sits beside "every agent proposes; none writes" and governs
+every ratification surface in the system, current and future.*
+
+> **Ratification binds to an artifact, not a process. What is applied is the
+> stored, reviewed content — byte-identical to what the human read; re-generating
+> at apply time redefines approval as permission, because a model asked twice is
+> a different answer. Draft tools cannot write; apply tools cannot draft; the
+> applier refuses when the target has moved since ratification.**
+
+*Evidence — 2026-08-03.* The catalog campaign's batch runner re-ran the drafter
+inside its `--apply` flag. **A field was applied that was never ratified**
+(`lighting_panel` gained `Area Served`, absent from the reviewed twelve), another
+type received one addition instead of the two that were read, and the token
+counts differed between the two runs. 185 def rows and 10 ledger rows were
+written un-ratified and reversed by insertion timestamp.
+
+The shape is the guard family's, one level up: **"apply the approved thing" and
+"ask again and apply the answer" return the same output whenever the source is
+deterministic, and differ only where it matters.** A model is exactly where it
+matters.
+
+#### The audit against this law, 2026-08-03
+
+Every ratification surface in the system, checked rather than assumed:
+
+| Surface | Verdict | What it actually does |
+|---|---|---|
+| **Drafter** — field-set tables | **COMPLIES (fixed)** | `proposals/batch-N-ratified.json` is the artifact; `apply-ratified.mjs` makes no model call, refuses on a moved target, and reads back every field it claims to have written. `draft-batch.mjs` can no longer write. |
+| **Librarian** — corpus proposals | **COMPLIES** | The harvest inserts into `firm_corrections` with `status='proposed'` and states it: *"Queue for ratification. Nothing here is applied."* Approval reads the stored row. No re-derivation, no second model call. |
+| **Mint queue** — proposed types | **COMPLIES** | `mintFromProposal` reads `proposed_key`/`observed_name` off the stored proposal and inserts. `normaliseKey` is pure. |
+| **Classifier** — rule ratification | **COMPLIES** | `ratify()` upserts exactly the stored proposal's fields into `cx_applicability_rules`. No model call at apply time. |
+| **Classifier** — *exception* ratification | **PARTIAL — flagged** | See below. |
+
+**The one partial, stated precisely.** Ratifying a category-scoped *exception*
+re-queries the equipment table at apply time to expand the category into unit
+IDs. That re-derivation is **deterministic** — it is a database read, not a model
+call — so it is not the failure this law exists to prevent. But it means the unit
+count written can differ from the count the human read, if units were added or
+retyped in between. The screen already refuses to write when the proposal
+resolves to *zero* units — *"a button that reports success for work it did not do
+is the worst thing in this system"* — but it does not notice when the number has
+merely **changed**.
+
+That is the same staleness the drafter's applier now refuses on, and it is
+**recorded rather than fixed tonight**: the exception path is deterministic and
+its failure mode is a wider-or-narrower write, not a fabricated one. The fix is a
+count check at ratify time, matching `apply-ratified.mjs`'s moved-target refusal.
+**On the deliberate-pass list.**
+
+### How the artifact split is built
 
 **Drafting and applying are separate acts on a stored proposal. Never one command
 that does both.**
