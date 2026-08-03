@@ -1,6 +1,6 @@
 # TYPING-TRIO-PROPOSAL.md — Update 1.02
 
-**Status: item 1 AS-BUILT 2026-08-03; items 2-3 PROPOSED.** Built and gated
+**Status: items 1-2 AS-BUILT 2026-08-03; item 3 in progress.** Built and gated
 separately in order. Departures are recorded below as each item lands, not
 reconstructed at the end.
 
@@ -12,6 +12,18 @@ reconstructed at the end.
 | Alias tier described as "highest-priority" | Alias tier is **second** — canonical name/key wins first | An alias must never be able to shadow a real type's display name, whatever an admin types into the alias field. |
 | `TypePicker` wrapping the existing Combobox | Same, plus three **optional** Combobox props (`optionMeta`, `extraRow`, `rank`) | The propose row and the "matched UH" caption need richer rows than the component had. All three default to undefined, so every existing caller renders byte-identically. |
 | Not proposed | **A pre-existing Classifications crash was fixed** | Out of scope and shipped anyway: the screen this feature's queue lives on had been blank since 2026-07-27. Leaving it would have made the propose flow lead to a dead screen. |
+
+### Departures — item 2
+
+| Proposed | As built | Why |
+|---|---|---|
+| `max_tokens: 10000` in the contract frontmatter | Omitted — the class supplies the ceiling | Law 4: the budget comes from `budget_class`, never from a number a caller or contract invents. Restating it would be a second source of truth. |
+| Contract carries the campaign discipline | Same, **plus a Return shape section** | Not in the proposal and not optional: without it the model was never told the JSON and every call failed `contract-output`. An output validator in TypeScript is not an instruction to a model. |
+| `__base` exclusion enforced by the contract | Enforced by the contract **and** dropped at the endpoint | A rule that lives only in prose is one the next model version may not follow. |
+| Not proposed | **409 when the type already has a table** | Approving a draft for a type already in use would silently compete with defs on live projects. Discovered while writing the refusals, not after. |
+| "I review inline — edit, cut — approve" | Same, plus **approve refuses a field in no column** | Such a row writes cleanly and renders nowhere. |
+
+---
 
 The through-line: **typing a unit should cost one keystroke sequence, and never
 block a save.** 1.01 made the vocabulary a learning system on the *import* path;

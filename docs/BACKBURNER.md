@@ -45,7 +45,7 @@ review.
 **Woken and shipped.**
 
 ### 2. AI-drafted starter field sets on mint
-**PARKED → starts after 1**
+**SHIPPED 2026-08-03 — entry moved to [RELEASES.md](RELEASES.md) Update 1.02**
 
 On ratifying a mint, offer **Draft field set**: a new agent category drafts the
 nameplate table in the campaign's exact format (field · unit · spec/shop/
@@ -54,10 +54,10 @@ Contract carries the campaign discipline: field-worthy not exhaustive, identity
 via `__base` never duplicated, ruled Ontario unit convention. Proposes, never
 writes; mint-with-base-only stays available.
 
-**Wakes when:** now — item 1 shipped.
+**Woken and shipped.**
 
 ### 3. Schedule-page finder
-**PARKED → starts after 2**
+**IN PROGRESS**
 
 Intake accepts a whole drawing-set PDF and proposes the candidate schedule pages:
 deterministic filter first where the text layer allows (tabular density, schedule
@@ -66,11 +66,23 @@ A confirmation screen names the sheets; **only confirmed pages extract**. Batch
 provenance records source sheet numbers per row; the pre-extracted-pages path is
 unchanged.
 
-**Wakes when:** after item 2.
+**Wakes when:** now — item 2 shipped.
 
 ---
 
 ## Parked
+
+### 3b. Portal endpoint consolidation
+**PARKED — born 2026-08-03**
+
+Fold `portal-invite` / `portal-link` / `portal-redeem` / `portal-share-link` into
+one `api/portal.ts` action router, freeing three of Vercel's twelve function
+slots. `api/` is currently at 12 of 12, which is why both of 1.02's agent calls
+route through `api/intake.ts` instead of taking a function each.
+
+**Wakes when:** the next feature needs a function slot — or sooner, deliberately.
+**Never as a side effect of a feature:** these are live security endpoints and
+they get their own session with their own gates.
 
 ### 4. Units — approach B, dual display with auto-conversion
 **PARKED**

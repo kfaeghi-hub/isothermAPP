@@ -18,8 +18,8 @@ one written alongside the change is written from the diff.
 
 ## Update 1.02 — 2026-08-03
 
-*In progress — item 1 of three shipped. Items 2 (AI-drafted starter field sets)
-and 3 (schedule-page finder) append to this entry as they land.*
+*In progress — items 1 and 2 of three shipped. Item 3 (schedule-page finder)
+appends to this entry as it lands.*
 
 ### For the team
 
@@ -44,6 +44,18 @@ and the equipment intake review screen. One behaviour to learn, not three.
 **Shorthand is editable, not baked in.** Classifications → Equipment Types now
 has an Aliases column. Add the shorthand your projects actually use and it works
 everywhere immediately.
+
+**New types can draft their own nameplate table.** Mint a type in
+Classifications and, while it has no fields yet, a **draft fields** link appears
+beside it. It proposes a table — field, unit, imperial unit, and which of the
+three columns each belongs in — and you edit it, cut rows, and approve. **Nothing
+is saved until you approve**, and minting with identity fields only is still a
+perfectly good outcome.
+
+It is deliberately conservative: for a convector it proposed ten fields and said
+in its note that it left out control-valve details because those usually belong
+to a valve record rather than the convector nameplate — and asked you to flag it
+if the firm's convention differs.
 
 **A fixed crash:** the Classifications screen had been going blank on open. It's
 back — that's where proposed types are approved.
@@ -91,7 +103,33 @@ so an approved unknown row and its later ratification can find each other.
    hooks-order violation. Every structural assertion stayed green because the
    data behind the screen was correct. Found by taking a screenshot.
 
-`pw-type-picker.mjs` — 20 legs, in the battery. Wait helpers from birth.
+**The drafter — a seventh agent.** `firm-knowledge/agents/drafter.md`,
+`budget_class: prose` with the reasoning stated in the contract itself (the
+classifier's zero-text incident is why a bounded question does not get a
+`reasoning` budget). Measured after, per the ruling; the class moves narrower
+before wider.
+
+**Law 9 at the shape.** `FieldSetDraftInput` requires a non-empty
+`base_field_names` — the contract forbids duplicating the universal identity set,
+so that set is a required input rather than something the model must know. Base
+collisions are also dropped at the endpoint: a rule living only in prose is one
+the next model version may not follow.
+
+**No 13th serverless function.** `api/` is at Vercel's ceiling of 12, so the
+drafter routes through `api/intake.ts?action=draft-field-set`. Refusals before
+any spend: not staff · unknown type · **a type that already has a table** (409,
+count named). The portal-endpoint consolidation that would free three slots is
+parked with its own gates.
+
+**Two more self-catches on the first real call:** the contract had **no Return
+shape section**, so the model was never told the JSON — every call failed
+`contract-output`. And `pw-drafter` asserted field properties with `.every()`,
+which passes vacuously on an empty array: four checks went green on zero fields
+when the draft failed. Arrival is proven first now.
+
+`pw-type-picker.mjs` — 20 legs. `pw-drafter.mjs` — 10 bare, 18 with `--real-ai`.
+Both in the battery; the drafter runs bare there, like the extractor, because a
+battery that bills on every commit gets run less often. Wait helpers from birth.
 
 ---
 

@@ -1895,6 +1895,56 @@ source descriptor "Receptacle Panel". Correcting by the source's own descriptor
 applied the ruling consistently — correcting by the named tag list would have
 left 23 identical rows untyped beside 3 typed.
 
+### The drafter — a seventh agent, and why its budget class is argued (1.02)
+
+`drafter` proposes the nameplate table for a newly minted equipment type. It is
+the first agent whose contract **argues for its own budget class in prose**, and
+that is deliberate: the classifier's incident showed that a `reasoning` budget on
+an unbounded question is spent entirely on thinking and returns zero text.
+"Draft 10–15 fields for one named type" has a natural stopping point, so it takes
+`prose`. Ruled 2026-08-02: **measured after, not before** — telemetry from real
+calls moves the class, and it moves narrower before wider.
+
+**Law 9 at the shape.** `FieldSetDraftInput` requires a **non-empty
+`base_field_names`**. The contract forbids duplicating the universal identity
+set, so the names of that set are a required input rather than something the
+model is expected to know. The ruled unit convention is passed the same way. A
+contract that demanded either without supplying it would be asking for a key its
+declared input cannot supply.
+
+**Three refusals, all before any spend:** not staff (403) · unknown type (404) ·
+**a type that already has a table (409, with the count named)**. The third is the
+one that matters — approving a draft for a type already in use would silently
+compete with defs on live projects.
+
+**The rule is enforced twice, deliberately.** Fields colliding with `__base` are
+forbidden in the contract *and* dropped at the endpoint. A rule that lives only
+in prose is a rule the next model version may not follow, and the reviewer must
+never be shown a row that would duplicate identity.
+
+**A field in no column is refused at approve.** It would render nowhere — a draft
+that "succeeded" and shows nothing.
+
+**Two failures from the first real call, both worth keeping:**
+
+| What happened | What it cost | The lesson |
+|---|---|---|
+| `drafter.md` carried no **Return shape** section, so the model was never told the JSON to produce. Every call failed `contract-output`. | One 502. | An output schema in TypeScript is not an instruction to the model. The contract carries the shape, as the extractor's does. |
+| `pw-drafter` asserted properties of the returned fields with `.every()` and a length bound. **Both pass vacuously on an empty array** — so when the draft failed, four checks went green on zero fields, including *"every drafted field belongs to at least one column"*. | Nearly shipped a suite that certified a broken feature. | **A property assertion proves ARRIVAL first.** Same shape as the absence-assertion rule, one layer over. |
+
+### The 12-function ceiling shapes the architecture, not just the deploy (1.02)
+
+`api/` is at 12 of 12. Both new agent calls in 1.02 therefore route through
+`api/intake.ts`'s action allow-list rather than taking a function each. The
+drafter is a mild semantic stretch — it serves the type vocabulary, not an upload
+— and it is the right call, because the ceiling is physical and the alternative
+was refactoring four live portal endpoints in the same session.
+
+**The clean fix is parked, not forgotten:** folding `portal-invite` /
+`portal-link` / `portal-redeem` / `portal-share-link` into one `api/portal.ts`
+router frees three slots. Live security endpoints get their own session with
+their own gates — never as a side effect of a feature.
+
 ### Aliases — exact match only, and a never-alias list with teeth (1.02)
 
 `equipment_type_aliases` makes shorthand **vocabulary data**: a row an admin
