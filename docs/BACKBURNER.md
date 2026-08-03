@@ -21,7 +21,10 @@ decision or fix) · `WAITING` (blocked on evidence or an event) · `DROPPED`.
 
 ---
 
-## In progress — tonight's trio
+## Shipped tonight — the 1.02 trio
+
+*All three complete. These entries are removed at the next shelf edit; they are
+kept for one cycle so the set reads whole.*
 
 **Scope note (corrected 2026-08-02).** This shelf holds **parked builds only**.
 Owner ratification queues are not shelf items — they live in-app and are worked
@@ -57,7 +60,7 @@ writes; mint-with-base-only stays available.
 **Woken and shipped.**
 
 ### 3. Schedule-page finder
-**IN PROGRESS**
+**SHIPPED 2026-08-03 — entry moved to [RELEASES.md](RELEASES.md) Update 1.02**
 
 Intake accepts a whole drawing-set PDF and proposes the candidate schedule pages:
 deterministic filter first where the text layer allows (tabular density, schedule
@@ -66,7 +69,7 @@ A confirmation screen names the sheets; **only confirmed pages extract**. Batch
 provenance records source sheet numbers per row; the pre-extracted-pages path is
 unchanged.
 
-**Wakes when:** now — item 2 shipped.
+**Woken and shipped.**
 
 ---
 

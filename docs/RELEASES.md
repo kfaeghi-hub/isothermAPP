@@ -18,8 +18,7 @@ one written alongside the change is written from the diff.
 
 ## Update 1.02 — 2026-08-03
 
-*In progress — items 1 and 2 of three shipped. Item 3 (schedule-page finder)
-appends to this entry as it lands.*
+*All three items shipped.*
 
 ### For the team
 
@@ -56,6 +55,20 @@ It is deliberately conservative: for a convector it proposed ten fields and said
 in its note that it left out control-valve details because those usually belong
 to a valve record rather than the convector nameplate — and asked you to flag it
 if the firm's convention differs.
+
+**You can drop a whole drawing set into equipment intake now.** Instead of
+opening the PDF, finding the schedule pages and exporting them yourself, drag the
+whole set in. It reads the pages, shows you the ones that look like schedules —
+sheet number, title, and a thumbnail of each — and **only the pages you tick are
+read**. Each ticked page is one extraction, and it says so before you spend it.
+
+Pages it is sure about arrive ticked; pages it is only offering arrive unticked,
+so a glance is enough. If it can't read a page at all it still shows it rather
+than dropping it.
+
+**Your existing habit still works and is still the fastest** when you already
+know the page numbers: export those pages and drag them in. Nothing about that
+path changed.
 
 **A fixed crash:** the Classifications screen had been going blank on open. It's
 back — that's where proposed types are approved.
@@ -127,9 +140,39 @@ shape section**, so the model was never told the JSON — every call failed
 which passes vacuously on an empty array: four checks went green on zero fields
 when the draft failed. Arrival is proven first now.
 
+**The schedule-page finder — three costs, cheapest first.** The deterministic
+text-layer filter runs in the **browser** (free, every page); the new `sorter`
+agent sees only what the filter could not call (~1–2¢/page); the extractor sees
+only what a human ticked. `sorter` takes `slices: [terminology]` alone — identity
+and style cannot change whether a page is a table.
+
+A failed sort **fails open into the human's hands**: pages come back undecided to
+the confirmation screen, never dropped and never guessed in. The page ceiling
+refuses with the alternative named rather than truncating quietly. One upload per
+confirmed page, because the extraction budget is per page — so a set where page
+44 fails still yields 41 and 42, and failures are named rather than counted.
+`intake_rows.source_sheet` / `source_page` already existed and are now populated;
+`intake_uploads.selected_pages` is the only schema delta.
+
+**Render-and-look caught a real behavioural defect.** Run against a completed
+*checklist* PDF, two of its three pages arrived **pre-ticked** — a checklist is
+also a dense tagged table with MODEL and MANUFACTURER headings and scored "8
+schedule terms in 30 columns". Being offered is cheap; being ticked by default is
+a claim. Only a page **titled** a schedule, or one the sorter confirmed, is
+pre-ticked now. The candidate grid also overflowed its panel; bounded and
+scrolling.
+
 `pw-type-picker.mjs` — 20 legs. `pw-drafter.mjs` — 10 bare, 18 with `--real-ai`.
-Both in the battery; the drafter runs bare there, like the extractor, because a
-battery that bills on every commit gets run less often. Wait helpers from birth.
+`pw-schedule-finder.mjs` — 13 bare, 17 with `--real-ai` (the real sort called the
+pump schedule a schedule and refused the **door** schedule as "a real schedule,
+wrong discipline"). All three in the battery; the two agent suites run bare
+there, like the extractor, because a battery that bills on every commit gets run
+less often. Wait helpers from birth. **Battery 30/30.**
+
+**Named gap, not covered by any suite:** the deterministic filter's accuracy on a
+real multi-page drawing set. There is no ZZ-TEST fixture set, and a synthetic PDF
+would test the synthesiser. That leg is a manual render-and-look, and the suite
+header says so rather than letting its absence read as coverage.
 
 ---
 

@@ -98,7 +98,12 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
           ...p,
           title: (p as Candidate).title ?? null,
           sorted: sorted[p.page],
-          picked: p.verdict === 'schedule' || sorted[p.page]?.is_schedule === true,
+          // PRE-TICKED ONLY ON REAL EVIDENCE: a page that says it is a schedule,
+          // or one the sorter confirmed. The keyword-count route offers a page
+          // without claiming it — render-and-look on a completed CHECKLIST had
+          // two of its three pages ticked, because a checklist is also a dense
+          // table with TAG and MODEL headings.
+          picked: p.titled || sorted[p.page]?.is_schedule === true,
           thumb: await renderPage(file, p.page, 0.28).catch(() => null),
         })
       }
@@ -174,7 +179,9 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
       )}
       {note && <p className="text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1 mt-1">{note}</p>}
 
-      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {/* BOUNDED, because the thumbnails are tall. Unconstrained, the candidate
+          grid ran off the panel and over the equipment list behind it. */}
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-[26rem] overflow-y-auto pr-1">
         {candidates.map(c => (
           <label key={c.page}
             className={`flex gap-2 rounded-lg border p-2 cursor-pointer ${
@@ -196,7 +203,7 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
               </p>
               {c.thumb && (
                 <img src={c.thumb} alt={`Page ${c.page}`}
-                  className="mt-1 w-full rounded border border-gray-200" />
+                  className="mt-1 w-full max-h-40 object-cover object-top rounded border border-gray-200" />
               )}
             </div>
           </label>

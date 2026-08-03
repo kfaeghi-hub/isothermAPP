@@ -1895,6 +1895,48 @@ source descriptor "Receptacle Panel". Correcting by the source's own descriptor
 applied the ruling consistently — correcting by the named tag list would have
 left 23 identical rows untyped beside 3 typed.
 
+### The schedule-page finder — three costs, cheapest first (1.02)
+
+Dropping a whole drawing set is now allowed, and the pre-pass is arranged so the
+expensive answer is only ever bought for the pages that need it:
+
+| Cost | Where | Scope |
+|---|---|---|
+| free | the **browser's** text layer (`src/lib/schedulePages.ts`) | every page |
+| ~1–2¢/page | the `sorter` agent | only pages the filter could not call |
+| the real cost | the `extractor` | **only pages a human ticked** |
+
+**The filter runs client-side on purpose.** The file is already in the user's
+hands before a byte is uploaded, so reading its text layer costs nothing, needs
+no round trip, and never pushes a 300-page PDF through a serverless function's
+memory.
+
+**It is deliberately asymmetric.** A missed schedule page costs a scroll; a
+wrongly-included plan sheet costs an extraction call and a page of nonsense rows
+in the review screen. So a page needs evidence to be proposed and only obvious
+plan-sheet markers to be set aside — and everything in between goes to
+`ambiguous`, which is the model's job, not a silent rejection.
+
+**`sorter` takes `slices: [terminology]` and nothing else.** Identity and style
+cannot change whether a page is a table. Context that cannot change the answer is
+cost — the same argument the extractor's contract makes about spreadsheets.
+
+**A failed sort fails OPEN, into the human's hands.** The pages come back
+*undecided* to the confirmation screen. It never drops them, and it never guesses
+them in.
+
+**One upload per confirmed page.** The extraction budget is per page, so a page
+is the unit of work, of cost, and of provenance — and a set where page 44 fails
+still yields 41 and 42. Failures are **named, not counted**.
+
+**Being offered is cheap; being ticked by default is a claim.** Render-and-look
+against a completed *checklist* PDF had two of its three pages pre-ticked: a
+checklist is also a dense tagged table with MODEL and MANUFACTURER headings, and
+it scored "8 schedule terms in 30 columns". The keyword-count route now *offers*
+a page without pre-ticking it; only a page **titled** a schedule, or one the
+sorter confirmed, arrives ticked. The heuristic was not wrong to surface it — it
+was wrong to assert it.
+
 ### The drafter — a seventh agent, and why its budget class is argued (1.02)
 
 `drafter` proposes the nameplate table for a newly minted equipment type. It is

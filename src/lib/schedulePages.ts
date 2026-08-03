@@ -26,6 +26,12 @@ export type PageVerdict = 'schedule' | 'not' | 'ambiguous' | 'scanned'
 export interface PageScan {
   page: number
   verdict: PageVerdict
+  /** True only for a page TITLED a schedule. The keyword-count route can reach
+   *  `verdict: 'schedule'` on any dense tagged table — a completed checklist
+   *  scored "8 schedule terms in 30 columns" — so the confirmation screen
+   *  pre-ticks on this, not on the verdict. Being offered is cheap; being
+   *  ticked by default is a claim. */
+  titled: boolean
   /** Why, in the user's words — shown on the confirmation screen. */
   reason: string
   /** The sheet number/title if the page states one. */
@@ -85,7 +91,7 @@ export async function scanPdfPages(
     // found, and only a model can tell them apart.
     if (items.length < 12) {
       pages.push({
-        page: n, verdict: 'scanned',
+        page: n, verdict: 'scanned', titled: false,
         reason: 'no text layer — needs a look',
         sheet: null, keywords: [], columnRuns: 0, textItems: items.length,
       })
@@ -127,7 +133,7 @@ export async function scanPdfPages(
                `${columnRuns} column${columnRuns === 1 ? '' : 's'} — not clear either way`
     }
 
-    pages.push({ page: n, verdict, reason, sheet, keywords, columnRuns, textItems: items.length })
+    pages.push({ page: n, verdict, reason, sheet, keywords, columnRuns, titled, textItems: items.length })
     onProgress?.(n, limit)
   }
 

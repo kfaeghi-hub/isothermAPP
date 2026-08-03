@@ -1,6 +1,6 @@
 # TYPING-TRIO-PROPOSAL.md — Update 1.02
 
-**Status: items 1-2 AS-BUILT 2026-08-03; item 3 in progress.** Built and gated
+**Status: AS-BUILT 2026-08-03. All three items shipped.** Built and gated
 separately in order. Departures are recorded below as each item lands, not
 reconstructed at the end.
 
@@ -12,6 +12,16 @@ reconstructed at the end.
 | Alias tier described as "highest-priority" | Alias tier is **second** — canonical name/key wins first | An alias must never be able to shadow a real type's display name, whatever an admin types into the alias field. |
 | `TypePicker` wrapping the existing Combobox | Same, plus three **optional** Combobox props (`optionMeta`, `extraRow`, `rank`) | The propose row and the "matched UH" caption need richer rows than the component had. All three default to undefined, so every existing caller renders byte-identically. |
 | Not proposed | **A pre-existing Classifications crash was fixed** | Out of scope and shipped anyway: the screen this feature's queue lives on had been blank since 2026-07-27. Leaving it would have made the propose flow lead to a dead screen. |
+
+### Departures — item 3
+
+| Proposed | As built | Why |
+|---|---|---|
+| Deterministic filter "where the text layer allows", location unstated | Filter runs **client-side**, in the browser | The file is already there before any upload: no round trip, and a 300-page PDF never enters a serverless function's memory. |
+| AI classification via `api/intake.ts?action=find-pages` | Same, and it needed **an eighth agent** (`sorter`) | Not in the proposal. Page classification is a different question from extraction, and reusing the extractor's contract for it would have been a second purpose in one contract. |
+| Batch provenance records source sheet numbers per row | Same, and it needed **no schema delta** | `intake_rows.source_sheet` / `source_page` already existed. Item 3 populates them; only `intake_uploads.selected_pages` was added. |
+| Confirmation screen with titles/thumbnails | Same, **plus: only titled-or-sorter-confirmed pages are pre-ticked** | Render-and-look on a completed checklist pre-ticked two of three pages. Being offered is cheap; being ticked by default is a claim. |
+| Whole PDF extracted per confirmed selection | **One upload and one extraction per confirmed page** | The extraction budget is per page, so a page is the unit of work, cost, and provenance — and one failed page does not lose the others. |
 
 ### Departures — item 2
 

@@ -79,6 +79,7 @@ const SUITES = [
   'pw-storage-privacy',
   'pw-team',
   'pw-drafter',
+  'pw-schedule-finder',
   'pw-type-picker',
 ]
 
