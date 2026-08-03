@@ -2017,6 +2017,46 @@ was refactoring four live portal endpoints in the same session.
 router frees three slots. Live security endpoints get their own session with
 their own gates — never as a side effect of a feature.
 
+### Applicability is never seeded speculatively — with ONE recorded exception
+
+**The standing boundary.** A newly minted type gets its `__base` identity set
+and, on ratification, a drafted nameplate table. **Nothing else.** The classifier
+proposes applicability only when a project first carries real units of that type.
+A catalog is a claim about what *might* appear; an applicability rule is a claim
+about what a *specific project* must verify, and seeding the second from the first
+puts a queue of speculative rules in front of a CxA who has never seen most of the
+types in it. An unread ratification queue is worse than an empty one.
+
+**The exception, ruled 2026-08-03, and its edge is part of the rule:**
+
+> The exception applies **only** to types minted specifically for integrated
+> systems testing, **only** for the fire-integration stage group, and **only**
+> where the owner rules the applicability in the same sitting as the mint. It
+> does not extend to any other stage group, and it is not a precedent for
+> "obvious" applicability anywhere else.
+
+*Why it holds.* The boundary exists to stop an unread **queue** — and a rule the
+owner *rules* never enters the queue. An applicability rule is keyed to
+*(type × stage group)*, so a project carrying no smoke control fans **never
+renders that row**: the rule is invisible until a unit of that type exists, at
+which point it is exactly right and arrived without a sitting. For a type whose
+entire reason to exist is IST scope, the fire-integration applicability is not a
+prediction about a project — **it is a property of the equipment class.** A smoke
+control fan is in the integrated test on every building that has one; CAN/ULC-S1001
+names smoke control among the systems whose interconnections it verifies.
+
+*Why the edge is written down rather than left to judgement.* The argument
+generalises badly. "Types whose reason to exist is IST scope" stretches, with no
+effort at all, into "types whose scope is obvious" — and obvious is where
+speculation hides. There is a real asymmetry behind that: **a wrong ruled rule is
+silently wrong on every future project, while a wrong proposal is read once and
+rejected.** An exception without a stated edge is just the rule being weaker than
+it says.
+
+*Applied to:* `smoke_control_fan` and `smoke_control_panel`, both ruled in the
+same sitting as their mint. No other type carries a rule it did not earn from
+real units.
+
 ### Variants are DATA. Splitting a type is a mint ruling, not a drafter decision
 
 **A variant within an equipment class is handled by a discriminator field plus

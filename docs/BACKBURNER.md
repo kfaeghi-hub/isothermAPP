@@ -87,6 +87,44 @@ route through `api/intake.ts` instead of taking a function each.
 **Never as a side effect of a feature:** these are live security endpoints and
 they get their own session with their own gates.
 
+### 3e. The IST module — integrated systems testing, parked whole
+**PARKED — born 2026-08-03, from the catalog campaign's IST addendum**
+
+A project-level surface holding **scenario-based integration test records**: an
+**initiating event × responding equipment matrix**, expected vs. observed per
+cell, witnessed and dated, with deficiencies filing into the **existing findings
+register** rather than a parallel one.
+
+IST is a core firm service — Seneca carries an IST plan at rev 10 — and OBC
+3.2.10.1 has made CAN/ULC-S1001 mandatory on new construction since 2020.
+
+**Design notes, carried so the thinking is not re-derived:**
+
+- **The Cx Index's fire-integration column stays the per-unit readiness tracker.**
+  It is not superseded by this module and does not become part of it. That
+  division is the standard's own line: **S1001 verifies the interconnections
+  between two or more systems and explicitly does not verify the individual
+  systems**, whose own verification is the prerequisite. Per-unit readiness is
+  the Cx Index's job; the scenario matrix is this module's.
+- **The scenario cell ties to [3d](#3d-repeating-measurement-test-structures).**
+  Expected-vs-observed per cell, per test event, is the same repeating-measurement
+  shape as per-tap TTR and NFPA 25 flow curves. One structure should serve all of
+  them; building a bespoke cell store here would be the third copy.
+- **Scenario drafting from the fire-alarm matrix is a future FPT-agent
+  capability** — see [5](#5-fpt-agent). The initiating events and their expected
+  responses are already stated in the fire alarm input/output matrix; deriving the
+  scenario list from that document is agent work, and it waits for the same
+  trigger the FPT agent does.
+- **Foundation:** the S1001 research and the full ruling table live in
+  [IST-CATALOG-ADDENDUM.md](IST-CATALOG-ADDENDUM.md), including the boundary
+  rulings this module inherits — door holders, mag locks, elevator recall,
+  load-bank connections and sprinkler supervisory devices are **not equipment
+  rows**, and the reasoning for each is recorded there rather than left to be
+  re-argued.
+
+**Wakes when:** the first project schedules an IST — most likely Seneca. **No
+code now.**
+
 ### 3d. Repeating-measurement test structures
 **PARKED — born 2026-08-03, from the catalog campaign's transformer table**
 

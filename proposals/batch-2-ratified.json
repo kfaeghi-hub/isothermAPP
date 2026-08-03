@@ -1,0 +1,1433 @@
+{
+  "batch": 2,
+  "drafted_at_tokens": {
+    "input": 70088,
+    "output": 22404
+  },
+  "types": [
+    {
+      "type_key": "switchgear",
+      "type_name": "Switchgear",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS switchgear and switchboard assemblies: nameplate data compared with drawings and specifications; bus continuity and rating; interrupting rating; insulation resistance phase-to-phase and phase-to-ground; contact/pole resistance; ground and bonding verification; interlock operation and sequencing confirmed correct; protective device settings as-left. Medium-voltage assemblies add power-frequency withstand.",
+      "note": "held to 13 fields; medium-voltage power-frequency withstand and detailed device-by-device settings tables are left out on purpose - they belong in a dedicated test record referenced by the checklist, not squeezed into the nameplate. If this switchgear register includes medium-voltage gear, a follow-up field for withstand test result may be worth adding once that's confirmed rather than assumed here.",
+      "fields": [
+        {
+          "field_name": "System Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the rated voltage of the assembly, compared against drawings per NETA"
+        },
+        {
+          "field_name": "Continuous Current Rating",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "bus/main rating confirmed against nameplate and drawings"
+        },
+        {
+          "field_name": "Short-Circuit Interrupting Rating",
+          "unit": "kA",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the withstand/interrupting rating the assembly must be verified against"
+        },
+        {
+          "field_name": "Number of Poles",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "configuration detail confirmed at the unit"
+        },
+        {
+          "field_name": "Frequency",
+          "unit": "Hz",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Enclosure Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "NEMA/CSA enclosure rating, a nameplate value the field agent reads directly"
+        },
+        {
+          "field_name": "Bus Material",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "copper or aluminum bus, specified and confirmed on shop drawing"
+        },
+        {
+          "field_name": "Insulation Resistance Phase-to-Phase",
+          "unit": "MΩ",
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "NETA acceptance test record value"
+        },
+        {
+          "field_name": "Insulation Resistance Phase-to-Ground",
+          "unit": "MΩ",
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "NETA acceptance test record value"
+        },
+        {
+          "field_name": "Contact Resistance",
+          "unit": "µΩ",
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "as-left pole/contact resistance per NETA"
+        },
+        {
+          "field_name": "Protective Device Settings",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "as-left settings recorded per NETA protective device verification"
+        },
+        {
+          "field_name": "Interlock/Sequencing Verified",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "confirmation the interlock and sequencing operate as designed, called out explicitly in the anchor"
+        },
+        {
+          "field_name": "Ground/Bonding Verified",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "ground and bonding check named in the anchor"
+        }
+      ]
+    },
+    {
+      "type_key": "switchboard",
+      "type_name": "Switchboard",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS switchboard assemblies, as switchgear but distribution-scale: nameplate vs drawings; main and bus ratings; interrupting rating; insulation resistance; bolted-connection torque; ground bus bonding; metering and instrument transformer complement.",
+      "note": "Kept to items a NETA-style acceptance record and a nameplate/drawing comparison actually expects; left out things like feeder breaker schedules or full one-line detail as belonging to drawings rather than a single nameplate table.",
+      "fields": [
+        {
+          "field_name": "System Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "nameplate voltage vs drawing designation, per NETA nameplate-vs-drawing comparison"
+        },
+        {
+          "field_name": "Main Rating",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "main bus/overcurrent device ampacity, the primary sizing fact NETA compares to drawings"
+        },
+        {
+          "field_name": "Bus Rating",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "horizontal/vertical bus ampacity, distinct from the main device rating"
+        },
+        {
+          "field_name": "Short-Circuit Interrupting Rating",
+          "unit": "kA",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "withstand/interrupting rating central to NETA acceptance and coordination"
+        },
+        {
+          "field_name": "Number of Phases",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "configuration fact read straight off the nameplate"
+        },
+        {
+          "field_name": "Frequency",
+          "unit": "Hz",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "nameplate value, occasionally relevant on retrofit or generator-paired gear"
+        },
+        {
+          "field_name": "Enclosure Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "NEMA/CSA enclosure rating relevant to environment and installation acceptance"
+        },
+        {
+          "field_name": "Number of Sections",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "physical configuration confirmed against shop drawing and as-installed"
+        },
+        {
+          "field_name": "Ground Bus Bonding",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "a field verification recorded once the ground bus is confirmed bonded, per NETA grounding checks"
+        },
+        {
+          "field_name": "Insulation Resistance",
+          "unit": "MΩ",
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "NETA megger test result recorded at acceptance, not a design or shop value"
+        },
+        {
+          "field_name": "Bolted-Connection Torque Verified",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "NETA torque-check confirmation, a pass/reference record made on site"
+        },
+        {
+          "field_name": "Metering Complement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "instrument transformer / meter complement the standard calls out as part of the assembly record"
+        }
+      ]
+    },
+    {
+      "type_key": "mcc",
+      "type_name": "Motor Control Centre",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS motor control centres: nameplate vs drawings; bus rating; each starter/unit size and type; overload element rating and setting; control voltage; insulation resistance; interlock and control-circuit function. The record is per ASSEMBLY, with the unit complement counted rather than enumerated - individual starters are not their own type (variant rule).",
+      "note": "Kept to assembly-level fields per the standards anchor's variant rule - individual starters/overload settings are not enumerated here as they belong to the per-unit sub-record, not the MCC nameplate itself. Short Circuit Withstand and Enclosure Rating are left out of 'installed' since they aren't independently re-verified in the field beyond the shop drawing confirmation.",
+      "fields": [
+        {
+          "field_name": "System Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the nameplate/system voltage NETA ATS records against the drawing rating"
+        },
+        {
+          "field_name": "Phase",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "1 or 3-phase configuration, confirmed against the design"
+        },
+        {
+          "field_name": "Frequency",
+          "unit": "Hz",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "nameplate frequency, standard field left unswapped per convention"
+        },
+        {
+          "field_name": "Horizontal Bus Rating",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "main bus ampacity NETA ATS requires against nameplate and drawing"
+        },
+        {
+          "field_name": "Vertical Bus Rating",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "vertical section bus is rated and recorded separately from horizontal in NETA practice"
+        },
+        {
+          "field_name": "Short Circuit Withstand Rating",
+          "unit": "kA",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "bus bracing/withstand rating carried on the schedule and confirmed on the shop drawing; not independently field-verified so omitted from installed"
+        },
+        {
+          "field_name": "Main Overcurrent Device Rating",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "main breaker or fuse rating feeding the assembly"
+        },
+        {
+          "field_name": "Enclosure Rating",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "NEMA/IP enclosure type specified and confirmed on submittal; a text designation, not a measured quantity"
+        },
+        {
+          "field_name": "Number of Sections",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "assembly is recorded as a whole per the standards anchor; section count is the countable fact, not each starter enumerated"
+        },
+        {
+          "field_name": "Number of Starter/Feeder Units",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "complement of units within the MCC, counted per the variant rule rather than listed individually"
+        },
+        {
+          "field_name": "Control Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "control transformer secondary voltage, distinct from system voltage and explicitly named in the anchor"
+        },
+        {
+          "field_name": "Ground Fault Protection Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "presence/type of GF protection scheme, a functional attribute the anchor expects on the record"
+        },
+        {
+          "field_name": "Insulation Resistance",
+          "unit": "MΩ",
+          "unit_imperial": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "megger test result exists only once the assembly is installed and energized-tested, per NETA ATS"
+        }
+      ]
+    },
+    {
+      "type_key": "vfd",
+      "type_name": "Variable Frequency Drive",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS adjustable-speed drives, with the drive as a commissioned unit in its own right: nameplate vs drawings; input and output voltage/current; horsepower or kW rating; bypass arrangement; line reactor or filter; programmed acceleration/deceleration and min/max speed as-left; control signal type. NOTE the boundary: the `pump` VFD yes/no field answers \"does this pump have one\", which is a different question.",
+      "note": "Left acceleration/deceleration time without a unit field rather than guessing seconds-vs-minutes convention; a reviewer can add unit if the firm's forms standardize on one. Did not add a stand-alone 'HP' field alongside kW since the anchor treats horsepower/kW as one rating and Ontario nameplates typically print both together.",
+      "fields": [
+        {
+          "field_name": "Rated Input Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "nameplate vs drawings per NETA ATS acceptance"
+        },
+        {
+          "field_name": "Rated Output Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "output side, distinct from input for VFDs"
+        },
+        {
+          "field_name": "Rated Input Current",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Rated Output Current",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Horsepower / kW Rating",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the duty the drive is sized to drive; kW is the shared metric figure, HP commonly co-appears on the nameplate itself so no imperial swap needed for the field label"
+        },
+        {
+          "field_name": "Input Frequency",
+          "unit": "Hz",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Output Frequency Range",
+          "unit": "Hz",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "min/max as-left, per anchor"
+        },
+        {
+          "field_name": "Bypass Arrangement",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "manual/automatic bypass present or not — anchor calls this out explicitly"
+        },
+        {
+          "field_name": "Line Reactor or Filter",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Control Signal Type",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "e.g. 4-20mA, 0-10V, BAS network — what the drive actually takes as-left"
+        },
+        {
+          "field_name": "Enclosure Rating",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "NEMA/IP rating governs installation location suitability"
+        },
+        {
+          "field_name": "Programmed Acceleration Time",
+          "unit": null,
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "as-left setting an FPT would confirm; no natural unit label beyond seconds, kept unitless per convention of not inventing one where the field itself states it"
+        },
+        {
+          "field_name": "Programmed Deceleration Time",
+          "unit": null,
+          "sections": [
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Driven Equipment Served",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "identifies which pump/fan this drive serves — the cross-reference a CxA needs on site"
+        }
+      ]
+    },
+    {
+      "type_key": "ups",
+      "type_name": "Uninterruptible Power Supply",
+      "existing_field_count": 0,
+      "standards_anchor": "ANSI/NETA ATS uninterruptible power systems: nameplate vs drawings; kVA/kW rating; input and output voltage and configuration; battery type, string voltage and cell/block count; rated autonomy at load; bypass arrangement (static and maintenance); alarm and monitoring complement. Autonomy VERIFIED is a timed test result - keep the field to the RATING and let the test record hold the reading.",
+      "note": "Kept to the NETA-anchored electrical facts plus the battery string particulars; left out enclosure/environmental details and a full alarm-point list as specification-drawing concerns rather than nameplate fields - easy to add if this project's checklist wants them.",
+      "fields": [
+        {
+          "field_name": "Rated Capacity (kVA)",
+          "unit": "kVA",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "primary duty rating the schedule states and the nameplate confirms"
+        },
+        {
+          "field_name": "Rated Capacity (kW)",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "real-power rating distinct from apparent power, both appear on the nameplate"
+        },
+        {
+          "field_name": "Topology",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "double-conversion vs line-interactive is a design decision confirmed on the shop drawing"
+        },
+        {
+          "field_name": "Input Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "NETA ATS record item; V is written the same in both systems"
+        },
+        {
+          "field_name": "Input Configuration",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "phase/wire arrangement (e.g. 3-phase 3-wire), a distinct fact from voltage magnitude"
+        },
+        {
+          "field_name": "Output Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "output side is verified separately from input on a UPS"
+        },
+        {
+          "field_name": "Output Configuration",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "phase/wire arrangement on the load side"
+        },
+        {
+          "field_name": "Frequency",
+          "unit": "Hz",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "nameplate rating; Hz unchanged across systems"
+        },
+        {
+          "field_name": "Battery Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "VRLA vs flooded vs lithium is a stated requirement confirmed on the actual string"
+        },
+        {
+          "field_name": "Battery String Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "a fact about the proposed and installed battery, not something a spec typically fixes in advance"
+        },
+        {
+          "field_name": "Battery Cell/Block Count",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "count, no dimension; NETA record item confirming the string as built"
+        },
+        {
+          "field_name": "Rated Autonomy at Full Load",
+          "unit": "min",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the rating being tested for, per the anchor - the timed reading itself belongs to the test record, not here"
+        },
+        {
+          "field_name": "Bypass Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "static and/or maintenance bypass configuration, an explicit NETA ATS record item"
+        }
+      ]
+    },
+    {
+      "type_key": "dhw_heater",
+      "type_name": "Domestic Hot Water Heater",
+      "existing_field_count": 0,
+      "standards_anchor": "ASME BPVC Section IV/VIII marking for the vessel where applicable, plus CSA/AHRI water-heater rating conventions: storage volume, input rating and energy source, recovery rate at a stated temperature rise, thermostat and high-limit settings, T&P relief valve rating. For indirect/semi-instantaneous units the heating-medium side matters as much as the domestic side.",
+      "note": "13 fields — the anchor's storage/input/recovery/setpoint/relief set plus the two energy-source qualifiers (Gas Type, Heating Medium) that will sit blank on units they don't apply to. Left Recovery Rate metric-only, matching the pump Flow-field precedent, rather than guessing at an imperial convention the sibling tables don't establish.",
+      "fields": [
+        {
+          "field_name": "Energy Source",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "Gas, electric, steam or indirect-fired — governs which other fields on the nameplate actually apply"
+        },
+        {
+          "field_name": "Gas Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "Natural gas vs propane where the unit is gas-fired; parallels the boiler vocabulary"
+        },
+        {
+          "field_name": "Storage Volume",
+          "unit": "L",
+          "unit_imperial": "gal",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "Tank capacity is the basic sizing fact and the figure both the spec and nameplate carry"
+        },
+        {
+          "field_name": "Input Rating",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "The AHRI/CSA rated heat input the schedule specifies and the nameplate confirms"
+        },
+        {
+          "field_name": "Recovery Rate",
+          "unit": "L/h",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "Rated recovery at the stated temperature rise, the core performance figure the CSA/AHRI rating anchors on"
+        },
+        {
+          "field_name": "Rated Temperature Rise",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "Recovery rate is meaningless without the rise it was measured at; both figures travel together on the rating plate"
+        },
+        {
+          "field_name": "Thermostat Setpoint",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "Field-set control temperature, read at the unit during verification"
+        },
+        {
+          "field_name": "High-Limit Setpoint",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "Safety cutout the spec calls for and the CxA confirms is field-set as specified"
+        },
+        {
+          "field_name": "T&P Relief Valve Setting",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "The relief-valve rating is a life-safety figure every water-heater record carries, per CSA/ASME convention"
+        },
+        {
+          "field_name": "Tank Working Pressure Rating",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "ASME/CSA vessel rating stamped on the tank, confirming the shop drawing matches the spec"
+        },
+        {
+          "field_name": "Thermal Efficiency",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "The rated efficiency figure the spec calls for and the submittal confirms"
+        },
+        {
+          "field_name": "Connection Size",
+          "unit": "NPS",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "Domestic hot/cold connection size, read directly off the shop drawing and confirmed at the unit"
+        },
+        {
+          "field_name": "Heating Medium",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "Applies to indirect/semi-instantaneous units where a boiler loop rather than direct fire supplies the heat"
+        }
+      ]
+    },
+    {
+      "type_key": "water_softener",
+      "type_name": "Water Softener",
+      "existing_field_count": 0,
+      "standards_anchor": "Manufacturer and CSA B483-family conventions for potable water treatment: service flow rate and pressure drop, resin volume and exchange capacity, regeneration type and control (time/meter), brine tank capacity and salt setting, hardness in and out. NOTE: the anchor here is weaker than the NETA and ASME ones - flag any field that is firm convention rather than standard.",
+      "note": "Anchor here is manufacturer/CSA B483 convention rather than a hard test standard, so several fields (salt dose, configuration) are flagged in their own reasoning as firm/trade convention rather than a cited requirement. Exchange capacity kept in kgr on purpose - that's how the trade writes it in both unit systems, same pattern as CFM/MBH. Left out ancillary items (bypass valve, sample ports) as spec-drawing concerns rather than nameplate data anyone would record on site.",
+      "fields": [
+        {
+          "field_name": "Service Flow Rate",
+          "unit": "L/s",
+          "unit_imperial": "USGPM",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the rated continuous flow the softener is sized to treat; spec sets it, shop drawing confirms the selection, installed is what's actually piped"
+        },
+        {
+          "field_name": "Pressure Drop at Rated Flow",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "governs whether the softener fits the system's available head; a nameplate/curve value confirmed at startup"
+        },
+        {
+          "field_name": "Resin Volume",
+          "unit": "L",
+          "unit_imperial": "ft³",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the bed size that sets exchange capacity between regenerations"
+        },
+        {
+          "field_name": "Exchange Capacity",
+          "unit": "kgr",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "capacity is written in (kilo)grains in this trade regardless of metric/imperial system, same pattern as CFM/MBH - no swap needed"
+        },
+        {
+          "field_name": "Regeneration Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "time-clock vs. meter-initiated vs. demand - determines how the unit is expected to behave day to day"
+        },
+        {
+          "field_name": "Regeneration Control",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the specific controller/valve model or logic driving regeneration, distinct from the type"
+        },
+        {
+          "field_name": "Brine Tank Capacity",
+          "unit": "L",
+          "unit_imperial": "USgal",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "sizes how long the unit runs unattended between salt fills"
+        },
+        {
+          "field_name": "Salt Dose per Regeneration",
+          "unit": "kg",
+          "unit_imperial": "lb",
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "a startup setting rather than a spec requirement in most projects - convention, not standard"
+        },
+        {
+          "field_name": "Feed Water Hardness",
+          "unit": "mg/L as CaCO3",
+          "unit_imperial": "gpg",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the design basis and the measured value the softener is actually sized against"
+        },
+        {
+          "field_name": "Treated Water Hardness",
+          "unit": "mg/L as CaCO3",
+          "unit_imperial": "gpg",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the performance target and the value confirmed at commissioning - the softener's whole job stated as a number"
+        },
+        {
+          "field_name": "Connection Size",
+          "unit": "NPS",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "inlet/outlet size, already written the same convention in either system"
+        },
+        {
+          "field_name": "Configuration",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "simplex, duplex-alternating, or twin-tank - affects whether treated water is ever interrupted during regeneration, worth recording as installed"
+        },
+        {
+          "field_name": "Rated Operating Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the vessel's working pressure limit, checked against the system's actual operating pressure"
+        }
+      ]
+    },
+    {
+      "type_key": "backflow_preventer",
+      "type_name": "Backflow Preventer",
+      "existing_field_count": 0,
+      "standards_anchor": "CSA B64 series (backflow preventers and vacuum breakers) with CSA B64.10 field testing: device TYPE designation (RP/RPDA, DCVA/DCDA, PVB/SVB), size, hazard classification (severe/moderate) and the cross-connection it protects, installation orientation and clearance, relief port discharge arrangement. The annual test READINGS are test-record data; the nameplate carries the device identity and its ratings.",
+      "note": "Left out annual test readings (test-cock pressure differentials, etc.) deliberately - those are B64.10 test-record data, not nameplate content, and belong to a separate test form. Body material and strainer presence are real but marginal; cut them to keep this at 12 rather than pad toward 15.",
+      "fields": [
+        {
+          "field_name": "Device Type (RP/RPDA, DCVA/DCDA, PVB/SVB)",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "CSA B64 identifies backflow preventers by assembly type first; the record must confirm the type installed matches what the spec required"
+        },
+        {
+          "field_name": "Size",
+          "unit": "NPS",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "line size drives every other rating on the assembly and is read directly off the body"
+        },
+        {
+          "field_name": "Hazard Classification (Severe/Moderate)",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "CSA B64 selection depends on the hazard degree of the cross-connection, set at spec stage and confirmed against the assembly proposed"
+        },
+        {
+          "field_name": "Cross-Connection Served",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the standard requires the record to state what the device protects, not just what the device is"
+        },
+        {
+          "field_name": "Rated Flow",
+          "unit": "L/s",
+          "unit_imperial": "GPM",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "duty the specification stated and the submittal confirms; flow is one of the two quantities that genuinely swap units between systems"
+        },
+        {
+          "field_name": "Rated Working Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "pressure rating governs assembly selection and is stated on the nameplate and the schedule alike"
+        },
+        {
+          "field_name": "Maximum Working Temperature",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec"
+          ],
+          "reasoning": "distinguishes potable-water assemblies from hot-water-rated variants; a spec-stage requirement"
+        },
+        {
+          "field_name": "Installation Orientation",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "most RP/PVB assemblies are orientation-restricted (horizontal only, or minimum height above grade); the field record confirms what was actually built"
+        },
+        {
+          "field_name": "Minimum Clearance to Grade/Floor",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "installed"
+          ],
+          "reasoning": "CSA B64 installation requirements set a minimum clearance for relief-valve discharge and access; only meaningful once installed"
+        },
+        {
+          "field_name": "End Connection Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "flanged, threaded or grooved changes the field verification and maintenance access, and is visible at the unit"
+        },
+        {
+          "field_name": "Relief Port Discharge Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the anchor calls out relief port discharge specifically; how it is piped or air-gapped is a field-verifiable fact distinct from the device rating"
+        },
+        {
+          "field_name": "Listing / Approval (CSA B64 designation)",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the CSA B64 designation on the assembly is a requirement reference, not firm branding, and is what the spec and submittal both cite"
+        }
+      ]
+    },
+    {
+      "type_key": "air_compressor",
+      "type_name": "Air Compressor",
+      "existing_field_count": 0,
+      "standards_anchor": "ASME BPVC Section VIII for the receiver (stamp, MAWP, volume) plus compressor rating conventions: type (reciprocating/rotary screw/scroll), free air delivery at a stated discharge pressure, motor rating, duty/control mode (load-unload, modulating, VSD), and the air-treatment train (dryer type, dewpoint, filtration). For medical or laboratory air the purity and alarm requirements govern - flag if unknown for this project.",
+      "note": "13 fields — reciprocating/rotary-screw plant air is the assumed case. Medical or laboratory air purity and alarm requirements are governed by a different standard (CSA Z7396 / NFPA 99) and are not covered here; flag if this project's air compressor serves medical or lab air, since that would add fields (alarm setpoints, purity monitoring) rather than fit inside this set.",
+      "fields": [
+        {
+          "field_name": "Compressor Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "reciprocating, rotary screw or scroll — governs everything else on this table"
+        },
+        {
+          "field_name": "Free Air Delivery",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the duty rating the schedule states and the nameplate confirms; CFM is written the same in both systems"
+        },
+        {
+          "field_name": "Rated Discharge Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "free air delivery is only meaningful at a stated pressure; genuinely swaps unit between systems"
+        },
+        {
+          "field_name": "Duty/Control Mode",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "load-unload, modulating or VSD — the acceptance test differs by mode"
+        },
+        {
+          "field_name": "Motor Rating",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "matches the sibling convention for motor-driven equipment (pump: Motor kW)"
+        },
+        {
+          "field_name": "Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Full Load Amps",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Receiver Volume",
+          "unit": "L",
+          "unit_imperial": "US gal",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "ASME BPVC Sec VIII record content; genuinely swaps unit"
+        },
+        {
+          "field_name": "Receiver MAWP",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "maximum allowable working pressure off the receiver's own stamp"
+        },
+        {
+          "field_name": "Receiver Code Stamp/Registration",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the CRN or ASME stamp number recorded off the vessel itself"
+        },
+        {
+          "field_name": "Air Dryer Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "refrigerated or desiccant — governs the dewpoint acceptance value"
+        },
+        {
+          "field_name": "Dewpoint",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the treatment-train performance value the standard's record expects"
+        },
+        {
+          "field_name": "Filtration/Air Purity Class",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "oil-free rating or ISO 8573-1 class where stated"
+        }
+      ]
+    },
+    {
+      "type_key": "sump_pump",
+      "type_name": "Sump Pump",
+      "existing_field_count": 0,
+      "standards_anchor": "Hydronic/plumbing pump rating conventions as for `pump`, plus the sump-specific content a commissioning record needs: simplex or duplex arrangement, alternator, float/level control type and set points (start, stop, high-level alarm), basin size, discharge size and check/isolation arrangement, and whether the pump is on emergency power. Capacity is stated at a duty point (flow at head).",
+      "note": "kept to 13 - no Voltage/Phase field; Motor Power is the only electrical rating a sump pump's small single-phase motor usually needs on record, and adding voltage/phase would duplicate what the panel schedule already carries.",
+      "fields": [
+        {
+          "field_name": "Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "simplex or duplex is the first thing a spec calls for and the installed pit confirms"
+        },
+        {
+          "field_name": "Alternator",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "duplex sumps commonly alternate lead/lag pumps; whether this is specified and supplied matters at FPT"
+        },
+        {
+          "field_name": "Duty Flow",
+          "unit": "L/s",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "capacity stated at a duty point, matching the pump-family convention"
+        },
+        {
+          "field_name": "Duty Head",
+          "unit": "kPa",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the other half of the duty point; recorded the same way as `pump`"
+        },
+        {
+          "field_name": "Motor Power",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "nameplate motor rating, consistent with Motor kW on `pump`"
+        },
+        {
+          "field_name": "Basin Diameter",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "a physical length that genuinely swaps between systems, and sizes the pit the pump sits in"
+        },
+        {
+          "field_name": "Discharge Size",
+          "unit": "NPS",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "pipe size is already written the same way in both systems per convention"
+        },
+        {
+          "field_name": "Level Control Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "float switch vs. pressure transducer changes how the three setpoints below are actually verified"
+        },
+        {
+          "field_name": "Pump Start Level",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the anchor calls for a recorded start setpoint; this is set at the unit, not on a shop drawing"
+        },
+        {
+          "field_name": "Pump Stop Level",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "paired with start level; both are read off the float/transducer at commissioning"
+        },
+        {
+          "field_name": "High-Level Alarm Setpoint",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "a life-safety-adjacent setpoint the anchor names explicitly and FPT must confirm"
+        },
+        {
+          "field_name": "Check/Isolation Valve Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "whether a check valve and isolation valve are present on the discharge, per the anchor"
+        },
+        {
+          "field_name": "Emergency Power Connection",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "whether the pump is on emergency/backup power is a binary the anchor asks to be on record, and is confirmed at the panel, not the shop drawing"
+        }
+      ]
+    }
+  ],
+  "ratified": "2026-08-03",
+  "note": "Ratified as stored — no edits. The draft and the ratified artifact are byte-identical in their type tables; nothing was overruled."
+}
