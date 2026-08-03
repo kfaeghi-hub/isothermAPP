@@ -33,6 +33,9 @@
 //                           refusal only, no spend). The real extraction is
 //                           `--real-ai`, run deliberately, because a battery that
 //                           bills on every commit gets run less often.
+//   pw-drafter.mjs   same split, same reason: bare proves the contract, the
+//                           refusals, and that a draft writes nothing; `--real-ai`
+//                           spends ~3c on one real draft.
 //   pw-applicability-review-render.mjs   asserts, self-checks, and runs bare —
 //                           but reads a CLIENT project (Seneca), because ZZ-TEST
 //                           holds no classifier proposals and rendering there
@@ -75,6 +78,7 @@ const SUITES = [
   'pw-signoff-order',
   'pw-storage-privacy',
   'pw-team',
+  'pw-drafter',
   'pw-type-picker',
 ]
 
