@@ -1895,6 +1895,43 @@ source descriptor "Receptacle Panel". Correcting by the source's own descriptor
 applied the ruling consistently — correcting by the named tag list would have
 left 23 identical rows untyped beside 3 typed.
 
+### Aliases — exact match only, and a never-alias list with teeth (1.02)
+
+`equipment_type_aliases` makes shorthand **vocabulary data**: a row an admin
+edits beside the types, not a constant that needs a deploy. `resolveTypeDetailed`
+resolves in three tiers — canonical name/key, then **exact alias**, then the
+all-words law-8 matcher — and reports *which* tier hit, so the picker can show
+`matched "UH"` instead of asking to be trusted.
+
+**Aliases match exactly and never as words.** "UH" resolves to Unit Heater;
+"UH-3 PUMP ROOM" resolves to nothing. Treating two-letter shorthand as a word bag
+is how a tag prefix starts claiming units — the same failure the section above
+exists for, arriving one layer lower.
+
+**`blocked_type_aliases` + a BEFORE INSERT trigger.** Some shorthand must never
+become an alias and the reasons are specific, so the reason travels with the
+refusal. `rp` (the RADIANT/RECEPTACLE collision), `ct` (a current transformer on
+the electrical side of the same set), `ch`/`p`/`wf` (tag-prefix collisions), and
+`rtu`/`hrv`/`vrf` — **distinct equipment, not shorthand**, which arrive through
+the picker's propose flow when a real unit surfaces. A doc note would not have
+stopped a future admin typing `RP` into the alias field; the database does, and
+it answers differently in the two states.
+
+**The save is never blocked.** No match offers a dropdown row that saves the unit
+with `observed_type_name` and files a deduped queue entry. An unknown type is a
+vocabulary gap, not a data-entry error.
+
+**Two self-catches from this build, both instances of rules already written here:**
+
+| What looked right | What was true | How it surfaced |
+|---|---|---|
+| A partial unique index on the proposals queue — "dedup is now a database fact" | `org_id` is NULL on every row, and a plain unique index treats NULLs as **distinct**. Both duplicate inserts succeeded. The index existed, read correctly, and refused nothing. Fixed with `NULLS NOT DISTINCT`. | The pw leg asserts the second insert is **REFUSED**, not that the index is present. Asserting the artifact would have stayed green forever. |
+| `check(true, 'the add form renders the picker')` after a bounded wait | The wait was timing out and the check passed anyway — a check that answers the same in both states, written the same evening as the rule against them. Now asserts the wait's own return value. | The next line used the picker and threw. Had it not, this suite would have shipped green while testing nothing. |
+
+**The general form, again: assert the REFUSAL, not the guard's existence.** A
+constraint you can see in `pg_indexes` and a constraint that fires are different
+claims, and only one of them is worth a test.
+
 ---
 
 ## Import provenance — `import_batches`

@@ -145,6 +145,10 @@ export function Combobox({
             `${placement.right ? 'right-0' : 'left-0'} ` +
             `${placement.above ? 'bottom-full mb-1' : 'mt-1'}`}
           role="listbox">
+          {/* Only when there is something in it. An empty options container still
+              rendered its py-1, leaving a bare white strip above the propose row
+              — visible in a screenshot, invisible to every assertion. */}
+          {matches.length > 0 && (
           <div className="max-h-52 overflow-auto py-1">
             {matches.map((o, i) => (
               <button
@@ -168,6 +172,7 @@ export function Combobox({
               </button>
             ))}
           </div>
+          )}
           {extraRow && (
             <button
               type="button"

@@ -180,6 +180,9 @@ PROJECT (belongs to a CLIENT, or standalone)
   ├─ has many PHASE (optional; e.g., PH-1, PH-2)
   ├─ DISTRIBUTION LIST (references CONTACTs)
   ├─ EQUIPMENT / SYSTEM list (the Cx Index rows)
+  │    equipment_type → equipment_types.key, or NULL with observed_type_name set
+  │    (1.02: the never-blocked save — an unresolvable type is kept as text on the
+  │    unit and queued, never refused at the form)
   ├─ ISSUES LOG → has many FINDING        ← THE BACKBONE
   ├─ DELIVERABLES REGISTER (project_deliverables — BUILT 2026-07-21, the Deliverables
   │    tab; composed from classifications §5.2, plus ad-hoc rows. Each row: pool
@@ -338,6 +341,25 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
   role order, navy topic bands (band+first-row keep), empty topics render "No
   items — reviewed, nothing arising.", Action Summary by Responsible Party,
   seven-day disclaimer on every PDF page.
+
+**Equipment type vocabulary** (BUILT; aliases added 1.02)
+- **equipment_types**: key, name, sort_order, active. The ruled vocabulary; an
+  import may suggest, only ratification assigns.
+- **equipment_type_aliases** (1.02): type_key FK, alias, note. Shorthand as DATA,
+  admin-edited beside the types. `unique(lower(btrim(alias)))` — one alias, one
+  type. Matched **exactly, never as words**.
+- **blocked_type_aliases** (1.02): alias PK, reason NOT NULL. The never-alias
+  list, enforced by a BEFORE INSERT/UPDATE trigger on the aliases table so the
+  refusal carries its reason. Ruled entries: rp · ct · ch · p · wf · rtu · hrv ·
+  vrf. Read-only from the app — the list is ruled, not edited.
+- **proposed_equipment_types**: the ratification queue. `unique(org_id,
+  lower(btrim(observed_name))) NULLS NOT DISTINCT where status='proposed'` —
+  the NULLS clause is load-bearing, not decoration (org_id is NULL on every row
+  today, so without it the index refuses nothing).
+- **equipment.observed_type_name** (1.02): free text kept on the unit when the
+  vocabulary cannot resolve it. Set only where equipment_type is null. The
+  waiting-unit count on the ratification screen is DERIVED from this column,
+  never stored.
 
 **User** (team + future client)
 - id, name, email, role (Admin / Developer / Owner / User / Client — `user_role_enum`)
