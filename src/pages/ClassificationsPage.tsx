@@ -301,15 +301,12 @@ export function ClassificationsPage() {
     fetchAll()
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  if (loading) return <div className="p-8 text-sm text-gray-400">Loading classifications…</div>
-  if (error)   return <div className="p-8 text-sm text-red-600">{error}</div>
-
-  const selectedDim = dimensions.find(d => d.id === selectedDimId) ?? null
-  const dimOptions = selectedDim ? options.filter(o => o.dimension_id === selectedDim.id) : []
-  // ── Equipment-type vocabulary + ratification ───────────────────────────────
-  const proposedQueue = proposedTypes.filter(q => q.status === 'proposed')
+  // HOOKS BEFORE THE EARLY RETURN. These two lived BELOW `if (loading) return`,
+  // which is a hooks-order violation: the first render bailed out before them and
+  // the second reached them, so React saw more hooks than last time and the whole
+  // Classifications screen — the owner's ratification queue — crashed to a blank
+  // page the moment loading finished. Shipped 2026-07-27; found 2026-08-03 by
+  // taking a screenshot, not by any assertion.
   const [defCounts, setDefCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -322,6 +319,16 @@ export function ClassificationsPage() {
       setDefCounts(c)
     })()
   }, [equipTypes.length])
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (loading) return <div className="p-8 text-sm text-gray-400">Loading classifications…</div>
+  if (error)   return <div className="p-8 text-sm text-red-600">{error}</div>
+
+  const selectedDim = dimensions.find(d => d.id === selectedDimId) ?? null
+  const dimOptions = selectedDim ? options.filter(o => o.dimension_id === selectedDim.id) : []
+  // ── Equipment-type vocabulary + ratification ───────────────────────────────
+  const proposedQueue = proposedTypes.filter(q => q.status === 'proposed')
 
   /** Keys are the join key for equipment rows AND field-def sets, so they are
    *  normalised once here rather than trusted from free typing. */

@@ -75,6 +75,7 @@ const SUITES = [
   'pw-signoff-order',
   'pw-storage-privacy',
   'pw-team',
+  'pw-type-picker',
 ]
 
 const t0 = Date.now()
