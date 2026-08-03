@@ -95,6 +95,15 @@ const BATCHES = {
     { key: 'duct_heater', enrich: false, anchor:
       'CSA C22.2 No. 46 (electric air heaters) for electric duct heaters, and the AHRI coil conventions for hydronic: the record needs the capacity, the stage/step arrangement and control, the electrical rating, the minimum airflow and airflow-proving arrangement (the safety interlock that matters), the high-limit cutout arrangement (auto and manual reset), the duct size served, and the entering/leaving air temperatures at design.' },
   ],
+  // the remainder — with this batch's ratification the coverage campaign closes
+  4: [
+    { key: 'air_separator', enrich: false, anchor:
+      'ASME BPVC Section VIII marking where the vessel is code-stamped, plus hydronic air-control conventions: the record needs the separation method (centrifugal/tangential, coalescing-medium, or in-line), the design flow and connection size, the working pressure and temperature, the vent/air-elimination arrangement, the blowdown or strainer provision, and whether a dirt separator function is combined. NOTE: this anchor is WEAKER than the NETA and NFPA ones - manufacturer convention governs much of it. Flag any field that is firm convention rather than standard.' },
+    { key: 'elevator', enrich: false, anchor:
+      'ASME A17.1 / CSA B44, Safety Code for Elevators and Escalators - the harmonized North American code, adopted in Ontario by the TSSA (B44:19 or :22). The commissioning record needs the machine arrangement (traction/MRL/hydraulic), rated capacity, rated speed, travel/rise, number of stops and openings, controller and door-operator type, and - the part that matters to an integrated test - FIREFIGHTERS EMERGENCY OPERATION: Phase I recall (designated and alternate landing, initiating device) and Phase II in-car operation, plus emergency/standby power operation and the fire-alarm interface. Phase I/II TEST RESULTS are test-record data, not nameplate fields.' },
+    { key: 'louver', enrich: false, anchor:
+      'AMCA 500-L (laboratory methods of testing louvers) with AMCA 511 certified ratings, and AMCA 550 for wind-driven rain where it applies: a louver is rated on FREE AREA, on the beginning point of water penetration at a stated free-area velocity, and on pressure drop at a stated velocity. The record also needs the nominal size, blade/frame type and material, finish, screen arrangement, and - where the louver serves a smoke or fire application - its ULC listing and damper interface.' },
+  ],
 }
 
 const list = BATCHES[BATCH]

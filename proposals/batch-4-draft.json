@@ -1,0 +1,420 @@
+{
+  "batch": 4,
+  "drafted_at_tokens": {
+    "input": 21179,
+    "output": 6413
+  },
+  "types": [
+    {
+      "type_key": "air_separator",
+      "type_name": "Air Separator",
+      "existing_field_count": 0,
+      "standards_anchor": "ASME BPVC Section VIII marking where the vessel is code-stamped, plus hydronic air-control conventions: the record needs the separation method (centrifugal/tangential, coalescing-medium, or in-line), the design flow and connection size, the working pressure and temperature, the vent/air-elimination arrangement, the blowdown or strainer provision, and whether a dirt separator function is combined. NOTE: this anchor is WEAKER than the NETA and NFPA ones - manufacturer convention governs much of it. Flag any field that is firm convention rather than standard.",
+      "note": "Kept to 10 — an air separator is a vessel with a few connections and an air-elimination fitting, not a machine with performance curves. The anchor is manufacturer/hydronic convention more than a hard standard, so most fields here (separation method, blowdown provision, combined dirt-separator function, insulation) are firm/industry convention rather than code-driven; only Vessel Design Pressure ties directly to an ASME code stamp where one applies. Left out things like tank volume or shell diameter — they exist on the shop drawing but nobody references them again once the unit is accepted.",
+      "fields": [
+        {
+          "field_name": "Separation Method",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "centrifugal/tangential, coalescing-medium, or in-line — the basic design choice the schedule specifies and the shop drawing confirms"
+        },
+        {
+          "field_name": "Connection Size",
+          "unit": "NPS",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "inlet/outlet pipe size; NPS is written the same both systems per convention"
+        },
+        {
+          "field_name": "Design Flow Rate",
+          "unit": "L/s",
+          "unit_imperial": "USgpm",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the duty flow the separator is sized against; flow rate genuinely swaps unit systems"
+        },
+        {
+          "field_name": "Working Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "system operating pressure the vessel must hold; recorded against the nameplate/ASME rating at install"
+        },
+        {
+          "field_name": "Working Temperature",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "hydronic system operating temperature the separator is rated for"
+        },
+        {
+          "field_name": "Air Elimination Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "automatic float-type air vent vs. manual vent valve, and its location — a physically checkable arrangement"
+        },
+        {
+          "field_name": "Blowdown / Strainer Provision",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "whether a blowdown valve or strainer basket is provided for debris removal, per the hydronic air-control convention"
+        },
+        {
+          "field_name": "Combined Dirt Separator Function",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "many air separators are sold as combination air/dirt units; whether this one is affects TAB and maintenance expectations"
+        },
+        {
+          "field_name": "Vessel Design Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the ASME-stamped or manufacturer-rated pressure of the vessel itself, distinct from system working pressure"
+        },
+        {
+          "field_name": "Insulation",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "whether the vessel is field- or factory-insulated; a visual check at the unit"
+        }
+      ]
+    },
+    {
+      "type_key": "elevator",
+      "type_name": "Elevator",
+      "existing_field_count": 0,
+      "standards_anchor": "ASME A17.1 / CSA B44, Safety Code for Elevators and Escalators - the harmonized North American code, adopted in Ontario by the TSSA (B44:19 or :22). The commissioning record needs the machine arrangement (traction/MRL/hydraulic), rated capacity, rated speed, travel/rise, number of stops and openings, controller and door-operator type, and - the part that matters to an integrated test - FIREFIGHTERS EMERGENCY OPERATION: Phase I recall (designated and alternate landing, initiating device) and Phase II in-car operation, plus emergency/standby power operation and the fire-alarm interface. Phase I/II TEST RESULTS are test-record data, not nameplate fields.",
+      "note": "Kept to configuration facts a technician can read off the car, controller nameplate, or shop drawing — Phase I/II fields record the arrangement, not the test result, which belongs to FPT and the Issues Log, not the nameplate. No field here duplicates the ASME/CSA plate data already carried by __base.",
+      "fields": [
+        {
+          "field_name": "Machine Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "traction / MRL / hydraulic — the basic classification the code and every later check hangs off"
+        },
+        {
+          "field_name": "Rated Capacity",
+          "unit": "kg",
+          "unit_imperial": "lb",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "A17.1/B44 nameplate requirement; capacity is written in kg on Canadian equipment plates and lb on US-manufactured ones"
+        },
+        {
+          "field_name": "Rated Speed",
+          "unit": "m/s",
+          "unit_imperial": "fpm",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "governs the code-required speed test; genuinely swaps units between m/s and fpm depending on manufacturer origin"
+        },
+        {
+          "field_name": "Travel Height",
+          "unit": "m",
+          "unit_imperial": "ft",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "total rise; fixes hoistway length and confirms against the architectural section"
+        },
+        {
+          "field_name": "Number of Stops",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "a plain count, needed to cross-check landing and opening records"
+        },
+        {
+          "field_name": "Number of Openings",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "distinct from stops where front/rear openings exist; both counts matter to the door-operation test plan"
+        },
+        {
+          "field_name": "Controller Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "microprocessor/relay-logic and manufacturer platform; what the FPT script is written against"
+        },
+        {
+          "field_name": "Door Operator Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "governs the door reversal and dwell-time checks the code requires"
+        },
+        {
+          "field_name": "Phase I Designated Landing",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "A17.1 firefighters' recall — the primary recall floor, fixed by the fire-alarm interface design"
+        },
+        {
+          "field_name": "Phase I Alternate Landing",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the backup recall floor used when the designated landing itself is in alarm"
+        },
+        {
+          "field_name": "Phase I Recall Initiating Device",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "which detector/signal triggers recall — the fact the integrated fire-alarm test is run against"
+        },
+        {
+          "field_name": "Phase II Key Switch Location",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "in-car firefighters' operation switch, a physical installed fact rather than a spec value"
+        },
+        {
+          "field_name": "Emergency/Standby Power Operation",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "automatic transfer, single-car sequential, or none — determines the standby-power integrated test"
+        },
+        {
+          "field_name": "Fire Alarm Interface Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "hardwired vs. monitoring-module connection to the FACP, the point the ILS coordination test verifies"
+        }
+      ]
+    },
+    {
+      "type_key": "louver",
+      "type_name": "Louver",
+      "existing_field_count": 0,
+      "standards_anchor": "AMCA 500-L (laboratory methods of testing louvers) with AMCA 511 certified ratings, and AMCA 550 for wind-driven rain where it applies: a louver is rated on FREE AREA, on the beginning point of water penetration at a stated free-area velocity, and on pressure drop at a stated velocity. The record also needs the nominal size, blade/frame type and material, finish, screen arrangement, and - where the louver serves a smoke or fire application - its ULC listing and damper interface.",
+      "note": "Left out a separate 'actual free area' area figure (sq ft/m2) alongside the % rating - one free-area field is what a CxA reads off the schedule, and a second number invites confusion about which is being recorded. Also left out AMCA 550 wind-driven-rain class as a routine field: it only applies where the project specifies it, and a convention-not-standard field for an occasional case is better added on the project than carried on every louver.",
+      "fields": [
+        {
+          "field_name": "Nominal Size",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the width x height a louver is scheduled and ordered by; a length dimension, so it takes the imperial counterpart"
+        },
+        {
+          "field_name": "Free Area",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the core AMCA 500-L rating a louver is selected against"
+        },
+        {
+          "field_name": "Rated Air Velocity",
+          "unit": "m/s",
+          "unit_imperial": "fpm",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the stated velocity at which the pressure-drop and water-penetration ratings apply - a velocity genuinely swaps units"
+        },
+        {
+          "field_name": "Pressure Drop at Rated Velocity",
+          "unit": "Pa",
+          "unit_imperial": "in. w.g.",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the AMCA 500-L resistance figure tied to the rated velocity above"
+        },
+        {
+          "field_name": "Beginning Point of Water Penetration",
+          "unit": "m/s",
+          "unit_imperial": "fpm",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the AMCA 500-L wind-driven water rating - the velocity at which penetration begins"
+        },
+        {
+          "field_name": "Blade Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "drainable, storm-resistant, fixed or adjustable - fixes what was actually ordered vs installed"
+        },
+        {
+          "field_name": "Blade Material",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Frame Material",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Finish",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "mill, anodized, painted - visually confirmable on site"
+        },
+        {
+          "field_name": "Screen Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "bird screen, insect screen or none - a distinct field from the blade itself"
+        },
+        {
+          "field_name": "Damper Interface",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "whether the louver is paired with a control or fire/smoke damper behind it"
+        },
+        {
+          "field_name": "ULC Listing",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "only meaningful where the louver serves a fire or smoke application, but the anchor calls it out explicitly and it is verifiable from the nameplate/label"
+        }
+      ]
+    }
+  ]
+}

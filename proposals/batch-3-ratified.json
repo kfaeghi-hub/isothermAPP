@@ -1,0 +1,1706 @@
+{
+  "batch": 3,
+  "drafted_at_tokens": {
+    "input": 84505,
+    "output": 27470
+  },
+  "types": [
+    {
+      "type_key": "fire_pump",
+      "type_name": "Fire Pump",
+      "existing_field_count": 0,
+      "standards_anchor": "NFPA 20 (stationary pumps for fire protection) and NFPA 25 (inspection, testing and maintenance): the pump is rated at a DUTY POINT - rated flow at rated pressure - and its acceptance is a three-point curve (churn/shutoff, 100% rated, 150% rated). The nameplate carries the ratings and the driver; the CURVE READINGS are test-record data and must NOT be drafted as fields. Driver data matters: electric (motor hp, voltage, controller type, transfer arrangement) or diesel (engine make, rated bhp, fuel tank capacity, battery arrangement). Include the controller and the jockey-pump relationship.",
+      "note": "Curve readings (churn, 100%, 150% rated) are deliberately excluded - they are test-record data, not nameplate fields. Diesel-only fields (engine, fuel, battery) will read blank on an electric-driven unit; that blank is correct, not a gap. Kept to 13 rather than a full electric+diesel cross-product to avoid a form half of every unit ignores.",
+      "fields": [
+        {
+          "field_name": "Pump Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "horizontal split-case, vertical turbine, end-suction, in-line - the configuration the schedule specifies and the shop drawing confirms"
+        },
+        {
+          "field_name": "Rated Flow (Duty Point)",
+          "unit": "L/s",
+          "unit_imperial": "USgpm",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "NFPA 20 rates the pump at 100% of this flow; fire pump nameplates conventionally carry the US gpm figure even on Canadian jobs, so both units genuinely apply"
+        },
+        {
+          "field_name": "Rated Pressure (Duty Point)",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the paired half of the duty point; fire protection practice reads this in psi as often as kPa"
+        },
+        {
+          "field_name": "Rated Speed",
+          "unit": "RPM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "governs churn pressure and NPSH; RPM is written the same in both systems"
+        },
+        {
+          "field_name": "Driver Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "electric or diesel - determines which of the fields below actually get filled in"
+        },
+        {
+          "field_name": "Motor Horsepower",
+          "unit": "HP",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "electric-driver nameplate rating; hp is written the same both ways, like the CFM/MBH/NPS set"
+        },
+        {
+          "field_name": "Motor Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "confirms the controller and supply match the pump nameplate"
+        },
+        {
+          "field_name": "Motor Full Load Amps",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "checked against the controller overload setting during acceptance"
+        },
+        {
+          "field_name": "Controller Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "across-the-line, wye-delta, soft-start, or diesel engine controller - NFPA 20 treats this as a distinct listed component"
+        },
+        {
+          "field_name": "Engine Make and Rated BHP",
+          "unit": "BHP",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "diesel-driver equivalent of motor hp; applies only when Driver Type is diesel"
+        },
+        {
+          "field_name": "Fuel Tank Capacity",
+          "unit": "L",
+          "unit_imperial": "US gal",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "NFPA 20 sizes this for rated run-time; diesel installations only"
+        },
+        {
+          "field_name": "Battery Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "dual starting batteries and their arrangement are a listed diesel-driver requirement, first fixed at shop drawing and confirmed on site"
+        },
+        {
+          "field_name": "Jockey Pump Present / Setpoint",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the jockey-pump relationship the anchor calls for - whether one exists and the pressure at which it cycles, distinct from the fire pump's own controller setpoints"
+        }
+      ]
+    },
+    {
+      "type_key": "jockey_pump",
+      "type_name": "Jockey Pump",
+      "existing_field_count": 0,
+      "standards_anchor": "NFPA 20: the pressure-maintenance pump holds system pressure so the fire pump does not start on minor leakage. Small flow, high head, its own controller with start/stop pressure settings. The record needs the duty, the controller settings as-left, and the relationship to the fire pump it serves.",
+      "note": "Kept to the pump's own duty, its controller (a distinct component NFPA 20 cares about), and its relationship to the fire pump — left out full motor nameplate detail (FLA, RPM, enclosure) since those read as electrical-acceptance data rather than something this CxA record needs; a reviewer can add them if the project's testing scope calls for it.",
+      "fields": [
+        {
+          "field_name": "Rated Flow",
+          "unit": "L/s",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "small flow duty the schedule states and the pump curve confirms"
+        },
+        {
+          "field_name": "Rated Head",
+          "unit": "kPa",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "high head duty against which the pressure-maintenance role is sized"
+        },
+        {
+          "field_name": "Motor kW",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "matches the sibling pump table; small motor but still a nameplate value"
+        },
+        {
+          "field_name": "System Start Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "controller cut-in setting NFPA 20 requires be recorded as-left; psi is how the controller gauge and site staff actually read it"
+        },
+        {
+          "field_name": "System Stop Pressure",
+          "unit": "kPa",
+          "unit_imperial": "psi",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "controller cut-out setting, paired with start pressure to define the maintained band"
+        },
+        {
+          "field_name": "Controller Manufacturer",
+          "unit": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the pressure-maintenance controller is a distinct component from the pump itself and not covered by __base"
+        },
+        {
+          "field_name": "Controller Model Number",
+          "unit": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "identifies the controller as-installed, separate from the pump's own model number in __base"
+        },
+        {
+          "field_name": "Motor Voltage/Phase",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "electrical characteristic an agent reads off the motor nameplate; V is written the same both systems per convention"
+        }
+      ]
+    },
+    {
+      "type_key": "fire_alarm_panel",
+      "type_name": "Fire Alarm Panel",
+      "existing_field_count": 0,
+      "standards_anchor": "CAN/ULC-S524 (installation) and S537 (verification) for the fire alarm system, with CAN/ULC-S1001 for the interconnections it commands. The panel record needs: type (conventional/addressable), circuit and device capacity, the actual device count by circuit type, annunciator complement, secondary power (battery amp-hour and calculated standby/alarm duration), auxiliary relay/interface complement for the systems it commands, and the network arrangement where panels are linked.",
+      "note": "13 fields — active/networked equipment with a standard that names specific record content, so the table sits at the top of the target range rather than being trimmed toward it. Left out a raw 'total load' or 'current draw' field: the anchor's amp-hour and duration figures already carry that information, and a fourth power-related field looked like padding rather than something a CxA at the panel would fill in separately.",
+      "fields": [
+        {
+          "field_name": "Panel Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "conventional vs. addressable governs everything else in the record — S524 the installation, S537 the verification approach"
+        },
+        {
+          "field_name": "Circuit Capacity",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "rated maximum initiating/notification circuits the panel supports"
+        },
+        {
+          "field_name": "Device Capacity",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "rated maximum addressable points — a shop-drawing figure, confirmed against spec, not a field-measured value"
+        },
+        {
+          "field_name": "Installed Device Count",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "actual device count by circuit — the figure S537 verification checks against the as-designed count"
+        },
+        {
+          "field_name": "NAC Circuit Count",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "notification appliance circuits are counted separately from initiating circuits in the record"
+        },
+        {
+          "field_name": "Annunciator Complement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "count and location of remote annunciators, named in the anchor"
+        },
+        {
+          "field_name": "Battery Amp-Hour Rating",
+          "unit": "Ah",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "secondary power capacity — the figure the standby/alarm duration calculation is built from"
+        },
+        {
+          "field_name": "Calculated Standby Duration",
+          "unit": "h",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "a computed value against actual connected load, not a spec figure — belongs where the load is known"
+        },
+        {
+          "field_name": "Calculated Alarm Duration",
+          "unit": "min",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the companion figure to standby duration, minutes rather than hours per convention"
+        },
+        {
+          "field_name": "Auxiliary Relay/Interface Count",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the complement commanding fans, doors, elevators, etc. — the interconnections S1001 governs"
+        },
+        {
+          "field_name": "Network Node Address",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "panel ID/position where panels are networked — only meaningful once the arrangement is fixed on the drawing and confirmed on site"
+        },
+        {
+          "field_name": "Number of Zones",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "zone count is a distinct figure from circuit or device count on conventional systems, and still recorded on addressable ones for annunciation"
+        },
+        {
+          "field_name": "Primary Supply Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "V is written the same in both systems per convention; the panel's mains supply is a nameplate value"
+        }
+      ]
+    },
+    {
+      "type_key": "fire_smoke_damper",
+      "type_name": "Fire Smoke Damper",
+      "existing_field_count": 0,
+      "standards_anchor": "ULC-S112 / S112.1 (fire and combination fire-smoke dampers) with the OBC installation requirements: the record needs the damper classification (fire, smoke, combination), the fire-resistance rating in hours, the leakage class and elevated-temperature rating for smoke dampers, the actuator arrangement (spring-return, electric/pneumatic), the release device and its temperature rating, and the fail position. Cycling and position-proof are IST/annual TEST results, not nameplate fields.",
+      "note": "Cycling and position-proof are excluded per the anchor - those are IST/annual test results, not nameplate fields. Sleeve Gauge is convention rather than something ULC-S112 itself requires, kept because contractors submit it on shop drawings and a CxA checks it against the wall detail.",
+      "fields": [
+        {
+          "field_name": "Damper Classification",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "ULC-S112/S112.1 distinguishes fire, smoke and combination fire-smoke dampers; this is the first fact that governs every other field"
+        },
+        {
+          "field_name": "Fire-Resistance Rating",
+          "unit": "hr",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the hourly rating the listing and the barrier it protects both require"
+        },
+        {
+          "field_name": "Damper Size (Nominal)",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "duct opening size an installer confirms against the shop drawing and the field; genuinely swaps unit system on Ontario drawings"
+        },
+        {
+          "field_name": "Leakage Class",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "ULC-S112.1 leakage class is a designation (e.g. Class I/II), not a measured quantity at this record stage"
+        },
+        {
+          "field_name": "Elevated Temperature Rating",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "S112.1 rates smoke dampers for operation at elevated duct temperature; distinct from the fusible link rating below"
+        },
+        {
+          "field_name": "Actuator Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "spring-return vs. electric vs. pneumatic determines the fail-position mechanism and is a field-visible fact"
+        },
+        {
+          "field_name": "Actuator Manufacturer",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "actuators are frequently sourced separately from the damper body and get replaced independently over the building's life"
+        },
+        {
+          "field_name": "Fail Position",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the required failure mode (open/closed) that FPT will later confirm; a nameplate fact, not a test result"
+        },
+        {
+          "field_name": "Release Device Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "fusible link vs. electric thermal element, per the anchor's requirement to record the release device"
+        },
+        {
+          "field_name": "Release Device Temperature Rating",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the link's rated temperature is stamped on the device and is distinct from the damper's elevated-temperature rating above"
+        },
+        {
+          "field_name": "ULC Listing Number",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "a listing mark identifying the equipment's certification is recorded data, not document branding, per the standing distinction"
+        },
+        {
+          "field_name": "Sleeve Gauge",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "sheet metal gauge is a spec/shop-drawing convention item, kept per note rather than the ULC anchor itself"
+        }
+      ]
+    },
+    {
+      "type_key": "smoke_control_fan",
+      "type_name": "Smoke Control Fan",
+      "existing_field_count": 0,
+      "standards_anchor": "NFPA 92 (smoke control systems) with CAN/ULC-S1001 for the integrated test. The performance criteria are NOT ordinary fan criteria: pressure differential across the barrier, door-opening force, and exhaust rate against a design fire. The record needs the SMOKE CONTROL DUTY as a discriminator field (stair pressurization / smoke exhaust / makeup air / zone exhaust), the design airflow and static, the emergency power source and transfer arrangement, the control interface that converts it, and the fail/command position. AMCA/ULC high-temperature rating where the fan is in a smoke exhaust path.",
+      "note": "Left off generic fan nameplate detail (belt/direct drive, RPM, sheave size) — for a smoke control fan those are shop-drawing mechanics, not what NFPA 92/S1001 asks the acceptance record to hold. Pressure and temperature fields carry unit_imperial because they genuinely swap on Ontario drawings; CFM/kW/V/A do not.",
+      "fields": [
+        {
+          "field_name": "Smoke Control Duty",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the NFPA 92 discriminator — stair pressurization, smoke exhaust, makeup air or zone exhaust — that everything else on this record is read against"
+        },
+        {
+          "field_name": "Fan Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "axial vs. centrifugal vs. plug affects mounting and the high-temperature listing that applies to it"
+        },
+        {
+          "field_name": "Design Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the exhaust or makeup rate against the design fire, the core sizing quantity"
+        },
+        {
+          "field_name": "Design Static Pressure",
+          "unit": "Pa",
+          "unit_imperial": "in. wg",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "fan-side duty point; genuinely written in either unit depending on the drawing set"
+        },
+        {
+          "field_name": "Pressure Differential Across Barrier",
+          "unit": "Pa",
+          "unit_imperial": "in. wg",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the NFPA 92 acceptance criterion itself — stated as a design value, confirmed at the S1001 integrated test"
+        },
+        {
+          "field_name": "Fan High-Temperature Rating",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "AMCA/ULC rated temperature for fans in a smoke exhaust path, distinct from ordinary fan duty"
+        },
+        {
+          "field_name": "Rated Duration at Temperature",
+          "unit": "min",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the high-temperature rating is meaningless without its listed duration (e.g. 250°C/2 hr)"
+        },
+        {
+          "field_name": "Motor Power",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "sizing check against the design airflow/static point"
+        },
+        {
+          "field_name": "Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "confirms the fan is wired to the rated emergency circuit"
+        },
+        {
+          "field_name": "Full Load Amps",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "field-measured against nameplate at the functional test"
+        },
+        {
+          "field_name": "Emergency Power Source",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "life-safety fans run on emergency/standby power; the record needs to say which source and confirm it as built"
+        },
+        {
+          "field_name": "Control Interface",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "how command reaches the fan — dedicated smoke control panel, hardwired relay, or BAS point — governs how the FPT is staged"
+        },
+        {
+          "field_name": "Fail/Command Position",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the required run/stop state on loss of signal or on smoke control command, the single line an inspector checks first"
+        }
+      ]
+    },
+    {
+      "type_key": "smoke_control_panel",
+      "type_name": "Firefighters' Smoke Control Station",
+      "existing_field_count": 0,
+      "standards_anchor": "NFPA 92 and CAN/ULC-S1001: the firefighters smoke control station is where smoke control is commanded and observed. The record needs the graphics/annunciation complement, the number of controlled zones and controlled devices, the control mode complement (auto/manual override per device), the status feedback arrangement, its location and access, and the interface to the fire alarm panel.",
+      "note": "12 fields, weighted toward the panel's role as command-and-observe point rather than a mechanical duty — no capacity or flow figures belong here. Left out a separate 'stair pressurization interface' field since it would just be one more instance of the zone/device counts already captured; add it back if the project's register treats it as materially distinct.",
+      "fields": [
+        {
+          "field_name": "Installation Location",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "NFPA 92 requires the FSCS be in an approved, accessible location for arriving fire crews; the record should confirm where it actually landed"
+        },
+        {
+          "field_name": "Number of Smoke Control Zones",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the zone count the station must command, confirmed against the as-installed complement"
+        },
+        {
+          "field_name": "Number of Controlled Devices",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "dampers, fans and doors under direct command — the complement the FPT will exercise one by one"
+        },
+        {
+          "field_name": "Annunciator/Graphic Display Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "mimic, LCD or text annunciation — the operator interface a firefighter reads under a working smoke condition"
+        },
+        {
+          "field_name": "Control Mode Complement (Auto/Manual per Device)",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "NFPA 92 requires manual override capability at the station; recording the complement is how the checklist confirms every device has one, not just some"
+        },
+        {
+          "field_name": "Status Feedback Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "how commanded-vs-actual position is shown back to the operator — LED, lamp or text — the thing FPT verifies changes state truthfully"
+        },
+        {
+          "field_name": "Fire Alarm Panel Interface Protocol",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "hardwired points or a network protocol to the FACP — the link the whole station depends on to receive its command"
+        },
+        {
+          "field_name": "Panel Listing/Certification",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the ULC-S527/UL 864 listing on the panel nameplate is a recorded value describing the equipment, not branding on our document"
+        },
+        {
+          "field_name": "Power Supply Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "confirms the panel's electrical service matches what was specified"
+        },
+        {
+          "field_name": "Emergency/Standby Power Source",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the station must remain live through a power failure; recording what it's backed by (generator, UPS) is what the acceptance test traces"
+        },
+        {
+          "field_name": "Key/Access Control Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the fire-service key or access arrangement that limits who can operate the station — installed detail, not a specified performance figure"
+        },
+        {
+          "field_name": "Elevator Recall Interface",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "where the FSCS coordinates with elevator recall, that interface is part of the integrated life-safety scope this station sits inside"
+        }
+      ]
+    },
+    {
+      "type_key": "rtu",
+      "type_name": "Rooftop Unit",
+      "existing_field_count": 0,
+      "standards_anchor": "AHRI 340/360 (commercial and industrial unitary air-conditioning and heat pump equipment) rating conventions plus ANSI Z21.47/CSA 2.3 where gas-fired: the RTU is a PACKAGED unit, so the record carries both the air side (supply and outside airflow, ESP, filter arrangement, economizer) and the packaged sections an AHU does not have (cooling capacity and refrigerant, compressor arrangement and stages, gas or electric heating input and stages, condenser fan complement).",
+      "note": "kept to the packaged-unit specifics the standards anchor calls out (cooling/heating capacity, compressor and heating stages, condenser fan count, economizer, filter, single-point power) plus the air-side basics; left out things like unit weight or dimensions since a commissioning agent standing at the roof rarely records those and they're not something anyone later checks against.",
+      "fields": [
+        {
+          "field_name": "Supply Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the fundamental air-side duty the schedule states and TAB confirms"
+        },
+        {
+          "field_name": "Outside Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "packaged unit mixes outside air at the unit itself; this is scheduled and balanced separately from supply"
+        },
+        {
+          "field_name": "External Static Pressure",
+          "unit": "in. w.g.",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "fan selection point the contractor submits against; conventionally written in inches w.g. in either system"
+        },
+        {
+          "field_name": "Cooling Capacity",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "AHRI-rated packaged DX capacity, the core performance figure across all three records"
+        },
+        {
+          "field_name": "Refrigerant Type",
+          "unit": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "identifies the charge for servicing and code compliance; only known once equipment is selected/installed"
+        },
+        {
+          "field_name": "Compressor Stages",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "packaged compressor arrangement (single/dual/staged) the AHU vocabulary has no equivalent for"
+        },
+        {
+          "field_name": "Heating Input",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "gas-fired packaged heat section duty, per ANSI Z21.47/CSA 2.3 nameplate convention"
+        },
+        {
+          "field_name": "Heating Stages",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "staged gas or electric heat is a packaged-section detail an agent records off the burner/element nameplate"
+        },
+        {
+          "field_name": "Condenser Fan Quantity",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "packaged condenser fan complement, standard nameplate detail distinguishing the RTU from a split system"
+        },
+        {
+          "field_name": "Economizer Type",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "packaged units commonly specify a factory economizer (dry-bulb, enthalpy, none); a site-recordable configuration item"
+        },
+        {
+          "field_name": "Filter Arrangement",
+          "unit": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "MERV rating and filter bank configuration, checked at installation against the schedule"
+        },
+        {
+          "field_name": "Electrical Supply",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "packaged unit's single-point power characteristic, distinct from any motor-level base data"
+        }
+      ]
+    },
+    {
+      "type_key": "mau",
+      "type_name": "Make-Up Air Unit",
+      "existing_field_count": 0,
+      "standards_anchor": "AHRI air-handling rating conventions with ANSI Z83.4/CSA 3.7 where direct gas-fired: a make-up air unit conditions 100% OUTSIDE air, so the record needs the design outdoor and discharge conditions rather than mixed-air ones, the heating (and cooling where present) capacity at those conditions, the airflow and ESP, the discharge control mode (constant discharge temperature, space override), and the interlock to the exhaust it makes up.",
+      "note": "kept to 12 — an MAU is a heating/cooling coil and a fan against 100% outside air, so fields center on outdoor design condition, discharge control, and the exhaust interlock rather than mixed-air or zone terms. Left electrical characteristics (V/Hz) out since they read the same in both systems and add little beyond what a data plate already states in base.",
+      "fields": [
+        {
+          "field_name": "Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the rated outside-air volume the unit is sized to deliver, confirmed at startup"
+        },
+        {
+          "field_name": "External Static Pressure",
+          "unit": "Pa",
+          "unit_imperial": "in. wc",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "fan duty point the schedule sets and TAB confirms against ductwork resistance"
+        },
+        {
+          "field_name": "Design Outdoor Air Temperature",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "an MAU conditions 100% outside air, so its heating duty is fixed against the winter design condition, not a mixed-air one"
+        },
+        {
+          "field_name": "Discharge Air Temperature Setpoint",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the controlled output the unit is commissioned to hold, verified at FPT"
+        },
+        {
+          "field_name": "Discharge Control Mode",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "whether the unit runs constant discharge temperature or resets on space override changes how FPT is written"
+        },
+        {
+          "field_name": "Heating Capacity",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "duty at design outdoor air conditions, the core rating the anchor calls for"
+        },
+        {
+          "field_name": "Gas Input Rating",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "for direct-fired units, the ANSI Z83.4/CSA 3.7 nameplate input the field team records against the burner"
+        },
+        {
+          "field_name": "Heating Medium",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "gas-fired, hot water, steam or electric — sets which of the other fields even apply"
+        },
+        {
+          "field_name": "Cooling Capacity",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "present on MAUs with a cooling coil; the anchor calls for it where the unit has one"
+        },
+        {
+          "field_name": "Fuel/Gas Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "natural gas vs propane changes the burner setup a technician verifies at startup"
+        },
+        {
+          "field_name": "Motor kW",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "supply fan motor duty, matched against nameplate at installation"
+        },
+        {
+          "field_name": "Associated Exhaust System",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the anchor calls for the interlock to the exhaust this unit makes up — recording which exhaust system it ties to lets FPT verify the interlock"
+        }
+      ]
+    },
+    {
+      "type_key": "hrv",
+      "type_name": "Heat Recovery Ventilator",
+      "existing_field_count": 0,
+      "standards_anchor": "AHRI 1060 (performance rating of air-to-air exchangers for energy recovery ventilation): an HRV recovers SENSIBLE heat only, where an ERV recovers total (sensible + latent). The record needs the recovery effectiveness at stated winter and summer conditions, supply and exhaust airflows, the core type, the frost-control arrangement (a real Ontario concern), the bypass arrangement, and the fan/filter complement on both airstreams.",
+      "note": "Held to 13 rather than the full 15 - left off standalone electrical fields (voltage/amps/Hz) since those are commonly folded into the fan motor lines on HRV schedules and would likely duplicate; a reviewer with the actual shop drawing in hand can add them if the unit warrants separate recording.",
+      "fields": [
+        {
+          "field_name": "Supply Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "primary duty of the unit, on the schedule and confirmable at TAB"
+        },
+        {
+          "field_name": "Exhaust Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "second airstream balance, distinct from supply"
+        },
+        {
+          "field_name": "Core Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "plate, heat pipe or run-around - governs sensible-only recovery and is a stated selection, not incidental"
+        },
+        {
+          "field_name": "Sensible Recovery Effectiveness - Winter",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "AHRI 1060 rating point at winter design condition; an HRV's defining performance number"
+        },
+        {
+          "field_name": "Sensible Recovery Effectiveness - Summer",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "second AHRI 1060 rating point; winter and summer effectiveness differ and both are quoted on schedules"
+        },
+        {
+          "field_name": "Frost Control Method",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "a real Ontario concern per anchor - preheat, exhaust-air recirculation or wheel/damper modulation, and the field team needs to know which is present"
+        },
+        {
+          "field_name": "Frost Control Setpoint",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "installed"
+          ],
+          "reasoning": "the temperature at which frost control activates; a commissioning check point, and temperature is a genuine metric/imperial swap"
+        },
+        {
+          "field_name": "Bypass Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "free-cooling bypass path called out by the anchor; present or absent changes how the unit is tested"
+        },
+        {
+          "field_name": "Supply Fan Motor",
+          "unit": "HP",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "fan complement on the supply side per anchor; HP is written the same both systems in Ontario practice"
+        },
+        {
+          "field_name": "Exhaust Fan Motor",
+          "unit": "HP",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "fan complement on the exhaust side, kept separate since the two airstreams can differ"
+        },
+        {
+          "field_name": "Supply Filter",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "filter media/MERV on the supply airstream, called out by anchor's filter-complement language"
+        },
+        {
+          "field_name": "Exhaust Filter",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "filter media/MERV on the exhaust airstream; kept distinct because exhaust-side filtration is often lighter duty"
+        },
+        {
+          "field_name": "External Static Pressure",
+          "unit": "in. w.g.",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "design duty point the fans are selected against; conventional to write in inches w.g. in Ontario mechanical practice regardless of system"
+        }
+      ]
+    },
+    {
+      "type_key": "vrf",
+      "type_name": "VRF System (Outdoor Unit)",
+      "existing_field_count": 0,
+      "standards_anchor": "AHRI 1230 (performance rating of variable refrigerant flow multi-split air-conditioning and heat pump equipment): this row is the OUTDOOR UNIT - the indoor units are `fcu` and must not be drafted here. The record needs nominal cooling and heating capacity, refrigerant type and total charge, the number of connected indoor units and connected capacity ratio, heat-pump vs heat-recovery configuration, branch controller arrangement where present, piping limits (total and maximum length, maximum elevation difference), and the electrical rating.",
+      "note": "14 fields; System Configuration and Branch Controller Arrangement are AHRI-anchor items that only apply on heat-recovery installs, kept because most VRF projects mix both and the field team needs to say which is which at this specific unit.",
+      "fields": [
+        {
+          "field_name": "Nominal Cooling Capacity",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the rated duty AHRI 1230 performance is referenced against"
+        },
+        {
+          "field_name": "Nominal Heating Capacity",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "heat-pump/heat-recovery duty, paired with cooling capacity"
+        },
+        {
+          "field_name": "System Configuration",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "heat-pump (2-pipe) vs heat-recovery (3-pipe) fixes how the rest of the system is read"
+        },
+        {
+          "field_name": "Refrigerant Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "governs charge calculations and safety group"
+        },
+        {
+          "field_name": "Refrigerant Charge (Factory)",
+          "unit": "kg",
+          "unit_imperial": "lb",
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "factory-shipped charge before field addition; a swap-quantity"
+        },
+        {
+          "field_name": "Number of Connected Indoor Units",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "fixed once the branch layout is built, verified against the drawing"
+        },
+        {
+          "field_name": "Connected Capacity Ratio",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "indoor-to-outdoor capacity index ratio governing diversity, an AHRI 1230 record item"
+        },
+        {
+          "field_name": "Branch Controller Arrangement",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "present only on heat-recovery systems; records how many BC boxes and their duty split"
+        },
+        {
+          "field_name": "Maximum Total Piping Length",
+          "unit": "m",
+          "unit_imperial": "ft",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "AHRI 1230 piping limit the installed run is checked against"
+        },
+        {
+          "field_name": "Maximum Piping Length (Outdoor to Farthest Indoor)",
+          "unit": "m",
+          "unit_imperial": "ft",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the governing single-run limit distinct from total length"
+        },
+        {
+          "field_name": "Maximum Elevation Difference",
+          "unit": "m",
+          "unit_imperial": "ft",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "outdoor-to-indoor and indoor-to-indoor elevation limits affect oil return"
+        },
+        {
+          "field_name": "Voltage / Phase / Frequency",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "V, Hz and phase read the same in both systems; recorded as installed"
+        },
+        {
+          "field_name": "Minimum Circuit Ampacity",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the electrical rating used to size feeder and breaker"
+        },
+        {
+          "field_name": "Sound Pressure Level",
+          "unit": "dBA",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "commonly a compliance point for VRF condensers near occupied space"
+        }
+      ]
+    },
+    {
+      "type_key": "dehumidifier",
+      "type_name": "Dehumidifier",
+      "existing_field_count": 0,
+      "standards_anchor": "AHRI 910 (indoor pool dehumidifiers) where the unit serves a natatorium, otherwise general dehumidifier rating conventions: moisture removal capacity at a stated condition, airflow, the reactivation or refrigeration arrangement (desiccant vs mechanical), pool-water or air heat-recovery capacity where present, and the space condition setpoints the unit is controlled to. Corrosion protection matters in a pool hall and belongs on the record.",
+      "note": "13 fields — desiccant-only rows (Reactivation Heater Rating) and pool-only rows (Pool Water Heat Recovery Capacity) will read blank on units where they don't apply; that's the honest state, not a gap. Kept electrical to a single Compressor Motor Rating rather than full V/A/Hz since __base and site nameplate cover the rest.",
+      "fields": [
+        {
+          "field_name": "Moisture Removal Capacity",
+          "unit": "L/day",
+          "unit_imperial": "pints/day",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the duty AHRI 910 (or the general rating condition) states and the nameplate confirms — the one number the space's whole dehumidification case rests on"
+        },
+        {
+          "field_name": "Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "process air volume at the rated condition"
+        },
+        {
+          "field_name": "Dehumidification Method",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "desiccant vs mechanical/refrigeration — governs which of the fields below actually apply to the unit"
+        },
+        {
+          "field_name": "Refrigerant Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "mechanical-arrangement units carry a refrigerant charge the field team needs on record"
+        },
+        {
+          "field_name": "Compressor Motor Rating",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "mirrors Motor kW on the pump table — the driven load a mechanical dehumidifier presents"
+        },
+        {
+          "field_name": "Reactivation Heater Rating",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "desiccant units carry a reactivation heat input; blank where the unit is mechanical"
+        },
+        {
+          "field_name": "Pool Water Heat Recovery Capacity",
+          "unit": "kW",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "natatorium units recover condenser heat to pool water per AHRI 910; blank where no pool load exists"
+        },
+        {
+          "field_name": "Entering Air Temperature",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the rating condition the moisture removal figure is stated against"
+        },
+        {
+          "field_name": "Entering Air Relative Humidity",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "paired with entering temperature to define the rating condition"
+        },
+        {
+          "field_name": "Leaving Air Temperature",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "confirms the unit's air-side effect against the schedule"
+        },
+        {
+          "field_name": "Space Temperature Setpoint",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec"
+          ],
+          "reasoning": "the control point the unit is commissioned against, not a rating-condition value"
+        },
+        {
+          "field_name": "Space Relative Humidity Setpoint",
+          "unit": "%",
+          "unit_imperial": null,
+          "sections": [
+            "spec"
+          ],
+          "reasoning": "the control point a pool-hall or plant-room dehumidifier is actually tuned to hold"
+        },
+        {
+          "field_name": "Corrosion Protection / Coating",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "natatorium and process environments require a stated coil/cabinet protection; the anchor calls this out explicitly as record-worthy"
+        }
+      ]
+    },
+    {
+      "type_key": "duct_heater",
+      "type_name": "Duct Heater",
+      "existing_field_count": 0,
+      "standards_anchor": "CSA C22.2 No. 46 (electric air heaters) for electric duct heaters, and the AHRI coil conventions for hydronic: the record needs the capacity, the stage/step arrangement and control, the electrical rating, the minimum airflow and airflow-proving arrangement (the safety interlock that matters), the high-limit cutout arrangement (auto and manual reset), the duct size served, and the entering/leaving air temperatures at design.",
+      "note": "Drafted for the electric duct heater the anchor (CSA C22.2 No. 46) primarily addresses. A hydronic duct heater would swap Voltage/Full Load Amps/Phase and the high-limit pair for coil-side fields (water flow, EWT/LWT, valve type) - if the project register is hydronic, treat those three as the smallest honest addition rather than assuming this table covers it.",
+      "fields": [
+        {
+          "field_name": "Heating Medium",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "electric vs. hydronic changes which of the fields below even apply"
+        },
+        {
+          "field_name": "Heating Capacity",
+          "unit": "MBH",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the duty the schedule states and the nameplate confirms, per unit_heater sibling"
+        },
+        {
+          "field_name": "Number of Stages/Steps",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the anchor calls out stage/step arrangement and control as record content"
+        },
+        {
+          "field_name": "Voltage",
+          "unit": "V",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "electrical rating the anchor requires; CFM/MBH/NPS/V/A/Hz convention, no imperial swap"
+        },
+        {
+          "field_name": "Full Load Amps",
+          "unit": "A",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ]
+        },
+        {
+          "field_name": "Phase",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ]
+        },
+        {
+          "field_name": "Minimum Airflow",
+          "unit": "CFM",
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ],
+          "reasoning": "the anchor names minimum airflow explicitly, tied to the proving interlock"
+        },
+        {
+          "field_name": "Airflow Proving Switch",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "the safety interlock the anchor flags as the one that matters"
+        },
+        {
+          "field_name": "High-Limit Cutout, Auto Reset",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ]
+        },
+        {
+          "field_name": "High-Limit Cutout, Manual Reset",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ]
+        },
+        {
+          "field_name": "Duct Size Served",
+          "unit": "mm",
+          "unit_imperial": "in",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "duct dimension genuinely swaps unit systems, unlike NPS"
+        },
+        {
+          "field_name": "Entering Air Temperature, Design",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ]
+        },
+        {
+          "field_name": "Leaving Air Temperature, Design",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing"
+          ]
+        },
+        {
+          "field_name": "Water Flow Rate",
+          "unit": "L/s",
+          "unit_imperial": "GPM",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "hydronic only — blank on an electric heater, which is the correct state"
+        },
+        {
+          "field_name": "Entering / Leaving Water Temperature",
+          "unit": "°C",
+          "unit_imperial": "°F",
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "hydronic only"
+        },
+        {
+          "field_name": "Control Valve Type",
+          "unit": null,
+          "unit_imperial": null,
+          "sections": [
+            "spec",
+            "shop_drawing",
+            "installed"
+          ],
+          "reasoning": "hydronic only"
+        }
+      ]
+    }
+  ],
+  "ratified": "2026-08-03",
+  "note": "Ratified with two amendments; the other ten tables are as drafted.",
+  "amendments": [
+    "jockey_pump: cut \"Fire Pump Served\" (9 -> 8). The relationship is encoded ONCE, from the parent end — NFPA 20 treats the jockey as the fire pump's appurtenance and the record lives at the controller. fire_pump keeps \"Jockey Pump Present / Setpoint\".",
+    "duct_heater: the discriminator was ALREADY drafted (\"Heating Medium\", field 1) — the amendment adds the three hydronic coil-side fields the drafter named in its own note (water flow, EWT/LWT, valve type) so both sides of the discriminator are present now rather than at the first hydronic schedule (13 -> 16). unit_heater symmetry: the electric fields sit blank on a hydronic unit and the hydronic fields blank on an electric one; Heating Medium says which."
+  ]
+}
