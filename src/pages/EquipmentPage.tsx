@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { Combobox } from '../components/ui/Combobox'
+import { TypePicker } from '../components/equipment/TypePicker'
+import { loadTypeVocabulary, proposeType, type TypeVocab } from '../lib/typeVocabulary'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import { IntakePanel } from '../components/intake/IntakePanel'
@@ -59,6 +61,7 @@ interface AddForm {
   descriptor: string
   category: string
   equipment_type: string
+  observed_type_name: string
   location: string
   area_served: string
   discipline: string  // for glossary lookup display only
@@ -66,7 +69,7 @@ interface AddForm {
 
 const EMPTY_FORM: AddForm = {
   kind: 'equipment', tag: '', descriptor: '', category: '',
-  equipment_type: '', location: '', area_served: '', discipline: '',
+  equipment_type: '', observed_type_name: '', location: '', area_served: '', discipline: '',
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -84,7 +87,11 @@ export function EquipmentPage({ projectId }: Props) {
   // right here in the JSX, so a type could not be added without a code change —
   // which meant the taxonomy could not learn from a project. Now it is rows in
   // equipment_types, minted by ratification in the admin screen.
-  const [typeKeys, setTypeKeys]       = useState<string[]>([])
+  const [typeVocab, setTypeVocab]     = useState<TypeVocab[]>([])
+  // Free text in each picker, kept beside the committed key so a half-typed
+  // word is never mistaken for a type.
+  const [addTypeText, setAddTypeText] = useState('')
+  const [editTypeText, setEditTypeText] = useState('')
   /** Which unit string new field defs are seeded with. Read once per project. */
   const [unitSystem, setUnitSystem]   = useState<'metric' | 'imperial'>('metric')
   const [attachments, setAttachments] = useState<EquipmentAttachment[]>([])
@@ -216,6 +223,9 @@ export function EquipmentPage({ projectId }: Props) {
         project_id:     projectId,
         kind:           addForm.kind,
         equipment_type: addForm.equipment_type.trim() || null,
+        // NEVER BLOCKED: an unknown type saves with the text the user typed and
+        // files a queue entry. The unit exists either way.
+        observed_type_name: addForm.equipment_type.trim() ? null : (addForm.observed_type_name.trim() || null),
         category:       addForm.category.trim() || null,
         tag:            addForm.tag.trim() || null,
         descriptor:     addForm.descriptor.trim() || null,
@@ -223,7 +233,7 @@ export function EquipmentPage({ projectId }: Props) {
         area_served:    addForm.area_served.trim() || null,
         sort_order:     maxSort + 1,
       })
-      .select('id, equipment_type')
+      .select('id, equipment_type, observed_type_name')
       .single()
     // On failure keep the modal open so the user can retry; re-enable the button.
     if (reportError(error, 'add the equipment')) { setSavingAdd(false); return }
@@ -231,6 +241,10 @@ export function EquipmentPage({ projectId }: Props) {
     // Initialize field defs for this type if not yet done
     if (newEquip?.equipment_type) {
       await ensureFieldDefs(newEquip.equipment_type)
+    }
+    if (newEquip?.observed_type_name) {
+      const r = await proposeType(newEquip.observed_type_name, projectId)
+      if (r.error) reportError({ message: r.error } as any, 'queue the type proposal')
     }
 
     setSavingAdd(false)
@@ -243,9 +257,8 @@ export function EquipmentPage({ projectId }: Props) {
   }
 
   const fetchTypeVocabulary = useCallback(async () => {
-    const { data } = await supabase.from('equipment_types')
-      .select('key').eq('active', true).order('sort_order')
-    setTypeKeys((data ?? []).map((t: any) => t.key))
+    const vocab = await loadTypeVocabulary()
+    setTypeVocab(vocab)
   }, [])
 
   useEffect(() => { void fetchTypeVocabulary() }, [fetchTypeVocabulary])
@@ -393,6 +406,7 @@ export function EquipmentPage({ projectId }: Props) {
     setEditValues({
       kind:           eq.kind,
       equipment_type: eq.equipment_type,
+      observed_type_name: eq.observed_type_name,
       category:       eq.category,
       tag:            eq.tag,
       descriptor:     eq.descriptor,
@@ -400,6 +414,10 @@ export function EquipmentPage({ projectId }: Props) {
       area_served:    eq.area_served,
     })
     setEditNameplate(eq.nameplate_extra ?? { spec: {}, shop_drawing: {}, installed: {} })
+    setEditTypeText(
+      eq.equipment_type
+        ? (typeVocab.find(t => t.key === eq.equipment_type)?.name ?? eq.equipment_type)
+        : (eq.observed_type_name ?? ''))
     setEditing(true)
   }
 
@@ -435,6 +453,12 @@ export function EquipmentPage({ projectId }: Props) {
     // If equipment_type changed, ensure field defs exist for the new type
     if (editValues.equipment_type && editValues.equipment_type !== eq.equipment_type) {
       await ensureFieldDefs(editValues.equipment_type)
+    }
+    // A newly proposed name goes to the queue. The unit is already saved above —
+    // the proposal never gates the write.
+    if (editValues.observed_type_name && editValues.observed_type_name !== eq.observed_type_name) {
+      const r = await proposeType(editValues.observed_type_name, projectId)
+      if (r.error) reportError({ message: r.error } as any, 'queue the type proposal')
     }
 
     setSavingEdit(false)
@@ -856,7 +880,20 @@ export function EquipmentPage({ projectId }: Props) {
                     <MetaField label="Location" value={editValues.location ?? ''} options={locations}
                       onChange={v => setEditValues(x => ({ ...x, location: v }))} />
                     <MetaField label="Area Served" value={editValues.area_served ?? ''} onChange={v => setEditValues(x => ({ ...x, area_served: v }))} />
-                    <MetaField label="Type" value={editValues.equipment_type ?? ''} onChange={v => setEditValues(x => ({ ...x, equipment_type: v }))} />
+                    <div>
+                      <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Type</label>
+                      <TypePicker
+                        value={editValues.equipment_type ?? ''}
+                        observedName={editValues.observed_type_name ?? null}
+                        text={editTypeText}
+                        onText={v => { setEditTypeText(v); setEditValues(x => ({ ...x, equipment_type: '', observed_type_name: null })) }}
+                        vocab={typeVocab}
+                        onPick={r => {
+                          setEditValues(x => ({ ...x, equipment_type: r.key ?? '', observed_type_name: r.observedName }))
+                          setEditTypeText(r.key ? (typeVocab.find(t => t.key === r.key)?.name ?? r.key) : (r.observedName ?? ''))
+                        }}
+                        ariaLabel="Type" />
+                    </div>
                   </>
                 ) : (
                   <>
@@ -1241,14 +1278,24 @@ export function EquipmentPage({ projectId }: Props) {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Field Template Type</label>
-                  <Combobox
+                  <label className="block text-[10px] text-gray-500 mb-1 uppercase tracking-wide font-semibold">Equipment Type</label>
+                  <TypePicker
                     value={addForm.equipment_type}
-                    options={typeKeys}
-                    onChange={v => setAddForm(f => ({ ...f, equipment_type: v }))}
-                    placeholder="ahu, pump, boiler…"
-                    ariaLabel="Field Template Type"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-teal-400" />
+                    observedName={addForm.observed_type_name || null}
+                    text={addTypeText}
+                    onText={v => { setAddTypeText(v); setAddForm(f => ({ ...f, equipment_type: '', observed_type_name: '' })) }}
+                    vocab={typeVocab}
+                    onPick={r => {
+                      setAddForm(f => ({ ...f, equipment_type: r.key ?? '', observed_type_name: r.observedName ?? '' }))
+                      setAddTypeText(r.key ? (typeVocab.find(t => t.key === r.key)?.name ?? r.key) : (r.observedName ?? ''))
+                    }}
+                    ariaLabel="Equipment Type"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+                  {addForm.observed_type_name && (
+                    <p className="mt-1 text-[10px] text-amber-700">
+                      Saves as “{addForm.observed_type_name}” and goes to the type queue — the unit is not blocked.
+                    </p>
+                  )}
                 </div>
               </div>
 

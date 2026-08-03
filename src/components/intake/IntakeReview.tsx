@@ -18,6 +18,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { recordFeedback } from '../../lib/cxPlan'
+import { TypePicker } from '../equipment/TypePicker'
+import { loadTypeVocabulary } from '../../lib/typeVocabulary'
 import { authedFetch } from '../../lib/api'
 
 interface Row {
@@ -62,14 +64,17 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
   const [result, setResult] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
-    const [{ data: u }, { data: r }, { data: t }] = await Promise.all([
+    const [{ data: u }, { data: r }, t] = await Promise.all([
       supabase.from('intake_uploads').select('filename, kind, parse_note').eq('id', uploadId).maybeSingle(),
       supabase.from('intake_rows').select('*').eq('upload_id', uploadId)
         .order('confidence', { ascending: true }).order('source_row'),
-      supabase.from('equipment_types').select('key, name').eq('active', true).order('name'),
+      // The SAME vocabulary loader the Cx Index and inline editor use, aliases
+      // included. Three surfaces reading the vocabulary three ways is how the
+      // import path and the typing path drift apart.
+      loadTypeVocabulary(),
     ])
     setUpload(u ?? null)
-    setVocab(t ?? [])
+    setVocab(t)
     const list = (r ?? []) as Row[]
     setRows(list)
 
@@ -192,6 +197,10 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
       tag: r.tag ?? '', descriptor: r.descriptor ?? '',
       proposed_type: r.proposed_type ?? '', location: r.location ?? '',
       area_served: r.area_served ?? '',
+      observed_type_name: r.proposed_type ? '' : (r.observed_type_name ?? ''),
+      type_text: r.proposed_type
+        ? (vocab.find(v => v.key === r.proposed_type)?.name ?? r.proposed_type)
+        : (r.observed_type_name ?? ''),
     })
   }
 
@@ -298,12 +307,21 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                     onChange={e => setDraft(d => ({ ...d, [f]: e.target.value }))}
                     className="text-[11px] border border-gray-200 rounded px-1.5 py-0.5 w-32" />
                 ))}
-                <select value={draft.proposed_type ?? ''}
-                  onChange={e => setDraft(d => ({ ...d, proposed_type: e.target.value }))}
-                  className="text-[11px] border border-gray-200 rounded px-1.5 py-0.5">
-                  <option value="">type — unresolved</option>
-                  {vocab.map(v => <option key={v.key} value={v.key}>{v.name}</option>)}
-                </select>
+                <TypePicker
+                  value={draft.proposed_type ?? ''}
+                  observedName={draft.observed_type_name || null}
+                  text={draft.type_text ?? ''}
+                  onText={v => setDraft(d => ({ ...d, type_text: v, proposed_type: '', observed_type_name: '' }))}
+                  vocab={vocab}
+                  onPick={r => setDraft(d => ({
+                    ...d,
+                    proposed_type: r.key ?? '',
+                    observed_type_name: r.observedName ?? '',
+                    type_text: r.key ? (vocab.find(t => t.key === r.key)?.name ?? r.key) : (r.observedName ?? ''),
+                  }))}
+                  wrapperClassName="w-40"
+                  className="w-full text-[11px] border border-gray-200 rounded px-1.5 py-0.5"
+                  ariaLabel="Row type" />
               </div>
             ) : (
               <div className="text-xs text-gray-800">
@@ -368,6 +386,10 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                   onClick={() => { void dispose(r, 'edited', {
                     tag: draft.tag || null, descriptor: draft.descriptor || null,
                     proposed_type: draft.proposed_type || null,
+                    // A proposed name edited here rides through with the row.
+                    // Approval already queues unresolved names (api/intake.ts);
+                    // this is the same path, not a second one.
+                    observed_type_name: draft.proposed_type ? null : (draft.observed_type_name || null),
                     location: draft.location || null, area_served: draft.area_served || null,
                   }); setEditing(null) }}
                   className="text-[11px] bg-teal-700 text-white rounded px-2 py-0.5 hover:bg-teal-800 disabled:opacity-50">

@@ -26,11 +26,28 @@ interface Props {
   title?: string
   ariaLabel?: string
   disabled?: boolean
+
+  // ── Optional, added for the type picker (1.02). Both default to undefined, so
+  //    every existing caller renders byte-identically. ──────────────────────────
+
+  /** A caption under an option — the type picker uses it to say WHY a row
+   *  matched ("matched UH"), so a user can see the reasoning rather than trust
+   *  it. Keyed by the option string. */
+  optionMeta?: Record<string, string>
+  /** A pinned final row below the matches, shown even when nothing matched.
+   *  The picker's "No matching type — propose '…'" lives here: a dropdown row,
+   *  not a separate control, because the propose path is a CHOICE among the
+   *  options and hiding it elsewhere makes it feel like an error state. */
+  extraRow?: { label: string; onSelect: () => void } | null
+  /** Rank/filter the options yourself. Given the current text, return the
+   *  options to show, in order. Omit for the built-in substring filter. */
+  rank?: (query: string, options: string[]) => string[]
 }
 
 export function Combobox({
   value, onChange, options, onCommit, onEnter,
   placeholder, className, wrapperClassName, title, ariaLabel, disabled,
+  optionMeta, extraRow, rank,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(-1)
@@ -47,6 +64,7 @@ export function Combobox({
 
   const matches = useMemo(() => {
     const q = value.trim().toLowerCase()
+    if (rank) return rank(value, options).slice(0, 50)
     const seen = new Set<string>()
     const list: string[] = []
     for (const o of options) {
@@ -56,7 +74,7 @@ export function Combobox({
       if (list.length >= 50) break
     }
     return list
-  }, [options, value])
+  }, [options, value, rank])
 
   const pick = (v: string) => { onChange(v); onCommit?.(v); setOpen(false); setHighlight(-1) }
 
@@ -121,7 +139,7 @@ export function Combobox({
         onKeyDown={onKeyDown}
         className={className ?? 'w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500'}
       />
-      {open && matches.length > 0 && (
+      {open && (matches.length > 0 || !!extraRow) && (
         <div className={`absolute z-30 w-full min-w-[10rem] bg-white border border-gray-200 ` +
             `rounded-lg shadow-lg overflow-hidden ` +
             `${placement.right ? 'right-0' : 'left-0'} ` +
@@ -139,14 +157,30 @@ export function Combobox({
                 onMouseDown={e => e.preventDefault()}
                 onMouseEnter={() => setHighlight(i)}
                 onClick={() => pick(o)}
-                className={`w-full text-left px-3 py-1.5 text-xs truncate ${
+                className={`w-full text-left px-3 py-1.5 text-xs ${optionMeta?.[o] ? '' : 'truncate'} ${
                   i === highlight ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-teal-50'
                 } ${o === value ? 'font-medium' : ''}`}
               >
-                {o}
+                <span className="block truncate">{o}</span>
+                {optionMeta?.[o] && (
+                  <span className="block truncate text-[10px] text-gray-500">{optionMeta[o]}</span>
+                )}
               </button>
             ))}
           </div>
+          {extraRow && (
+            <button
+              type="button"
+              role="option"
+              aria-selected={false}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => { extraRow.onSelect(); setOpen(false); setHighlight(-1) }}
+              className="w-full text-left px-3 py-2 text-xs border-t border-gray-100
+                         bg-amber-50 text-amber-800 hover:bg-amber-100"
+            >
+              {extraRow.label}
+            </button>
+          )}
         </div>
       )}
     </div>

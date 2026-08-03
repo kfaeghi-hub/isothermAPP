@@ -196,6 +196,10 @@ export interface Equipment {
   project_id: string
   kind: 'equipment' | 'system'
   equipment_type: string | null      // maps to field template (e.g. 'heat_pump', 'pump')
+  /** Free text a user typed that the vocabulary could not resolve. Set only
+   *  when equipment_type is null — the unit saved anyway and a proposal is
+   *  queued. An unknown type is a vocabulary gap, not a data-entry error. */
+  observed_type_name: string | null
   category: string | null
   tag: string | null
   descriptor: string | null

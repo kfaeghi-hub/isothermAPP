@@ -315,6 +315,12 @@ export default async function handler(req: any, res: any) {
         descriptor: e.descriptor ?? r.descriptor ?? null,
         category: r.proposed_category ?? null,
         equipment_type: type,
+        // The unresolved name travels WITH the unit, not only into the queue.
+        // Before this, an approved unknown row produced a unit whose type was
+        // null and whose observed name existed only on the intake row — so the
+        // Cx Index showed a blank cell and the ratification, when it landed,
+        // had nothing to match the unit back to.
+        observed_type_name: type ? null : (e.observed_type_name ?? r.observed_type_name ?? null),
         location: e.location ?? r.location ?? null,
         area_served: e.area_served ?? r.area_served ?? null,
         // A schedule states DESIGN intent, so its columns land in `spec` — not in

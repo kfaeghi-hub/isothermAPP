@@ -13,7 +13,12 @@
 
 export type Cell = string | number | boolean | Date | null
 
-export interface TypeVocab { key: string; name: string }
+export interface TypeVocab { key: string; name: string; aliases?: string[] }
+
+/** How a type was resolved — the picker shows the alias that hit, so a user can
+ *  see WHY "UH" became Unit Heater rather than trusting that it did. */
+export type MatchVia = 'name' | 'alias' | 'words'
+export interface TypeMatch { key: string; via: MatchVia; matched: string }
 
 export interface ParsedRow {
   source_row: number
@@ -216,13 +221,39 @@ function findTitle(grid: Cell[][], headerRow: number): string | null {
 // law-8 separation of RADIANT CEILING PANEL from RECEPTACLE PANEL is the kind of
 // thing you only get right once.
 export function resolveType(text: string, vocab: TypeVocab[]): string | null {
+  return resolveTypeDetailed(text, vocab)?.key ?? null
+}
+
+/** The matcher itself. `resolveType` is a thin wrapper so every existing caller
+ *  keeps its signature and there is still exactly ONE set of rules.
+ *
+ *  Precedence, and each tier is there for a reason:
+ *
+ *    1. exact display name or key — the canonical term always wins. An alias can
+ *       therefore never shadow a real type's name, whatever an admin types in.
+ *    2. exact ALIAS — and exact only, never all-words. "UH" could not all-words
+ *       match "Unit Heater" in a hundred years, and treating two-letter shorthand
+ *       as a word bag is precisely how a tag prefix starts claiming units. The
+ *       never-alias list (blocked_type_aliases) refuses the known landmines at
+ *       the database, RP first among them.
+ *    3. all-words, most-specific-wins — the law-8 matcher, unchanged.
+ */
+export function resolveTypeDetailed(text: string, vocab: TypeVocab[]): TypeMatch | null {
   const n = norm(text)
   if (!n) return null
   const words = new Set(n.split(' '))
 
-  let best: { key: string; specificity: number } | null = null
   for (const t of vocab) {
-    if (n === norm(t.name) || n === norm(t.key)) return t.key      // exact wins outright
+    if (n === norm(t.name) || n === norm(t.key)) return { key: t.key, via: 'name', matched: t.name }
+  }
+  for (const t of vocab) {
+    for (const a of t.aliases ?? []) {
+      if (a && n === norm(a)) return { key: t.key, via: 'alias', matched: a }
+    }
+  }
+
+  let best: { key: string; specificity: number; matched: string } | null = null
+  for (const t of vocab) {
     const core = norm(t.name.replace(/\(.*?\)/g, ''))             // drop the qualifier
     if (!core) continue
     const tokens = core.split(' ').filter(Boolean)
@@ -233,9 +264,11 @@ export function resolveType(text: string, vocab: TypeVocab[]): string | null {
     // this cannot invent a match that the words do not support.
     const has = (w: string) => words.has(w) || words.has(`${w}s`) || words.has(`${w}es`)
     if (!tokens.length || !tokens.every(has)) continue
-    if (!best || tokens.length > best.specificity) best = { key: t.key, specificity: tokens.length }
+    if (!best || tokens.length > best.specificity) {
+      best = { key: t.key, specificity: tokens.length, matched: t.name }
+    }
   }
-  return best?.key ?? null
+  return best ? { key: best.key, via: 'words', matched: best.matched } : null
 }
 
 /** Strip the trailing SCHEDULE/LIST so "SUMP PUMP SCHEDULE" reads as a category. */

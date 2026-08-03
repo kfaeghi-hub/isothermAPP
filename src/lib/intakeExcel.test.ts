@@ -7,7 +7,7 @@
 // motivated this: a title row, a blank, a merged two-deep header, unit rows, and
 // a legend at the bottom that must NOT become equipment.
 import { describe, it, expect } from 'vitest'
-import { parseSheet, type Cell, type TypeVocab } from './intakeExcel'
+import { parseSheet, resolveType, resolveTypeDetailed, type Cell, type TypeVocab } from './intakeExcel'
 
 const VOCAB: TypeVocab[] = [
   { key: 'fcu', name: 'Fan Coil Unit' },
@@ -236,5 +236,60 @@ describe('a source header is often plural', () => {
     ]
     expect(parseSheet(grid, 'L', [{ key: 'louvres', name: 'Louvres' }])
       .rows[0].proposed_type).toBeNull()
+  })
+})
+
+// ── Update 1.02 — aliases (the suggestion-as-you-type picker's matcher) ──────
+
+describe('aliases resolve by EXACT match only', () => {
+  const vocab: TypeVocab[] = [
+    { key: 'unit_heater', name: 'Unit Heater', aliases: ['UH'] },
+    { key: 'expansion_tank', name: 'Expansion Tank', aliases: ['XT', 'ET'] },
+    { key: 'ahu', name: 'Air Handling Unit', aliases: ['AHU', 'DOAS'] },
+    { key: 'humidifier', name: 'Humidifier', aliases: ['HUM'] },
+  ]
+
+  it('an exact alias resolves, and says it matched by alias', () => {
+    expect(resolveTypeDetailed('UH', vocab)).toEqual({ key: 'unit_heater', via: 'alias', matched: 'UH' })
+    expect(resolveTypeDetailed(' doas ', vocab)?.key).toBe('ahu')
+  })
+
+  it('an alias is NEVER matched as a word inside a longer string', () => {
+    // The whole point. If "UH" were treated as a word bag, every tag and
+    // descriptor containing it would silently become a unit heater.
+    //
+    // These are ABSENCE assertions, and an absence assertion proves ARRIVAL
+    // first: the test above proves "UH" resolves through this same vocab.
+    // Without it, every expectation here would also pass on a build with no
+    // alias tier at all — green, and testing nothing.
+    expect(resolveType('UH-3 PUMP ROOM', vocab)).toBeNull()
+    expect(resolveType('SOUTH ET WING', vocab)).toBeNull()
+  })
+
+  it('the DOAS alias does not capture HU-DOAS-* humidifier tags', () => {
+    // The exact-match rule is what makes the ruled DOAS -> ahu mapping safe.
+    expect(resolveType('HU-DOAS-1', vocab)).toBeNull()
+  })
+
+  it('the canonical name outranks an alias', () => {
+    // An alias can never shadow a real type's display name, whatever an admin
+    // types into the alias table.
+    const shadow: TypeVocab[] = [
+      { key: 'fan', name: 'Fan' },
+      { key: 'pump', name: 'Pump', aliases: ['Fan'] },
+    ]
+    expect(resolveTypeDetailed('Fan', shadow)).toEqual({ key: 'fan', via: 'name', matched: 'Fan' })
+  })
+
+  it('all-words matching is unchanged by the alias tier', () => {
+    expect(resolveType('RADIANT CEILING PANEL', [
+      { key: 'radiant_panel', name: 'Radiant Panel' },
+      { key: 'panel', name: 'Panel (Electrical Distribution)' },
+    ])).toBe('radiant_panel')
+    expect(resolveTypeDetailed('UNIT HEATERS', vocab)?.via).toBe('words')
+  })
+
+  it('a type with no aliases behaves exactly as before', () => {
+    expect(resolveType('Humidifier', [{ key: 'humidifier', name: 'Humidifier' }])).toBe('humidifier')
   })
 })

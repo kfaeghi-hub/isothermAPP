@@ -42,6 +42,7 @@ export function ClassificationsPage() {
   const [showMeetingTypes, setShowMeetingTypes] = useState(false)
   const [equipTypes, setEquipTypes] = useState<any[]>([])
   const [proposedTypes, setProposedTypes] = useState<any[]>([])
+  const [aliases, setAliases] = useState<Record<string, string[]>>({})
   const [showEquipTypes, setShowEquipTypes] = useState(false)
   const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null)
 
@@ -63,10 +64,11 @@ export function ClassificationsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    const [dRes, etRes, ptRes, oRes, tRes, mRes, sRes, crRes, mtRes, dtRes] = await Promise.all([
+    const [dRes, etRes, ptRes, alRes, oRes, tRes, mRes, sRes, crRes, mtRes, dtRes] = await Promise.all([
       supabase.from('classification_dimensions').select('*').order('sort_order'),
       supabase.from('equipment_types').select('*').order('sort_order'),
       supabase.from('proposed_equipment_types').select('*').order('created_at'),
+      supabase.from('equipment_type_aliases').select('type_key, alias').order('alias'),
       supabase.from('classification_options').select('*').order('sort_order'),
       supabase.from('deliverable_templates').select('*').order('sort_order'),
       supabase.from('option_deliverable_defaults').select('option_id, template_id'),
@@ -80,6 +82,9 @@ export function ClassificationsPage() {
     setDimensions((dRes.data ?? []) as ClassificationDimension[])
     setEquipTypes(etRes.data ?? [])
     setProposedTypes(ptRes.data ?? [])
+    setAliases((alRes.data ?? []).reduce((m: Record<string, string[]>, a: any) => {
+      (m[a.type_key] ??= []).push(a.alias); return m
+    }, {}))
     setOptions((oRes.data ?? []) as ClassificationOption[])
     setTemplates((tRes.data ?? []) as DeliverableTemplate[])
     setSystems((sRes.data ?? []) as TradeType[])
@@ -333,6 +338,34 @@ export function ClassificationsPage() {
       .insert({ key, name, sort_order: maxOrder + 1 })
     if (error) { alert(error.message); return }
     setNewEquipKey(''); setNewEquipName('')
+    await fetchAll()
+  }
+
+  /** Replace a type's alias set from the comma-separated field.
+   *
+   *  Delete-then-insert, and the DELETE is checked. A filtered delete that
+   *  matches no policy removes ZERO ROWS AND RETURNS NO ERROR — the
+   *  contact-channels incident — so a silent no-op here would leave the old
+   *  aliases in place while the screen showed the new ones. The row count is
+   *  read back rather than assumed.
+   *
+   *  The never-alias list is enforced by a database trigger, not by this
+   *  function: a guard that only exists in the UI is a guard the next caller
+   *  skips. Its message carries the reason, so a refusal teaches. */
+  async function saveAliases(typeKey: string, raw: string) {
+    const wanted = [...new Set(raw.split(',').map(v => v.trim()).filter(Boolean))]
+    const current = aliases[typeKey] ?? []
+    if (wanted.length === current.length && wanted.every(a => current.includes(a))) return
+
+    const { error: delErr } = await supabase.from('equipment_type_aliases')
+      .delete().eq('type_key', typeKey)
+    if (delErr) { alert(delErr.message); await fetchAll(); return }
+
+    if (wanted.length) {
+      const { error } = await supabase.from('equipment_type_aliases')
+        .insert(wanted.map(alias => ({ type_key: typeKey, alias })))
+      if (error) alert(error.message)
+    }
     await fetchAll()
   }
 
@@ -678,6 +711,7 @@ export function ClassificationsPage() {
                 <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-400">
                   <th className="py-1.5 pr-3 w-36">Key</th>
                   <th className="py-1.5 pr-3">Label</th>
+                  <th className="py-1.5 pr-3">Aliases</th>
                   <th className="py-1.5 pr-3 w-20">Field defs</th>
                   <th className="py-1.5 pr-3 w-16">Order</th>
                   <th className="py-1.5 pr-3 w-16">Active</th>
@@ -690,6 +724,19 @@ export function ClassificationsPage() {
                     <td className="py-1.5 pr-3">
                       <input defaultValue={t.name} className={`${inputCls} w-full max-lg:min-w-[10rem]`}
                         onBlur={e => { const v = e.target.value.trim(); if (v && v !== t.name) updateRow('equipment_types', t.id, { name: v }) }} />
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      {/* Shorthand is VOCABULARY DATA, editable here rather than
+                          in a constant that needs a deploy. Aliases match EXACTLY
+                          and never as words — "UH" becomes Unit Heater, "UH-3
+                          PUMP ROOM" becomes nothing. The database refuses the
+                          known landmines (RP, CT, RTU, HRV, VRF and the rest of
+                          the never-alias list) with the reason attached. */}
+                      <input defaultValue={(aliases[t.key] ?? []).join(', ')}
+                        placeholder="UH, FCU…"
+                        title="Comma-separated. Matched exactly, never as words."
+                        className={`${inputCls} w-full max-lg:min-w-[8rem]`}
+                        onBlur={e => void saveAliases(t.key, e.target.value)} />
                     </td>
                     <td className="py-1.5 pr-3 text-gray-400">{defCounts[t.key] ?? 0}</td>
                     <td className="py-1.5 pr-3">
