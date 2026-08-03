@@ -293,3 +293,40 @@ describe('aliases resolve by EXACT match only', () => {
     expect(resolveType('Humidifier', [{ key: 'humidifier', name: 'Humidifier' }])).toBe('humidifier')
   })
 })
+
+// ── the catalog campaign's census finding (1.03) ────────────────────────────
+
+describe('equal-specificity matches are a REFUSAL, not a tie to break', () => {
+  const vocab: TypeVocab[] = [
+    { key: 'boiler', name: 'Boiler' },
+    { key: 'pump', name: 'Pump' },
+    { key: 'fire_pump', name: 'Fire Pump' },
+    { key: 'radiant_panel', name: 'Radiant Panel' },
+    { key: 'panel', name: 'Panel (Electrical Distribution)' },
+  ]
+
+  it('ARRIVAL: an unambiguous single-token term still resolves', () => {
+    expect(resolveType('CIRCULATING PUMP', vocab)).toBe('pump')
+    expect(resolveType('CONDENSING BOILER', vocab)).toBe('boiler')
+  })
+
+  it('two single-token terms in one descriptor resolve to NOTHING', () => {
+    // Found on a live project: "Pump - Boiler 1" came back `boiler` because
+    // boiler sorted first. The words name two types; the words therefore do not
+    // decide, and a human does.
+    expect(resolveType('Pump - Boiler 1', vocab)).toBeNull()
+    expect(resolveType('Heating Boiler B-2 Circulating Pump', vocab)).toBeNull()
+  })
+
+  it('sort order cannot change the answer', () => {
+    const reversed = [...vocab].reverse()
+    expect(resolveType('Pump - Boiler 1', reversed)).toBeNull()
+    expect(resolveType('Pump - Boiler 1', vocab)).toBe(resolveType('Pump - Boiler 1', reversed))
+  })
+
+  it('a MORE specific term still wins outright — this is not a blanket refusal', () => {
+    expect(resolveType('FIRE PUMP', vocab)).toBe('fire_pump')
+    expect(resolveType('RADIANT CEILING PANEL', vocab)).toBe('radiant_panel')
+    expect(resolveType('RECEPTACLE PANEL', vocab)).toBe('panel')
+  })
+})

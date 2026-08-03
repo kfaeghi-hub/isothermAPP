@@ -252,7 +252,24 @@ export function resolveTypeDetailed(text: string, vocab: TypeVocab[]): TypeMatch
     }
   }
 
+  // AMBIGUITY IS NOT A TIE TO BE BROKEN, IT IS A REFUSAL.
+  //
+  // This used to keep the first match at a given specificity, because the test
+  // was `>` rather than `>=`. Two single-token terms both matching therefore
+  // resolved to whichever type happened to sort first — and "Pump - Boiler 1"
+  // came back `boiler`, on a real project, because boiler sorts at 3 and pump at
+  // 11. The tag played no part; the SORT ORDER decided the type.
+  //
+  // Found by the catalog campaign's re-check census, which is what a census is
+  // for. Note the shape: this function's own doc comment above says "quarantine,
+  // never guess (R16)" — and the tie-break was guessing. A rule stated in a
+  // comment is not a rule the code follows.
+  //
+  // Now: equal-specificity matches on DIFFERENT keys mean the words do not
+  // decide, so nothing is returned and a human does. One key matching twice is
+  // not ambiguity.
   let best: { key: string; specificity: number; matched: string } | null = null
+  let tiedKeys = new Set<string>()
   for (const t of vocab) {
     const core = norm(t.name.replace(/\(.*?\)/g, ''))             // drop the qualifier
     if (!core) continue
@@ -266,8 +283,12 @@ export function resolveTypeDetailed(text: string, vocab: TypeVocab[]): TypeMatch
     if (!tokens.length || !tokens.every(has)) continue
     if (!best || tokens.length > best.specificity) {
       best = { key: t.key, specificity: tokens.length, matched: t.name }
+      tiedKeys = new Set([t.key])
+    } else if (tokens.length === best.specificity) {
+      tiedKeys.add(t.key)
     }
   }
+  if (best && tiedKeys.size > 1) return null
   return best ? { key: best.key, via: 'words', matched: best.matched } : null
 }
 
