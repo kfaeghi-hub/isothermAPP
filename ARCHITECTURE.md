@@ -1046,6 +1046,36 @@ wrong, and only opening it said so. That is the argument for render-and-look
 being a step rather than a courtesy — not that assertions are unreliable, but
 that at the feature level there is nothing else looking.
 
+### The 1.02 set — seven in one session, and the sentence they share
+
+The batch above found three in one day. The 1.02 trio found **seven**, and they
+are worth keeping together because the variety is the argument: no two are the
+same kind of mistake, and every one of them is the same sentence.
+
+**A check that cannot fail is not a check.**
+
+| # | What looked like a check | Why it could not fail | What it became |
+|---|---|---|---|
+| 1 | A partial unique index on the proposals queue — "dedup is now a database fact" | `org_id` is NULL on every row, and a plain unique index treats NULLs as **distinct**. Both duplicate inserts succeeded. The index existed, read correctly in `pg_indexes`, and refused nothing. | `NULLS NOT DISTINCT`. Caught only because the leg asserts **the second insert is refused**, not that the index is present. |
+| 2 | `check(true, 'the add form renders the picker')` after a bounded wait | Unconditional. It passed *while the wait was timing out* — written the same evening as the rule against exactly this. | Assert the wait's own return value, and throw if it never held. |
+| 3 | `FieldSetDraftOutput`, a TypeScript validator | An output validator is **not an instruction to a model**. `drafter.md` carried no Return shape section, so nothing ever told the model what JSON to produce; every call failed `contract-output`. | The contract carries the shape, as the extractor's does. |
+| 4 | `fields.every(f => f.sections.length > 0)` and `fields.length <= 20` | Both pass **vacuously on an empty array**. When the draft failed, four checks went green on zero fields — including *"every drafted field belongs to at least one column"*. | Prove arrival first; refuse to assert properties of an empty result. |
+| 5 | The finder's pre-ticked candidate pages | Pre-ticking asserted a claim the heuristic had not earned: a completed **checklist** scored "8 schedule terms in 30 columns" and arrived ticked, because a checklist is also a dense tagged table. | Offer without asserting. Only a page **titled** a schedule, or one the sorter confirmed, arrives ticked. |
+| 6 | Every structural assertion touching the type vocabulary | They read the **database**, and the data was correct. The Classifications screen — the owner's own ratification queue — had been rendering **nothing** since 2026-07-27 (hooks below an early return), and nothing in the battery could see it. | Found by taking a screenshot for the render-and-look gate. Hooks moved above the return. |
+| 7 | `node run-battery.mjs 2>&1 \| tail -12` | The pipeline's exit status is **`tail`'s**. The task notification reported "exit code 0" for a battery that had failed, and the tail truncated away the summary line. A suite was also running alongside it, producing a failure that turned out to be fictional. | Never pipe the runner. Never run anything beside it. Both re-run clean at 31/31. |
+
+**Read the table by column two.** The failures span a database index, a test
+assertion, a model contract, an empty-array property, a UI default, a whole
+screen, and a shell pipe. Nothing about them is a category of bug you could
+grep for. What they share is the shape: *in the state this was meant to catch,
+it produced the same output as in the state it was meant to allow.*
+
+**And note where the two most expensive ones came from.** #6 and #7 were not
+found by any assertion — one by opening a screen, one by reading an exit code
+that had been thrown away. The suites were green throughout. That is the whole
+case for render-and-look as a step, and for never letting a pipe stand between
+a runner and its verdict.
+
 ### An absence assertion proves ARRIVAL first, then absence
 
 The same disease, aimed at nothing. `check(!body.includes(X))` is true of a page
