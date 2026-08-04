@@ -1076,6 +1076,40 @@ that had been thrown away. The suites were green throughout. That is the whole
 case for render-and-look as a step, and for never letting a pipe stand between
 a runner and its verdict.
 
+### A test boundary chosen for SAFETY creates a known-untested seam — name it
+
+**Every gate report names the legs it deliberately did not walk.**
+
+*The incident, 2026-08-04.* The schedule-page finder shipped with a render-and-look
+gate that stopped at the confirmation screen. That was a deliberate, correct
+choice: clicking through would have written intake rows to a real project. But it
+meant the leg from *confirm* to *extract* was never walked end to end — and that
+leg was **broken from the day it shipped**. `api/intake.ts` derived the media type
+from `intake_uploads.filename`, and the finder's own human-readable naming
+("…-IFT.pdf — page 7 (M-301)") made `split('.').pop()` return nonsense. Every page
+a user confirmed, on every drawing set, returned 400. A field report — *"can't
+extract anything"* — is how we learned.
+
+`pw-schedule-finder` was green throughout. It tested the finder. The suite even
+*said* what it did not cover — the deterministic filter's accuracy on a real set —
+and that honesty is why the gap in the **other** direction is worth a rule: the
+suite named an untested *capability*, and missed an untested *seam*.
+
+**The rule:**
+
+> A boundary drawn for safety is still a boundary. When a gate stops short —
+> because going further would write to a real project, spend real money, or touch
+> a live endpoint — the report says **which leg was not walked and why**. An
+> unwalked leg that nobody names reads exactly like a walked one.
+
+This is the render-and-look principle turned around. That rule says the screen is
+the only check at the feature level. This one says: **when you decline to look,
+say where you stopped.**
+
+*Applied since:* the calibration corpus's manifest names what the fixtures do
+**not** contain — no scanned page carrying a schedule, no two-page continuation,
+no non-TDSB consultant — so their absence is never mistaken for coverage.
+
 ### An absence assertion proves ARRIVAL first, then absence
 
 The same disease, aimed at nothing. `check(!body.includes(X))` is true of a page

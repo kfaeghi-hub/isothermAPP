@@ -34,7 +34,14 @@ docx-inspect*/
 
 # ShareSync-sourced working copies — CLIENT CONFIDENTIAL, never committed.
 # Copies from the firm document store land here and only here.
-samples/
+samples/*
+!samples/calibration/
+samples/calibration/*
+# The drawings never leave the ignore. The MANIFEST is the committed artifact:
+# it says what each fixture contains and what each page exercises, so a suite
+# can skip LOUDLY by name when a fixture is absent rather than passing on a
+# corpus that was not there.
+!samples/calibration/FIXTURES.md
 
 # Generated verification artifacts (pw-* script outputs)
 out/

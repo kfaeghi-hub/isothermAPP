@@ -16,6 +16,98 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.04 — 2026-08-04
+
+### For the team
+
+**Dragging a drawing set in now actually works.** It did not. If you dropped a
+PDF, picked the schedule pages and hit extract, **every page failed** — silently
+enough that the only way anyone found out was by trying it on a real job and
+telling us. That is fixed, and it was our bug, not the drawings'.
+
+**It finds the right pages now.** On a real 55-page tender set it used to offer
+you 24 pages; it now offers **4** — and they are the four that actually carry
+schedules. The rest are still one click away if you want them; they just are not
+pre-ticked any more.
+
+**Big schedule sheets read properly.** A sheet with four schedules on it — wall
+fins, forced flow heaters, convectors, eighty-eight units between them — used to
+fail outright. The app now finds each table on the sheet and reads them one at a
+time.
+
+**Scanned drawings work.** Old sheets with no text layer — the scanned ones on
+every retrofit job — go through the picture path and come back with rows.
+
+**Unit Ventilator** joined the equipment library, found by the app reading a real
+Clairlea schedule and telling us it did not recognise it.
+
+**One thing to expect:** on a big set you may see *"Sort next 40"*. That is the
+cost guard — it reads 40 undecided pages at a time so a 300-page set can never
+quietly spend a fortune. Click it again for the next 40.
+
+### Technical record
+
+**The seam, and it is the whole field report.** `api/intake.ts` derived the media
+type from `intake_uploads.filename` via `split('.').pop()`. The schedule-page
+finder names uploads `"…-IFT.pdf — page 7 (M-301)"`, so that returned
+`"pdf — page 7 (m-301)"`, matched nothing, and 400'd — **for every confirmed page,
+on every set, from the day the feature shipped**, while a valid PNG sat in
+storage that nothing looked at. **R18 — filenames lie — is the firm's own rule,
+and our code broke it.** Fixed: `intake_uploads.media_type` recorded at creation
+from the object's leading bytes; the endpoint re-sniffs the stored object and its
+reading is authoritative; the extension→media map is deleted; refusals now carry
+the evidence. Swept for the pattern: one real violation, two benign.
+
+**Diagnosis before fixes, on four real TDSB sets (93 pages).** The taxonomy and
+both before/after tables are in
+[EXTRACTOR-CALIBRATION-PROPOSAL.md](EXTRACTOR-CALIBRATION-PROPOSAL.md).
+
+**Finder: 47 pages proposed → 9.** Density cannot separate a schedule from a plan
+— Clairlea p4 is a *plan* with 142 column runs, p17 a real schedule with 147.
+What separates them is a **header row**: an identity column with two or more
+descriptive columns beside it, within a short run of text items. Title alone no
+longer claims a page either (a TDSB title sheet carries a drawing list; plan
+sheets say "as per schedule" in notes). Everything else drops to *ambiguous* and
+is offered, not claimed.
+
+**Rotation: fixed and inert, stated plainly.** Column detection now buckets along
+the page's true horizontal per `/Rotate`. It changed the measurement on exactly
+the 10 rotated pages and flipped zero verdicts, because the threshold was the
+binding constraint. Right fix, no effect on this corpus.
+
+**Table-region splitting (2b).** Clairlea M-601 carries 88 units in four tables;
+sent whole it logged `outcome: truncated` at 16,000 output tokens having spent
+**10,684 thinking**, and cost 27¢ for nothing. Row ceilings were rejected — a
+mechanism that fails on the highest-value page is backwards. The **first attempt
+also failed and is recorded**: spatial gap-clustering fragmented that page into
+318 pieces. What works is segmenting on header rows **in reading order**, because
+these PDFs emit text table by table. A page with one table returns no regions and
+is read whole.
+
+**Sort ceiling: chunked continuation, not a raise.** The 40-page guard and its
+cost visibility stay; the dead-end refusal becomes *"Sort next 40"*.
+
+**`unit_ventilator` minted** — surfaced by the extractor reading Clairlea p16
+correctly and returning it unresolved at 0.55. The learning loop end to end: real
+page → honest abstention → propose flow → ratified mint.
+
+**Fixture library (Phase 3).** `samples/calibration/FIXTURES.md` is committed;
+the drawings are not and never will be. The manifest records what each fixture
+contains, what each page exercises, and **what the corpus does not contain** —
+no scanned page carrying a schedule, no two-page continuation, no non-TDSB
+consultant — so absence is never mistaken for coverage. Suites skip loudly by
+name.
+
+**New standing rule.** *A test boundary chosen for safety creates a known-untested
+seam — name it.* The finder's render-and-look gate stopped at the confirm screen
+deliberately and correctly; that is exactly where the break was. Every gate report
+now names the legs it did not walk.
+
+**ShareSync: zero writes**, verified by a pre/post integrity sweep over sizes,
+mtimes and sha256 of every file in all three folders — identical.
+
+---
+
 ## Update 1.03 — 2026-08-03
 
 ### For the team
