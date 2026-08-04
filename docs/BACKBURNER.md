@@ -157,8 +157,15 @@ Nothing here weakens Law 2 or Law 6.
   justify widening the identity pattern by hand. A harvest that has seen the same
   shape across several sets is precisely what should justify it.
 
-**Wakes when:** a few real project sets have been extracted *and reviewed* — the
-field tests are now producing exactly that data. **No code now.**
+**Wakes when:** a few real project sets have been extracted *and reviewed*.
+
+**The condition is now TICKING (2026-08-05).** The field test walked Clairlea and
+Workman end to end, so ratified extractions and per-row dispositions exist for
+real drawing sets as of today — the first genuine training data this entry was
+waiting on. It is no longer waiting on *a kind of data*; it is waiting on
+**enough of it**. Two or three more sets and the clusters become worth reading.
+
+**No code now.**
 
 ### 3d. Repeating-measurement test structures
 **PARKED — born 2026-08-03, from the catalog campaign's transformer table**

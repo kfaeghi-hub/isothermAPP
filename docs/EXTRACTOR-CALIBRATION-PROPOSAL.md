@@ -1,7 +1,8 @@
 # EXTRACTOR-CALIBRATION-PROPOSAL.md — diagnosis, fixes, and the numbers
 
-**Status: AS-BUILT 2026-08-04.** Phase 1 diagnosis and Phase 2/2b fixes shipped.
-The record of what was broken, what was measured, and what remains.
+**Status: CLOSED 2026-08-05 — field test PASSED.** This document is now the
+as-built record of the campaign: what was broken, what was measured, what was
+ruled, and what remains named.
 
 Corpus: four real TDSB drawing sets, 93 pages, read-only from ShareSync into
 gitignored `samples/calibration/`. See
@@ -302,6 +303,34 @@ single chunked request and its cost display intact, and rests on a real argument
 rather than a size heuristic: *the sorter is a classifier, not a reader.* It
 should be measured on Clairlea before being trusted — the gate is that its
 verdicts do not change against the current baseline.
+
+## Field close — 2026-08-05, PASSED
+
+**The owner walked the full production flow on Clairlea and Workman: upload →
+find pages → confirm → extract → review. It passed.**
+
+That sentence is the one the campaign existed to earn, and it is worth being
+precise about why it counts where the earlier gates did not. Every 88/88 before
+this came through a harness that called the region functions itself and posted
+each region — proving extraction, and proving nothing about assembly, which was
+the part that was broken. **The field walk is the flow.** It exercised the seam
+the harness replaced with itself.
+
+What it covered, in one pass each:
+
+- **Workman** — the fallback path. p7's `QTY NO.` header shape yields no regions,
+  so the page extracts whole; that is now the leg's test rather than its blemish.
+- **Clairlea** — the splitter on a real multi-column sheet, the assembly total
+  stated before the review opens, and the expansion contract producing
+  physical-unit rows.
+
+**The campaign's arc, for the record.** A field report of *"can't extract
+anything"* — literally true, caused by one expression reading a media type out of
+a filename — through six diagnosed failure classes, three ruled amendments, and
+back to a field walk that passed. The numbers along the way: finder proposals
+**47 → 9**; Clairlea M-601 **0 rows → 40 (truncating) → 136 (48 phantom) → 88
+exact**; p16 **7-or-11 by luck → 11 deterministic**; sort payload **2,026 KB →
+527 KB**.
 
 ## The closing gates — both PASSED 2026-08-04
 

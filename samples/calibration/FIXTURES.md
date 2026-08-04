@@ -106,9 +106,24 @@ Extraction, same pages, before and after the R18 seam fix:
 
 Named so their absence is not mistaken for coverage:
 
-- **A scanned page that contains a schedule.** Both scanned fixtures are
-  drawings. The image leg is proven to *engage and return rows*; it is not
-  proven to *read a table from a scan*. Pending.
+- **A scanned page that contains a schedule — THE NAMED PENDING PROOF.**
+  Both scanned fixtures are *drawings*. Two things therefore remain unproven, and
+  they are different claims:
+
+  1. **The image leg reading a table.** It is proven to engage and return rows —
+     Workman M-301 gives 9 rows with honest low confidence — but never to read a
+     *schedule* off a scan.
+  2. **Gate B's positive direction.** The sort-render downscale (0.6 → 0.22,
+     ruled 2026-08-04) was gated on zero verdict changes and passed: six scanned
+     pages, identical verdicts, payload 2,026 KB → 527 KB. **Every sampled page
+     returned *not a schedule*,** because there are none. So the gate proves the
+     downscale creates no **false positives**; it does **not** prove it preserves
+     **true positives**.
+
+  **The trigger:** the first scanned schedule page to enter this corpus re-runs
+  **Gate B** at both scales and extracts it at 2.0. Until then, any suite touching
+  this leg **skips loudly by name** — a green run on a fixture that is not here is
+  the silence class in its purest form.
 - **A schedule continued across two pages** with the title only on the first —
   named in the sorter's contract as a case it must handle, and absent here.
 - **A metric-only set.** All four are Ontario mixed-unit.

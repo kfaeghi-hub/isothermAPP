@@ -16,7 +16,12 @@ one written alongside the change is written from the diff.
 
 ---
 
-## Update 1.05 — 2026-08-04
+## Update 1.05 — 2026-08-04 · field-tested 2026-08-05
+
+*Field test **passed**: the full flow walked on Clairlea and Workman — upload,
+find pages, confirm, extract, review. Battery 31/31. The extractor calibration
+campaign is closed; its record is
+[EXTRACTOR-CALIBRATION-PROPOSAL.md](EXTRACTOR-CALIBRATION-PROPOSAL.md).*
 
 ### For the team
 
