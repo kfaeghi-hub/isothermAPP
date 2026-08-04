@@ -77,3 +77,9 @@ graphify-out/
 
 # Local tool config (root CLAUDE.md stays tracked)
 .claude/
+
+# Throwaway diagnostic harnesses. Twice now one has been committed by an
+# unthinking `git add -A` (zz-gate3.mjs, zz-g.mjs). The KEEPERS are named
+# cal-*.mjs and pw-*.mjs; anything zz-* is scratch by construction.
+zz-*.mjs
+vite-dev.log
