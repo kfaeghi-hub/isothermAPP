@@ -361,6 +361,19 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
   waiting-unit count on the ratification screen is DERIVED from this column,
   never stored.
 
+**Nameplate templates — the product rule** (BUILT 2026-08-04)
+- **CxAs FILL nameplates; they never have to CREATE them.** A unit that carries a
+  type renders that type's full field set — spec / shop drawing / installed
+  placeholders — empty and ready, on every project and by every path that can
+  assign a type.
+- Enforced by a **database trigger** (`equipment_seed_defs`), not by a call site:
+  intake approval, the type picker, retroactive ratification and manual
+  assignment all go through the same data path, as does any path added later.
+  Seeding from an event handler is a rule the next call site breaks — which is
+  exactly how intake-born units came to render `__base` only.
+- The project's copy stays **sovereign**: seeded once from the firm set at the
+  project's unit system, never overwritten, editable per project thereafter.
+
 **User** (team + future client)
 - id, name, email, role (Admin / Developer / Owner / User / Client — `user_role_enum`)
 
