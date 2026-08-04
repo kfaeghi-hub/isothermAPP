@@ -28,6 +28,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, AuthError } from './_shared/auth-common.js'
 import { runAgent, logAgentRun, AiError } from './_shared/ai-common.js'
+import { sniffMediaType, describeBytes } from './_shared/media-type.js'
 import type { ExtractorOutput, FieldSetDraftInput, FieldSetDraftOutput,
   PageSortInput, PageSortOutput } from './_shared/agent-schemas.js'
 
@@ -42,11 +43,9 @@ const PAGE_SORT_CEILING = 40
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const MEDIA: Record<string, 'image/png' | 'image/jpeg' | 'image/webp' | 'application/pdf'> = {
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
-  // A PDF goes as a document block, which keeps its pages and its text layer.
-  pdf: 'application/pdf',
-}
+// The extension->media map is GONE. `sniffMediaType` reads the bytes instead;
+// see api/_shared/media-type.ts and R18. Nothing in this file may decide what a
+// file is from what it is called.
 
 /** The fields an ENRICH may fill. A row changes only what the reviewer ticked. */
 const ENRICH_COLS = ['descriptor', 'equipment_type', 'location', 'area_served'] as const
@@ -299,7 +298,7 @@ export default async function handler(req: any, res: any) {
     if (!uploadId) return res.status(400).json({ error: 'upload_id is required' })
 
     const { data: up } = await service.from('intake_uploads')
-      .select('id, project_id, filename, storage_path, kind, status, import_batch_id')
+      .select('id, project_id, filename, storage_path, kind, status, import_batch_id, media_type')
       .eq('id', uploadId).maybeSingle()
     if (!up) return res.status(404).json({ error: 'No such upload.' })
 
@@ -335,12 +334,33 @@ export default async function handler(req: any, res: any) {
         return res.status(502).json({ error: `Could not read the stored file: ${dl.error?.message}` })
       }
       const bytes = Buffer.from(await dl.data.arrayBuffer())
-      const ext = (up.filename.split('.').pop() ?? '').toLowerCase()
-      const mediaType = MEDIA[ext]
+
+      // R18 — FILENAMES LIE, AND OURS DID. This used to read
+      // `up.filename.split('.').pop()`. The schedule-page finder names uploads
+      // "…-IFT.pdf — page 7 (M-301)", so that returned "pdf — page 7 (m-301)",
+      // matched no media type, and 400'd. EVERY page confirmed through the
+      // finder failed, on every set, from the day it shipped — while a
+      // perfectly valid PNG sat in storage that nothing ever looked at.
+      //
+      // The bytes decide. `media_type` is recorded at creation from content,
+      // and this sniff of the ACTUAL OBJECT is the authority: if the two ever
+      // disagree, what is in storage wins, because that is what the model will
+      // be shown.
+      const mediaType = sniffMediaType(bytes)
       if (!mediaType) {
+        // Refuse with what was actually seen. "Cannot extract" without evidence
+        // sends the next person to the wrong layer — which is exactly what the
+        // old message did.
         return res.status(400).json({
-          error: `Cannot extract from a .${ext} page. Supported: ${Object.keys(MEDIA).join(', ')}.`,
+          error: `The stored file is not a readable page. Recorded media_type: ` +
+                 `${up.media_type ?? 'none'}; bytes say: ${describeBytes(bytes)}.`,
         })
+      }
+      if (up.media_type && up.media_type !== mediaType) {
+        // Not fatal — the bytes win — but a mismatch means something wrote a
+        // wrong fact, and a silent correction would hide it.
+        console.warn(`[intake] media_type mismatch on ${uploadId}: ` +
+                     `recorded ${up.media_type}, bytes say ${mediaType}`)
       }
 
       // ── the vocabulary the agent must key its answer to ──────────────────────

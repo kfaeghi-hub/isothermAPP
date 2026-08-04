@@ -15,6 +15,7 @@ import { authedFetch } from '../../lib/api'
 import { readWorkbook, parseSheet, fileHash, type ParsedSheet, type TypeVocab } from '../../lib/intakeExcel'
 import { SchedulePageFinder } from './SchedulePageFinder'
 import { renderPage } from '../../lib/schedulePages'
+import { sniffBlobMediaType } from '../../lib/mediaType'
 
 interface Staged extends ParsedSheet {
   enrich: number       // rows whose tag already exists on this project
@@ -70,7 +71,8 @@ export function IntakeUpload({ projectId, onStaged }: {
 
       const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
         project_id: projectId, filename: f.name, storage_path: path,
-        kind: /\.pdf$/i.test(f.name) ? 'pdf' : 'image',
+        kind: (await sniffBlobMediaType(f)) === 'application/pdf' ? 'pdf' : 'image',
+        media_type: await sniffBlobMediaType(f),
         content_sha256: hash, status: 'uploaded',
         uploaded_by: user?.id ?? null,
       }).select('id').single()
@@ -140,6 +142,9 @@ export function IntakeUpload({ projectId, onStaged }: {
             project_id: projectId,
             filename: `${f.name} — page ${p.page}${p.sheet ? ` (${p.sheet})` : ''}`,
             storage_path: path, kind: 'image',
+            // RECORDED FROM CONTENT, not from the name we just built. The name
+            // carries "— page 7 (M-301)" for humans; it is not evidence.
+            media_type: await sniffBlobMediaType(blob),
             content_sha256: await fileHash(new File([blob], path)),
             status: 'uploaded', pages: 1,
             selected_pages: [p.page],
@@ -243,7 +248,8 @@ export function IntakeUpload({ projectId, onStaged }: {
       const total = sheets.reduce((n, s) => n + s.rows.length, 0)
       const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
         project_id: projectId, filename: file.name, storage_path: path,
-        kind: 'excel', content_sha256: hash, row_count: total,
+        kind: 'excel', media_type: await sniffBlobMediaType(file),
+        content_sha256: hash, row_count: total,
         status: total > 0 ? 'parsed' : 'failed',
         parse_note: sheets.map(s => `[${s.sheet}] ${s.note}`).join(' · '),
         uploaded_by: user?.id ?? null,

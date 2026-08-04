@@ -102,15 +102,25 @@ export async function scanPdfPages(
     const keywords = SCHEDULE_WORDS.filter(w => text.includes(w))
     const planHits = PLAN_WORDS.filter(w => text.includes(w))
 
-    // COLUMN RUNS: how many distinct x-positions carry three or more text items.
-    // A table has a spine; a plan sheet's text is scattered. This is the single
-    // most reliable signal that survives a title we have never seen before.
-    const byX = new Map<number, number>()
+    // COLUMN RUNS: how many distinct positions along the page's TRUE HORIZONTAL
+    // carry three or more text items. A table has a spine; a plan sheet's text
+    // is scattered.
+    //
+    // ROTATION MATTERS AND USED TO BE IGNORED. This bucketed transform[4] — the
+    // PDF-space x — on every page. On a 270-rotated sheet that axis runs down
+    // the page as the reader sees it, so column detection was measuring the
+    // wrong direction entirely. Ten of Workman's eighteen sheets are
+    // /Rotate 270 with essentially every glyph rotated (517 of 571 items on one
+    // page), so this was not an edge case in this corpus — it was the corpus.
+    const rot = ((page.rotate % 360) + 360) % 360
+    const acrossIsX = rot === 0 || rot === 180
+    const byPos = new Map<number, number>()
     for (const i of items) {
-      const x = Math.round(i.transform[4] / 4) * 4     // 4pt buckets
-      byX.set(x, (byX.get(x) ?? 0) + 1)
+      const raw = acrossIsX ? i.transform[4] : i.transform[5]
+      const pos = Math.round(raw / 4) * 4              // 4pt buckets
+      byPos.set(pos, (byPos.get(pos) ?? 0) + 1)
     }
-    const columnRuns = [...byX.values()].filter(c => c >= 3).length
+    const columnRuns = [...byPos.values()].filter(c => c >= 3).length
 
     const sheet = sheetFrom(items.map(i => i.str).join(' '))
     const titled = /\b[A-Z ]{3,30}SCHEDULE\b/.test(text)
