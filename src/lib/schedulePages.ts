@@ -280,20 +280,73 @@ export async function detectTableRegions(file: File, pageNo: number): Promise<Ta
 
   const regions: TableRegion[] = []
   for (let h = 0; h < headerAt.length; h++) {
-    // Start two items early so the table's own title is inside the crop.
     const from = Math.max(0, headerAt[h].i - 2)
     const to = h + 1 < headerAt.length ? headerAt[h + 1].i - 2 : items.length
     const slice = items.slice(from, to)
     if (slice.length < 12) continue
+
+    // THE EXTENT IS THE TABLE'S OWN OCCUPANCY, NOT THE HULL OF A READING RANGE.
+    //
+    // The hull was wrong and wrong in the dangerous direction. On Clairlea M-601
+    // the right-hand column stacks two tables; reading order interleaves them, so
+    // both regions' hulls covered the WHOLE column and each was extracted twice —
+    // 136 rows against 88 on the sheet, 48 of them phantom. A shortfall is
+    // visible; a duplicate looks like data.
+    //
+    // So: anchor on the header row, take its horizontal span, and walk DOWN
+    // (PDF y decreases downward) only while the rows keep coming. The first real
+    // vertical gap ends the table.
+    const hdr = items[headerAt[h].i]
+    const hy = hdr.transform[5]
+    const headerBand = slice.filter(it => Math.abs(it.transform[5] - hy) < 6)
+    let hx0 = Infinity, hx1 = -Infinity
+    for (const it of headerBand) {
+      hx0 = Math.min(hx0, it.transform[4])
+      hx1 = Math.max(hx1, it.transform[4] + (it.width ?? 0))
+    }
+    if (!isFinite(hx0)) continue
+    const padX = (hx1 - hx0) * 0.06
+
+    // Candidate rows: inside the header's columns, at or below the header.
+    const under = slice
+      .filter(it => it.transform[4] >= hx0 - padX && it.transform[4] <= hx1 + padX
+                 && it.transform[5] <= hy + 6)
+      .sort((a, b) => b.transform[5] - a.transform[5])
+    if (under.length < 12) continue
+
+    // Walk down; stop at the first gap wider than three line heights. That gap
+    // is the white band between this table and whatever sits beneath it.
+    const lineH = Math.max(6, (hdr.height ?? 8))
+    // SIX lines, not three. Schedule cells wrap ("SIGMA OR APPROVED EQUAL" is two
+    // lines in a 5.5pt cell) and a three-line gap cut FORCED FLOW HEATERS from
+    // 158 items to 13 — under-extraction introduced while fixing over-extraction.
+    const GAP = lineH * 6
+    const kept: typeof under = []
+    let prevY = hy + lineH
+    for (const it of under) {
+      if (prevY - it.transform[5] > GAP) break
+      kept.push(it)
+      prevY = Math.min(prevY, it.transform[5])
+    }
+    if (kept.length < 12) continue
+
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
-    for (const it of slice) {
+    for (const it of kept) {
       const x = it.transform[4], y = it.transform[5]
       x0 = Math.min(x0, x); y0 = Math.min(y0, y)
       x1 = Math.max(x1, x + (it.width ?? 0)); y1 = Math.max(y1, y + (it.height ?? 10))
     }
-    regions.push({ x0, y0, x1, y1, items: slice.length, header: headerAt[h].label })
+    regions.push({ x0, y0, x1, y1, items: kept.length, header: headerAt[h].label })
   }
-  return regions
+
+  // A region wholly inside another is the same table found twice — drop it
+  // rather than extract it twice. This is belt-and-braces; the assembly
+  // tripwire is the real guard, because it catches what geometry misses.
+  const deduped = regions.filter((r, i) => !regions.some((o, j) =>
+    j !== i && o.x0 <= r.x0 + 2 && o.y0 <= r.y0 + 2 && o.x1 >= r.x1 - 2 && o.y1 >= r.y1 - 2 &&
+    (o.x1 - o.x0) * (o.y1 - o.y0) > (r.x1 - r.x0) * (r.y1 - r.y0)))
+
+  return deduped
 }
 
 /** Render one region to a PNG data URL, with a margin so the table's ruled

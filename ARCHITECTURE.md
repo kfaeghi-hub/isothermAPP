@@ -1004,6 +1004,40 @@ that has many possible causes. Learned three times, at three different layers:
 | **Data** (Supabase writes) | RLS-blocked UPDATE/DELETE returns **success with 0 rows affected** — identical to a legitimate no-op. | Assert the affected-row count, not the absence of an error (`reportWriteBlocked`). |
 | **Function grants** | `revoke … from anon` on the portal RPCs looked like a lock and was **inert** (PUBLIC still granted EXECUTE; anon inherits it). The calls returned 0 rows only because `portal_can_view()` fails closed — the fail-safe was doing the control's job. | Assert the **error code** (`42501`), not the row count. A row count passes whether or not the grant exists. |
 
+### Failures in the PHANTOM-DATA direction need tripwires — they do not announce themselves
+
+**A shortfall is visible. A duplicate looks like data.**
+
+Most of the guard family is about checks that cannot fail. This is about failures
+that cannot be *seen*: a mechanism that returns **too much** produces output that
+passes every shape check, renders normally, and reads as a fuller answer than the
+correct one.
+
+*The evidence, 2026-08-04.* Clairlea M-601 carries 88 units. After table-region
+splitting it returned **136** — two crops were reading the same column, so 48 rows
+were phantom. Every row was well-formed. Every call reported `ok`. The only reason
+anyone knew was that someone had counted the sheet by hand: 32 + 18 + 8 + 30.
+
+**A total cannot tell you this.** 136 against 88 says something is wrong; it does
+not say *which* rows are doubled, and a total that happened to land on 88 by
+cancelling a shortfall against a duplicate would have said nothing at all. That is
+why the gate for this work is **per-region counts against hand counts**, not the
+sum.
+
+**And the tripwire must never quietly fix it.** Cross-region tag intersection at
+assembly is a loud refusal: it names the tags and the regions and declines to
+present the rows as clean. Silently deduplicating would mask the geometry defect
+that produced the duplicates — converting a *detectable* failure back into
+invisible almost-correctness, which is the whole disease this section is about.
+
+The same tripwire catches the legitimate rare case: a source sheet that genuinely
+repeats a tag. The Seneca import handled that by suffixing, **visibly**. Both roads
+end at a human looking at it, which is the correct destination for both.
+
+**The general form: when a mechanism can fail by producing MORE, the check is a
+cross-check between its parts — not a validation of its output.** Output
+validation cannot see a duplicate; only the parts, compared, can.
+
 ### The sibling rule: a guard that answers the same in both states is not a guard
 
 The silence family above is about ASSERTIONS that cannot fail. This is the same

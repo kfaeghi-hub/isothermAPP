@@ -193,6 +193,50 @@ export function IntakeUpload({ projectId, onStaged }: {
         }
       }
 
+      // ── THE ASSEMBLY TRIPWIRE ────────────────────────────────────────────
+      //
+      // If two regions of the same page returned the SAME TAG, the geometry is
+      // wrong and the register is about to gain phantom units. This flags it
+      // LOUDLY and never dedups.
+      //
+      // Silently deduping would be the worse bug: it would mask exactly the
+      // geometry defect this check exists to catch, converting a detectable
+      // failure back into invisible almost-correctness. Tonight's evidence —
+      // a page of 88 units returned 136, because two crops read the same column,
+      // and a total of 136 tells you nothing about WHICH rows are doubled.
+      //
+      // It also catches the legitimate rare case: a genuinely repeated tag on
+      // a source sheet. The Seneca import handled that by suffixing, VISIBLY.
+      // Both roads lead to the same place — a human looking at it.
+      if (staged.length > 1) {
+        const { data: allRows } = await supabase.from('intake_rows')
+          .select('upload_id, tag').in('upload_id', staged).not('tag', 'is', null)
+        const byTag = new Map<string, Set<string>>()
+        for (const r of allRows ?? []) {
+          const k = String(r.tag).trim().toUpperCase()
+          if (!k) continue
+          if (!byTag.has(k)) byTag.set(k, new Set())
+          byTag.get(k)!.add(r.upload_id)
+        }
+        const collisions = [...byTag.entries()].filter(([, ids]) => ids.size > 1)
+        if (collisions.length) {
+          const { data: ups } = await supabase.from('intake_uploads')
+            .select('id, filename').in('id', staged)
+          const nameOf = (id: string) =>
+            (ups ?? []).find(u => u.id === id)?.filename?.split('·').pop()?.trim() ?? id.slice(0, 8)
+          const detail = collisions.slice(0, 8).map(([tag, ids]) =>
+            `  ${tag} — in ${[...ids].map(nameOf).join(' AND ')}`).join('\n')
+          setError(
+            `STOP — ${collisions.length} tag(s) came back from more than one part of ` +
+            `page ${pages[0]?.page ?? '?'}, which means two regions read the same table.\n` +
+            `These rows are NOT clean data and have not been deduplicated:\n${detail}` +
+            (collisions.length > 8 ? `\n  …and ${collisions.length - 8} more` : '') +
+            `\n\nReview the staged rows before approving any of them. If the sheet ` +
+            `genuinely repeats a tag, keep both and suffix them; if it does not, the ` +
+            `page split is wrong and the extraction should be redone whole.`)
+        }
+      }
+
       if (failed.length) {
         setError(`${staged.length} page(s) read. These did not:\n` + failed.join('\n'))
       }
