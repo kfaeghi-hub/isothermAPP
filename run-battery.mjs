@@ -6,6 +6,14 @@
 // fixture — never parallelize) and prints one PASS/FAIL line per suite plus a
 // summary. Exit 0 only if every suite passed.
 //
+// AND NEITHER IS "DO NOT DEPLOY DURING A RUN", paid for on 2026-08-04: the
+// battery reported pw-intake FAIL exit=1 while a push to main was redeploying
+// api/intake.ts underneath it. Run alone, pw-intake passed 61/61. The suites
+// test PRODUCTION, so a deploy mid-run swaps the code under the harness — the
+// same fictional-regression class as a parallel suite, arriving from a
+// direction the rule below did not name. Nothing lands on main while a battery
+// is in flight.
+//
 // NEVER PARALLELIZE IS NOT ADVICE, and it has now been paid for: one battery was
 // started in the background while a second battery plus two individual suites ran
 // against the same fixture. The result was pw-checklist-offline failing 9
