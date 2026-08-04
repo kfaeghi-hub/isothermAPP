@@ -14,7 +14,7 @@ import { supabase } from '../../lib/supabase'
 import { authedFetch } from '../../lib/api'
 import { readWorkbook, parseSheet, fileHash, type ParsedSheet, type TypeVocab } from '../../lib/intakeExcel'
 import { SchedulePageFinder } from './SchedulePageFinder'
-import { renderPage } from '../../lib/schedulePages'
+import { renderPage, detectTableRegions, renderRegion } from '../../lib/schedulePages'
 import { sniffBlobMediaType } from '../../lib/mediaType'
 
 interface Staged extends ParsedSheet {
@@ -122,6 +122,42 @@ export function IntakeUpload({ projectId, onStaged }: {
     } finally { setBusy(false) }
   }
 
+
+  /** Stage ONE rendered image — a whole page, or one table region of it. */
+  async function stageOne(
+    f: File, p: { page: number; sheet: string | null }, dataUrl: string,
+    userId: string | null, regionNo: number | null, regionLabel: string | null,
+    staged: string[],
+  ) {
+    const blob = await (await fetch(dataUrl)).blob()
+    const safe = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9._-]+/g, '_')
+    const suffix = regionNo ? `_r${regionNo}` : ''
+    const path = `${projectId}/${Date.now()}_${safe}_p${p.page}${suffix}.png`
+    const up = await supabase.storage.from('intake-files').upload(path, blob)
+    if (up.error) throw new Error(`storage: ${up.error.message}`)
+
+    const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
+      project_id: projectId,
+      filename: `${f.name} — page ${p.page}${p.sheet ? ` (${p.sheet})` : ''}` +
+                (regionLabel ? ` · ${regionLabel}` : ''),
+      storage_path: path, kind: 'image',
+      media_type: await sniffBlobMediaType(blob),
+      content_sha256: await fileHash(new File([blob], path)),
+      status: 'uploaded', pages: 1, selected_pages: [p.page],
+      uploaded_by: userId,
+    }).select('id').single()
+    if (uErr) throw new Error(uErr.message)
+
+    const res = await authedFetch('/api/intake', {
+      upload_id: upload.id, action: 'extract', page: p.page, sheet: p.sheet,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw new Error(body?.error ?? `extraction failed (${res.status})`)
+    }
+    staged.push(upload.id)
+  }
+
   async function extractConfirmed(f: File, pages: { page: number; sheet: string | null }[]) {
     setFindingIn(null); setBusy(true); setError(null)
     const staged: string[] = []
@@ -131,40 +167,29 @@ export function IntakeUpload({ projectId, onStaged }: {
       for (const [i, p] of pages.entries()) {
         setPageProgress(`Reading page ${p.page}${p.sheet ? ` (${p.sheet})` : ''} — ${i + 1} of ${pages.length}…`)
         try {
-          const dataUrl = await renderPage(f, p.page, 2.0)
-          const blob = await (await fetch(dataUrl)).blob()
-          const safe = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9._-]+/g, '_')
-          const path = `${projectId}/${Date.now()}_${safe}_p${p.page}.png`
-          const up = await supabase.storage.from('intake-files').upload(path, blob)
-          if (up.error) throw new Error(`storage: ${up.error.message}`)
-
-          const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
-            project_id: projectId,
-            filename: `${f.name} — page ${p.page}${p.sheet ? ` (${p.sheet})` : ''}`,
-            storage_path: path, kind: 'image',
-            // RECORDED FROM CONTENT, not from the name we just built. The name
-            // carries "— page 7 (M-301)" for humans; it is not evidence.
-            media_type: await sniffBlobMediaType(blob),
-            content_sha256: await fileHash(new File([blob], path)),
-            status: 'uploaded', pages: 1,
-            selected_pages: [p.page],
-            uploaded_by: user?.id ?? null,
-          }).select('id').single()
-          if (uErr) throw new Error(uErr.message)
-
-          const res = await authedFetch('/api/intake', {
-            upload_id: upload.id, action: 'extract', page: p.page, sheet: p.sheet,
-          })
-          if (!res.ok) {
-            const body = await res.json().catch(() => null)
-            throw new Error(body?.error ?? `extraction failed (${res.status})`)
+          // A PAGE IS NOT ALWAYS THE UNIT OF WORK. Clairlea M-601 carries four
+          // schedules and 88 units; sent whole it truncated at 16,000 output
+          // tokens having spent 10,684 of them thinking, and cost 27c for
+          // nothing. Split deterministically, each table is a bounded read.
+          const regions = await detectTableRegions(f, p.page).catch(() => [])
+          const shots = regions.length
+            ? await Promise.all(regions.map(r => renderRegion(f, p.page, r, 2.0)))
+            : [await renderPage(f, p.page, 2.0)]
+          for (const [ri, dataUrl] of shots.entries()) {
+            const label = regions.length ? ` [${ri + 1}/${shots.length}] ${regions[ri].header}` : ''
+            if (regions.length) {
+              setPageProgress(`Reading page ${p.page}${label} — ${i + 1} of ${pages.length}…`)
+            }
+            await stageOne(f, p, dataUrl, user?.id ?? null, regions.length ? ri + 1 : null,
+                           regions.length ? regions[ri].header : null, staged)
           }
-          staged.push(upload.id)
+          continue
         } catch (e) {
           // ONE BAD PAGE DOES NOT LOSE THE OTHERS, and it is NAMED rather than
           // counted. "2 pages failed" sends someone hunting; "page 44 failed"
           // sends them to page 44.
           failed.push(`page ${p.page}: ${e instanceof Error ? e.message : String(e)}`)
+          continue
         }
       }
 

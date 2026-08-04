@@ -208,3 +208,121 @@ export async function renderPage(file: File, pageNo: number, scale = 0.6): Promi
   await page.render({ canvas, canvasContext: ctx, viewport }).promise
   return canvas.toDataURL('image/png')
 }
+
+// ── table regions ───────────────────────────────────────────────────────────
+//
+// WHY A PAGE IS NOT ALWAYS THE UNIT OF WORK.
+//
+// Clairlea sheet M-601 carries FOUR schedules — two WALL FINS tables, FORCED
+// FLOW HEATERS, and CONVECTORS — 88 units between them. Sent whole, the
+// extractor logged `outcome: truncated` at max_tokens 16000, having spent
+// 10,684 of them thinking, leaving about 5,300 for 88 rows of JSON. 27 cents
+// for nothing. It is the richest page in the corpus and it was the one page
+// that could not be read.
+//
+// Row ceilings were rejected and rightly: a mechanism that fails on the
+// highest-value page is backwards. So the PAGE is split into the tables it
+// actually contains, and each table is a bounded extraction well inside budget.
+//
+// The split is deterministic and free — it reads the text layer that is already
+// in the browser. No model is asked where the tables are.
+
+export interface TableRegion {
+  /** PDF-space bounding box, y measured from the bottom as pdfjs reports it. */
+  x0: number; y0: number; x1: number; y1: number
+  /** Text items inside it — the row-count estimate a reviewer sees. */
+  items: number
+  /** The header row that made this a table rather than a blob of text. */
+  header: string
+}
+
+const ID_COL_RE = /^(TAG|MARK|UNIT|UNIT NO|EQUIPMENT ID|ITEM|NO)\.?$/
+const DESC_COL_RE = /^(LOCATION|MANUFACTURER|MODEL|QTY|SERVICE|SERVES|REMARKS|DESCRIPTION|CAPACITY|TYPE|FLOOR|FLOOR LEVEL|AREA SERVED|ROOM)\.?$/
+
+/**
+ * Find the table regions on a page by clustering its text, then keeping only
+ * the clusters that carry a header row.
+ *
+ * Deliberately conservative: a page with ONE region returns one, and the caller
+ * treats that as "extract the page whole" — splitting a single table into
+ * itself buys nothing and costs a render.
+ */
+export async function detectTableRegions(file: File, pageNo: number): Promise<TableRegion[]> {
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise
+  const page = await doc.getPage(pageNo)
+  const content = await page.getTextContent()
+  const items = (content.items as { str: string; transform: number[]; width: number; height: number }[])
+    .filter(i => i.str.trim())
+  if (items.length < 20) return []
+
+  // SEGMENT ON HEADERS, IN READING ORDER.
+  //
+  // The first attempt clustered text spatially and fragmented Clairlea M-601
+  // into 318 pieces — its largest table is ~416 items and the biggest cluster
+  // was 143. Gap-based clustering is the wrong tool for a CAD sheet, where
+  // ruled borders are graphics and the gutters between columns are as wide as
+  // the gutters between tables.
+  //
+  // These PDFs emit text TABLE BY TABLE. So each header row starts a table and
+  // the next header ends it — a segmentation that needs no thresholds and
+  // matches how the file was actually authored.
+  const words = items.map(i => i.str.trim().toUpperCase())
+  const headerAt: { i: number; label: string }[] = []
+  for (let a = 0; a < words.length; a++) {
+    if (!ID_COL_RE.test(words[a])) continue
+    const near = words.slice(a + 1, a + 12).filter(w => DESC_COL_RE.test(w))
+    if (near.length < 2) continue
+    // The table's NAME sits just before its header row ("WALL FINS", "TAG", …).
+    const title = words.slice(Math.max(0, a - 2), a).filter(w => w.length > 2).pop() ?? ''
+    headerAt.push({ i: a, label: [title, words[a], ...near].filter(Boolean).slice(0, 5).join(' ') })
+  }
+  if (headerAt.length < 2) return []          // one table is the page; do not split
+
+  const regions: TableRegion[] = []
+  for (let h = 0; h < headerAt.length; h++) {
+    // Start two items early so the table's own title is inside the crop.
+    const from = Math.max(0, headerAt[h].i - 2)
+    const to = h + 1 < headerAt.length ? headerAt[h + 1].i - 2 : items.length
+    const slice = items.slice(from, to)
+    if (slice.length < 12) continue
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (const it of slice) {
+      const x = it.transform[4], y = it.transform[5]
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y)
+      x1 = Math.max(x1, x + (it.width ?? 0)); y1 = Math.max(y1, y + (it.height ?? 10))
+    }
+    regions.push({ x0, y0, x1, y1, items: slice.length, header: headerAt[h].label })
+  }
+  return regions
+}
+
+/** Render one region to a PNG data URL, with a margin so the table's ruled
+ *  border and title are inside the crop rather than shaved off it. */
+export async function renderRegion(
+  file: File, pageNo: number, r: TableRegion, scale = 2.0, margin = 24,
+): Promise<string> {
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise
+  const page = await doc.getPage(pageNo)
+  const viewport = page.getViewport({ scale })
+
+  const full = document.createElement('canvas')
+  full.width = Math.ceil(viewport.width)
+  full.height = Math.ceil(viewport.height)
+  const fctx = full.getContext('2d')!
+  await page.render({ canvas: full, canvasContext: fctx, viewport }).promise
+
+  // pdfjs viewport maps PDF space to canvas space including rotation; convert
+  // the region's corners rather than assuming an orientation.
+  const [ax, ay] = viewport.convertToViewportPoint(r.x0 - margin, r.y0 - margin)
+  const [bx, by] = viewport.convertToViewportPoint(r.x1 + margin, r.y1 + margin)
+  const left = Math.max(0, Math.min(ax, bx))
+  const top = Math.max(0, Math.min(ay, by))
+  const w = Math.min(full.width - left, Math.abs(bx - ax))
+  const h = Math.min(full.height - top, Math.abs(by - ay))
+  if (w < 40 || h < 40) return full.toDataURL('image/png')
+
+  const crop = document.createElement('canvas')
+  crop.width = Math.ceil(w); crop.height = Math.ceil(h)
+  crop.getContext('2d')!.drawImage(full, left, top, w, h, 0, 0, w, h)
+  return crop.toDataURL('image/png')
+}
