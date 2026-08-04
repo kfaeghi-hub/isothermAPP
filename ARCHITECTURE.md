@@ -1076,6 +1076,41 @@ that had been thrown away. The suites were green throughout. That is the whole
 case for render-and-look as a step, and for never letting a pipe stand between
 a runner and its verdict.
 
+### Budget classes buy DIFFERENT THINGS — reasoning buys thinking, extraction buys output
+
+**A budget class defines two things: the token ceiling and the thinking posture.**
+It used to define only the first, and the omission had a shape:
+
+> **A class that lets thinking eat the output budget fails on exactly its
+> densest, highest-value inputs.**
+
+That is the worst possible failure curve. The page worth the most is the page
+that dies.
+
+*The evidence, 2026-08-04.* Clairlea M-601 carries 88 units in four schedules —
+the richest page in the calibration corpus. Sent whole, the extractor logged
+`outcome: truncated` at `max_tokens` 16,000 having spent **10,684 of them
+thinking**, leaving about 5,300 for the rows. 27¢ for nothing.
+
+Split into its four tables it got better and stayed wrong: two regions returned
+**exactly** the hand-counted row totals (32 and 8), and two returned nothing —
+**and not the biggest ones.** The 510-item table succeeded in 119s; the 380-item
+table burned 170s and returned zero. **Failure did not follow size**, so the
+variable was never the amount of work. It was how much thinking the model
+happened to spend, which no amount of splitting controls.
+
+*The precedent* is the classifier's, already recorded in its own contract: a
+narrowed ceiling made it skip thinking, and the result was **more complete and
+ten times faster**. Deliberation is variance on a transcription task, not value.
+
+**So `extraction` disables thinking outright** (`CLASS_THINKING`), ceiling
+unchanged at 8,000 with the 16,000 retry. Reading a table off a page is
+transcription; there is nothing to deliberate about, and every token spent
+deliberating is a row that does not get written.
+
+Law 4 still holds unchanged: the posture comes from the **class**, never from a
+call site.
+
 ### A test boundary chosen for SAFETY creates a known-untested seam — name it
 
 **Every gate report names the legs it deliberately did not walk.**

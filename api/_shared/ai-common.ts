@@ -123,6 +123,9 @@ export interface PageAttachment {
 export type ImageAttachment = PageAttachment
 
 export interface ModelCall {
+  /** 'off' disables extended thinking for this call. Set from the agent's
+   *  budget class, never by a call site — Law 4. */
+  thinking?: 'off' | 'default'
   system: string
   /** A plain string, or content blocks when the call carries images. Blocks live
    *  HERE rather than at a call site because law 1 puts every model interaction
@@ -189,6 +192,10 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
       // that has been observed to leave room to reason AND answer on this
       // corpus. A caller with a genuinely short task should still pass its own.
       max_tokens: c.maxTokens ?? 8000,
+      // EXTRACTION BUYS OUTPUT, NOT THINKING. Omitted, the model decides; on a
+      // dense schedule it decided to spend two thirds of the budget thinking and
+      // returned no rows at all.
+      ...(c.thinking === 'off' ? { thinking: { type: 'disabled' } } : {}),
       system: c.system,
       messages: [{ role: 'user', content: c.user }],
     }),
@@ -353,12 +360,47 @@ export function parseJson<T>(text: string): T | null {
 /** A total generation budget INCLUDING reasoning, chosen by task shape rather
  *  than by a number a caller invents. Sized from measurement, not taste: a Cx
  *  Plan section returning ~450 tokens of prose spent ~4,900 getting there. */
+/** A budget class defines TWO things, and the second one was missing.
+ *
+ *  REASONING CLASSES BUY THINKING. EXTRACTION CLASSES BUY OUTPUT.
+ *
+ *  A class that lets thinking eat the output budget fails on exactly its
+ *  densest, highest-value inputs — which is the worst possible failure curve,
+ *  because the page worth the most is the page that dies.
+ *
+ *  The evidence: Clairlea M-601 carries 88 units in four schedules. Sent whole
+ *  it logged `outcome: truncated` at max_tokens 16,000 having spent **10,684 of
+ *  them thinking**, leaving ~5,300 for the rows. Split into its four tables, two
+ *  regions still failed — and NOT the biggest ones. The 510-item table succeeded
+ *  in 119s; the 380-item table burned 170s and returned nothing. Failure did not
+ *  follow size, so the variable was never the amount of work: it was how much
+ *  thinking the model happened to spend.
+ *
+ *  The precedent is the classifier's, recorded in its own contract: a narrowed
+ *  ceiling made it skip thinking, and the result was MORE complete and ten times
+ *  faster. Deliberation is variance on a transcription task, not value.
+ *
+ *  So `extraction` disables thinking outright. Reading a table off a page is
+ *  transcription; there is nothing to deliberate about, and every token spent
+ *  deliberating is a row that does not get written. */
 export const BUDGET_CLASS = {
   reasoning:  16000,   // compares many things against many rules
   prose:      10000,   // writes a few hundred words under a style card
   extraction:  8000,   // transcribes structure — PER PAGE, never per document
 } as const
 export type BudgetClass = keyof typeof BUDGET_CLASS
+
+/** The thinking posture per class. `'off'` sends `thinking: { type: 'disabled' }`;
+ *  `'default'` sends nothing and lets the model decide.
+ *
+ *  Ruled 2026-08-04. The ceiling is unchanged at 8,000 with the 16,000 retry —
+ *  with thinking off the whole budget goes to rows, and thirty rows of JSON sit
+ *  comfortably inside it. */
+export const CLASS_THINKING: Record<BudgetClass, 'off' | 'default'> = {
+  reasoning:  'default',
+  prose:      'default',
+  extraction: 'off',
+}
 
 export interface AgentContract {
   key: string
@@ -566,6 +608,7 @@ export async function runAgent<T>(
   // The class sets the ceiling; a contract may NARROW it (never widen). Law 4
   // holds either way — the number still comes from the registry, not the caller.
   const classCeiling = BUDGET_CLASS[c.budgetClass]
+  const thinkingPosture = CLASS_THINKING[c.budgetClass]
   let budget = opts.budgetOverride
     ?? (c.maxTokens ? Math.min(c.maxTokens, classCeiling) : classCeiling)
   const text = `${opts.task}\n\n${JSON.stringify(input)}`
@@ -587,7 +630,7 @@ export async function runAgent<T>(
   const user = withImages(text)
   const validOut = SCHEMAS[c.outputSchema] as Validator<T>
 
-  let result = await callModel({ system, user, maxTokens: budget })
+  let result = await callModel({ system, user, maxTokens: budget, thinking: thinkingPosture })
   let outcome = parseModelJson<T>(result, validOut)
 
   if (!outcome.ok && opts.retry !== false) {
@@ -601,6 +644,7 @@ export async function runAgent<T>(
       system,
       user: ranOutOfRoom ? user : withImages(text + JSON_RETRY_REMINDER),
       maxTokens: budget,
+      thinking: thinkingPosture,
     })
     outcome = parseModelJson<T>(result, validOut)
   }
