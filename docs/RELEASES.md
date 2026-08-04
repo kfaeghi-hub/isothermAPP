@@ -63,6 +63,22 @@ legs including the arrival check.
 **Not a parity defect:** the deployed filter is the calibrated one; 23 candidates
 is by design.
 
+**One row per physical unit** — ruled into the extractor's contract. Comma /
+ampersand / slash tag lists expand (`B-1,2` → two boilers) carrying the line's
+spec values; **ranges are not expanded** (a range states a count without stating
+tags, and inventing tags is inventing data). Gate hand-counts are now
+physical-unit counts. p16 re-gated: **11/11**, deterministic where it used to
+vary between 7 and 11.
+
+**Sort renders at 0.22** — the budget-class law applied to pixels; the sorter is
+a classifier, not a reader. Clairlea's payload 2,026 KB → 527 KB with **zero
+verdict changes**. Extraction still renders at 2.0. *Limit on record:* the sample
+held no scanned schedule, so it proves no false positives, not preserved true
+positives.
+
+**A field report describes the SCREEN, not the system** — reconcile against the
+ledger before diagnosing the pipeline.
+
 **Correction recorded:** p16's regions are not clipping — the boxes are correct
 and the 7-vs-11 difference is multi-unit row expansion (`B-1,2` as one row or
 two), which needs a ruling in the extractor's contract rather than a fix.

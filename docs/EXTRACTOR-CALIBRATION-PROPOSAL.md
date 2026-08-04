@@ -258,10 +258,22 @@ The difference is **multi-unit row expansion**. That sheet writes combined tags 
 tag-group and sometimes expands it. Whole-page run 1 gave 7 with combined tags;
 run 2 gave 11 expanded. Same geometry, different expansion.
 
-**This needs a ruling, not a fix:** should `B-1,2` become one unit or two? The
-register wants two (they are two machines); the sheet says one row. Whichever way
-it goes, it belongs in the extractor's contract as an explicit instruction rather
-than left to vary run to run. **Open.**
+**RULED 2026-08-04 — one row per PHYSICAL UNIT**, written into the extractor's
+contract rather than left to vary. Comma / ampersand / slash tag lists expand
+(`B-1,2` → `B-1` and `B-2`) carrying the line's spec values onto each row,
+because the register is unit-grained: two boilers on one line have two serials,
+two sets of index cells, and a finding is raised against one machine, not against
+a line.
+
+**Ranges are NOT expanded.** `UH-1 THROUGH UH-12` states a count without stating
+tags, and inventing eleven tags is inventing data — one row, the range kept in
+the descriptor, low confidence, said in `reasoning`. Quarantine, never guess.
+
+**Consequence for every gate:** hand counts are henceforth **physical-unit
+counts**, stated as such. p16's is **11** — `B-1,2`=2 · `P-P1,P-P2` +
+`P-S1,P-S2`=4 · `T-1,2`=2 · `UH-B1`=1 · `WS-1`=1 · `UV-1`=1 — which is exactly
+what the whole-page run returned on the occasion it happened to expand. The
+contract makes that the deterministic answer rather than the lucky one.
 
 ## F1b — the 413, and the transport options
 
@@ -278,12 +290,42 @@ not a bug in the guard; it is the guard's payload being the wrong shape.
 | **B — per-page requests** | one page per call, ~1.4 MB | 40 × round-trip; slower wall-clock, parallelisable | unchanged | Simple and robust, but 40 requests where 1 would do, and the cost display becomes per-page rather than per-chunk. |
 | **C — storage-side reads** | upload page images, send references | extra upload leg | storage cost + cleanup | Most work, most moving parts, and it puts images in storage for a question that may answer "not a schedule". |
 
-**Recommend A, with B as the fallback if A still exceeds limits on a set larger
-than Clairlea's.** A is a one-line change to the sort render scale, keeps the
+**RULED: A, approved 2026-08-04** — the budget-class law applied to pixels.
+Extraction still renders at 2.0; only the sort classification is downscaled.
+Gate: **zero verdict changes** against the current baseline across the
+calibration corpus — any flip fails it and per-page requests (B) get built
+instead.
+
+**Original recommendation, for the record:** A, with B as the fallback if A still
+exceeds limits on a set larger than Clairlea's. A is a one-line change to the sort render scale, keeps the
 single chunked request and its cost display intact, and rests on a real argument
 rather than a size heuristic: *the sorter is a classifier, not a reader.* It
 should be measured on Clairlea before being trusted — the gate is that its
 verdicts do not change against the current baseline.
+
+## The closing gates — both PASSED 2026-08-04
+
+**Gate A — p16 under the expansion contract: 11 / 11 physical units.**
+
+| region | rows | tags |
+|---|---|---|
+| BOILERS | 2 | `B-1`, `B-2` |
+| PUMPS | 4 | `P-P1`, `P-P2`, `P-S1`, `P-S2` |
+| EXPANSION TANKS | 2 | `T-1`, `T-2` |
+| UNIT HEATERS · WATER SOFTENER · UNIT VENTILATOR | 1 · 1 · 1 | `UH-B1` · `WS-1` · `UV-1` |
+
+`B-1,2` became two boilers and `T-1,2` two tanks. What varied run-to-run between
+7 and 11 from identical geometry is now **deterministic at 11**.
+
+**Gate B — sort downscale: zero verdict changes.** Six Clairlea scanned pages at
+0.6 and 0.22: identical verdicts, payload **2,026 KB → 527 KB** (3.8×).
+
+**The limit of Gate B, stated rather than footnoted.** Every sampled page
+returned *not a schedule*, because **the corpus contains no scanned page carrying
+a schedule** — a gap already named in the fixture manifest. So the gate proves
+the downscale does not create **false positives**; it does **not** prove it
+preserves **true positives**. That is the strongest evidence this corpus can
+produce, and the first scanned schedule that arrives should re-run it.
 
 ## Open, named rather than assumed
 
