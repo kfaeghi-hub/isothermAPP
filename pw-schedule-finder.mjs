@@ -101,6 +101,33 @@ check(naked.status === 200,
   'a failed sort returns 200 with the pages undecided — it fails OPEN into the ' +
   'confirmation screen, never into an extraction and never into silence')
 
+// ── F1a: a transport failure must not pre-select anything ───────────────────
+//
+// The verdict logic stopped trusting `titled` alone (a TDSB title sheet carries
+// a drawing list; plan sheets say "as per schedule" in notes). The PRE-TICK was
+// left trusting it, so with the sorter unavailable — a 413 on a scanned-heavy
+// set — pages the filter deliberately refuses to CLAIM arrived ticked.
+//
+// Asserted against the SOURCE because the pre-tick lives in a React component
+// and this harness is Node: the rule is that `picked` reads headerSignature or a
+// sorter confirmation, and never `titled`. Named plainly rather than dressed up
+// as a behavioural test.
+const finderSrc = await readFile('src/components/intake/SchedulePageFinder.tsx', 'utf8')
+// The ASSIGNMENT, not the interface declaration — `picked: boolean` in the
+// Candidate type matched first and made this check fail on a correct build.
+const pickLine = (finderSrc.match(/picked:\s*(p\.|sorted).*$/m) ?? [''])[0]
+check(/headerSignature/.test(pickLine) && !/p\.titled/.test(pickLine),
+  `pre-tick reads real evidence only, never a title (${pickLine.trim().slice(0, 64)})`)
+check(/pre-selected on its behalf/.test(finderSrc),
+  'a failed sort SAYS nothing was pre-selected on its behalf — the failure is ' +
+  'visible as a widened human choice, not a silent one')
+
+// ARRIVAL FIRST: the sorter-confirmed path must still tick, or the assertion
+// above would pass just as happily on a build that pre-ticks nothing at all.
+check(/picked: true/.test(finderSrc),
+  'ARRIVAL: a sorter-confirmed page still arrives ticked — the rule narrows ' +
+  'pre-ticking, it does not abolish it')
+
 if (REAL) {
   const real = await post({
     action: 'find-pages',

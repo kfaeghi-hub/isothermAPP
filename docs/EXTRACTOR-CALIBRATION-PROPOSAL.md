@@ -189,6 +189,102 @@ disjoint vertical bands, or by clipping each region against the others. Until
 then table-region splitting is **not safe to trust on a multi-column sheet**, and
 the 88/88 bar stands.
 
+## The field test — three findings, and what the ledger actually said
+
+The gate passed at 88/88 through a harness; the field then reported "~2 rows".
+**The ledger settled it, and overturned the diagnosis I had written down.**
+
+### The field-run evidence
+
+Ten `intake:extract-page` calls, all `outcome: ok`, all `thinking_tokens: 0`,
+`budget_class: extraction`. **Production was running the region splitter and the
+amended budget class.** The rows landed:
+
+| upload | rows | status |
+|---|---|---|
+| p16 · BOILERS | 1 | **approved** |
+| p16 · PUMPS · EXPANSION TANKS · UNIT HEATERS · WATER SOFTENER · UNIT VENTILATOR | 2 · 1 · 1 · 1 · 1 | parsed |
+| **p17 · WALL FINS · FFH · CONVECTORS · WALL FINS** | **32 · 8 · 30 · 18** | parsed |
+
+**p17 returned 88/88 through the real endpoint**, per-region exact against the
+hand counts. The F2 gate had already passed, four hours before it was asked for,
+and nobody knew.
+
+### F2 — the defect is ASSEMBLY, not extraction or parity
+
+`extractConfirmed` ended with `onStaged(staged[0])`. Region splitting makes N
+uploads; the review opened one. **87 rows sat in nine `parsed` uploads that were
+never shown**, and "~2 rows" was an accurate reading of the only screen offered.
+
+*This is the unwalked-legs rule at the harness layer, and it is now a rule of its
+own:* every 88/88 came through `zz-gate3.mjs`, which called the region functions
+itself and posted each region — **it replaced the assembly step with itself**, so
+it proved extraction and proved nothing about the part that was broken. See
+ARCHITECTURE, *a gate that runs through a harness proves the harness*.
+
+**Fixed:** the total row count across all staged uploads is stated before the
+review opens, so a page that *split* is never mistaken for a page that returned
+almost nothing.
+
+### F1a — the pre-tick violation, a one-line inconsistency
+
+`picked: p.titled || …`. The **verdict** logic was corrected to stop trusting a
+title alone; the **pre-tick** was left trusting it. It shows worst exactly when
+things are worst: with the sorter 413'd, `sorted` is empty and `titled` is the
+only signal left — the one already ruled untrustworthy.
+
+**Fixed:** `picked: p.headerSignature || sorted[…]?.is_schedule === true`, and the
+screen says *"Nothing below has been pre-selected on its behalf."* A transport
+failure degrades to **more human choice, never more machine assertion**.
+`pw-schedule-finder` gained three legs, including the arrival check that stops the
+rule being satisfied by a build that pre-ticks nothing at all.
+
+### The 23-vs-4 reconciliation — not a parity defect
+
+The deployed bundle carries the calibrated filter (header-signature branch
+present, titled-alone branch gone). **23 candidates is by design:** undecided
+pages are deliberately shown — *a page the machine could not judge is a page the
+human should see*. Only the pre-tick was wrong.
+
+### A correction to my own diagnosis: p16 is NOT clipping
+
+I reported p16's six regions as under-extracting — 7 rows where whole-page gave
+11 — and attributed it to clipped boxes. **The boxes are correct**: `PUMPS`
+contains all 52 of its items, `BOILERS` 36, `UNIT VENTILATOR` 50, each with its
+full header and rows.
+
+The difference is **multi-unit row expansion**. That sheet writes combined tags —
+`B-1,2`, `T-1,2`, `P-P1,P-P2` — and the model sometimes returns one row per
+tag-group and sometimes expands it. Whole-page run 1 gave 7 with combined tags;
+run 2 gave 11 expanded. Same geometry, different expansion.
+
+**This needs a ruling, not a fix:** should `B-1,2` become one unit or two? The
+register wants two (they are two machines); the sheet says one row. Whichever way
+it goes, it belongs in the extractor's contract as an explicit instruction rather
+than left to vary run to run. **Open.**
+
+## F1b — the 413, and the transport options
+
+The sort payload carries a full-page PNG per scanned page. Clairlea has 26 of
+them at roughly 1.4 MB each rendered at scale 0.6 — **~36 MB base64-encoded into
+one JSON body**, against a serverless request limit far below that. The 413 is
+not a bug in the guard; it is the guard's payload being the wrong shape.
+
+**Three options, deterministic-first split unchanged in all three:**
+
+| Option | Payload | Latency | Cost | Notes |
+|---|---|---|---|---|
+| **A — downscale for sort only** | scale 0.6 → **0.22**, ~180 KB/page; 40 pages ≈ 7 MB | unchanged | unchanged | **The sort asks "schedule or not", not "read this table".** A page's *shape* — is there a grid of numbers — survives heavy downscaling; extraction-grade resolution is spent on a question that does not need it. |
+| **B — per-page requests** | one page per call, ~1.4 MB | 40 × round-trip; slower wall-clock, parallelisable | unchanged | Simple and robust, but 40 requests where 1 would do, and the cost display becomes per-page rather than per-chunk. |
+| **C — storage-side reads** | upload page images, send references | extra upload leg | storage cost + cleanup | Most work, most moving parts, and it puts images in storage for a question that may answer "not a schedule". |
+
+**Recommend A, with B as the fallback if A still exceeds limits on a set larger
+than Clairlea's.** A is a one-line change to the sort render scale, keeps the
+single chunked request and its cost display intact, and rests on a real argument
+rather than a size heuristic: *the sorter is a classifier, not a reader.* It
+should be measured on Clairlea before being trusted — the gate is that its
+verdicts do not change against the current baseline.
+
 ## Open, named rather than assumed
 
 - **Workman p7: the `QTY NO.` header-shape variant.** Its BOILERS and EXPANSION

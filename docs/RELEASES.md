@@ -16,6 +16,66 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.05 — 2026-08-04
+
+### For the team
+
+**Dragging a big drawing set in shows you everything it found.** A sheet with
+four schedules on it becomes four tables, and the app now tells you *"2 pages
+split into 10 tables — 95 rows in total"* before opening the first. Previously it
+opened one and said nothing about the rest, which made a page that read perfectly
+look like it had barely read at all.
+
+**Nothing gets pre-ticked on a guess.** If the page-sorter can't run — it happens
+on sets with a lot of scanned sheets — pages are still offered to you, just none
+of them pre-selected, and the app says so. A page only arrives ticked when there
+is real evidence for it.
+
+**Typed equipment always gets its full nameplate.** Units created by intake used
+to show only Manufacturer / Model / Serial. Every typed unit now renders its
+type's whole field set, empty and ready, on every project. **You fill nameplates;
+you never have to build them.** 323 fields were backfilled across existing
+projects.
+
+### Technical record
+
+**F3 — def seeding is structural.** `api/intake.ts` mentioned
+`project_equipment_field_defs` zero times; `ensureFieldDefs` lived in
+`EquipmentPage.tsx` as a client-side UI event handler. So intake typed units
+correctly and never seeded the template the nameplate reads — the
+retroactive-typing lesson recurring through a different door. Fixed with a
+**database trigger**, not another call site: intake approval, picker,
+retroactive ratification, manual assignment and every path not yet written.
+*Calling one function from N call sites is a rule the N+1th call site breaks.*
+Census: 9 (project, type) pairs, 323 def rows; zero pairs remain missing;
+mechanism proven in both states. Product rule in the Build Spec.
+
+**F2 — assembly, not extraction.** The ledger showed production had run the
+splitter and the amended budget class and returned **88/88 on p17 through the
+real endpoint**. `onStaged(staged[0])` showed one of ten uploads. Fixed by
+stating the total before the review opens.
+
+**F1a — the pre-tick violation.** `picked` still read `p.titled` after the
+verdict logic stopped trusting it; with the sorter down that was the only signal
+left. Now `headerSignature || sorted-confirmed`. Three new `pw-schedule-finder`
+legs including the arrival check.
+
+**Not a parity defect:** the deployed filter is the calibrated one; 23 candidates
+is by design.
+
+**Correction recorded:** p16's regions are not clipping — the boxes are correct
+and the 7-vs-11 difference is multi-unit row expansion (`B-1,2` as one row or
+two), which needs a ruling in the extractor's contract rather than a fix.
+
+**New standing rule.** *A gate that runs through a harness proves the harness.*
+The gate is the field flow; harnesses are callers of production modules, never
+siblings — the one-matcher rule applied to a pipeline.
+
+**Parked:** BACKBURNER 3f, the extraction-rules harvest — the librarian's next
+client, waking when a few real sets have been extracted and reviewed.
+
+---
+
 ## Update 1.04 — 2026-08-04
 
 ### For the team
