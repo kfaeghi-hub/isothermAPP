@@ -58,7 +58,7 @@ The hardest fixture, and the most valuable.
 | Page | Exercises |
 |---|---|
 | **16** | **Six schedules on one sheet** — BOILERS, PUMPS, EXPANSION TANKS, UNIT HEATERS, WATER SOFTENER, UNIT VENTILATOR. Region detection finds all six. The UNIT VENTILATOR is where `unit_ventilator` came from: extracted, unresolved at 0.55, minted. |
-| **17** | **The richest page in the corpus — 88 units in four tables** (WALL FINS ×2 at 32 and 18 rows, FORCED FLOW HEATERS 8, CONVECTORS 30). The page that truncated the extractor at 16,000 output tokens for 27¢ and forced table-region splitting. **This page is the Phase 2b gate.** |
+| **17** | **The richest page in the corpus — 88 units in four tables** (WALL FINS ×2 at 32 and 18 rows, FORCED FLOW HEATERS 8, CONVECTORS 30). The page that truncated the extractor at 16,000 output tokens for 27¢ and forced table-region splitting. **This page is the Phase 2b gate — PASSED 2026-08-04 at 88/88, per-region 32/8/30/18, 59.3¢, tripwire silent.** |
 | 3–13 | **Plan sheets that read as tables** — p4 is a PLAN with 142 column runs; p17 is a real schedule with 147. The pair that proves density cannot separate them. |
 | 21, 22 | Lighting controls · mechanical equipment wiring — real schedules of a different shape. |
 | 24 | **Tiny fonts** — 2,072 of 2,443 items below 5pt. Failure class F, parked pending evidence. |

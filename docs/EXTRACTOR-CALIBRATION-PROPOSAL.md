@@ -109,9 +109,31 @@ correctly: one table is the page.
 
 ---
 
-## The 2b gate — HOLD, and what the re-run proved
+## The 2b gate — **PASSED 2026-08-04**
 
-**Bar: all four tables, 88 rows. Result: 136 rows. HOLD.**
+**Bar: all four tables, 88 rows, per-region counts matching the hand counts.
+Result: 88/88, every region exact, tripwire silent. PASSED.**
+
+### Run 3 — corrected extent + assembly tripwire
+
+| region | items | rows | hand | out_tok | think | cost |
+|---|---|---|---|---|---|---|
+| WALL FINS (left) | 503 | **32** | 32 | 13,008 | 0 | 22.4¢ |
+| FORCED FLOW HEATERS | 151 | **8** | 8 | 3,896 | 0 | 8.0¢ |
+| CONVECTORS | 375 | **30** | 30 | 9,307 | 0 | 16.5¢ |
+| WALL FINS (right) | 292 | **18** | 18 | 6,578 | 0 | 12.3¢ |
+
+**88 / 88 · 59.3¢.** Tripwire silent — no tag appears in two regions.
+
+Both risks flagged before the run came back clean: region 1 held at **32** under
+the recomputed extent, and FFH's 151-vs-158 items produced **8** rows again, so
+the trim took only whitespace. Region 4 finished inside the 8,000 first-pass
+ceiling without a retry.
+
+Cost across the three runs: **165.1¢ for 40 rows → 77.7¢ for 136 (48 phantom) →
+59.3¢ for exactly 88.**
+
+### The two runs behind it, kept because the sequence is the argument
 
 ### Run 1 — before the budget-class amendment
 

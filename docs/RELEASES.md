@@ -75,7 +75,9 @@ the page's true horizontal per `/Rotate`. It changed the measurement on exactly
 the 10 rotated pages and flipped zero verdicts, because the threshold was the
 binding constraint. Right fix, no effect on this corpus.
 
-**Table-region splitting (2b) — SHIPPED BUT HELD.** Region detection is correct
+**Table-region splitting (2b) — SHIPPED, GATE PASSED.** Clairlea M-601's 88 units read exactly: 32/8/30/18 against the hand counts, 59.3¢, cross-region tag tripwire silent. Two earlier runs are kept in the record because the sequence is the argument — 40 rows truncating, then 136 with 48 phantom, then 88.
+
+**Superseded note:** Region detection is correct
 (Clairlea p17 → its four real tables, p16 → its six) and the budget-class fix is
 proven, but the gate fails at 136 rows against 88: on a multi-column sheet two
 crops read the same column, so it is **not yet safe to trust there**. Details in
