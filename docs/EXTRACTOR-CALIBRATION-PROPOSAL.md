@@ -109,6 +109,64 @@ correctly: one table is the page.
 
 ---
 
+## The 2b gate — HOLD, and what the re-run proved
+
+**Bar: all four tables, 88 rows. Result: 136 rows. HOLD.**
+
+### Run 1 — before the budget-class amendment
+
+| region | items | rows | outcome |
+|---|---|---|---|
+| WALL FINS (left) | 510 | **32** | ok — exact to the hand count |
+| FORCED FLOW HEATERS | 158 | **8** | ok — exact to the hand count |
+| CONVECTORS | 380 | 0 | truncated (5,396 thinking tokens) |
+| WALL FINS (right) | 352 | 0 | truncated (4,267 thinking tokens) |
+
+40 of 88 rows, 165.1¢. Failure did not follow size — the largest table succeeded
+and a smaller one died — which is what identified thinking spend, not workload,
+as the variable.
+
+### Run 2 — thinking disabled (`CLASS_THINKING.extraction = 'off'`)
+
+| region | items | rows | out_tok | **think** | cost |
+|---|---|---|---|---|---|
+| WALL FINS (left) | 510 | **32** | 12,800 | **0** | 22.2¢ |
+| FORCED FLOW HEATERS | 158 | **8** | 3,478 | **0** | 7.5¢ |
+| CONVECTORS | 380 | 48 | 12,366 | **0** | 21.4¢ |
+| WALL FINS (right) | 352 | 48 | 15,717 | **0** | 26.6¢ |
+
+**136 rows, 77.7¢.** Every call `ok`; zero thinking tokens on all four.
+
+### What the amendment proved, and what it did not
+
+**Proved.** The thinking posture works and the request shape is correct —
+measured, not assumed: 0 thinking tokens against 581 / 1,177 / 5,396 / 4,267
+before. Both regions that previously truncated now complete. Cost fell from
+165.1¢ (40 rows) to 77.7¢ (136 rows). **The budget class was a real cause and it
+is fixed.**
+
+**Did not.** The gate still fails, and now in the more dangerous direction:
+**over-extraction, not shortfall.**
+
+Regions 3 and 4 both returned **48**. The hand count is 30 convectors and 18
+right-hand wall fins — and 18 + 30 = 48. **Both crops are reading the whole
+right-hand column**, so that column is extracted twice. On a real project this
+would create 48 phantom units, which is worse than the 0 rows it replaced: a
+shortfall is visible, a duplicate looks like data.
+
+The cause is in the bounding boxes, not the model. Reading-order segmentation
+gives each region a correct *item range*, but the bbox is the min/max of those
+items — and where a sheet's reading order interleaves two columns, a region's
+extent spans the whole column rather than its own table. Regions 1 and 2 (the
+left column) are exact **because that column holds one table above another**;
+the right column holds two tables the same way but its item ranges overlap.
+
+**Next, and not tonight:** the bbox must be the table's own extent, not the hull
+of its item range — most likely by splitting a region whose items occupy two
+disjoint vertical bands, or by clipping each region against the others. Until
+then table-region splitting is **not safe to trust on a multi-column sheet**, and
+the 88/88 bar stands.
+
 ## Open, named rather than assumed
 
 - **Workman p7 splits 2 of 4.** Its BOILERS and EXPANSION TANK headers use a

@@ -75,7 +75,20 @@ the page's true horizontal per `/Rotate`. It changed the measurement on exactly
 the 10 rotated pages and flipped zero verdicts, because the threshold was the
 binding constraint. Right fix, no effect on this corpus.
 
-**Table-region splitting (2b).** Clairlea M-601 carries 88 units in four tables;
+**Table-region splitting (2b) — SHIPPED BUT HELD.** Region detection is correct
+(Clairlea p17 → its four real tables, p16 → its six) and the budget-class fix is
+proven, but the gate fails at 136 rows against 88: on a multi-column sheet two
+crops read the same column, so it is **not yet safe to trust there**. Details in
+[EXTRACTOR-CALIBRATION-PROPOSAL.md](EXTRACTOR-CALIBRATION-PROPOSAL.md).
+
+**Budget classes gained a thinking posture (Law 4).** `extraction` sends
+`thinking: { type: 'disabled' }` — reasoning classes buy thinking, extraction
+classes buy output, and a class that lets thinking eat the output budget fails on
+exactly its densest, highest-value inputs. Measured: 0 thinking tokens against
+581 / 1,177 / 5,396 / 4,267 before; both previously-truncating regions now
+complete; cost 165.1¢ → 77.7¢.
+
+**Original 2b note.** Clairlea M-601 carries 88 units in four tables;
 sent whole it logged `outcome: truncated` at 16,000 output tokens having spent
 **10,684 thinking**, and cost 27¢ for nothing. Row ceilings were rejected — a
 mechanism that fails on the highest-value page is backwards. The **first attempt

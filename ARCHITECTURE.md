@@ -1111,6 +1111,27 @@ deliberating is a row that does not get written.
 Law 4 still holds unchanged: the posture comes from the **class**, never from a
 call site.
 
+### Nothing lands on main while a battery is in flight
+
+The suites test **production**. A push to main redeploys the code the harness is
+mid-way through testing, so the run reports failures that describe neither the
+old code nor the new one.
+
+*2026-08-04:* the battery reported `pw-intake FAIL exit=1` while a push
+redeployed `api/intake.ts` underneath it. Run alone, `pw-intake` passed 61/61.
+
+This is the same fictional-regression class as running two suites against the
+fixture — the incident the runner header already records — arriving from a
+direction that rule did not name. Both are in the header now. **A deploy is a
+concurrent writer.**
+
+*A second lesson from the same run, about how the verdict is READ:* the task
+notification said "exit code 0" for that failing battery, because the shell's
+exit came from a trailing `echo`. The real verdict, `RUN-BATTERY EXIT: 1`, was
+inside the output. **Anything appended after the runner becomes the exit code you
+are told about** — the same masking as the `| tail -12` incident, wearing a
+different costume. Read the summary line, not the wrapper's status.
+
 ### A test boundary chosen for SAFETY creates a known-untested seam — name it
 
 **Every gate report names the legs it deliberately did not walk.**
