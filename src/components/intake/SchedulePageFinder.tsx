@@ -18,6 +18,10 @@ import { useState } from 'react'
 import { authedFetch } from '../../lib/api'
 import { scanPdfPages, renderPage, PAGE_CEILING, type PageScan } from '../../lib/schedulePages'
 
+/** Render scale for SORT classification only. Extraction renders at 2.0 and is
+ *  unaffected. Ruled 2026-08-04; gated on zero verdict changes. */
+const SORT_RENDER_SCALE = 0.22
+
 interface Candidate extends PageScan {
   picked: boolean
   title: string | null
@@ -78,7 +82,16 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
             ? `sheet ${p.sheet ?? '?'} · terms: ${p.keywords.join(', ') || 'none'} · ` +
               `${p.columnRuns} column runs · ${p.textItems} text items`
             : undefined,
-          image_base64: p.verdict === 'scanned' ? await renderPage(file, p.page) : undefined,
+          // THE SORTER IS A CLASSIFIER, NOT A READER — the budget-class law
+          // applied to pixels. It answers "schedule or not", and a page's SHAPE
+          // (is there a grid of numbers) survives heavy downscaling; only
+          // extraction needs to read the cells.
+          //
+          // At the default 0.6 a scanned page is ~1.4 MB, and Clairlea's 26 of
+          // them are ~36 MB base64 in one request body — the 413 the field hit.
+          // At 0.22 it is ~180 KB, so 40 pages fit in ~7 MB.
+          image_base64: p.verdict === 'scanned'
+            ? await renderPage(file, p.page, SORT_RENDER_SCALE) : undefined,
         })))
 
         const res = await authedFetch('/api/intake', { action: 'find-pages', pages: payload })

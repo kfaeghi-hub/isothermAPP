@@ -1166,6 +1166,25 @@ inside the output. **Anything appended after the runner becomes the exit code yo
 are told about** — the same masking as the `| tail -12` incident, wearing a
 different costume. Read the summary line, not the wrapper's status.
 
+### A field report describes the SCREEN, not the system
+
+**Reconcile against the ledger before diagnosing the pipeline.**
+
+*2026-08-04:* "the extractor returned ~2 rows" was true and complete as a
+description of what was on screen, and wrong about every layer beneath it. The
+ledger showed ten calls, all `ok`, thinking disabled, and **88/88 rows extracted
+through the real endpoint**. The rows existed; `onStaged(staged[0])` showed one
+of ten uploads and 87 rows sat in `parsed` uploads nobody was shown.
+
+Acting on the report alone would have sent the work to the extractor, the budget
+class, or the region splitter — all of which were correct — and left the
+presentation defect in place. **The reporter is describing the only thing they
+can see. The ledger is what they cannot.**
+
+This is the *prove the mechanism* rule pointed at bug reports: a symptom is
+evidence about the surface, and the run log is evidence about the machine. Read
+the second before rewriting the first.
+
 ### A gate that runs through a harness proves the HARNESS
 
 **The gate is the field flow. Harnesses are callers of production modules, never
