@@ -37,8 +37,12 @@ export interface PageScan {
   /** The sheet number/title if the page states one. */
   sheet: string | null
   keywords: string[]
-  /** Distinct x-positions that repeat down the page — a table's spine. */
+  /** Distinct positions along the page's TRUE horizontal that repeat — a
+   *  table's spine. Rotation-aware since 2026-08-04. */
   columnRuns: number
+  /** An identity column with descriptive columns beside it: a header row.
+   *  This, not density, is what separates a schedule from a plan sheet. */
+  headerSignature: boolean
   textItems: number
 }
 
@@ -91,7 +95,7 @@ export async function scanPdfPages(
     // found, and only a model can tell them apart.
     if (items.length < 12) {
       pages.push({
-        page: n, verdict: 'scanned', titled: false,
+        page: n, verdict: 'scanned', titled: false, headerSignature: false,
         reason: 'no text layer — needs a look',
         sheet: null, keywords: [], columnRuns: 0, textItems: items.length,
       })
@@ -125,12 +129,48 @@ export async function scanPdfPages(
     const sheet = sheetFrom(items.map(i => i.str).join(' '))
     const titled = /\b[A-Z ]{3,30}SCHEDULE\b/.test(text)
 
+    // THE HEADER SIGNATURE — what actually separates a schedule from a plan.
+    //
+    // Density does not. Calibrated against four real TDSB sets: Clairlea p4 is
+    // a PLAN with 142 column runs; Clairlea p17 is a real WALL FINS schedule
+    // with 147. Indistinguishable by shape — and the old rule (4 keywords + 6
+    // column runs) called 24 of Clairlea's 55 pages schedules when about five
+    // of them are.
+    //
+    // A schedule has a HEADER ROW; a plan does not. The real ones in this
+    // corpus read "BOILERS TAG QTY. LOCATION MANUFACTURER MODEL FLUID INPUT"
+    // and "WALL FINS TAG FLOOR LEVEL LOCATION MANUFACTURER MODEL AWT". The
+    // tell is an identity column (TAG / MARK / UNIT / EQUIPMENT ID) with two or
+    // more descriptive columns beside it WITHIN A SHORT RUN of text items —
+    // because a header row is contiguous in reading order and a plan's stray
+    // words are not.
+    const ID_COL = /^(TAG|MARK|UNIT|UNIT NO|EQUIPMENT ID|ITEM|NO)\.?$/
+    const DESC_COL = /^(LOCATION|MANUFACTURER|MODEL|QTY|SERVICE|SERVES|REMARKS|DESCRIPTION|CAPACITY|TYPE|FLOOR|FLOOR LEVEL|AREA SERVED|ROOM)\.?$/
+    const cellWords = items.map(i => i.str.trim().toUpperCase()).filter(Boolean)
+    let headerSignature = false
+    for (let a = 0; a < cellWords.length && !headerSignature; a++) {
+      if (!ID_COL.test(cellWords[a])) continue
+      let descs = 0
+      for (let b = a + 1; b < Math.min(a + 12, cellWords.length); b++) {
+        if (DESC_COL.test(cellWords[b])) descs++
+      }
+      if (descs >= 2) headerSignature = true
+    }
+
     let verdict: PageVerdict
     let reason: string
-    if (titled && columnRuns >= 4) {
-      verdict = 'schedule'; reason = 'titled a schedule, and laid out as a table'
-    } else if (keywords.length >= 4 && columnRuns >= 6) {
-      verdict = 'schedule'; reason = `${keywords.length} schedule terms in ${columnRuns} columns`
+    if (headerSignature) {
+      // The strongest evidence available without a model.
+      verdict = 'schedule'
+      reason = titled ? 'titled a schedule, with a table header row'
+                      : 'has a table header row — a tag/mark column with named columns beside it'
+    } else if (titled && columnRuns >= 4) {
+      // TITLE ALONE NO LONGER CLAIMS A PAGE. A TDSB title sheet carries a
+      // DRAWING LIST, and half the plan sheets say "AS PER SCHEDULE" in a note
+      // — both match the title regex. Without a header row this is a question,
+      // not an answer, so it goes to the sorter with what we saw.
+      verdict = 'ambiguous'
+      reason = 'says "schedule" and is laid out as a table, but has no header row'
     } else if (planHits.length > 0 && !titled && columnRuns < 6) {
       verdict = 'not'; reason = `reads as a drawing (${planHits[0].toLowerCase()})`
     } else if (keywords.length === 0 && columnRuns < 4) {
@@ -138,12 +178,15 @@ export async function scanPdfPages(
     } else {
       // NOT A REJECTION. The filter has an opinion and not enough evidence, so
       // it hands the page to the model rather than deciding quietly.
+      // The old keyword-density route CLAIMED these pages. Density can now
+      // only raise a question, never answer one.
       verdict = 'ambiguous'
       reason = `${keywords.length} schedule term${keywords.length === 1 ? '' : 's'}, ` +
                `${columnRuns} column${columnRuns === 1 ? '' : 's'} — not clear either way`
     }
 
-    pages.push({ page: n, verdict, reason, sheet, keywords, columnRuns, titled, textItems: items.length })
+    pages.push({ page: n, verdict, reason, sheet, keywords, columnRuns, titled,
+                 headerSignature, textItems: items.length })
     onProgress?.(n, limit)
   }
 

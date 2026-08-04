@@ -102,6 +102,6 @@ for (const set of SETS) {
 }
 
 await mkdir('samples/calibration/_meta', { recursive: true })
-await writeFile('samples/calibration/_meta/finder-baseline.json', JSON.stringify(out, null, 2))
-console.log('\nwrote samples/calibration/_meta/finder-baseline.json')
+await writeFile('samples/calibration/_meta/finder-after.json', JSON.stringify(out, null, 2))
+console.log('\nwrote samples/calibration/_meta/finder-after.json')
 await browser.close()

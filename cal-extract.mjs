@@ -65,8 +65,11 @@ try {
     if (up.error) { console.log(`  STORAGE FAILED: ${up.error.message}`); continue }
 
     const { data: upload, error: uErr } = await adm.from('intake_uploads').insert({
-      project_id: zz.id, filename: `CAL_${t.file.replace(/W+/g,"_")}_p${t.page}.png`, storage_path: path,
-      kind: 'image', content_sha256: `cal-${t.file}-${t.page}`, status: 'uploaded', pages: 1,
+      // THE PRODUCTION FILENAME CONVENTION, deliberately: this is the exact
+      // shape that used to 400. The calibration has to measure the real seam.
+      project_id: zz.id, filename: `CAL ${t.file} — page ${t.page}`, storage_path: path,
+      kind: 'image', media_type: 'image/png',
+      content_sha256: `cal-${t.file}-${t.page}`, status: 'uploaded', pages: 1,
     }).select('id').single()
     if (uErr) { console.log(`  UPLOAD ROW FAILED: ${uErr.message}`); continue }
     madeUploads.push({ id: upload.id, path })
@@ -115,5 +118,5 @@ try {
   console.log(`\ncleaned up ${madeUploads.length} ZZ-TEST upload(s)`)
 }
 
-await writeFile('samples/calibration/_meta/extract-layer3.json', JSON.stringify(results, null, 2))
-console.log('wrote samples/calibration/_meta/extract-layer3.json')
+await writeFile('samples/calibration/_meta/extract-after.json', JSON.stringify(results, null, 2))
+console.log('wrote samples/calibration/_meta/extract-after.json')
