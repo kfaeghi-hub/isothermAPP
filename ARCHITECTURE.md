@@ -1166,6 +1166,45 @@ inside the output. **Anything appended after the runner becomes the exit code yo
 are told about** — the same masking as the `| tail -12` incident, wearing a
 different costume. Read the summary line, not the wrapper's status.
 
+### A gate that runs through a harness proves the HARNESS
+
+**The gate is the field flow. Harnesses are callers of production modules, never
+siblings.**
+
+This is the unwalked-legs rule one layer up. That rule says: when a gate stops
+short for safety, name the leg you did not walk. This one says: **a gate that
+walks a different path has not walked the leg at all**, however green it comes
+back.
+
+*The evidence, 2026-08-04.* Phase 2b's gate reported 88/88 on Clairlea M-601 —
+four regions, per-region counts exact against hand counts, tripwire silent. Every
+one of those numbers came through `zz-gate3.mjs`, a harness that called
+`detectTableRegions` and `renderRegion` in a browser and posted each region to
+the endpoint itself. The production path — upload → confirm → `extractConfirmed`
+— was wired but never run end to end.
+
+The field test then found "~2 rows" where the gate said 88. **And the ledger
+showed production had been right all along**: it ran the splitter, it ran the
+amended budget class, and it produced 32 / 8 / 30 / 18 = **88/88** through the
+real endpoint. What it did not do was *show* them — region splitting creates N
+uploads and the review opened only the first, so 87 rows sat in `parsed` uploads
+nobody saw.
+
+So the harness proved extraction and proved nothing about assembly, because
+assembly is the part the harness replaced with itself. **A sibling implementation
+is not a test of the thing it resembles** — the same argument as the one-matcher
+rule, applied to a pipeline instead of a function.
+
+**Two obligations follow:**
+
+1. The gate for a user-facing flow runs **that flow**. A harness may run beside
+   it to prove the two agree, and that is dual-path evidence — but it cannot
+   stand in for it.
+2. A harness **calls** the production module. `cal-finder.mjs` does this
+   correctly: it imports `src/lib/schedulePages.ts` through the dev server and
+   runs the shipped code. `zz-gate3.mjs` did not, and that gap is exactly where
+   the defect lived.
+
 ### A test boundary chosen for SAFETY creates a known-untested seam — name it
 
 **Every gate report names the legs it deliberately did not walk.**

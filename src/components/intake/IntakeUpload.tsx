@@ -35,6 +35,7 @@ export function IntakeUpload({ projectId, onStaged }: {
   // already the page someone meant, and asking about it would be ceremony.
   const [findingIn, setFindingIn] = useState<File | null>(null)
   const [pageProgress, setPageProgress] = useState<string | null>(null)
+  const [note, setNote] = useState<string | null>(null)
 
   /** Anything that is not a spreadsheet is a PAGE for the extractor. */
   const isPage = (f: File) => /\.(png|jpe?g|webp|pdf)$/i.test(f.name)
@@ -240,8 +241,27 @@ export function IntakeUpload({ projectId, onStaged }: {
       if (failed.length) {
         setError(`${staged.length} page(s) read. These did not:\n` + failed.join('\n'))
       }
-      // Open the first staged upload's review. The rest are in the list beside it.
-      if (staged.length) onStaged(staged[0])
+      // ONE PAGE'S ROWS ARE ONE THING TO REVIEW.
+      //
+      // Region splitting turns one page into N uploads. This used to open
+      // staged[0] and stop — so a Clairlea field run that extracted 88 rows
+      // across four regions showed a review screen with ONE row on it, and 87
+      // rows sat in `parsed` uploads nobody was shown. The extraction was
+      // perfect; the presentation lost it.
+      //
+      // The count is stated before the review opens, so a page that split is
+      // never mistaken for a page that returned almost nothing.
+      if (staged.length) {
+        if (staged.length > 1) {
+          const { count } = await supabase.from('intake_rows')
+            .select('id', { count: 'exact', head: true }).in('upload_id', staged)
+          setPageProgress(null)
+          setNote(`${pages.length} page(s) split into ${staged.length} tables — ` +
+                  `${count ?? 0} rows in total. Each table is listed below and ` +
+                  `reviewed separately; the first is open.`)
+        }
+        onStaged(staged[0])
+      }
       if (!staged.length && !failed.length) setError('Nothing was extracted.')
     } finally {
       setPageProgress(null); setBusy(false)
@@ -401,6 +421,12 @@ export function IntakeUpload({ projectId, onStaged }: {
         {file && <span className="text-[11px] text-gray-500 font-mono truncate">{file.name}</span>}
         {busy && <span className="text-[11px] text-gray-400">{pageProgress ?? 'working…'}</span>}
       </div>
+
+      {note && (
+        <p className="mt-2 text-[11px] text-teal-900 bg-teal-50 border border-teal-200 rounded px-2 py-1">
+          {note}
+        </p>
+      )}
 
       {findingIn && (
         <div className="mt-2">

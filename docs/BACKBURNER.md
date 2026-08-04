@@ -126,6 +126,40 @@ IST is a core firm service — Seneca carries an IST plan at rev 10 — and OBC
 **Wakes when:** the first project schedules an IST — most likely Seneca. **No
 code now.**
 
+### 3f. Extraction-rules harvest — the librarian's next client
+**WAITING — born 2026-08-04, from the extractor calibration campaign**
+
+Self-training on the firm's own uploads. Review dispositions from real intake use
+— accept / edit / reject per row, **already ledger-fed** — get clustered by the
+**librarian** into proposed extraction rules. A recurring correction pattern
+("this consultant's schedules put capacity in the description column", "this
+office writes TAG as QTY NO.") becomes a corpus rule the **extractor** reads.
+
+**Ratified by the owner, never auto-applied.** The librarian proposes; the corpus
+changes only through the ratification queue, exactly as it does for terminology.
+Nothing here weakens Law 2 or Law 6.
+
+**Design notes, carried so the thinking is not re-derived:**
+
+- **The data already exists.** Every intake review writes a disposition per row.
+  What is missing is the harvest, not the instrumentation — the same shape as the
+  corrections pipeline that produced the terminology proposals.
+- **At volume, few-shot exemplars per drawing family.** The Cx Plan composer's
+  exemplar pattern applied to schedules: our own *ratified* extractions become the
+  examples a future extraction is shown, keyed by consultant or drawing family.
+  This is the higher-value half and it needs volume first.
+- **It closes a loop this campaign opened.** `unit_ventilator` was minted because
+  the extractor read a real schedule and honestly said it did not recognise
+  something. That is one correction becoming vocabulary by hand; this entry is
+  the same motion, at pattern scale, for extraction itself.
+- **The `QTY NO.` header variant is the founding case.** Workman p7 heads its
+  identity column `QTY`/`NO.` rather than `TAG`/`MARK`; one instance did not
+  justify widening the identity pattern by hand. A harvest that has seen the same
+  shape across several sets is precisely what should justify it.
+
+**Wakes when:** a few real project sets have been extracted *and reviewed* — the
+field tests are now producing exactly that data. **No code now.**
+
 ### 3d. Repeating-measurement test structures
 **PARKED — born 2026-08-03, from the catalog campaign's transformer table**
 

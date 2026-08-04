@@ -86,7 +86,8 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
         if (!res.ok) {
           // The ceiling message and every other refusal is shown, not swallowed.
           // The user still gets the deterministic verdicts below it.
-          setNote(body.error ?? `The sort could not run (${res.status}).`)
+          setNote((body.error ?? `The sort could not run (${res.status}).`) +
+            ' Nothing below has been pre-selected on its behalf — tick what you want read.')
         } else {
           if (body.note) setNote(body.note)
           for (const r of body.sorted ?? []) {
@@ -114,12 +115,22 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
           ...p,
           title: (p as Candidate).title ?? null,
           sorted: sorted[p.page],
-          // PRE-TICKED ONLY ON REAL EVIDENCE: a page that says it is a schedule,
-          // or one the sorter confirmed. The keyword-count route offers a page
-          // without claiming it — render-and-look on a completed CHECKLIST had
-          // two of its three pages ticked, because a checklist is also a dense
-          // table with TAG and MODEL headings.
-          picked: p.titled || sorted[p.page]?.is_schedule === true,
+          // PRE-TICKED ONLY ON REAL EVIDENCE — and `titled` is not evidence.
+          //
+          // This read `p.titled || sorted[...]`. The VERDICT logic was fixed to
+          // stop trusting a title alone (a TDSB title sheet carries a drawing
+          // list; plan sheets say "as per schedule" in notes) — and the PRE-TICK
+          // was left trusting it. So pages the filter deliberately refuses to
+          // CLAIM still arrived ticked.
+          //
+          // It shows worst exactly when things are worst: with the sorter down
+          // (413 on a scanned-heavy set) `sorted` is empty, `titled` is the only
+          // signal left, and 23 of Clairlea's 55 pages arrived pre-selected on
+          // the one signal already ruled untrustworthy.
+          //
+          // A TRANSPORT FAILURE MUST DEGRADE TO MORE HUMAN CHOICE, NEVER MORE
+          // MACHINE ASSERTION. Offer, never assert.
+          picked: p.headerSignature || sorted[p.page]?.is_schedule === true,
           thumb: await renderPage(file, p.page, 0.28).catch(() => null),
         })
       }
@@ -164,6 +175,7 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
         const v = fresh[p.page]
         if (!v?.is_schedule) continue
         added.push({
+          // Confirmed by the sorter — real evidence, so ticked.
           ...p, title: null, sorted: v, picked: true,
           thumb: await renderPage(file2, p.page, 0.28).catch(() => null),
         })
