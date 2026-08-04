@@ -39,7 +39,7 @@ about.
 | Page | Exercises |
 |---|---|
 | 1–10 | **Rotated sheets** — `/Rotate 270` with essentially every glyph rotated (517 of 571 items on p3). The case that made column detection rotation-aware. |
-| **7** | **Multi-schedule sheet** — BOILERS, EXPANSION TANK, PUMPS, WATER SOFTNER on one page. Extraction returns 6 rows, 6 typed. |
+| **7** | **Multi-schedule sheet** — BOILERS, EXPANSION TANK, PUMPS, WATER SOFTNER on one page. Extraction returns 6 rows, 6 typed. Also the **`QTY NO.` header-shape variant**: its BOILERS and EXPANSION TANK tables head their identity column `QTY`/`NO.` rather than `TAG`/`MARK`, so region detection finds none and the page falls back to whole-page extraction — correctly. A **second instance of this shape justifies widening the identity pattern**; one does not, because that pattern is what separates a schedule from a plan. |
 | **12** | **Single-table page** — MECHANICAL EQUIPMENT WIRING SCHEDULE. Region detection returns 0 regions here **on purpose**: one table is the page. |
 | 14, 15 | Electrical panel schedules — the *near-miss* the filter now routes to the sorter rather than claiming. |
 

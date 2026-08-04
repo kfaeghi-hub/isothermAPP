@@ -169,10 +169,19 @@ the 88/88 bar stands.
 
 ## Open, named rather than assumed
 
-- **Workman p7 splits 2 of 4.** Its BOILERS and EXPANSION TANK headers use a
-  `QTY NO.` shape the identity-column pattern does not match. The page still
-  extracts whole and returns all 6 rows, so this costs nothing today — but the
-  splitter is not yet general across consultants.
+- **Workman p7: the `QTY NO.` header-shape variant.** Its BOILERS and EXPANSION
+  TANK tables head their identity column `QTY` / `NO.` rather than `TAG` or
+  `MARK`, which the identity-column pattern does not match. Under the original
+  hull geometry the page split 2 of 4; under the corrected extent it returns **0
+  regions** and falls back to whole-page extraction — which returns all 6 rows
+  correctly, so the fallback covers it and nothing is lost today.
+
+  **Named as a fixture-manifest entry rather than fixed now:** widening the
+  identity pattern on one instance is pattern work done from a sample of one, and
+  the pattern is the single most dangerous thing in the finder to loosen — it is
+  what separates a schedule from a plan. **Fixable when a second instance
+  justifies it**; the fallback is correct meanwhile. Recorded in
+  [`FIXTURES.md`](../samples/calibration/FIXTURES.md) under Workman IFT p7.
 - **No scanned page carrying a schedule** exists in the corpus. The image leg is
   proven to engage and return rows; it is **not** proven to read a table from a
   scan.
