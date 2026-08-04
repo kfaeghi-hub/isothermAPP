@@ -40,6 +40,14 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
   const [truncated, setTruncated] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // CHUNKED CONTINUATION, not a raised ceiling. Clairlea's 55-page set leaves 51
+  // undecided pages against a 40-per-pass guard. The guard exists so a 300-page
+  // set can never quietly spend a fortune, and it stays — but a dead-end refusal
+  // turned a cost guard into a wall. The user proceeds chunk by chunk instead,
+  // with the cost of each chunk shown before it is spent.
+  const [pending, setPending] = useState<PageScan[]>([])
+  const [file2, setFile2] = useState<File | null>(null)
+  const [chunkBusy, setChunkBusy] = useState(false)
 
   async function run() {
     setPhase('scanning'); setError(null); setNote(null)
@@ -51,12 +59,20 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
       const undecided = pages.filter(p => p.verdict === 'ambiguous' || p.verdict === 'scanned')
       let sorted: Record<number, Candidate['sorted']> = {}
 
-      if (undecided.length) {
+      // Only the first CHUNK is sorted now; the rest wait behind a button that
+      // says what the next chunk will cost.
+      const CHUNK = 40
+      const thisPass = undecided.slice(0, CHUNK)
+      const rest = undecided.slice(CHUNK)
+      setPending(rest)
+      setFile2(file)
+
+      if (thisPass.length) {
         setPhase('sorting')
         // Only the scanned pages need an image. Rendering the ambiguous ones
         // too would double the cost to answer a question their text already
         // frames.
-        const payload = await Promise.all(undecided.map(async p => ({
+        const payload = await Promise.all(thisPass.map(async p => ({
           page: p.page,
           text_excerpt: p.verdict === 'ambiguous'
             ? `sheet ${p.sheet ?? '?'} · terms: ${p.keywords.join(', ') || 'none'} · ` +
@@ -113,6 +129,50 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
       setError(e instanceof Error ? e.message : String(e))
       setPhase('error')
     }
+  }
+
+
+  /** Sort the next chunk of undecided pages. The guard's PURPOSE — no silent
+   *  bulk spend — is served by showing the cost and requiring a click, not by
+   *  refusing to continue. */
+  async function sortNextChunk() {
+    if (!file2 || !pending.length) return
+    setChunkBusy(true); setError(null)
+    try {
+      const CHUNK = 40
+      const thisPass = pending.slice(0, CHUNK)
+      const payload = await Promise.all(thisPass.map(async p => ({
+        page: p.page,
+        text_excerpt: p.verdict === 'ambiguous'
+          ? `sheet ${p.sheet ?? '?'} · terms: ${p.keywords.join(', ') || 'none'} · ` +
+            `${p.columnRuns} column runs · ${p.textItems} text items`
+          : undefined,
+        image_base64: p.verdict === 'scanned' ? await renderPage(file2, p.page) : undefined,
+      })))
+      const res = await authedFetch('/api/intake', { action: 'find-pages', pages: payload })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setNote(body.error ?? `The sort could not run (${res.status}).`); return }
+
+      const fresh: Record<number, Candidate['sorted']> = {}
+      for (const r of body.sorted ?? []) {
+        fresh[r.page] = { is_schedule: r.is_schedule, confidence: r.confidence, reason: r.reason }
+      }
+
+      // Newly confirmed pages join the list, pre-ticked, with their thumbnails.
+      const added: Candidate[] = []
+      for (const p of thisPass) {
+        const v = fresh[p.page]
+        if (!v?.is_schedule) continue
+        added.push({
+          ...p, title: null, sorted: v, picked: true,
+          thumb: await renderPage(file2, p.page, 0.28).catch(() => null),
+        })
+      }
+      setCandidates(cs => [...cs, ...added].sort((a, b) => a.page - b.page))
+      setPending(pending.slice(CHUNK))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally { setChunkBusy(false) }
   }
 
   const picked = candidates.filter(c => c.picked)
@@ -209,6 +269,23 @@ export function SchedulePageFinder({ file, onConfirm, onCancel }: Props) {
           </label>
         ))}
       </div>
+
+      {pending.length > 0 && (
+        <div className="mt-2 rounded border border-gray-200 bg-white/70 p-2">
+          <p className="text-[11px] text-gray-700">
+            <strong>{pending.length}</strong> more page{pending.length === 1 ? '' : 's'} could not be
+            called by the text layer. Sorting the next {Math.min(40, pending.length)} costs roughly{' '}
+            <strong>{Math.min(40, pending.length) * 1.5 >= 100
+              ? `$${(Math.min(40, pending.length) * 1.5 / 100).toFixed(2)}`
+              : `${Math.round(Math.min(40, pending.length) * 1.5)}¢`}</strong>.
+          </p>
+          <button onClick={() => void sortNextChunk()} disabled={chunkBusy}
+            className="mt-1 text-xs bg-white border border-teal-600 text-teal-700 rounded px-2.5 py-1
+                       hover:bg-teal-50 disabled:opacity-50">
+            {chunkBusy ? 'Sorting…' : `Sort next ${Math.min(40, pending.length)}`}
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-2 mt-3">
         <button
