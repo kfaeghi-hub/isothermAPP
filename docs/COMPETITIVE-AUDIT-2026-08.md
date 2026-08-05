@@ -527,3 +527,40 @@ corpus.
 **The second half — human review under 20% of manual time — has not been
 measured.** It is a stopwatch question about the review screen, not the extractor,
 and nobody has timed it. Stated here so the threshold is not read as met.
+
+---
+
+## P.S. — banking accepted, and one thread tied
+
+*Owner, 2026-08-05.*
+
+> The audit banking is accepted as reported: the `?`-cell fills, the
+> half-measured Stage-1 threshold flagged plainly, and the CxPlanner-claims
+> caveat repeated at the claim site are all endorsed.
+>
+> **The review-time-vs-manual measurement joins the record as an open item**,
+> with an easy protocol: **the next real schedule intake session gets timed
+> against a manual-entry estimate for the same sheet** — no build needed, just a
+> stopwatch when it happens naturally.
+
+**The open item, stated so a later reader can act on it without this thread.**
+
+Stage 1's escalation threshold has two halves and only one is measured:
+
+| Half | Status |
+|---|---|
+| Extraction accuracy on real mechanical schedules **> ~90%** | **MET** — 88/88 physical units on Clairlea M-601, 11/11 on p16, per-region against hand counts ([campaign record](EXTRACTOR-CALIBRATION-PROPOSAL.md)) |
+| Human review taking **< 20%** of the manual time | **UNMEASURED** |
+
+**Protocol, deliberately cheap:** at the next real schedule intake, note the
+clock at the start of review and at approval, and record a manual-entry estimate
+for the same sheet — how long typing those units in by hand would have taken. One
+number against one number. **No instrumentation, no build, no scheduled session:
+it is a stopwatch used when the work happens anyway.**
+
+Two notes for whoever times it. Time **review to approval**, not the extraction —
+the extractor's run time is already in the ledger and is not what the threshold
+asks about. And record the sheet, so the comparison is against *that* sheet's
+manual cost rather than an average: M-601's 88 units and a six-schedule sheet
+like p16 are very different manual jobs, and a single blended figure would hide
+which one the ratio came from.
