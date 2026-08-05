@@ -218,8 +218,16 @@ Full reasoning: [EQUIPMENT-CATALOG-PROPOSAL.md](EQUIPMENT-CATALOG-PROPOSAL.md) P
 ## Market-informed backlog
 
 *Born 2026-08-05 from the competitive audit
-([COMPETITIVE-AUDIT-2026-08.md](COMPETITIVE-AUDIT-2026-08.md), as-of August
-2026 — a snapshot, and snapshots rot).*
+([COMPETITIVE-AUDIT-2026-08.md](COMPETITIVE-AUDIT-2026-08.md), as-of 5 August
+2026 — a snapshot, and snapshots rot; read its Caveats before acting on any
+figure).*
+
+**Each of these four is shipped by at least one incumbent** — 3g by Facility Grid
+(Schedule Sync), Bluerithm (Gantt) and CxPlanner (MS Project import); 3h by
+CxPlanner (issue markup on drawings) and Bluerithm 2.0 (issue pins + PDF markups);
+3i by CxPlanner (photo/nameplate recognition) and CxAlloy (camera label-scanning);
+3j by CxPlanner ("ask your specs"). That is what makes them backlog rather than
+research: the shape is known, only the fit is ours to decide.
 
 **Selected on fit, not parity.** The Build Spec's §6C framing survived the audit
 and governs this section: *Isotherm's edge is fit — tailored to its exact forms
