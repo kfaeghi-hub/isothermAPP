@@ -213,6 +213,107 @@ mechanical drawings and is genuinely a unit. Everything else waits for this.
 already dormant in the deliverable model, so nothing is blocked by waiting.
 Full reasoning: [EQUIPMENT-CATALOG-PROPOSAL.md](EQUIPMENT-CATALOG-PROPOSAL.md) Part D.
 
+---
+
+## Market-informed backlog
+
+*Born 2026-08-05 from the competitive audit
+([COMPETITIVE-AUDIT-2026-08.md](COMPETITIVE-AUDIT-2026-08.md), as-of August
+2026 — a snapshot, and snapshots rot).*
+
+**Selected on fit, not parity.** The Build Spec's §6C framing survived the audit
+and governs this section: *Isotherm's edge is fit — tailored to its exact forms
+and workflow — not feature-parity with enterprise tools.* Each entry below is a
+gap a real Isotherm workflow would feel, not a checkbox a comparison table would
+want.
+
+### 3g. Schedule sync + Gantt
+**PARKED**
+
+Import a construction schedule (Primavera P6 / MS Project) and place **Cx
+activities against construction milestones** — so "boiler PFC" sits against
+"boiler energization" rather than floating in a list. **Slippage surfaces on the
+dashboard**: a Cx activity whose predecessor moved is the thing a CxA needs to
+see without asking.
+
+**Wakes when:** the checklist canon completes — **or immediately, if a GC hands
+us a real schedule and asks.** The second trigger outranks the first: a real
+schedule from a real GC is a specification, and building against it beats
+building against an idea of it.
+
+### 3h. Drawing-pin findings
+**PARKED — absorbs Build Spec §6C's drawing-markup entry**
+
+Pin a finding to a location on a floor plan or schematic: open the drawing, tap
+the spot, create a finding linked to those coordinates; render the markups.
+
+**This entry supersedes §6C's version** — the Build Spec keeps its roadmap note,
+but the live spec lives here. §6C already named the cost honestly and it still
+holds: *a real interactive sub-system* — large drawing PDFs, zoom/pan canvas, pin
+coordinates stored against findings, markup rendering. **A focused build on its
+own, not a feature bolted to the findings register.**
+
+*Note the adjacency:* the drawing-handling machinery from the extractor campaign
+(pdfjs rendering, page scans, region geometry in
+[`src/lib/schedulePages.ts`](../src/lib/schedulePages.ts)) is the same neighbourhood.
+Whoever builds this should read that first rather than starting from zero.
+
+**Wakes when:** the checklist canon completes, or the first field request.
+
+### 3i. Nameplate-photo OCR
+**PARKED**
+
+The extractor's **vision leg aimed at the plate on the machine**. A CxA
+photographs a nameplate; the agent proposes **Installed-column values** — make,
+model, serial, electrical data — for confirmation. It proposes; the CxA confirms.
+Law 2 unchanged.
+
+**It closes a loop the product already opened.** `__base` gives every unit
+Manufacturer / Model / Serial in the Installed column, and F3's trigger now
+guarantees the full template renders. This fills those fields from the thing
+itself instead of from typing.
+
+**Wakes when:** the extractor's field-hardening settles. Deliberately *after* —
+the same vision path is still carrying one named unproven leg (reading a table
+off a scan), and aiming it at a new target before that closes would confound two
+questions.
+
+### 3j. Spec / document Q&A
+**PARKED**
+
+An agent over the project's uploaded specifications: *"what does the spec require
+for boiler startup?"*, answered with the citation. Read-only over project
+documents.
+
+**Wakes when:** the FPT campaign — same machinery neighbourhood. FPT scripts are
+written against the sequence of operations and the specification, so an agent
+that can find and cite spec language is a component of that work rather than a
+detour from it. Building it separately would mean building it twice.
+
+---
+
+### Not backlogged, and the reason is the point
+
+**Tier-3 enterprise items — SOC 2 / ISO 27001, SSO, public API, BIM/IFC,
+multi-language — are deliberately absent from this shelf.**
+
+They are **gated on a commercialization decision**, not on engineering readiness,
+and that decision gets **its own sitting after the plan closes**. The shelf holds
+work that has been *decided and deferred*; these have not been decided.
+
+**Building them speculatively is cost without benefit.** Each is expensive, each
+is only valuable if the product is sold outside the firm, and each would be built
+against guesses about a buyer nobody has met. Putting them here would imply a
+commitment that does not exist — and this file's whole purpose is that a parked
+item means something.
+
+**MBCx is also not here, and that is not a downgrade.** It stays exactly where
+BAS-SPEC put it: a **commercial trigger** that **jumps everything** when it
+fires. It is not sequenced behind the current plan and this audit did not
+re-evaluate it. See [entry 9](#9-bas--mbcx).
+
+---
+
 ### 4. Units — approach B, dual display with auto-conversion
 **PARKED**
 

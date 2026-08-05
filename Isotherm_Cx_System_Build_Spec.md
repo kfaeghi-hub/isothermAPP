@@ -784,6 +784,11 @@ surfaces that exist.
 
 ## 6C. Field & mobile use, drawing markup (roadmap — informed by competitive research)
 
+> **Drawing markup now lives in [BACKBURNER 3h](docs/BACKBURNER.md), born of the
+> August 2026 competitive audit.** The note below is kept as the origin of the
+> idea and for its cost honesty; the live spec and wake condition are in the
+> backlog entry. Do not plan from both.
+
 Noted from the established Cx platforms (CxPlanner, Facility Grid, CxAlloy): field/mobile use and drawing markup are common, valued features. Captured here for later; not current focus. Isotherm's edge is fit (tailored to its exact forms/workflow), not feature-parity with enterprise tools — add these selectively.
 
 **Mobile / field use (moderate; partly achievable sooner).** The app is already a web app, so it opens in a phone browser today. "Mobile" means making it work *well* on site:
