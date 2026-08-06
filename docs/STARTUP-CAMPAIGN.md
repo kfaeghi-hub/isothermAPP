@@ -304,6 +304,52 @@ work that ruled 678 and cut 13). Summary for approval:
 
 ## Phase 2 — standards-anchored gap fill
 
+### OPENED 2026-08-06 — coverage audit
+
+**35 of 68 types covered · 33 uncovered.** The register now holds 55 equipment
+types and 13 system types; Phase 1 seeded start-up checklists against 35 of them.
+
+**Uncovered (33):** air_separator · ats · convector · dehumidifier · duct_heater ·
+elevator · erv · expansion_tank · fire_pump · fire_smoke_damper · heat_exchanger ·
+heat_pump · humidifier · jockey_pump · lighting_panel · louver · mcc · panel ·
+radiant_panel · smoke_control_fan · smoke_control_panel · sprinkler_system ·
+sump_pump · switchboard · switchgear · unit_heater · unit_ventilator · ups · vav ·
+vfd · vrf · wall_fin · water_softener
+
+**Two workstreams, and the placement pass ranked them:**
+
+1. **D and E on the 35 covered types — the priority.** The mined corpus is
+   installation-completeness knowledge: it carried 30 D items and 31 E items
+   across 81 masters, against 1302 in A. **The safety-device tests and the
+   readings tables are the engineering weight of a start-up, and they are the
+   part the firm never had.**
+2. **Complete checklists for the 33 uncovered types**, the seven new equipment
+   mints among them.
+
+### Batch 1 — the first drafted artifact
+
+. Boiler D and E, drafted rather than
+mined, because Phase 1 had nothing to mine for either.
+
+**Convergence in practice:** 13 universal · 8 type-common · 1 single-source. The
+single-source item — *emergency fuel shutoff at the room exit* — is kept on a
+**stated jurisdictional basis** (TSSA requires it for fuel-fired appliance rooms;
+no national source in the anchor set carries it). Two items were **cut before the
+sheet was written**: a burner nozzle part number (per-manufacturer detail that
+belongs in the IOM attachment) and a refractory dry-out schedule (one boiler
+construction, no code basis). *The template holds consensus, not collection.*
+
+Anchors web-verified, not recalled: CSA B149.1 confirms the low-water cutoff
+requirement, the manual-reset high limit, and that loss of flame must close the
+safety shutoff valves immediately — which is why the closure TIME appears as an E
+row beside the D row that proves the trip.
+
+** renders the convergence sheet**, and its guard is
+proven on both failure modes: an item with no class refuses the sheet, and a
+single-source item with no stated reason refuses it too. Neither reaches a
+sitting.
+
+
 **Ruled 2026-08-05, before Phase 2 starts, so it boots from the repo rather than
 from conversation memory.** Phase 1's batches finish and the ratification
 sittings proceed at the owner's pace first; nothing below begins early.

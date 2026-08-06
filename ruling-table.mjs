@@ -24,12 +24,12 @@
 // collection. See ARCHITECTURE "Template content law" and
 // docs/STARTUP-CAMPAIGN.md § Phase 2.
 //
-// The column is deliberately NOT rendered yet. Phase 1 items are mined, and
-// their provenance is a named master / table / row, not a convergence class; a
-// column reading "—" on every row would be furniture that teaches nothing. It
-// arrives with the first drafted artifact, and `assertConvergence()` below
-// refuses to print a sitting sheet for an artifact that should have one and
-// does not.
+// The column renders for DRAFTED artifacts and is omitted for mined ones. A
+// mined item's provenance is a named master / table / row, not a convergence
+// class, and a column reading "—" on every row is furniture that teaches
+// nothing. `assertConvergence()` below refuses to print a sitting sheet for a
+// drafted artifact whose items lack a class, or whose single-source items lack
+// a stated reason — those are cut before a sitting, not ruled on.
 //
 // Run: node ruling-table.mjs [--batch N] [--md]
 //      --batch N   1-based batch of 10 forms, in the mine's own order
@@ -37,7 +37,9 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 
-const DIR = 'out/startup-mining/artifacts'
+// Phase 1 artifacts are mined; Phase 2 artifacts are drafted. Both are
+// ratification artifacts, so both are sitting-sheet sources.
+const DIR = process.argv.includes('--phase2') ? 'out/startup-mining/phase2' : 'out/startup-mining/artifacts'
 if (!existsSync(DIR)) { console.error(`REFUSE: ${DIR} absent — run map-startup.mjs first`); process.exit(1) }
 
 const args = process.argv.slice(2)
@@ -128,6 +130,41 @@ for (const f of chosen) {
   const grouped = [...byLabel.values()]
   totalDistinct += grouped.length
   if (grouped.length) out.push({ subject: a.subject, master: a.source_master, flagged: grouped, occurrences: flagged.length, ratified: a._ratified })
+}
+
+// ── drafted artifacts: the convergence sheet ────────────────────────────────
+const drafted = []
+for (const f of chosen) {
+  const a = JSON.parse(readFileSync(`${DIR}/${f}`, 'utf8'))
+  if (!(a._phase && /Phase 2/i.test(a._phase))) continue
+  drafted.push({ file: f, a })
+}
+if (drafted.length) {
+  for (const { file, a } of drafted) {
+    console.log(`\nDRAFTED — ${a.subject}  [${file}]`)
+    console.log(`${a._batch ?? ''}`)
+    console.log(`anchors: ${Object.keys(a._anchors ?? {}).join(' · ')}\n`)
+    for (const sec of a.sections) {
+      if (!sec.items?.length) continue
+      console.log(`  ${sec.key} · ${sec.title}`)
+      for (const i of sec.items) {
+        const cls = String(i.convergence ?? '—').padEnd(14)
+        console.log(`    ${cls} ${i.label}`)
+        console.log(`    ${''.padEnd(14)} anchor: ${i.anchor ?? '—'}`)
+        if (i.convergence === 'single-source') console.log(`    ${''.padEnd(14)} KEPT BECAUSE: ${i.convergence_reason}`)
+      }
+      console.log()
+    }
+    const cut = a._cut_before_the_sitting ?? []
+    if (cut.length) {
+      console.log(`  CUT BEFORE THIS SHEET (${cut.length}) — the template holds consensus, not collection:`)
+      for (const c of cut) console.log(`    · ${c.label}\n        ${c.why_cut}`)
+    }
+    const counts = {}
+    for (const sec of a.sections) for (const i of sec.items) counts[i.convergence] = (counts[i.convergence] ?? 0) + 1
+    console.log(`\n  convergence: ${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ')}`)
+  }
+  process.exit(0)
 }
 
 const label = batch ? `BATCH ${batch}` : 'ALL MINED FORMS'
