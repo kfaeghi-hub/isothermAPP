@@ -14,7 +14,8 @@
 // Run: node apply-placement-rulings.mjs [--dry]
 
 import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
-import { RULINGS, LOW, NOTE_PLACEMENT } from './startup-placement-rulings.mjs'
+import { RULINGS, LOW } from './startup-placement-rulings.mjs'
+import { OWNER_RULED, BY_LAW, APPLIED_CONSEQUENCE, HELD_OUT, NOTE_PLACEMENT, PHASE2_SEEDS } from './startup-residue-rulings.mjs'
 
 const DIR = 'out/startup-mining/artifacts'
 const OUT = 'out/startup-mining'
@@ -45,16 +46,40 @@ if (already.length && !dry) {
   process.exit(1)
 }
 
+// ── THE OWNER'S LAW OVERRIDES THE FIRST PASS ─────────────────────────────────
+// Ruled 2026-08-05. Applied in three layers, each recorded on the item so the
+// artifact says who decided it: the owner's eight verbatim, the remaining
+// residue by the same law, and the law's reach beyond the residue (alarm and
+// interlock INTEGRATION proof is not start-up scope).
+const OVERRIDE = {}
+for (const [src, tag] of [[OWNER_RULED,'owner'],[BY_LAW,'law'],[APPLIED_CONSEQUENCE,'law-consequence']])
+  for (const [k, v] of Object.entries(src)) {
+    if (!RULINGS[k]) {
+      console.error(`REFUSE: an override names ${JSON.stringify(k)} but no flagged label matches it.`)
+      console.error('An override that matches nothing is a ruling that silently did not happen.')
+      process.exit(1)
+    }
+    OVERRIDE[k] = { section: v[0], reason: v[1], proof_elsewhere: v[2] ?? null, by: tag }
+  }
+for (const [k, v] of Object.entries(OVERRIDE)) { RULINGS[k][0] = v.section; RULINGS[k][1] = 'ruled'; RULINGS[k][2] = v.reason }
+for (const k of Object.keys(HELD_OUT)) { if (RULINGS[k]) RULINGS[k][1] = 'held-out' }
+
 // ── RECONCILE THE RESIDUE ────────────────────────────────────────────────────
 // LOW is the single source of truth for what the owner rules by hand. A first
 // run reported "low confidence: 0" while LOW listed 35 items, because the
 // confidence lived in RULINGS and nothing joined the two. A residue list that
 // does not reach the summary is a residue list nobody sees.
+// ORDER MATTERS, and it bit once: this loop originally ran unconditionally after
+// the override and stamped every owner-ruled key back to 'low', so 67 items the
+// owner had just ruled still reported as needing an eye. A ruling that a later
+// pass silently reverts is worse than no ruling — it looks like the owner was
+// never asked. An overridden key is RULED and is skipped here.
 for (const k of Object.keys(LOW)) {
   if (!RULINGS[k]) {
     console.error(`REFUSE: LOW names ${JSON.stringify(k)} but RULINGS has no entry for it.`)
     process.exit(1)
   }
+  if (OVERRIDE[k]) continue        // ruled by the owner or by the owner's law
   RULINGS[k][1] = 'low'
 }
 // Unused rulings are dead weight and usually a typo in a key that silently did
@@ -91,6 +116,8 @@ const perForm = []
 const lowItems = []
 const cutItems = []
 const noteItems = []
+const heldItems = []
+const proofElsewhere = []
 let moved = 0, kept = 0, cutCount = 0, totalRuled = 0
 
 for (const f of files) {
@@ -104,7 +131,10 @@ for (const f of files) {
     const k = key(item.label)
     const [section, confidence, reason] = RULINGS[k]
     totalRuled++
-    item.ruling = { section, confidence, reason, by: 'machine', delegated: '2026-08-05' }
+    const ov = OVERRIDE[k]
+    item.ruling = { section, confidence, reason, by: ov ? ov.by : 'machine', delegated: '2026-08-05' }
+    if (ov?.proof_elsewhere) item.ruling.proof_elsewhere = ov.proof_elsewhere
+    if (HELD_OUT[k]) item.ruling.held_out = HELD_OUT[k]
     if (section === 'cut') {
       cutHere.push(item); cutCount++
       cutItems.push({ form: a.subject, label: item.label, reason })
@@ -112,8 +142,10 @@ for (const f of files) {
     }
     if (section !== from) moved++; else kept++
     item.section = section
-    item.flagged = confidence === 'low'          // only the residue still needs an eye
+    item.flagged = confidence === 'low' || confidence === 'held-out'          // only the residue still needs an eye
     if (confidence === 'low') lowItems.push({ form: a.subject, label: item.label, section, why: LOW[k] ?? reason })
+    if (confidence === 'held-out') heldItems.push({ form: a.subject, label: item.label, section, why: HELD_OUT[k] })
+    if (ov?.proof_elsewhere) proofElsewhere.push({ form: a.subject, label: item.label, proof_in: ov.proof_elsewhere })
   }
 
   // rebuild sections from the ruled placement
@@ -163,6 +195,9 @@ const summary = {
   totals,
   per_form: perForm,
   low_confidence: lowItems,
+  held_out: heldItems,
+  proof_elsewhere: proofElsewhere,
+  phase2_seeds: PHASE2_SEEDS,
   cut: cutItems,
   form_notes: noteItems,
   note_placement: NOTE_PLACEMENT,
@@ -174,7 +209,9 @@ console.log(`PLACEMENT RULINGS APPLIED${dry ? ' (DRY RUN — nothing written)' :
 console.log(`distinct labels ruled : ${Object.keys(RULINGS).length}`)
 console.log(`occurrences ruled     : ${totalRuled}  (moved ${moved} · kept ${kept} · cut ${cutCount})`)
 console.log(`section totals        : A ${totals.A} · B ${totals.B} · C ${totals.C} · D ${totals.D} · E ${totals.E}`)
-console.log(`low confidence        : ${totals.low}  — owner rules these`)
+console.log(`still needing an eye  : ${totals.low}  (${heldItems.length} held out, 0 low — the residue is ruled)`)
+console.log(`held out              : ${heldItems.length}  — genuinely resist the law; named, not guessed`)
+console.log(`proof elsewhere       : ${proofElsewhere.length}  — moved to A, proof named in IST/FPT`)
 console.log(`cut                   : ${totals.cut}  — not checkable things`)
 console.log(`form notes            : ${noteItems.length}  — proposed as ${NOTE_PLACEMENT.section}`)
 if (!dry) console.log(`\nsummary → ${OUT}/placement-summary.json`)

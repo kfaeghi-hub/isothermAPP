@@ -135,6 +135,85 @@ paragraph count would flatter a blank one). Neither writes anything.
 
 **Awaiting a ruling before the full run** — see *Open* below.
 
+### THE SECTION-PLACEMENT LAW — ruled by the owner, 2026-08-05
+
+**On a start-up form the deciding test is WHAT STATE THE UNIT MUST BE IN FOR THE
+CHECK TO MEAN ANYTHING.**
+
+| The check… | Section |
+|---|---|
+| presence / installation / setting | **A** Pre-Start |
+| requires the unit **running** | **C** Running Checks |
+| is a protective-device **trip proof** | **D** Safety Device Verification |
+| is a **numeric blank** | **E** Readings to Record |
+| is an **alarm / interlock INTEGRATION proof** | **not start-up.** The item goes **A** (installed / operable) and carries a note saying the proof lives in the fire-integration (IST) or FPT column |
+
+**The last clause is the one with reach**, and it is the substantive ruling. A
+start-up form records that a device is present and works on its own; proving that
+it makes *something else* happen is a different document. Applied consistently it
+moved **34 occurrences out of D** — the fire-alarm devices and interfaces (smoke,
+duct and heat detectors, pull stations, bells, speakers, magnetic door holders,
+elevator recall, fan shutdown, central station, flow and supervisory switches) to
+**A + IST**, and the BAS change-of-state and supply-temperature alarm
+confirmations to **A + FPT**. D fell from 58 to 30, and what remains in D is what
+belongs there: devices that protect *this* equipment, tripped during *this*
+start-up.
+
+**Practical effect on the residue:** all 34 distinct decisions are ruled. The
+owner ruled eight verbatim; the remaining 26 followed the same law, most of them
+on one distinction — **a bare noun-phrase names a thing (A); a verb of
+verification names an act (C).** *"Electric Operator"* is presence; *"After
+Cooler Verified"* is operation.
+
+#### One departure, stated rather than buried
+
+**Width · Height · Duration · Lighting Levels were ruled E** — *"numeric blanks
+are readings."* In the source they are **not** numeric blanks: all four are
+`[label, STATUS, COMMENTS]` ticks on the Egress Systems master. The ruling is
+applied as given, and the effect is that the new form **captures a value where
+the old one captured a tick.** That is an improvement the Phase 0 design makes
+possible — the readings table exists for exactly this — but it is a change to
+what gets recorded, not a re-filing of it, so it is named here rather than
+absorbed silently.
+
+#### Three items genuinely resist the law — held out, not guessed
+
+The law has five branches and these fit none of them. Each is a
+**sprinkler-system-internal protective function**: not a device on the equipment
+being started, and not a fire-alarm integration. Their proof is an NFPA 13
+acceptance test on the sprinkler system itself.
+
+| Item | Why it resists |
+|---|---|
+| **Accelerator** | dry-pipe accelerator; its proof is a system trip test, not an equipment start-up check |
+| **Flooding Valve** | deluge valve; same shape |
+| **Supervisory Air** | half installation (A), half annunciation proof (IST), and neither cleanly |
+
+They remain at **D** and stay flagged, pending a ruling on whether they are
+start-up scope at all.
+
+#### The transformer banner — APPROVED
+
+The Liquid Filled Power Transformer master's *"Note: Equipment to be isolated
+from all sources of power"* renders as a **bold pre-start banner above section
+A**. The reason, recorded because it generalises to every future warning:
+
+> **A warning that is ticked is a warning that was read after the fact.**
+
+A lockout instruction is a precondition of touching the equipment at all, so it
+is read before the first line is answered rather than confirmed after the work is
+done. It is also the only element on that form whose failure mode is
+electrocution.
+
+#### Two Phase 2 seeds, named while ruling
+
+- **D — "Freezestat trip proven"**: the missing half of *"Coil Protected From
+  Freezing"*, which records the provisions and never proves the trip.
+- **A — "Point-to-point control verification complete"**: the explicit static
+  half that scope-less *"Controls Verified"* (now C) leaves unstated.
+
+---
+
 ### Section placement — DELEGATED to the machine, 2026-08-05
 
 **Who decided what, so the paper trail says it plainly:**
