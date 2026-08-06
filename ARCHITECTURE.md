@@ -1289,6 +1289,54 @@ document. Where no greppable artifact exists, say so and look at the thing.
 than structure. `styles.xml`, `theme1.xml` and `numbering.xml` all carry identity
 decisions somebody made in Word, years ago, for another reason.
 
+### A pattern is verified by EXECUTING it, never by reading it
+
+Cross-language escape semantics can make corruption invisible to review.
+
+Found 2026-08-05, in the Start-Up mine. A Python patch script wrote a JavaScript
+regex containing `\b` — a word boundary. In a non-raw Python string
+`'\b'` is a **valid escape meaning BACKSPACE**, so it raised no
+`SyntaxWarning` (unlike `\s`, which is invalid and *does* warn, and which
+warned loudly three lines away). Python silently wrote **0x08** into the source
+where a word boundary was meant.
+
+The regex then failed to match anything, and — this is the part worth keeping —
+**it survived review twice.** `grep` and `sed` render 0x08 invisibly, so
+reading the line back showed exactly the pattern that was intended. The file was
+read, the pattern was retyped into a test, the test passed, and the conclusion
+was that the code was fine. It was not: the pattern under test and the pattern
+in the file were different strings.
+
+**What actually caught it:** extracting the pattern *from the file* and executing
+*that*.
+
+```js
+const line = readFileSync(f, 'utf8').split('\n').find(l => l.includes('signature++'))
+const src  = line.match(/\/(\^.*?)\/i\.test/)[1]
+console.log(JSON.stringify(src))        // JSON.stringify is what made 0x08 visible
+console.log(new RegExp(src, 'i').test('Owners Representative'))   // false
+```
+
+`JSON.stringify` was the tell: a real backslash renders as `\\`, a control
+character does not.
+
+**The general form: never verify a pattern by looking at it.** Reading proves
+what the terminal chose to render. Extract it from the artifact and run it
+against a case that must match and a case that must not — the same
+arrival-then-absence shape as every other guard here.
+
+**The generator rule that follows:** a script in one language emitting source in
+another must use raw strings or build the escape from parts. Every generated file
+is also swept for control characters before it is trusted — the sweep found two
+occurrences, both in the same file, and nothing anywhere else in the repo.
+
+*Adjacent, same week, same family:* PowerShell variable names are
+**case-insensitive**, so `$out = Receive-Job …` silently clobbered `$Out`, an
+output-directory path, and a harness began writing files into a directory named
+after its own success message. Twice in one session. Both are the same disease —
+**a language rule that makes a wrong program look like the right one** — and both
+are only caught by running the thing and checking what it actually did.
+
 ### An absence assertion proves ARRIVAL first, then absence
 
 The same disease, aimed at nothing. `check(!body.includes(X))` is true of a page
