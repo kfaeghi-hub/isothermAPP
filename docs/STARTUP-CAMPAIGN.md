@@ -135,6 +135,75 @@ paragraph count would flatter a blank one). Neither writes anything.
 
 **Awaiting a ruling before the full run** — see *Open* below.
 
+### Section placement — DELEGATED to the machine, 2026-08-05
+
+**Who decided what, so the paper trail says it plainly:**
+
+| | |
+|---|---|
+| **Placement of every flagged item** | **ruled by the machine, on engineering domain knowledge** |
+| The low-confidence residue | ruled by the owner, by hand |
+| Final approval of the whole pass | owner, on one summary artifact |
+
+**The reasoning behind the delegation, recorded because it is the precedent:**
+section placement is *HVAC domain knowledge, not firm-specific judgment* — what a
+check physically requires is a fact about the equipment, not a decision about how
+Isotherm works. The stakes are also low: templates stay admin-editable forever.
+What is preserved is the system's own law — **nothing seeds unratified.** The
+owner approves **one artifact instead of 678 rows**, and reads only the handful
+the machine was not sure about.
+
+**The placement test the machine applied**, stated so it can be argued with:
+
+| | The check requires… |
+|---|---|
+| **A** Pre-Start | the unit can be dead — installation, condition, documents, prerequisites |
+| **B** Sequence | an ordered step in energizing or first-starting; the order is the content |
+| **C** Running | the unit must be RUNNING — behaviour, modulation, continuous operation |
+| **D** Safety | a protective device **proven** — tripped, simulated, or its interlock fired |
+| **E** Readings | a quantity **recorded**, with units |
+
+**Confidence is recorded per item**, and only `low` reaches the owner:
+`high` (the wording settles it) · `medium` (reasoned, a glance is enough) ·
+`low` (genuinely uncertain — owner rules) · `cut` (not a checkable thing).
+
+**Two clusters were web-verified rather than guessed**, per the delegation's
+instruction to verify where genuinely uncertain:
+
+- **NETA ATS** separates *Visual and Mechanical Inspection* from *Electrical
+  Tests*, both performed before initial energization. So transformer and
+  switchgear inspection rows are **A**, and *"All Specified Tests – Data
+  Recorded"* is **E**.
+- **NFPA 13** dry-pipe air-pressure tests (40 psi / 24 h / < 1.5 psi loss) are
+  **acceptance tests completed before the system is in service**, so a
+  pressure-loss row is a pre-start result (**A**) and the pressure itself is a
+  reading (**E**).
+
+**Result:** 678 occurrences across 289 distinct labels. 190 moved from the
+mapper's default, 475 kept, 13 cut. Final distribution **A 1271 · B 26 · C 225 ·
+D 58 · E 33**. Residue: **34 distinct decisions** (67 occurrences) for the owner.
+
+**Section B stopped being empty.** The mine reported `B 0`; placement found 26
+genuine energization-sequence steps hiding in section A — the Building System
+Integration master is written as ordered start and stop sequences, and those
+steps had defaulted to Pre-Start because no rule matched them. The B gap is
+therefore smaller than Phase 1 reported, and **D and E remain the real gaps.**
+
+**The form note — proposed placement.** The Liquid Filled Power Transformer
+master carries *"Note: Equipment to be isolated from all sources of power."*
+Proposed as a **bold pre-start banner above section A** — read-before-touching,
+not tick-after. *A warning that is ticked is a warning that was read after the
+fact*, and this one is a lockout instruction whose failure mode is electrocution.
+
+Artifacts: `startup-placement-rulings.mjs` (the rulings, one per distinct label,
+each with a one-line reason) and `apply-placement-rulings.mjs` (applies them,
+asserts full coverage, and **refuses to run twice** — the pass clears the flagged
+bit, so a second run would summarise the delta and report "67 ruled, 0 cut" for
+work that ruled 678 and cut 13). Summary for approval:
+`out/startup-mining/placement-summary.json`.
+
+---
+
 ## Phase 2 — standards-anchored gap fill
 
 **Ruled 2026-08-05, before Phase 2 starts, so it boots from the repo rather than
