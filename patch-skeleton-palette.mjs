@@ -46,8 +46,9 @@ const RETIRED = ['443C8F', '5D55AF', '7F78CB', 'E3E1F5', 'CFCCE0', 'E1DEEB', 'F7
 const before = readFileSync(FILE)
 const zipIn = await JSZip.loadAsync(before)
 const parts = {}
+const dirs = []
 for (const name of Object.keys(zipIn.files)) {
-  if (zipIn.files[name].dir) continue
+  if (zipIn.files[name].dir) { dirs.push(name); continue }
   parts[name] = await zipIn.file(name).async('nodebuffer')
 }
 
@@ -81,9 +82,18 @@ for (const [name, buf] of Object.entries(changed)) {
   for (const h of RETIRED) if (new RegExp(h, 'i').test(t)) { console.error(`REFUSE: ${h} survives in ${name}`); process.exit(1) }
 }
 
+// PRESERVE THE ORIGINAL ENTRY SET EXACTLY.
+// The first version dropped the four directory entries Word wrote and let JSZip
+// auto-create eight of its own. The document stayed valid — Word opened it, the
+// PDF exported, prove-skeleton passed — but the LOCAL-HEADER LAYOUT changed, and
+// a naive PK-signature walk (which several harnesses here use) then walked past
+// word/document.xml entirely. pw-cx-plan read an empty document and reported five
+// content failures on a document whose content was correct.
+// Byte-layout parity with what Word produced is part of not changing the file.
 const zipOut = new JSZip()
+for (const d of dirs) zipOut.folder(d.replace(/\/$/, ''))
 for (const [name, buf] of Object.entries(parts))
-  zipOut.file(name, changed[name] ?? buf)
+  zipOut.file(name, changed[name] ?? buf, { createFolders: false })
 const out = await zipOut.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
 writeFileSync(FILE, out)
 
