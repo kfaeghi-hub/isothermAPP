@@ -8,6 +8,21 @@
 // responsible-party company grouping (matrix seat + finding on ONE company key),
 // My Items, Recent Activity, and the project Overview stat header. Then cleans.
 //
+// TIMING — this suite is the battery's most concurrency-sensitive. Its widgets
+// are behind a cold stats fetch that is fast on an idle machine and slow when
+// thirty suites share it. On 2026-08-05 the portfolio-card assertion FAILED in
+// the battery and PASSED standalone; the card was arriving, just after a fixed
+// 2500ms sleep had already been read past. That read is now a bounded wait on
+// the card itself (touch-policy, ruled 2026-08-02: instantaneous reads convert
+// when their suite is next touched — this was that touch).
+//
+// The rule the fix follows: WAIT ON THE THING BEING ASSERTED, not on the clock.
+// Raising a sleep makes a flake rarer and makes a real absence slower to report;
+// a bounded wait on the target fails honestly the moment the timeout expires.
+// Two instantaneous reads remain here on purpose — `neverCard.innerText()` and
+// the responsible-rollup row — because each runs immediately after a wait that
+// has already proven the surrounding surface rendered.
+//
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-dashboard.mjs
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
@@ -134,11 +149,16 @@ try {
   // innerText returns RENDERED text — the label is CSS-uppercased.
   check(/open findings/i.test(await header.innerText()), 'stat header shows Open Findings')
 
-  // Back to the dashboard: portfolio card for the never-visited project
+  // Back to the dashboard: portfolio card for the never-visited project.
+  // Converted 2026-08-05 from `waitForTimeout(2500)` + an instantaneous count().
+  // It failed in the battery on 2026-08-05 and passed standalone — the classic
+  // shape: a fixed timeout is tuned to a quiet machine, and the battery is not
+  // one. The card arrives, just later. Bounded wait on the card ITSELF, so a
+  // real absence still fails after 15s instead of being masked by a longer sleep.
   await page.goto(page.url().replace(/\/projects.*/, '/'))
-  await page.waitForTimeout(2500)
   const cards = page.locator('[data-testid="portfolio-cards"]')
   const neverCard = cards.locator('a', { hasText: 'ZZ-TEST-DASH Never Visited' })
+  await neverCard.first().waitFor({ timeout: 15000 }).catch(() => {})
   check(await neverCard.count() === 1, 'portfolio card for the never-visited project')
   check((await neverCard.innerText()).includes('Never visited'), 'card shows grey Never visited chip')
 

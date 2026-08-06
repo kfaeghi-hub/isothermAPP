@@ -54,6 +54,14 @@ const RETIRED = {
   'FAFBFC': 'cool-cast neutral (tag-cell fill)',
   'EEF2F6': 'cool-cast neutral (nameplate TH)',
   '6B7280': 'cool-cast neutral (header labels)',
+  // Added 2026-08-05 AFTER a render-and-look found them. They lived in the Cx
+  // Plan skeleton's word/footer4.xml — a legacy letterhead blue older than navy,
+  // on the footer address text and the rule above it. The sweep was GREEN while
+  // every page carried a blue footer, because a retired-value list can only find
+  // values somebody already knew were retired. That is this gate's standing
+  // limit, and it is why the render-and-look is not optional.
+  '151897': 'legacy letterhead blue (footer text)',
+  '121584': 'legacy letterhead blue (footer rule)',
 }
 
 // Semantic colour is IN SCOPE OF THE DOCUMENT and out of scope of the ruling.

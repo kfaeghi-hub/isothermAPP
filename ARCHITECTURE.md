@@ -2496,6 +2496,34 @@ their origin for the life of the project.
   - **List per-file doc changes in the commit message.** A reviewer must be able
     to see which documents moved without opening the diff.
 
+- **NEVER run `vercel dev`, `vercel link` or `vercel deploy` in this working tree.
+  `doc-render-local.mjs` is the local render path.**
+
+  Ruled 2026-08-05 after a real incident. `npx vercel dev --yes` was run to get a
+  local surface for the monochrome sweep. `--yes` accepted every prompt: it
+  **created a second Vercel project** (`isotherm-cx`) under the `isotherm` team
+  and **connected it to the production GitHub repo**. Two projects on one repo
+  means the next push builds twice — a duplicate deploy against production
+  infrastructure, from a command that reads like a local dev server.
+
+  It also did not work. Vercel detected the Vite framework and handed the port
+  straight to `vite --port $PORT`; `/api` was never mounted. **The command that
+  created the hazard could not have answered the question anyway.**
+
+  Recovery, in the order it should be done: `vercel git disconnect` first (stop
+  the deploys), then revert the `.gitignore` line Vercel appends, then remove
+  `.vercel/`, then delete the project. The project deletion is the owner's call,
+  not the agent's.
+
+  **The local render path is `doc-render-local.mjs`** — it esbuild-bundles an
+  `api/*.ts` handler, calls it in-process with a Vercel-shaped `(req, res)`, and
+  returns the response. Real handler, real Supabase, real `html-to-docx`, working
+  tree, no deployment, no project, no link. A palette or generator question costs
+  nothing. Its one substitution is `@sparticuz/chromium-min` → a Playwright
+  Chromium shim, because the real package ships a Linux Lambda pack that cannot
+  resolve on Windows; that seam is named in the shim's own header and is valid
+  for colour, not for pagination or font fallback.
+
 - **Verify a deploy by what actually CHANGED.** "Deploy verified" is a claim about
   the specific change, not about the deployment. Match the method to the artifact:
 
