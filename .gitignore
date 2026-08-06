@@ -83,3 +83,7 @@ graphify-out/
 # cal-*.mjs and pw-*.mjs; anything zz-* is scratch by construction.
 zz-*.mjs
 vite-dev.log
+
+# scratch SQL probes, same rule as zz-*.mjs
+zz-*.sql
+zz-*.log
