@@ -1,0 +1,39 @@
+{
+  "_kind": "field-def-enrichment",
+  "batch": "fire-pump-identity-2026-08-06",
+  "ratified": "2026-08-06 — owner, as proposed",
+  "_note": "Applied through apply-ratified.mjs, the stored-artifact path. No model call: this artifact IS what was read and approved. Shape follows that applier's schema — existing_field_count counts DISTINCT field names (13), not def rows (37), because that is what the moved-target refusal compares.",
+
+  "_origin": "The sprinkler-tree master `03 Pumps/S02 Pumps- CSP.doc` yielded zero checklist rows and was deleted in hygiene 7c(1). It did carry an eleven-field nameplate table, held out of that deletion and proposed on its own merits. The corpus teaching again: the one thing the empty master had was exactly the block the type was missing.",
+
+  "_the_gap": "fire_pump carried 13 fields across 37 def rows, every one of them duty or controller — rated flow, rated pressure, rated speed, driver, motor HP/V/FLA, controller type, engine make and BHP, fuel tank, battery arrangement, jockey pump setpoint. NO IDENTITY BLOCK AT ALL. A def set that describes duty but not identity fails the register's first purpose: it can say what a fire pump is rated to do and cannot say which machine it is.",
+
+  "_not_proposed": {
+    "Type of Pump": "covered by the existing `Pump Type`",
+    "Flow Rate (L/S)": "covered by `Rated Flow (Duty Point)`",
+    "Head (kPa)": "covered by `Rated Pressure (Duty Point)`",
+    "R/Min": "covered by `Rated Speed (RPM)`",
+    "Power (kW)": "`Motor Horsepower (HP)` exists and the table carries a `unit_imperial` column — a unit question on an existing field, not a new field. Printing the same quantity twice in two units is the trim failure that took heat_pump from 25 fields to 14.",
+    "PUMPS / Installation and Mounting": "table section labels in the source, not fields"
+  },
+
+  "types": [
+    {
+      "type_key": "fire_pump",
+      "existing_field_count": 13,
+      "standards_anchor": "NFPA 20 · ULC/CAN nameplate marking · the firm's own S02 CSP master (03 Pumps/S02 Pumps- CSP.doc, table 2)",
+      "fields": [
+        { "field_name": "Manufacturer", "sections": ["shop_drawing", "installed"],
+          "why": "No spec row: a specification names a basis of design; the shop drawing is where the actual make is committed." },
+        { "field_name": "Model or Size", "sections": ["shop_drawing", "installed"],
+          "why": "The master's own wording. Fire pumps are commonly identified by size as much as by model number." },
+        { "field_name": "Serial Number", "sections": ["installed"],
+          "why": "Installed only — a serial number does not exist at spec or shop-drawing stage." },
+        { "field_name": "Impeller Size", "sections": ["shop_drawing", "installed"], "unit": "mm",
+          "why": "The as-built impeller determines the actual curve. Carried at BOTH stages because a trim change between shop drawing and installation is exactly the discrepancy the three-column layout exists to catch." },
+        { "field_name": "Seal Type", "sections": ["spec", "shop_drawing", "installed"],
+          "why": "The one field of the five a specification genuinely does call out. Neither `pump` nor `fire_pump` carries it today." }
+      ]
+    }
+  ]
+}

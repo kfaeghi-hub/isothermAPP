@@ -1,0 +1,60 @@
+{
+  "_kind": "field-def-reversal",
+  "_ratified": "2026-08-06 — owner, as held",
+  "_note": "RATIFIED. Reverses five of the ten def rows applied by proposals/fire-pump-identity-ratified.json earlier the same day. The original ratification row is RETAINED in the ledger; this writes a second row beside it with its own premise, because a ledger that quietly unwrites a ratified act is worse than one that shows a corrected mistake.",
+  "_why": "The premise of that proposal was that `fire_pump` had no identity block. It was false. `__base` is a universal pseudo-type carrying Manufacturer (shop_drawing + installed), Model Number (shop_drawing + installed) and Serial Number (installed), which `EquipmentPage.defsForType()` merges into every type. fire_pump already had a complete identity block and always did. The audit that would have caught this is the audit the same ruling ordered — run after the write instead of before it.",
+  "_what_renders_now": "The merge de-duplicates on EXACT field name. `Manufacturer` and `Serial Number` are exact matches, so the new type-level rows silently shadow identical inherited ones — redundant, not visible. `Model or Size` is NOT an exact match for the inherited `Model Number`, so BOTH render: a fire pump nameplate now shows two model fields in shop_drawing and again in installed.",
+  "remove": [
+    {
+      "equipment_type": "fire_pump",
+      "field_name": "Manufacturer",
+      "sections": [
+        "shop_drawing",
+        "installed"
+      ],
+      "why": "Exact duplicate of the inherited __base field. Shadows it with an identical row."
+    },
+    {
+      "equipment_type": "fire_pump",
+      "field_name": "Serial Number",
+      "sections": [
+        "installed"
+      ],
+      "why": "Exact duplicate of the inherited __base field."
+    },
+    {
+      "equipment_type": "fire_pump",
+      "field_name": "Model or Size",
+      "sections": [
+        "shop_drawing",
+        "installed"
+      ],
+      "why": "THE VISIBLE DEFECT. Renders beside the inherited `Model Number`. If the firm wants the master's 'or Size' wording, that is a rename of the __base field for every type — a separate and much larger question — not a second field on one type."
+    }
+  ],
+  "keep": [
+    {
+      "field_name": "Impeller Size",
+      "sections": [
+        "shop_drawing",
+        "installed"
+      ],
+      "unit": "mm",
+      "why": "Genuinely additive. Not in __base, not in fire_pump's own set. The as-built impeller determines the actual curve, and a trim change between shop drawing and installation is what the two-stage layout exists to catch."
+    },
+    {
+      "field_name": "Seal Type",
+      "sections": [
+        "spec",
+        "shop_drawing",
+        "installed"
+      ],
+      "why": "Genuinely additive. Carried by neither __base nor fire_pump nor pump."
+    }
+  ],
+  "_net": "fire_pump 18 fields → 15. Ten applied def rows → five retained. The two fields that survive are the two that were never about identity.",
+  "_the_part_worth_keeping": "The corpus DID teach something — just not what was claimed. The empty master's nameplate table pointed at Impeller Size and Seal Type, which the register genuinely lacked. The identity fields it also carried were the ones the register already had, and they were the ones that got argued for hardest.",
+  "_batch": "fire-pump-identity-reversal-2026-08-06",
+  "_reverses": "proposals/fire-pump-identity-ratified.json (batch fire-pump-identity-2026-08-06)",
+  "_premise_of_original": "fire_pump carries no identity block. FALSE — __base supplies Manufacturer, Model Number and Serial Number to every type, and EquipmentPage.defsForType() merges it in."
+}

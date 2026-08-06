@@ -1073,6 +1073,45 @@ table of its own, and **a row it cannot place in a source block is a refusal.**
 **Inventing structure and deleting structure are the same mistake in opposite
 directions**, and a script that is willing to do either will eventually do both.
 
+#### The third face: an audit that does not model INHERITANCE reports a gap that is not there
+
+*2026-08-06, hours after the mirror case above, and it caught its own author.*
+
+`fire_pump`'s def set was read as carrying 13 duty-and-controller fields and **no
+identity block** — it could say what a fire pump was rated to do and not which
+machine it was. Five identity fields were proposed, ratified and applied, and a
+register-wide sweep was ordered to find siblings. The sweep found **35 more
+types** with the same shape.
+
+**All 36 were wrong.** `__base` is a pseudo-type carrying `Manufacturer`
+(shop_drawing + installed), `Model Number` (shop_drawing + installed) and
+`Serial Number` (installed), and `EquipmentPage.defsForType()` merges it into
+every type. Every type in the register already had a complete identity block.
+Re-run with the merge modelled, the sweep reports **0**.
+
+**Nothing about the wrong answer looked wrong.** The query was correct. The
+counts were real. The regexes matched what they claimed. The write was ratified
+against a stored artifact and read back clean. It was measuring **the wrong
+set** — a type's own rows are not its field list; the merge is.
+
+**And a gap report is a work order.** The two earlier faces of this disease cost
+a wrong reading. This one had already cost a write: 5 of the 10 applied def rows
+duplicated `__base`, and one of them — `Model or Size` against the inherited
+`Model Number` — renders as **two model fields on every fire pump nameplate**,
+because the merge de-duplicates on exact name and those two are not the same
+string.
+
+**The rule.** *Before an audit reports a gap, it must state what it believes the
+complete set to be, and prove that belief against the code path that assembles
+it.* `identity-block-audit.mjs` now **refuses to run** if it cannot find the
+`__base` set — because an audit that silently treats an inherited set as empty
+does not fail, it publishes.
+
+The three faces together: **a duplicate hides · apparent duplication can be lost
+structure · an absent thing may be inherited from somewhere you did not look.**
+All three are the same error — *measuring a set that is not the set that matters*
+— and none of them announces itself.
+
 ### A re-key is not free when the source was thin
 
 Ruled 2026-08-06, and it belongs beside the phantom-data family because it is the
