@@ -279,6 +279,25 @@ const CSS = `
   .hint  { font-style: italic; font-size: 7.5pt; color: #888; margin-top: 2px; }
 
   .so-role { font-weight: 600; font-size: 8.5pt; }
+
+  /* ── Phase 0 elements, approved 2026-08-05 ──────────────────────────────── */
+  /* The masthead names the document TYPE before anyone reads a line item.
+     Start-Up is the only checklist that is a procedure with a live appliance at
+     the end of it, and the form should say so. */
+  .masthead { background: ${DOC.BAND}; color: #fff; padding: 7px 12px; margin-top: 9px; border-radius: 3px; page-break-after: avoid; break-after: avoid; }
+  .mh-type { font-size: 11pt; font-weight: 700; letter-spacing: 1.2px; }
+  .mh-eq { font-size: 8.5pt; margin-top: 1px; color: #E8E8E8; }
+
+  /* A warning that is ticked is a warning that was read after the fact. This is
+     read before the first line is answered, so it is a banner and not an item. */
+  .prestart-banner { border: 2px solid ${DOC.INK}; background: ${DOC.BAND_TINT}; color: ${DOC.INK};
+    padding: 7px 11px; margin: 10px 0 0; font-size: 9pt; font-weight: 700; page-break-inside: avoid; break-inside: avoid; }
+  .pb-lead { font-size: 7pt; letter-spacing: 1px; font-weight: 700; display: block; margin-bottom: 2px; }
+
+  /* Two parties, two DIFFERENT claims, printed in full. The claim is the
+     signature of the type: the contractor certifies performance, the CxA
+     attests to observation only. */
+  .so-claim { font-size: 7pt; font-style: italic; color: #555; margin-top: 3px; display: block; }
 `
 
 // ── Shared shape ───────────────────────────────────────────────────────────────
@@ -302,6 +321,47 @@ interface DocData {
   // Template-level render flag. 'check_table' = transposed fleet record (units as
   // rows, items as numbered columns, landscape, chunked). Null = standard layout.
   renderMode:     string | null
+}
+
+/** MASTHEAD — the document type, named before the first line item.
+ *  Approved with the Phase 0 design. Start-Up only for now: it is the only
+ *  family that is a procedure with a live appliance at the end of it, and the
+ *  other three do not need announcing. */
+function mastheadHtml(instance: any, targets: any[]): string {
+  if (instance.type !== 'startup') return ''
+  const first = targets?.[0]?.equipment
+  const descriptor = first?.descriptor || first?.equipment_type || ''
+  const tags = (targets ?? []).map((t: any) => t.equipment?.tag).filter(Boolean)
+  const sub = [descriptor, tags.join(', ')].filter(Boolean).join(' \u00b7 ')
+  return `<div class="masthead">
+    <div class="mh-type">EQUIPMENT START-UP CHECKLIST</div>
+    ${sub ? `<div class="mh-eq">${esc(sub)}</div>` : ''}
+  </div>`
+}
+
+/** PRE-START BANNER — a form-level warning, read before anything is answered.
+ *  Never a line item: a warning that is ticked is a warning that was read after
+ *  the fact, and the first one of these is a lockout instruction. */
+function prestartBannerHtml(instance: any): string {
+  const text = instance.prestart_banner_snapshot
+  if (!text) return ''
+  return `<div class="prestart-banner">
+    <span class="pb-lead">BEFORE YOU TOUCH THIS EQUIPMENT</span>${esc(text)}
+  </div>`
+}
+
+/** The two claims that make Start-Up a type rather than an ivc variant. The
+ *  contractor certifies that the work was performed; the CxA attests to
+ *  observation ONLY and explicitly does not assume responsibility for it.
+ *  Ruled verbatim 2026-08-05 — this wording is not paraphrasable. */
+const STARTUP_CLAIMS: Array<[RegExp, string]> = [
+  [/contractor/i, 'I certify the start-up was performed in accordance with the manufacturer\u2019s instructions and the sections above.'],
+  [/commissioning authority|cxa|witness/i, 'I witnessed the start-up recorded above. This signature attests to observation only and does not transfer responsibility for the work.'],
+]
+function signoffClaim(instance: any, roleLabel: string): string {
+  if (instance.type !== 'startup') return ''
+  const hit = STARTUP_CLAIMS.find(([re]) => re.test(roleLabel ?? ''))
+  return hit ? `<span class="so-claim">${esc(hit[1])}</span>` : ''
 }
 
 /** Legend wording depends on the checklist type. */
@@ -453,7 +513,7 @@ function buildCheckTableHtml(d: DocData): string {
     const nameCompany = mode === 'blank' ? '' : [s.signer_name, s.signer_company].filter(Boolean).join(' / ')
     const date = mode === 'blank' ? '' : isoShort(s.signed_at)
     return `<tr>
-      <td class="so-role">${esc(s.role_label_snapshot)}</td>
+      <td class="so-role">${esc(s.role_label_snapshot)}${signoffClaim(instance, s.role_label_snapshot)}</td>
       <td>${dashOr(mode, nameCompany)}</td>
       <td></td>
       <td style="font-family:monospace;font-size:8pt;">${dashOr(mode, date)}</td>
@@ -471,7 +531,11 @@ function buildCheckTableHtml(d: DocData): string {
   </div>
   <div class="brandrule"></div>
 
+  ${mastheadHtml(instance, responseTargets)}
+
   ${mode === 'blank' && audience === 'contractor' ? `<div class="blank-notice">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</div>` : ''}
+
+  ${prestartBannerHtml(instance)}
 
   <div class="title-legend">
     <div class="tl-title">
@@ -674,7 +738,7 @@ function buildChecklistHtml(d: DocData): string {
     const nameCompany = mode === 'blank' ? '' : [s.signer_name, s.signer_company].filter(Boolean).join(' / ')
     const date = mode === 'blank' ? '' : isoShort(s.signed_at)
     return `<tr>
-      <td class="so-role">${esc(s.role_label_snapshot)}</td>
+      <td class="so-role">${esc(s.role_label_snapshot)}${signoffClaim(instance, s.role_label_snapshot)}</td>
       <td>${dashOr(mode, nameCompany)}</td>
       <td></td>
       <td style="font-family:monospace;font-size:8pt;">${dashOr(mode, date)}</td>
@@ -720,7 +784,11 @@ function buildChecklistHtml(d: DocData): string {
   </div>
   <div class="brandrule"></div>
 
+  ${mastheadHtml(instance, responseTargets)}
+
   ${mode === 'blank' && audience === 'contractor' ? `<div class="blank-notice">BLANK FORM — FOR CONTRACTOR USE — Complete on site and return to Isotherm Engineering Ltd.</div>` : ''}
+
+  ${prestartBannerHtml(instance)}
 
   <div class="title-legend">
     <div class="tl-title">

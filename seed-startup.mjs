@@ -149,9 +149,14 @@ let seeded = 0, instanceOn = null
 for (const p of planned) {
   const name = `${p.subject ?? p.file.replace('.json', '')} Start-Up Checklist`
   const rev = `Phase 1 mine 2026-08-05 · source: ${p.master}`
+  // The form's own warning becomes the PRE-START BANNER, not a line item.
+  // Multiple notes on one master join with a separator rather than the seeder
+  // choosing one — dropping a lockout instruction to keep a field tidy is not a
+  // trade anyone should make silently.
+  const banner = p.notes.map(nt => nt.note.replace(/^note\s*:\s*/i, '').trim()).filter(Boolean).join('  ')
   let sql = `do $$\ndeclare v_tmpl uuid; v_sec uuid;\nbegin\n` +
-    `  insert into checklist_templates (name, type, equipment_type, description, revision_label, active)\n` +
-    `  values (${q(name)}, 'startup', ${q(p.key)}, ${q('Contractor performs, Commissioning Authority witnesses; both sign.')}, ${q(rev)}, true)\n` +
+    `  insert into checklist_templates (name, type, equipment_type, description, revision_label, prestart_banner, active)\n` +
+    `  values (${q(name)}, 'startup', ${q(p.key)}, ${q('Contractor performs, Commissioning Authority witnesses; both sign.')}, ${q(rev)}, ${q(banner || null)}, true)\n` +
     `  returning id into v_tmpl;\n`
   for (const s of p.sections) {
     sql += `  insert into checklist_template_sections (template_id, title, sort_order) values (v_tmpl, ${q(s.title)}, ${s.sort_order}) returning id into v_sec;\n`
@@ -177,8 +182,8 @@ begin
   select count(*) into v_n from equipment where project_id = '${ZZ}' and equipment_type = ${q(instanceOn.key)};
   if v_n = 0 then return; end if;
   insert into checklist_instances (project_id, source_template_id, source_template_name_snapshot,
-    source_template_type_snapshot, source_template_revision_label_snapshot, created_from_template_at, type, status)
-  values ('${ZZ}', v_tmpl, ${q(instanceOn.name)}, 'startup', ${q(instanceOn.rev)}, now(), 'startup', 'not_started')
+    source_template_type_snapshot, source_template_revision_label_snapshot, created_from_template_at, type, status, prestart_banner_snapshot)
+  values ('${ZZ}', v_tmpl, ${q(instanceOn.name)}, 'startup', ${q(instanceOn.rev)}, now(), 'startup', 'not_started', (select prestart_banner from checklist_templates where id = v_tmpl))
   returning id into v_inst;
   insert into checklist_instance_targets (instance_id, equipment_id, role, sort_order)
   select v_inst, e.id, case when row_number() over (order by e.tag) = 1 then 'primary' else 'tested_unit' end,
