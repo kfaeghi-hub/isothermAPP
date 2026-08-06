@@ -1038,6 +1038,36 @@ end at a human looking at it, which is the correct destination for both.
 cross-check between its parts — not a validation of its output.** Output
 validation cannot see a duplicate; only the parts, compared, can.
 
+### A re-key is not free when the source was thin
+
+Ruled 2026-08-06, and it belongs beside the phantom-data family because it is the
+same disease wearing better clothes: **a correct key vouches for content the way a
+wrong key never did.**
+
+*The evidence.* The template hygiene pass re-keyed a template out of `pump` and
+into `fire_pump`, on the correct finding that it was mined from the sprinkler
+tree and did not belong in the pump cluster. The re-key was right. The claim made
+about it — that `fire_pump` "gains its first mined template" — was not. The mine
+produced **zero** checklist rows from that master; its one section-A row is the
+*standing* IOM item that Phase 2 seeds on every form, and its twelve other rows
+are the **pump** type's Phase 2 fill. It is a pump checklist wearing a fire pump
+name, and nothing about it was mined.
+
+**Why the wrong key was safer.** Sitting in `pump`, the template was one of
+fourteen and read as a straggler — visibly out of place, which is what got it
+looked at. Moved to `fire_pump`, it became one of two, correctly typed, correctly
+named, and structurally indistinguishable from a real checklist. **A template
+whose only defect is emptiness looks exactly like a template.** The re-key
+removed the only signal that anything was wrong with it.
+
+**The rule.** Moving a template to its correct type also moves whatever the mine
+failed to find. So: **read what a re-keyed template actually contains before
+claiming the type gained it** — and count *mined* rows specifically, not total
+rows. Universal-core and type-level Phase 2 fill land on every template of a type
+whether or not anything was ever mined into it, so a row count is not evidence of
+content. That is the cross-check the phantom-data section demands, applied here:
+the parts (mined vs filled), compared — not the total, validated.
+
 ### The sibling rule: a guard that answers the same in both states is not a guard
 
 The silence family above is about ASSERTIONS that cannot fail. This is the same
