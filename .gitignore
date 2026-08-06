@@ -87,3 +87,4 @@ vite-dev.log
 # scratch SQL probes, same rule as zz-*.mjs
 zz-*.sql
 zz-*.log
+zz-*.txt
