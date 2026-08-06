@@ -373,7 +373,8 @@ the first real one is the specification.
 
 Extraction and seeding of the Start-Up master forms, the last of the three
 seeding campaigns. Roadmap position: MASTER-BRIEF §10, item 1. Live plan and
-progress: [RELEASES 1.06](RELEASES.md).
+progress: [STARTUP-CAMPAIGN.md](STARTUP-CAMPAIGN.md) and
+[RELEASES 1.06](RELEASES.md).
 
 **Gate (a) — Word COM. CLEARED.** Tony fixed the environment; re-verified
 independently by `probe-word-com.ps1` on 2026-08-05, **2/2 converted**, including
