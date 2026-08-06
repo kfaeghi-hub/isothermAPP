@@ -1,0 +1,47 @@
+{
+  "_kind": "equipment-type-mint-ratification",
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_origin": "Start-Up campaign Phase 1 — 39 templates seeded with equipment_type null; the mint-candidate table was ruled in one pass.",
+  "_note": "BASE-ONLY. Drafter field-def tables ride the next batch; Phase 2's standards research covers the new types. Minting a key is not the same as populating its nameplate.",
+
+  "mint": [
+    { "key": "water_tank",       "name": "Water Tank",              "discipline": "Plumbing",
+      "why": "85 items across 5 masters. Distinct from expansion_tank, which is a pressurisation vessel on a closed loop, not a storage tank." },
+    { "key": "glycol_tank",      "name": "Glycol Mixing & Fill Tank", "discipline": "Mechanical",
+      "why": "47 items across 3 masters. It mixes and fills; expansion_tank absorbs. Different equipment, different start-up." },
+    { "key": "water_meter",      "name": "Water Meter",             "discipline": "Plumbing",
+      "why": "45 items across 5 masters. No collision in the register." },
+    { "key": "plumbing_fixture", "name": "Plumbing Fixture",        "discipline": "Plumbing",
+      "why": "30 items across 6 masters. QUALIFIED DELIBERATELY: a bare `fixture` key would collide with lighting fixtures, and a key that reads two ways is a Law 8 hazard." },
+    { "key": "fire_extinguisher","name": "Fire Extinguisher System","discipline": "Fire Protection",
+      "why": "25 items. No collision." },
+    { "key": "mixing_valve",     "name": "Mixing Valve",            "discipline": "Plumbing",
+      "why": "20 items across 4 masters. No collision." },
+    { "key": "split_system",     "name": "Split System Air Conditioner", "discipline": "Mechanical",
+      "why": "19 items. rtu and heat_pump are packaged units; a split system is two pieces with a line set between them, and its start-up differs at exactly that seam." }
+  ],
+
+  "map": [
+    { "from": "Fluid Cooler",                            "to": "cooling_tower",
+      "why": "Dry vs evaporative is variant-as-data, not a type. Same RTU-vs-AHU bar." },
+    { "from": "Water Cooled DE Refrigeration Unit",      "to": "chiller",
+      "why": "A water-cooled DX unit is a chiller variant." },
+    { "from": "Smoke Management System",                 "to": "smoke_control_fan | smoke_control_panel",
+      "why": "Already minted in the IST catalog addendum; the system decomposes into the two ruled keys." }
+  ],
+
+  "leave": [
+    { "subject": "Standpipe Systems", "items": 11,
+      "why": "MINT REFUSED BY RULING, and the reasoning is the durable part: sprinkler and standpipe are already kind='system' rows in the catalog. Minting an equipment key would put the same thing in two places. A start-up template wanting a home is a template-ATTACHMENT question, not a taxonomy one — a recorded ruling is not reversed to solve a keying problem." },
+    { "subject": "Heating System Start-Up Procdure (sic)", "why": "A system procedure, not equipment." },
+    { "subject": "Gas-Fluid Distribution",                 "why": "A distribution system, not a unit." },
+    { "subject": "Piping System",                          "why": "Distribution." },
+    { "subject": "Fire and Smoke Separations",             "why": "Building assembly — BACKBURNER 3c territory." },
+    { "subject": "Egress Systems",                         "why": "Building assembly." },
+    { "subject": "Communication Systems",                  "why": "Too broad to key." },
+    { "subject": "Air Handling Unit Controls",             "why": "BAS sequence — BAS-SPEC owns it." },
+    { "subject": "Chilled Water Controls",                 "why": "BAS sequence — BAS-SPEC owns it." },
+    { "subject": "Hot Water Heating System Controls",      "why": "BAS sequence — BAS-SPEC owns it." }
+  ]
+}

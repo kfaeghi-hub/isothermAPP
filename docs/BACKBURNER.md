@@ -396,6 +396,59 @@ Start-Up **master form** now has somewhere of its own to land.
 sign-off structure differs is not a variant of another type; that is the same
 bar the RTU-vs-AHU mint ruling set.
 
+### 7b. Acceptance Testing — the FIFTH checklist family
+**PARKED — born 2026-08-06 out of the Start-Up campaign's residue**
+
+**Code-required acceptance tests**, and a family in its own right. It is not
+Start-Up and it is not FPT, and the distinction is the reason it exists:
+
+| Family | Who, and what is being proven |
+|---|---|
+| **Start-Up** | the contractor performs a first run; the CxA witnesses |
+| **FPT** | the sequence of operations is verified against the spec |
+| **Acceptance Testing** | a **code-required test** is performed and its result recorded against a **published criterion** |
+
+**Founding content, already in hand.** The Start-Up mine held out four items that
+turned out to belong here rather than nowhere:
+
+- **Accelerator** and **Flooding (Deluge) Valve** — ruled 2026-08-06 as **out of
+  start-up scope entirely**. Both are proven by NFPA 13 trip tests on the system;
+  nothing on a start-up sheet exercises them, and *a form that pretends otherwise
+  records theater.*
+- **Standpipe's 11 items**, orphaned when the standpipe mint was refused.
+
+Scope, as ruled:
+
+- **NFPA 13** sprinkler acceptance — dry-pipe trip tests with the **40 psi /
+  24 h / 1.5 psi** criteria, deluge and preaction trips, hydrostatic, flow tests
+- **NFPA 20** fire pump acceptance
+- **TSSA / CSA B44** elevator acceptance interface
+- **Life-safety generator load tests**, where acceptance-shaped
+- **General system acceptance** adjoining the IST / CAN-ULC-S1001 world —
+  *the firm performs IST, so system-level acceptance is real firm scope*
+
+**Three design notes, recorded now so the build does not rediscover them:**
+
+**(a) It is predominantly SYSTEM-shaped.** Acceptance tests are performed on
+systems, not units. **This family depends on the `kind='system'` attachment
+mechanism** — see [SYSTEM-ATTACHMENT-PROPOSAL.md](SYSTEM-ATTACHMENT-PROPOSAL.md).
+It cannot start before that is ruled and built.
+
+**(b) It shares DNA with two parked entries.** [3d](#3d) — repeating-measurement
+structures: flow curves and trip timings are literally its cell types.
+[3e](#3e) — the IST module: same standards neighbourhood, same witnesses.
+Whoever builds this should read both first rather than starting from zero.
+
+**(c) THE FIRM HAS NO EXISTING TEMPLATES FOR THIS FAMILY.** Unlike Start-Up,
+which had 81 masters to mine, **there is nothing to mine.** The family is born
+entirely from the Phase 2 methodology — standards research, triangulation,
+convergence-classed items, ratification batches — anchored on NFPA 13/20/25,
+CAN-ULC-S1001, and CSA/TSSA. That is a different and slower shape of work than
+either seeding campaign, and pretending otherwise would under-scope it badly.
+
+**Wakes when:** the first project schedules formal acceptance testing through the
+app — most likely fire protection on a new-construction job.
+
 ### 8. Per-type field-def enrichment
 **WAITING**
 

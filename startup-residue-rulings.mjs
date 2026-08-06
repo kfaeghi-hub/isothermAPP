@@ -95,7 +95,20 @@ export const APPLIED_CONSEQUENCE = {
   'confirm high supply temperature alarm':     ['A', 'point installed; alarm annunciation is proven in FPT', 'FPT'],
 }
 
-/** GENUINELY RESISTS THE LAW — held out and named, per the instruction.
+/** RULED 2026-08-06. Kept as the record of what was held out and how it was
+ *  resolved — a hold-out that vanishes from the file teaches nothing.
+ *
+ *  Accelerator, Flooding Valve: OUT OF START-UP SCOPE. NFPA 13 trip tests are
+ *  acceptance testing; nothing on a start-up sheet exercises them, and a form
+ *  that pretends otherwise records theater. Deferred WITH A DESTINATION —
+ *  BACKBURNER 7b, the Acceptance Testing family, alongside standpipe's 11.
+ *
+ *  Supervisory Air: A, reworded to 'Air maintenance device installed and
+ *  operational', with annunciation-on-loss noted to IST. The ambiguity resolved
+ *  by SPLITTING THE CLAIM rather than picking a side.
+ *
+ *  Original note follows.
+ *  GENUINELY RESISTS THE LAW — held out and named, per the instruction.
  *  Each is a protective function that is neither a device on the equipment being
  *  started nor a fire-alarm integration: it is a sprinkler-system-internal
  *  function whose proof is an NFPA acceptance test. The law's five branches do

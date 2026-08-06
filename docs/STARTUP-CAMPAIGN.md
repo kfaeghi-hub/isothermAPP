@@ -192,6 +192,25 @@ acceptance test on the sprinkler system itself.
 They remain at **D** and stay flagged, pending a ruling on whether they are
 start-up scope at all.
 
+#### The three held-out items — RULED 2026-08-06
+
+**Accelerator · Flooding (Deluge) Valve — OUT OF START-UP SCOPE ENTIRELY.**
+Both are proven by NFPA 13 trip tests on the sprinkler system: acceptance
+testing, not equipment start-up. Nothing on a start-up sheet exercises either
+one, and **a form that pretends otherwise records theater.** They are
+**deferred WITH A DESTINATION, not dropped** — together with standpipe's 11
+orphaned items they are the founding content of
+[BACKBURNER 7b, the Acceptance Testing family](BACKBURNER.md).
+
+**Supervisory Air — A, reworded.** The source label was genuinely ambiguous
+between the installation and the annunciation, and *the ambiguity resolves by
+splitting the claim, not by picking a side*:
+
+- **A** — *"Air maintenance device installed and operational"* — the arrangement,
+  which a start-up can honestly confirm.
+- **IST** — annunciation on loss of supervisory air, per the placement law:
+  **integration proof is never a start-up tick.**
+
 #### The transformer banner — APPROVED
 
 The Liquid Filled Power Transformer master's *"Note: Equipment to be isolated
