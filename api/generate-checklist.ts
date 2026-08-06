@@ -309,6 +309,18 @@ function legendLines(instance: any): string[] {
   if (instance.type === 'fpt') {
     return ['PASS — Verified / Acceptable', 'FAIL — Not Verified / Deficient']
   }
+  // Start-Up carries a fourth state the other families do not have. HOLD means
+  // the sequence could not proceed — no permanent power, no water treatment, no
+  // gas — which is not "not satisfactory", and the legend has to say so or the
+  // form teaches the wrong thing. Approved 2026-08-05 with the Phase 0 design.
+  if (instance.type === 'startup') {
+    return [
+      'Y — Complete / satisfactory',
+      'N — Not satisfactory — raise finding',
+      'NR — Not required for this unit',
+      'HOLD — Cannot proceed — state why',
+    ]
+  }
   return [
     'Y — Installed / Acceptable',
     'N — Missing and Required',

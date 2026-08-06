@@ -2,10 +2,14 @@
 
 export type UserRole = 'admin' | 'developer' | 'owner' | 'user' | 'client'
 export type FindingStatus = 'open' | 'closed'
-export type FindingOrigin = 'site_visit' | 'ivc' | 'pfc' | 'fpt'
+// `design_review` was added to finding_origin_enum in the database and never
+// reached this union - found 2026-08-05 while adding `startup`. Recorded rather
+// than silently corrected: the drift was real, and a union that lags the enum
+// narrows nothing at runtime, it only misleads the next reader.
+export type FindingOrigin = 'site_visit' | 'ivc' | 'pfc' | 'fpt' | 'design_review' | 'startup'
 export type CxProgress = 'done' | 'in_progress' | 'na' | 'blank'
 export type Discipline = 'mechanical' | 'electrical' | 'bas' | 'general'
-export type ChecklistType = 'ivc' | 'pfc' | 'fpt'
+export type ChecklistType = 'ivc' | 'pfc' | 'fpt' | 'startup'
 export type DeliverableType =
   | 'ivc_checklist' | 'pfc_checklist' | 'fpt_script'
   | 'opr' | 'bod' | 'cx_plan' | 'systems_manual' | 'final_report'
@@ -618,7 +622,7 @@ export interface ChecklistTemplateItem {
   section_id: string
   label: string
   hint: string | null
-  status_type: 'yn_nr_na' | 'pass_yn'
+  status_type: 'yn_nr_na' | 'pass_yn' | 'yn_nr_na_hold'
   creates_finding: boolean
   expected_response: string | null
   suggested_category: string | null
@@ -720,7 +724,7 @@ export interface ChecklistInstanceItem {
   source_item_id: string | null
   label: string
   hint: string | null
-  status_type: 'yn_nr_na' | 'pass_yn'
+  status_type: 'yn_nr_na' | 'pass_yn' | 'yn_nr_na_hold'
   creates_finding: boolean
   expected_response: string | null
   suggested_category: string | null
@@ -760,7 +764,13 @@ export interface ChecklistInstanceSignoff {
 
 export type YnNrNaStatus = 'y' | 'n' | 'nr' | 'na'
 export type PassFailStatus = 'pass' | 'fail'
-export type ResponseStatus = YnNrNaStatus | PassFailStatus
+/** Start-Up only. A start-up can be BLOCKED - no permanent power, no water
+ *  treatment, no gas - and that is not the same as 'not satisfactory'. It is
+ *  fenced to the `yn_nr_na_hold` status_type by a database CHECK, not by this
+ *  union: see migrations/startup-type-2-hold.sql and its guard proof. */
+export type HoldStatus = 'hold'
+export type YnNrNaHoldStatus = YnNrNaStatus | HoldStatus
+export type ResponseStatus = YnNrNaStatus | PassFailStatus | HoldStatus
 
 export interface ChecklistResponse {
   id: string
@@ -768,7 +778,7 @@ export interface ChecklistResponse {
   instance_id: string
   item_id: string
   target_id: string
-  status_type: 'yn_nr_na' | 'pass_yn'
+  status_type: 'yn_nr_na' | 'pass_yn' | 'yn_nr_na_hold'
   status: ResponseStatus | null
   comment: string | null
   actual_response: string | null

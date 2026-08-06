@@ -11,16 +11,17 @@ import type {
   ChecklistTemplate, ChecklistInstance, ChecklistInstanceTarget,
   ChecklistInstanceSection, ChecklistInstanceItem, ChecklistInstanceGrid,
   ChecklistInstanceSignoff, ChecklistResponse, ChecklistGridResponse,
-  ChecklistFindingLink, ChecklistType, ResponseStatus, Equipment,
+  ChecklistFindingLink, ChecklistType, ResponseStatus, YnNrNaHoldStatus, Equipment,
 } from '../types/database'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<ChecklistType, string> = { ivc: 'IVC', pfc: 'PFC', fpt: 'FPT' }
+const TYPE_LABELS: Record<ChecklistType, string> = { ivc: 'IVC', pfc: 'PFC', fpt: 'FPT', startup: 'START-UP' }
 const TYPE_COLORS: Record<ChecklistType, string> = {
   ivc: 'bg-sky-50 text-sky-700',
   pfc: 'bg-violet-50 text-violet-700',
   fpt: 'bg-orange-50 text-orange-700',
+  startup: 'bg-teal-50 text-teal-700',
 }
 const STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-500',
@@ -574,7 +575,13 @@ export function ChecklistsPage({ projectId, phases }: Props) {
     // Trigger the finding flow on N/fail if creates_finding and no existing link.
     // Routed through the queue so a bulk copy that trips several N items walks the
     // engineer through one finding modal per hit — never dropping any.
-    const isFail = (item.status_type === 'yn_nr_na' && status === 'n') || (item.status_type === 'pass_yn' && status === 'fail')
+    // HOLD IS DELIBERATELY NOT A FAIL. A blocked start-up must not raise a
+    // finding: 'the contractor could not proceed' is not 'the contractor did it
+    // wrong', and filing it as a finding is what makes it read, a year later, as
+    // work done badly rather than work that could not be done. Ruled 2026-08-05.
+    // A yn_nr_na_hold item still fails on 'n', like any other item.
+    const isFail = ((item.status_type === 'yn_nr_na' || item.status_type === 'yn_nr_na_hold') && status === 'n')
+                || (item.status_type === 'pass_yn' && status === 'fail')
     if (isFail && item.creates_finding && !findLinks[key]) {
       setFindingQueue(q => q.some(e => e.item.id === item.id && e.targetId === targetId)
         ? q : [...q, { item, targetId }])
@@ -1082,7 +1089,10 @@ export function ChecklistsPage({ projectId, phases }: Props) {
       <div className={`flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all ${narrow ? 'hidden lg:flex lg:w-72' : 'flex flex-1'}`}>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
           <div className="flex gap-1">
-            {(['all', 'ivc', 'pfc', 'fpt'] as const).map(f => (
+            {/* An `as const` tuple, NOT policed by ChecklistType - this line and its twin
+                in TemplatesPage are where a new type silently fails to appear in
+                the UI while every typecheck stays green. The Build Spec names it. */}
+            {(['all', 'ivc', 'pfc', 'fpt', 'startup'] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)}
                 className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
                   filter === f ? 'bg-slate-100 text-slate-700 font-semibold' : 'text-gray-400 hover:text-gray-600'
@@ -1481,7 +1491,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                 {selectedTemplate.type === 'fpt'
                   ? 'Primary Target (system or equipment being tested)'
-                  : selectedTemplate.type === 'ivc' || selectedTemplate.type === 'pfc'
+                  : selectedTemplate.type === 'ivc' || selectedTemplate.type === 'pfc' || selectedTemplate.type === 'startup'
                   ? 'Equipment — select one or more units'
                   : 'Target Equipment'}
               </p>
@@ -1860,11 +1870,12 @@ function ItemRow({
                 {target.equipment?.tag ?? '?'}
               </span>
             )}
-            {item.status_type === 'yn_nr_na' ? (
+            {item.status_type === 'yn_nr_na' || item.status_type === 'yn_nr_na_hold' ? (
               <YnNrNaInput
                 value={currentStatus as any}
                 onChange={v => !isComplete && onSetResponse(item, target.id, v)}
                 disabled={isComplete}
+                allowHold={item.status_type === 'yn_nr_na_hold'}
               />
             ) : (
               <PassFailInput
@@ -1907,16 +1918,23 @@ function ItemRow({
 
 // ── Y/N/NR/NA input ────────────────────────────────────────────────────────
 
-function YnNrNaInput({ value, onChange, disabled }: {
-  value: 'y' | 'n' | 'nr' | 'na' | null
-  onChange: (v: 'y' | 'n' | 'nr' | 'na' | null) => void
+function YnNrNaInput({ value, onChange, disabled, allowHold = false }: {
+  value: YnNrNaHoldStatus | null
+  onChange: (v: YnNrNaHoldStatus | null) => void
   disabled: boolean
+  /** Start-Up items only. The database refuses `hold` on a plain `yn_nr_na` row,
+   *  so this flag governs what is OFFERED; the CHECK governs what is LEGAL. Two
+   *  layers, and the lower one is the enforcement. */
+  allowHold?: boolean
 }) {
-  const opts: Array<{ v: 'y' | 'n' | 'nr' | 'na'; label: string; color: string }> = [
+  const opts: Array<{ v: YnNrNaHoldStatus; label: string; color: string }> = [
     { v: 'y',  label: 'Y',  color: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
     { v: 'n',  label: 'N',  color: 'bg-red-50 text-red-700 border-red-300' },
     { v: 'nr', label: 'NR', color: 'bg-gray-100 text-gray-500 border-gray-300' },
     { v: 'na', label: 'NA', color: 'bg-gray-100 text-gray-400 border-gray-200' },
+    // Amber, not red: HOLD is blocked, not failed. Same colour the dashboard
+    // already uses for "open / needs attention".
+    ...(allowHold ? [{ v: 'hold' as const, label: 'HOLD', color: 'bg-amber-50 text-amber-800 border-amber-300' }] : []),
   ]
   return (
     <select
@@ -1926,6 +1944,7 @@ function YnNrNaInput({ value, onChange, disabled }: {
       className={`w-full text-center text-xs rounded border px-1 py-1 min-h-11 lg:min-h-0 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:cursor-default ${
         value === 'y'  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
         : value === 'n'  ? 'bg-red-50 text-red-700 border-red-300'
+        : value === 'hold' ? 'bg-amber-50 text-amber-800 border-amber-300 font-semibold'
         : value === 'nr' || value === 'na' ? 'bg-gray-100 text-gray-500 border-gray-300'
         : 'border-gray-200 text-gray-400'
       }`}

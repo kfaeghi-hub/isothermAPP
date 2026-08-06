@@ -21,11 +21,12 @@ function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 }
 
-const TYPE_LABELS: Record<ChecklistType, string> = { ivc: 'IVC', pfc: 'PFC', fpt: 'FPT' }
+const TYPE_LABELS: Record<ChecklistType, string> = { ivc: 'IVC', pfc: 'PFC', fpt: 'FPT', startup: 'START-UP' }
 const TYPE_COLORS: Record<ChecklistType, string> = {
   ivc: 'bg-sky-50 text-sky-700',
   pfc: 'bg-violet-50 text-violet-700',
   fpt: 'bg-orange-50 text-orange-700',
+  startup: 'bg-teal-50 text-teal-700',
 }
 
 function TypeBadge({ type }: { type: ChecklistType }) {
@@ -162,7 +163,7 @@ const EMPTY_SECTION: SectionForm = { title: '' }
 interface ItemForm {
   label: string
   hint: string
-  status_type: 'yn_nr_na' | 'pass_yn'
+  status_type: 'yn_nr_na' | 'pass_yn' | 'yn_nr_na_hold'
   creates_finding: boolean
   expected_response: string
   suggested_category: string
@@ -552,7 +553,8 @@ export function TemplatesPage() {
         {/* Toolbar */}
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
           <div className="flex gap-1">
-            {(['all', 'ivc', 'pfc', 'fpt'] as const).map(f => (
+            {/* `as const` - not policed by ChecklistType. See ChecklistsPage's twin. */}
+            {(['all', 'ivc', 'pfc', 'fpt', 'startup'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -772,11 +774,11 @@ export function TemplatesPage() {
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-0.5">
                                         <span className={`text-[10px] font-semibold rounded px-1 py-0.5 flex-shrink-0 ${
-                                          item.status_type === 'yn_nr_na'
+                                          item.status_type === 'yn_nr_na' || item.status_type === 'yn_nr_na_hold'
                                             ? 'bg-sky-50 text-sky-700'
                                             : 'bg-orange-50 text-orange-600'
                                         }`}>
-                                          {item.status_type === 'yn_nr_na' ? 'Y/N' : 'P/F'}
+                                          {item.status_type === 'yn_nr_na_hold' ? 'Y/N/H' : item.status_type === 'yn_nr_na' ? 'Y/N' : 'P/F'}
                                         </span>
                                         <span className="text-xs text-gray-800">{item.label}</span>
                                         {!item.creates_finding && (
@@ -1080,7 +1082,7 @@ export function TemplatesPage() {
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Response Type</label>
               <select
                 value={itemModal.form.status_type}
-                onChange={e => setItemModal(m => ({ ...m, form: { ...m.form, status_type: e.target.value as 'yn_nr_na' | 'pass_yn' } }))}
+                onChange={e => setItemModal(m => ({ ...m, form: { ...m.form, status_type: e.target.value as 'yn_nr_na' | 'pass_yn' | 'yn_nr_na_hold' } }))}
                 className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
               >
                 <option value="yn_nr_na">Y / N / NR / NA (IVC/PFC)</option>
