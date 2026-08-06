@@ -1,0 +1,81 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "COOLING TOWER",
+  "equipment_type": "cooling_tower",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CTI convention": "cooling tower acceptance convention",
+    "NETA ATS": "motor energization",
+    "manufacturer IOM": "per-unit sequence",
+    "firm practice": "where the codes are silent"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Vibration cutout switch tripped and proven",
+          "convergence": "universal",
+          "anchor": "CTI convention · manufacturer IOM"
+        },
+        {
+          "label": "Basin low-level cutout proven — pump locks out",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Fan motor overload set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Access-door / fan-guard interlock proven where fitted",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Entering / leaving water temperature (°C)",
+          "convergence": "universal",
+          "anchor": "CTI convention"
+        },
+        {
+          "label": "Wet-bulb temperature at test (°C)",
+          "convergence": "universal",
+          "anchor": "CTI convention"
+        },
+        {
+          "label": "Water flow (L/s)",
+          "convergence": "universal",
+          "anchor": "CTI convention"
+        },
+        {
+          "label": "Fan amp draw per phase (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Basin water level (mm below overflow)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. The level at start-up is the reference for every make-up complaint afterwards."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

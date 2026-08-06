@@ -1,0 +1,86 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "AIR COMPRESSOR",
+  "equipment_type": "air_compressor",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B51": "boiler, pressure vessel and pressure piping code",
+    "TSSA": "Ontario pressure vessel registration",
+    "NETA ATS": "motor energization",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Receiver relief valve rating verified against MAWP; seal intact",
+          "convergence": "universal",
+          "anchor": "CSA B51 · TSSA"
+        },
+        {
+          "label": "High discharge pressure cutout tripped and proven",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "High discharge temperature shutdown proven",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Motor overload set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Low oil pressure / oil level shutdown proven where fitted",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Cut-in / cut-out pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Discharge pressure at rated flow (kPa)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Discharge air temperature (°C)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Amp draw per phase (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Receiver CRN / registration number recorded",
+          "convergence": "type-common",
+          "anchor": "CSA B51 · TSSA",
+          "note": "Ontario registers pressure vessels; the CRN on the start-up record is what makes the vessel traceable later."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

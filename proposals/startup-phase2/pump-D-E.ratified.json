@@ -1,0 +1,97 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "PUMP",
+  "equipment_type": "pump",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "Hydraulic Institute": "pump installation and start-up convention",
+    "NETA ATS": "motor energization",
+    "manufacturer IOM": "per-unit sequence",
+    "firm practice": "where the codes are silent"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Motor overload protection set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS · manufacturer IOM"
+        },
+        {
+          "label": "Low-suction / loss-of-prime protection proven where fitted",
+          "convergence": "type-common",
+          "anchor": "Hydraulic Institute · manufacturer IOM"
+        },
+        {
+          "label": "High-discharge-pressure switch tripped and proven where fitted",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Rotation confirmed correct BEFORE the coupling is made up",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. Bumping a pump coupled backwards is the single most common start-up failure this firm sees, and no code says to check it first."
+        },
+        {
+          "label": "Emergency stop operated; pump comes to rest",
+          "convergence": "type-common",
+          "anchor": "NETA ATS"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Suction pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "Hydraulic Institute"
+        },
+        {
+          "label": "Discharge pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "Hydraulic Institute"
+        },
+        {
+          "label": "Differential head (kPa)",
+          "convergence": "universal",
+          "anchor": "Hydraulic Institute"
+        },
+        {
+          "label": "Flow rate (L/s)",
+          "convergence": "universal",
+          "anchor": "Hydraulic Institute"
+        },
+        {
+          "label": "Amp draw per phase (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Seal chamber / flush pressure (kPa)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Vibration at bearing housings (mm/s)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. Recorded at start-up so the baseline exists when the bearing is questioned later."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

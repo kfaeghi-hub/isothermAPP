@@ -1,0 +1,105 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "CHILLER",
+  "equipment_type": "chiller",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AHRI 550/590": "performance rating convention",
+    "CSA B52": "mechanical refrigeration code",
+    "NETA ATS": "electrical energization",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "High-pressure cutout tripped and proven; manual reset verified",
+          "convergence": "universal",
+          "anchor": "CSA B52 · manufacturer IOM"
+        },
+        {
+          "label": "Low-pressure cutout proven",
+          "convergence": "universal",
+          "anchor": "CSA B52 · manufacturer IOM"
+        },
+        {
+          "label": "Low chilled-water flow / flow switch proven — compressor locks out",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Freeze protection (low leaving-water temperature) proven",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Oil pressure / oil temperature protection proven",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Refrigerant leak detection and machine-room ventilation interlock proven",
+          "convergence": "type-common",
+          "anchor": "CSA B52"
+        },
+        {
+          "label": "Relief device rating verified; discharge routed per code",
+          "convergence": "universal",
+          "anchor": "CSA B52"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Chilled water in / out temperature (°C)",
+          "convergence": "universal",
+          "anchor": "AHRI 550/590"
+        },
+        {
+          "label": "Condenser water in / out temperature (°C)",
+          "convergence": "type-common",
+          "anchor": "AHRI 550/590"
+        },
+        {
+          "label": "Evaporator / condenser refrigerant pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Suction / discharge superheat (°C)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Oil pressure (kPa)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Amp draw per phase and %RLA (A / %)",
+          "convergence": "universal",
+          "anchor": "NETA ATS · AHRI"
+        },
+        {
+          "label": "Chilled water flow (L/s)",
+          "convergence": "universal",
+          "anchor": "AHRI 550/590"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

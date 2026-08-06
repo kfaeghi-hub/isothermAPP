@@ -1,0 +1,76 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "FAN",
+  "equipment_type": "fan",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AMCA convention": "fan installation and testing convention",
+    "NETA ATS": "motor energization",
+    "manufacturer IOM": "per-unit sequence",
+    "firm practice": "where the codes are silent"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Motor overload set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Access-door / belt-guard interlock proven where fitted",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Emergency stop operated; fan coasts to rest",
+          "convergence": "type-common",
+          "anchor": "NETA ATS"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Amp draw per phase (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Fan speed (RPM)",
+          "convergence": "universal",
+          "anchor": "AMCA convention"
+        },
+        {
+          "label": "Static pressure — inlet / outlet (Pa)",
+          "convergence": "universal",
+          "anchor": "AMCA convention"
+        },
+        {
+          "label": "Airflow (L/s)",
+          "convergence": "universal",
+          "anchor": "AMCA convention"
+        },
+        {
+          "label": "Vibration at bearing housings (mm/s)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. Baseline for the life of the bearing."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

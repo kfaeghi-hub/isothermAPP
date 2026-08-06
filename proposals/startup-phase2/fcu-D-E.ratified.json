@@ -1,0 +1,72 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "FAN COIL UNIT",
+  "equipment_type": "fcu",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AHRI 440": "room fan-coil performance",
+    "manufacturer IOM": "per-unit sequence",
+    "firm practice": "where the codes are silent"
+  },
+  "_sparse_note": "FOUR AND THREE, AND THAT IS THE NUMBER. A fan coil has almost no protective devices of its own — its safeties live in the plant that feeds it. Padding this to look like the boiler table would be inventing checks a technician would rightly ignore.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Motor thermal protection proven where fitted",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Condensate overflow switch proven — unit shuts down on high level",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM",
+          "note": "The one protective device a fan coil reliably has, and the one whose failure floods a ceiling."
+        },
+        {
+          "label": "Freeze protection proven where the coil sees outdoor air",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Access panel / fan guard secure with the unit energized",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Entering / leaving air temperature (°C)",
+          "convergence": "universal",
+          "anchor": "AHRI 440"
+        },
+        {
+          "label": "Airflow at each speed tap (L/s)",
+          "convergence": "universal",
+          "anchor": "AHRI 440"
+        },
+        {
+          "label": "Amp draw (A)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

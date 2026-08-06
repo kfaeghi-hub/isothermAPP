@@ -1,0 +1,82 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "DOMESTIC WATER HEATER",
+  "equipment_type": "dhw_heater",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B149.1": "gas installation code",
+    "TSSA": "Ontario AHJ",
+    "CSA B51": "pressure vessel code",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Temperature and pressure relief valve rating verified; discharge piped to within 150 mm of floor",
+          "convergence": "universal",
+          "anchor": "CSA B51 · CSA B149.1"
+        },
+        {
+          "label": "High-limit / energy cutout tripped and proven; manual reset verified",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · manufacturer IOM"
+        },
+        {
+          "label": "Flame failure proven — main gas valve closes; closure time recorded",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Blocked vent / spillage switch proven where fitted",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Anti-scald mixing valve setpoint verified at the fixture",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. The valve is commissioned at the tank and complained about at the tap; the check belongs where the water arrives."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Storage temperature setpoint and achieved (°C)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Delivered temperature at the furthest fixture (°C)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard."
+        },
+        {
+          "label": "Gas pressure — inlet / manifold (in. w.c.)",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Recovery time to setpoint (min)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

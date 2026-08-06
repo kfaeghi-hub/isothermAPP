@@ -1,0 +1,98 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "PACKAGED ROOFTOP UNIT",
+  "equipment_type": "rtu",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AHRI 210/240 · 340/360": "unitary performance rating",
+    "CSA B52": "mechanical refrigeration",
+    "CSA B149.1": "gas heat section",
+    "NETA ATS": "electrical",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "High / low refrigerant pressure cutouts proven",
+          "convergence": "universal",
+          "anchor": "CSA B52 · manufacturer IOM"
+        },
+        {
+          "label": "Compressor short-cycle / anti-recycle timer proven",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Freeze / low-suction protection proven",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Gas heat section: flame failure and high limit proven; closure time recorded",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1",
+          "note": "Conditional on the heating medium, per the ruled variant principle — an electric-heat unit skips this section rather than forking the template."
+        },
+        {
+          "label": "Smoke detector / fan shutdown interface installed and operable",
+          "convergence": "type-common",
+          "anchor": "CSA B52",
+          "note": "Installed and operable only. Proof of the shutdown response is IST scope, per the placement law."
+        },
+        {
+          "label": "Motor overloads set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Supply / return air temperature (°C)",
+          "convergence": "universal",
+          "anchor": "AHRI 210/240 · 340/360"
+        },
+        {
+          "label": "Outdoor air fraction at minimum position (%)",
+          "convergence": "type-common",
+          "anchor": "AHRI"
+        },
+        {
+          "label": "Suction / discharge pressure per circuit (kPa)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Superheat / subcooling (°C)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Supply airflow (L/s)",
+          "convergence": "universal",
+          "anchor": "AHRI"
+        },
+        {
+          "label": "Amp draw per phase — compressor and fans (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}

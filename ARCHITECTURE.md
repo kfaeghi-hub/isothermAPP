@@ -1289,6 +1289,45 @@ document. Where no greppable artifact exists, say so and look at the thing.
 than structure. `styles.xml`, `theme1.xml` and `numbering.xml` all carry identity
 decisions somebody made in Word, years ago, for another reason.
 
+### A NEW PERMISSION IS AUDITED IN THE BATCH THAT INTRODUCES IT
+
+A rule that widens what is allowed will be used, immediately, by whoever is
+holding the pen — and the first misuse looks exactly like correct use.
+
+Ruled 2026-08-06, when the Start-Up campaign's Phase 2 gained a new permission:
+**firm practice may be cited as an anchor where the codes are silent.** It is a
+good rule. Fifty years of field practice is a legitimate source, and refusing it
+would have cut real checks — *rotation confirmed before the coupling is made up*
+is the most common start-up failure the firm sees, and no standard says to look
+for it.
+
+**The permission was misused in its debut batch, by the author who had just
+written it.** Six of seven firm-practice items were classified `universal` or
+`type-common` while citing firm practice as their only anchor — a claim of
+multi-source agreement backed by exactly one source. Every one of them read as
+correct: the item was real, the reason was honest, the hint said "firm practice"
+out loud. Only the *class* was a lie, and it was the quietest field on the row.
+
+**The fix is not vigilance.** It is a refusal at the point of authorship:
+
+```js
+if (/firm practice/i.test(anchor) && convergence !== 'single-source') {
+  console.error(`REFUSE: "${label}" cites firm practice but claims ${convergence}.`)
+  process.exit(1)          // one source cannot be multi-source agreement
+}
+```
+
+**The general form: when a ruling widens what may be written, the same commit
+adds the check that the widening is not over-used.** A permission and its bound
+travel together, because the gap between them is exactly one batch wide and
+somebody is already writing in it.
+
+*Precedents in this family:* the drafter that could not write
+(`apply-ratified.mjs`), the applier that refuses a moved target, and the
+convergence assertion that refuses a sitting sheet whose single-source items
+carry no stated reason. Same shape each time — **the permission is real, and the
+thing that makes it safe is that it cannot be quietly stretched.**
+
 ### A pattern is verified by EXECUTING it, never by reading it
 
 Cross-language escape semantics can make corruption invisible to review.

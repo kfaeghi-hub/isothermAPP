@@ -1,0 +1,106 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 2 — D/E across ten covered types",
+  "_note": "DRAFTED. Sparser than batch 1 by design: where the anchor set thins, the universal core carries the weight and the type-common band is short. Not padded.",
+  "subject": "GENERATOR",
+  "equipment_type": "generator",
+  "source_master": "DRAFTED — no master. Phase 1 carried no safety-device tests and no readings for this type.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "NFPA 110": "emergency and standby power systems",
+    "NETA ATS": "electrical acceptance",
+    "CSA C282": "emergency electrical power supply for buildings",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "_scope_note": "NFPA 110 two-hour full-load testing is ACCEPTANCE testing, not start-up — see BACKBURNER 7b. What belongs here is the safety-indications-and-shutdowns test and the parameters NFPA 110 requires recorded during it.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Low oil pressure shutdown proven",
+          "convergence": "universal",
+          "anchor": "NFPA 110 · manufacturer IOM"
+        },
+        {
+          "label": "High coolant temperature shutdown proven",
+          "convergence": "universal",
+          "anchor": "NFPA 110 · manufacturer IOM"
+        },
+        {
+          "label": "Overspeed shutdown proven",
+          "convergence": "universal",
+          "anchor": "NFPA 110 · manufacturer IOM"
+        },
+        {
+          "label": "Overcrank / cycle-crank shutdown proven",
+          "convergence": "universal",
+          "anchor": "NFPA 110"
+        },
+        {
+          "label": "Emergency stop operated; engine shuts down and cannot restart until reset",
+          "convergence": "universal",
+          "anchor": "NFPA 110 · CSA C282"
+        },
+        {
+          "label": "Battery charger failure and low-battery alarms proven",
+          "convergence": "type-common",
+          "anchor": "NFPA 110"
+        },
+        {
+          "label": "Fuel level / low fuel alarm proven",
+          "convergence": "type-common",
+          "anchor": "NFPA 110 · CSA C282"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Time from signal to available power (s)",
+          "convergence": "universal",
+          "anchor": "NFPA 110"
+        },
+        {
+          "label": "Oil pressure at rated speed (kPa)",
+          "convergence": "universal",
+          "anchor": "NFPA 110"
+        },
+        {
+          "label": "Coolant temperature at rated speed (°C)",
+          "convergence": "universal",
+          "anchor": "NFPA 110"
+        },
+        {
+          "label": "Output voltage per phase (V)",
+          "convergence": "universal",
+          "anchor": "NFPA 110 · NETA ATS"
+        },
+        {
+          "label": "Frequency (Hz)",
+          "convergence": "universal",
+          "anchor": "NFPA 110"
+        },
+        {
+          "label": "Output current per phase (A)",
+          "convergence": "universal",
+          "anchor": "NFPA 110 · NETA ATS"
+        },
+        {
+          "label": "Battery voltage, charging and at rest (V)",
+          "convergence": "type-common",
+          "anchor": "NFPA 110"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 2 ratified as drafted, no amendments. Firm-practice items approved with their honest hints; stated brevity, the 7b deferral and the conditional section all endorsed."
+}
