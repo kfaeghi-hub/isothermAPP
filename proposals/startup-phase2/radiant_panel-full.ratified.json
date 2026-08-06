@@ -1,0 +1,168 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 8 — uncovered types, FULL checklists",
+  "_note": "DRAFTED, A through E. Universal core imported identically; only the type-common band is written here.",
+  "subject": "RADIANT PANEL",
+  "equipment_type": "radiant_panel",
+  "source_master": "DRAFTED — no master. This type had no start-up checklist at all.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B214": "hydronic heating",
+    "firm practice": "where the codes are silent"
+  },
+  "_sparse_note": "PASSIVE EMITTER, thin by ruling.",
+  "sections": [
+    {
+      "key": "A",
+      "title": "Pre-Start Verification",
+      "items": [
+        {
+          "label": "Manufacturer's IOM start-up steps reviewed, completed & attached",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1 · manufacturer IOM"
+        },
+        {
+          "label": "Permits and authority approvals in place; prerequisites to start satisfied",
+          "convergence": "universal",
+          "anchor": "CSA Z320 · TSSA"
+        },
+        {
+          "label": "Installation complete and matches the approved shop drawing",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Nameplate data recorded and reconciled against the design",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1",
+          "note": "The nameplate block above is the record; this row is the act of comparing it to what was specified."
+        },
+        {
+          "label": "Electrical terminations torqued and verified; circuit labelled and breaker sized to nameplate",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Alignment and lubrication complete per the IOM; reports attached where required",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "System cleaned, flushed and free of construction debris",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Safety devices installed and set BEFORE any energization",
+          "convergence": "universal",
+          "anchor": "CSA Z320 · manufacturer IOM",
+          "note": "The gate the whole section exists for: a protective device set after first start protected nothing."
+        },
+        {
+          "label": "Area clear, guards in place, no hot work in progress",
+          "convergence": "universal",
+          "anchor": "firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Panel piped, vented and supported; insulation behind the panel verified where required",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        }
+      ]
+    },
+    {
+      "key": "B",
+      "title": "Energization & First-Start Sequence",
+      "items": [
+        {
+          "label": "Isolate and lock out all energy sources; confirm zero energy at the unit",
+          "convergence": "universal",
+          "anchor": "CSA Z460 · firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Energize control circuit only; verify display, no faults, correct firmware",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Verify rotation correct before the unit is brought to load",
+          "convergence": "universal",
+          "anchor": "NETA ATS · manufacturer IOM"
+        },
+        {
+          "label": "Restore energy; first start under supervision, observing the IOM sequence",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Return to standby cleanly and confirm the unit restarts on demand",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    },
+    {
+      "key": "C",
+      "title": "Running Checks",
+      "items": [
+        {
+          "label": "Runs at steady state without alarm, trip or abnormal noise",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "Controls hold setpoint under load without short-cycling",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "No leaks at any joint disturbed during installation or start-up",
+          "convergence": "universal",
+          "anchor": "firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Panel reaches temperature evenly across its face",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        }
+      ]
+    },
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Surface temperature within the limit for the mounting height and occupancy",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Entering / leaving water temperature (°C)",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Panel surface temperature at a representative point (°C)",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batches 6-8 ratified as drafted, no amendments. Passive-emitter thinness and the life-safety known-good-handoff boundary both applied as pre-ruled."
+}

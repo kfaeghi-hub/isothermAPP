@@ -1,0 +1,185 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 8 — uncovered types, FULL checklists",
+  "_note": "DRAFTED, A through E. Universal core imported identically; only the type-common band is written here.",
+  "subject": "SMOKE CONTROL FAN",
+  "equipment_type": "smoke_control_fan",
+  "source_master": "DRAFTED — no master. This type had no start-up checklist at all.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "NFPA 92": "smoke control systems",
+    "CAN/ULC-S1001": "integrated systems testing",
+    "AMCA convention": "fan testing"
+  },
+  "_scope_note": "Proven INDIVIDUALLY from its own control, independent of the matrix. The matrix is S1001 integrated testing — this checklist establishes the known-good starting position that testing assumes.",
+  "sections": [
+    {
+      "key": "A",
+      "title": "Pre-Start Verification",
+      "items": [
+        {
+          "label": "Manufacturer's IOM start-up steps reviewed, completed & attached",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1 · manufacturer IOM"
+        },
+        {
+          "label": "Permits and authority approvals in place; prerequisites to start satisfied",
+          "convergence": "universal",
+          "anchor": "CSA Z320 · TSSA"
+        },
+        {
+          "label": "Installation complete and matches the approved shop drawing",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Nameplate data recorded and reconciled against the design",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1",
+          "note": "The nameplate block above is the record; this row is the act of comparing it to what was specified."
+        },
+        {
+          "label": "Electrical terminations torqued and verified; circuit labelled and breaker sized to nameplate",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Alignment and lubrication complete per the IOM; reports attached where required",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "System cleaned, flushed and free of construction debris",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Safety devices installed and set BEFORE any energization",
+          "convergence": "universal",
+          "anchor": "CSA Z320 · manufacturer IOM",
+          "note": "The gate the whole section exists for: a protective device set after first start protected nothing."
+        },
+        {
+          "label": "Area clear, guards in place, no hot work in progress",
+          "convergence": "universal",
+          "anchor": "firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Fan and its electrical supply verified as the dedicated smoke control arrangement",
+          "convergence": "universal",
+          "anchor": "NFPA 92"
+        },
+        {
+          "label": "Standby power supply verified where required",
+          "convergence": "universal",
+          "anchor": "NFPA 92 · CSA C282"
+        }
+      ]
+    },
+    {
+      "key": "B",
+      "title": "Energization & First-Start Sequence",
+      "items": [
+        {
+          "label": "Isolate and lock out all energy sources; confirm zero energy at the unit",
+          "convergence": "universal",
+          "anchor": "CSA Z460 · firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Energize control circuit only; verify display, no faults, correct firmware",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Verify rotation correct before the unit is brought to load",
+          "convergence": "universal",
+          "anchor": "NETA ATS · manufacturer IOM"
+        },
+        {
+          "label": "Restore energy; first start under supervision, observing the IOM sequence",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Return to standby cleanly and confirm the unit restarts on demand",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    },
+    {
+      "key": "C",
+      "title": "Running Checks",
+      "items": [
+        {
+          "label": "Runs at steady state without alarm, trip or abnormal noise",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "Controls hold setpoint under load without short-cycling",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "No leaks at any joint disturbed during installation or start-up",
+          "convergence": "universal",
+          "anchor": "firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Starts and stops from its own control and reaches rated speed",
+          "convergence": "universal",
+          "anchor": "NFPA 92"
+        }
+      ]
+    },
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Starts on the firefighters smoke control station command, independent of the matrix",
+          "convergence": "universal",
+          "anchor": "NFPA 92",
+          "note": "Proven individually here. The integrated response is IST scope, per the known-good-handoff boundary — a start-up hands the integrated test a known-good starting position, it does not duplicate it."
+        },
+        {
+          "label": "Motor overload proven and coordinated so it will not trip in smoke mode nuisance conditions",
+          "convergence": "universal",
+          "anchor": "NFPA 92",
+          "note": "A smoke control fan that trips on overload during a fire has failed at the only moment it exists for."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Airflow in smoke mode (L/s)",
+          "convergence": "universal",
+          "anchor": "NFPA 92"
+        },
+        {
+          "label": "Amp draw per phase in smoke mode (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Time from command to rated speed (s)",
+          "convergence": "type-common",
+          "anchor": "NFPA 92"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batches 6-8 ratified as drafted, no amendments. Passive-emitter thinness and the life-safety known-good-handoff boundary both applied as pre-ruled."
+}

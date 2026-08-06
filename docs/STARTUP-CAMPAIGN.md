@@ -1,5 +1,56 @@
 # Start-Up campaign — the record
 
+## AS-BUILT — CLOSED 2026-08-06
+
+**The fourth checklist family exists.** 113 templates across 67 of the register's
+68 types, 3,123 items, every one convergence-classed and anchored.
+
+| | |
+|---|---|
+| Phase 0 | document design approved on render review |
+| Phase 1 | 81 masters mined · 1,545 items · UNEXPLAINED 0 |
+| Placement | 678 flagged items ruled · 13 cut · 3 held out and re-homed |
+| Phase 2 | 8 batches · 35 covered types gap-filled · 33 uncovered types built |
+| Mints | 7 equipment types · 13 system types |
+| Gates | sweep CLEAN at 20 retired values · battery 31/31 |
+
+**One type has no template, and it is not an oversight.** `sprinkler_system`
+decomposes into `sprinkler_piping`, `preaction_station` and
+`standpipe_system`, which all have checklists; its own content is the NFPA 13
+acceptance testing that belongs to [BACKBURNER 7b](BACKBURNER.md). A parent type
+whose children carry the work does not need a duplicate.
+
+### DEPARTURES — what changed from the plan, and why
+
+Recorded because a campaign that reports only its plan teaches nothing about how
+plans survive contact.
+
+| Departure | Planned | What happened |
+|---|---|---|
+| **The corpus was two populations** | "~216 banked Start-Up sheets" mined as one corpus | 123 Excel `Start-Up` sheets were **97% placeholder** — *"SHEET INTENTIONALLY LEFT BLANK FOR INDIVIDUAL TO POPUPLATE AS NEEDED"*. The 81 Word `S02 CSP` masters carried everything. **The pilot regime existed for exactly this**: running the full mine against the average of the two would have produced almost nothing while looking like progress. |
+| **Placement was delegated** | owner rules every flagged item | 678 items ruled by the machine on domain knowledge; owner ruled a 34-item residue and approved one summary. **Section placement is HVAC knowledge, not firm judgment** — and templates stay admin-editable, so the stakes were low while the law *nothing seeds unratified* stayed intact. |
+| **D and E were nearly empty** | mine the corpus, fill gaps | The corpus gave 30 D items and 31 E items against 1,302 in A. **The safety-device tests and the readings tables — the engineering weight of a start-up — are the part the firm never had**, and Phase 2 became the larger half of the campaign rather than a tidy-up. |
+| **A protective function lands in TWO sections** | one item, one section | Flame failure proves in D and records in E; freezestat, relief valve and high limit likewise. *A proof without a number cannot be compared to the specification next year; a number without a proof records what a gauge said, not that the device works.* Named as a drafting rule so it stops being rediscovered. |
+| **The universal core became a module** | a core written into each type | 33 copies drift into 33 dialects. `phase2-universal-core.mjs` holds 17 rows every checklist imports — **universal because it is literally the same rows**. |
+| **A new permission needed a bound in the same commit** | firm practice citable where codes are silent | The permission was misused in its own debut batch, and in the three batches after it. **Four fires, one author — the author who wrote the rule.** The guard now refuses at the point of authorship, and the incident is recorded in ARCHITECTURE as its own law. |
+| **Systems needed an attachment mechanism** | templates attach to equipment types | Twelve templates target systems, not units. `equipment.kind` had modelled that since the Cx Index was built and had **zero rows in 935**. Finished rather than invented: `kind` on the type register, a mixed-kind targeting guard DB-side, masthead wording derived from target kind, and **no system attributes** — an empty nameplate grid is worse than an absent one. |
+
+### What the family enforces, structurally
+
+- **HOLD** is a fourth response state fenced to `yn_nr_na_hold` by a database
+  CHECK, guard-proven 3/3. A blocked start-up is not a failed one.
+- **Two-party sign-off** with both claims printed verbatim — the contractor
+  certifies performance, the CxA attests to observation only.
+- **The pre-start banner** is a column, not a line item: *a warning that is
+  ticked is a warning that was read after the fact.*
+- **Integration proof is never a start-up tick.** Every alarm and interlock row
+  is *installed and operable*, with the response named to IST or FPT.
+- **Manufacturer detail lives in one standing line item.** A template that
+  hardcodes one manufacturer's sequence is wrong on every other unit.
+
+---
+
+
 *Opened 2026-08-05 on Tony's ruling. Both gates cleared the same night — see
 [BACKBURNER 7](BACKBURNER.md). Release: [RELEASES 1.06](RELEASES.md).*
 

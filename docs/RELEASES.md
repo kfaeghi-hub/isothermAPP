@@ -16,72 +16,102 @@ one written alongside the change is written from the diff.
 
 ---
 
-## Update 1.06 — 2026-08-05 · OPEN
+## Update 1.06 — 2026-08-05 · CLOSED 2026-08-06
 
 *Ruled as "1.05" on the night; 1.05 was already spent on the extractor
-calibration campaign, so this opens one number up. **Still open** — it carries
-two rulings and only the first has landed. The Start-Up checklist type joins this
-entry as it is built.*
+calibration campaign, so this took the next number. Two rulings: the document
+identity went monochrome, and the Start-Up family was built. Both are done.*
 
 ### For the team
 
-**Documents you generate are black and white from today.** Reports, checklists,
-minutes and the Cx Plan now print the way the firm's Site Note already does —
-black ink, gray headers, plain black-bordered tables. The purple is gone from
-documents until the rebrand.
+**There is a fourth kind of checklist now: Start-Up.**
 
-**The colour that is left means something.** OUTSTANDING is still red, RECORDED
-still green, an open meeting item still amber, and the *BLANK FORM — FOR
-CONTRACTOR USE* banner is still yellow. That is deliberate: with the brand colour
-out of the way, every remaining colour on the page is telling you something.
+Alongside IVC, PFC and FPT, every piece of equipment can carry a **Start-Up
+checklist** — the record of the machine being run for the first time. It has its
+own tab, its own counts, and **68 equipment and system types are covered**, from
+boilers and chillers down to wall fin and water meters.
 
-**Documents you have already issued do not change.** A file that went out purple
-stays purple. A long project may end up holding navy, then purple, then black-
-and-white documents, and that is correct — a document should look like what it
-looked like on the day it was issued. Nothing is regenerated behind you.
+**What a start-up checklist is for, and how it differs from the others.** An IVC
+says the unit was installed correctly. An FPT says the sequence works. A start-up
+says *the machine was brought to life, and here is what it did* — the safeties
+were tripped and proved, the readings were taken, and two people signed for it.
 
-**Print it and it still reads.** These get printed on mono lasers in trailers.
-Every page was checked in greyscale as well as in colour; the two are
-indistinguishable, which is the whole point.
+**The contractor performs it. You witness it. Both sign.** That is printed on the
+form in full, and the wording matters: the contractor certifies the work was
+performed; your signature says you **witnessed** it and **does not transfer
+responsibility for the work**. Those two sentences are on every start-up
+document.
+
+**There is a fourth answer: HOLD.** Y, N, NR — and now **HOLD**, for when the
+start-up *cannot proceed*: no permanent power, no water treatment, no gas.
+A blocked start-up is not a failed one, and recording it as N would make it read,
+a year later, as work done badly rather than work that could not be done yet.
+
+**Some forms open with a warning banner.** Where a form carries a safety
+instruction — the transformer's *"Equipment to be isolated from all sources of
+power"* — it prints as a **bold banner above the first section**, not as a line
+item. You read it before you touch anything, rather than ticking it after.
+
+**Every checklist now has a Safety Device Verification section and a Readings to
+Record section.** These are new. The old forms checked that a device was
+*installed*; these prove it **trips**, and record the number. Flame failure
+closes the valve *and* the closure time gets written down.
+
+**Where a check belongs to a different document, the form says so.** Fire alarm
+devices show as *installed and operable* with a note that the alarm response is
+proven in integrated testing. The form no longer claims work that belongs to IST
+or to acceptance testing.
+
+**And the documents are black and white now**, per the identity change earlier in
+this release. The only colour left on a generated document is colour that means
+something.
 
 ### For the architect
 
-**One object, one amendment — and one thing the object did not own.**
-`DOC` in [`api/_shared/doc-common.ts`](../api/_shared/doc-common.ts) moved to a
-grayscale ramp; `DOC_SEMANTIC` was not touched. The full mapping, the reasoning
-for a **dark** band ramp rather than the reference's `~ADADAD` (all three levels
-carry white text; a mid-gray fill is ~2:1 and dies in greyscale), and the scope
-boundary — documents only; app UI, landing and portal keep the current palette
-pending the rebrand — are in
-[DOCUMENT-IDENTITY-DECISION.md § Amendment 1](DOCUMENT-IDENTITY-DECISION.md#amendment-1--monochrome-2026-08-05).
-Eleven cool-cast neutrals hardcoded outside `DOC` went with it. `#D9E2F3` and
-`#F4F7FB` were named in the ruling and **were not present**.
+**Two rulings, one release.**
 
-**The finding that justified the whole verification design.** The 2026-07-26 note
-in `doc-common` says no automated gate catches colour, and it is right —
-`pw-report-regen` strips tags and compares visible text. So the gate was a new
-harness that renders and greps the **artifact**, not the source:
-`doc-palette-sweep.mjs`. With every value in `DOC` monochrome and `grep -r` over
-`api/` clean, **the Cx Plan still came out purple** — its heading identity is Word
-style definitions inside the committed binary
-`firm-knowledge/skeletons/cx-plan.docx` → `word/styles.xml`. Recorded in
-ARCHITECTURE as *identity can live in a binary — source is not the artifact.*
+**Document identity → monochrome.** `DOC` moved to a grayscale ramp;
+`DOC_SEMANTIC` untouched and now the only colour in a generated document. The
+finding that justified the verification design: with every value in `DOC`
+monochrome and `grep -r` over `api/` clean, **the Cx Plan still rendered
+purple** — its heading identity was Word style definitions inside a committed
+binary. Recorded as *identity can live in a binary; source is not the artifact*.
+A later render-and-look found a **blue footer** the same grep had passed, which
+is the standing limit of a retired-value list: it can only find values somebody
+already knew were retired.
 
-**Evidence: SWEEP CLEAN, 7 documents × 18 retired values**, plus page-1 renders of
-all seven in colour and BT.601 greyscale. Three gaps are named rather than
-papered over: `fpt` and `startup` have no ZZ-TEST instance and were **not swept**
-(the harness prints that by name); the Cx Plan **DOCX** was grepped, not looked
-at, because no DOCX renderer is available here; and local PDFs render in
-Playwright's Chromium, not Lambda's — irrelevant to colour, not to pagination.
+**The Start-Up family.** Full record in
+[STARTUP-CAMPAIGN.md](STARTUP-CAMPAIGN.md), flipped to as-built with its
+departures table. Headline numbers: 81 masters mined at UNEXPLAINED 0 · 678
+placement items ruled · 8 Phase 2 batches · 20 types minted · **113 templates,
+3,123 items, 67 of 68 types**.
 
-**New harnesses, all keepers:** `doc-palette-sweep.mjs` (the gate),
-`doc-render-local.mjs` (runs the real handlers in-process against the working
-tree, so a palette question costs no deployment), `doc-palette-shots.mjs`
-(render-and-look + greyscale), `patch-skeleton-palette.mjs` (rewrites the
-skeleton's `styles.xml` and asserts every other part is byte-identical).
+**Schema:** `startup` on `checklist_type_enum` and `finding_origin_enum`;
+`yn_nr_na_hold` as a new `status_type` with the pairing CHECK guard-proven
+3/3; `prestart_banner` + its instance snapshot; `kind` on the type register
+with a **DEFERRABLE INITIALLY DEFERRED** mixed-kind targeting trigger, also
+guard-proven 3/3.
 
----
+**Four laws recorded in ARCHITECTURE**, each with its incident: *identity can
+live in a binary* · *a pattern is verified by executing it, never by reading it*
+(a Python `\b` became a literal backspace and survived two greps) · *a new
+permission is audited in the batch that introduces it* (four fires, one author) ·
+*template content law — universal first, convergence earns the item*.
 
+**Guards added and demonstrated firing**, not merely written: the HOLD pairing
+CHECK, the mixed-kind targeting trigger, the convergence assertion, the
+firm-practice sole-anchor refusal, the empty-section-needs-a-reason refusal, the
+gap-fill-never-creates-a-template refusal, and the collision tripwire that caught
+23 of 81 masters being silently overwritten.
+
+**Regression found and fixed at the cause:** re-zipping the Cx Plan skeleton
+added four directory entries Word never wrote, and `pw-cx-plan`'s hand-rolled
+PK walk then read an empty document and failed five content assertions on correct
+content. Fixed by restoring byte-layout parity rather than by patching the
+reader; the naive-walk hardening is on the residue list under the touch-policy.
+
+**Closing gates:** sweep CLEAN at 20 retired values across all families including
+both startup modes · battery 31/31 · tree clean.
 ## Update 1.05 — 2026-08-04 · field-tested 2026-08-05
 
 *Field test **passed**: the full flow walked on Clairlea and Workman — upload,

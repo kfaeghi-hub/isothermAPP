@@ -1,0 +1,179 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 7 — uncovered types, FULL checklists",
+  "_note": "DRAFTED, A through E. Universal core imported identically; only the type-common band is written here.",
+  "subject": "EXPANSION TANK",
+  "equipment_type": "expansion_tank",
+  "source_master": "DRAFTED — no master. This type had no start-up checklist at all.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B214": "hydronic systems",
+    "CSA B51": "pressure vessels",
+    "TSSA": "Ontario registration"
+  },
+  "_sparse_note": "A tank has one job and one number. Its D is the relief that protects it and the pressure that proves it is doing anything at all.",
+  "sections": [
+    {
+      "key": "A",
+      "title": "Pre-Start Verification",
+      "items": [
+        {
+          "label": "Manufacturer's IOM start-up steps reviewed, completed & attached",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1 · manufacturer IOM"
+        },
+        {
+          "label": "Permits and authority approvals in place; prerequisites to start satisfied",
+          "convergence": "universal",
+          "anchor": "CSA Z320 · TSSA"
+        },
+        {
+          "label": "Installation complete and matches the approved shop drawing",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Nameplate data recorded and reconciled against the design",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1",
+          "note": "The nameplate block above is the record; this row is the act of comparing it to what was specified."
+        },
+        {
+          "label": "Electrical terminations torqued and verified; circuit labelled and breaker sized to nameplate",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Alignment and lubrication complete per the IOM; reports attached where required",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "System cleaned, flushed and free of construction debris",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Safety devices installed and set BEFORE any energization",
+          "convergence": "universal",
+          "anchor": "CSA Z320 · manufacturer IOM",
+          "note": "The gate the whole section exists for: a protective device set after first start protected nothing."
+        },
+        {
+          "label": "Area clear, guards in place, no hot work in progress",
+          "convergence": "universal",
+          "anchor": "firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Pre-charge set with the system side empty and recorded",
+          "convergence": "universal",
+          "anchor": "CSA B214",
+          "note": "Pre-charging against a filled system measures the system, not the tank — the order is the check."
+        },
+        {
+          "label": "CRN / registration verified where the tank is a registered vessel",
+          "convergence": "type-common",
+          "anchor": "CSA B51 · TSSA"
+        }
+      ]
+    },
+    {
+      "key": "B",
+      "title": "Energization & First-Start Sequence",
+      "items": [
+        {
+          "label": "Isolate and lock out all energy sources; confirm zero energy at the unit",
+          "convergence": "universal",
+          "anchor": "CSA Z460 · firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "Energize control circuit only; verify display, no faults, correct firmware",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Verify rotation correct before the unit is brought to load",
+          "convergence": "universal",
+          "anchor": "NETA ATS · manufacturer IOM"
+        },
+        {
+          "label": "Restore energy; first start under supervision, observing the IOM sequence",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Return to standby cleanly and confirm the unit restarts on demand",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    },
+    {
+      "key": "C",
+      "title": "Running Checks",
+      "items": [
+        {
+          "label": "Runs at steady state without alarm, trip or abnormal noise",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "Controls hold setpoint under load without short-cycling",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "No leaks at any joint disturbed during installation or start-up",
+          "convergence": "universal",
+          "anchor": "firm practice—core",
+          "note": "Universal across every type in the corpus and every source the firm has, but carried by no code in the anchor set. Cited as firm practice and classed universal on that basis — the convergence is real, the citation is ours."
+        },
+        {
+          "label": "System pressure rises and falls with temperature within the ruled band",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        }
+      ]
+    },
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "System relief valve rating verified against the tank and system MAWP",
+          "convergence": "universal",
+          "anchor": "CSA B51 · CSA B214"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Pre-charge pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "System fill pressure cold, and pressure at operating temperature (kPa)",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Tank acceptance volume vs system water volume (L)",
+          "convergence": "type-common",
+          "anchor": "CSA B214"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batches 6-8 ratified as drafted, no amendments. Passive-emitter thinness and the life-safety known-good-handoff boundary both applied as pre-ruled."
+}

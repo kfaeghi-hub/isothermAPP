@@ -115,9 +115,9 @@ FPT) starts from those three documents.**
   readers: the styling provenance and as-built record live in ARCHITECTURE.md
   "UI & Design System" — do not look for it in this spec's history.
 
-**Remaining after close-out:** Start-Up campaign (**ACTIVE** — both gates
-cleared 2026-08-05; `startup` ruled a first-class fourth `ChecklistType`),
-FPT module + campaign (PARKED post-rollout; S03
+**Remaining after close-out:** ~~Start-Up campaign~~ **COMPLETE 2026-08-06** —
+the fourth `ChecklistType` exists, 113 templates across 67 of 68 types
+([STARTUP-CAMPAIGN.md](docs/STARTUP-CAMPAIGN.md)). Then FPT module + campaign (PARKED post-rollout; S03
 Balancing-Report ruling flagged), then Phase 3 remainder — reminders/aging, Status
 & Action Summary (§6A), data import (contacts, equipment), long-form documents
 (Cx Plan, OPR, BOD, Systems Manual, Final Report), external project portal, MBCx/OCx.

@@ -324,7 +324,11 @@ UI overhaul. The old Batch 1–3 seeding queue in earlier versions of this secti
 is COMPLETE — do not restart it.
 
 The real queue now:
-1. **Start-Up campaign — ACTIVE.** Both gates cleared 2026-08-05: (a) Word COM
+1. **Start-Up campaign — COMPLETE 2026-08-06.** 113 templates, 3,123 items,
+   67 of 68 types. The fourth checklist family exists. As-built:
+   [STARTUP-CAMPAIGN.md](STARTUP-CAMPAIGN.md). *Original entry below.*
+
+   **Was: ACTIVE.** Both gates cleared 2026-08-05: (a) Word COM
    re-verified 2/2 by `probe-word-com.ps1`, including the file that hung on
    2026-07-21; (b) ruled — **`startup` is a first-class fourth checklist type**,
    not a fold into `ivc`, because the contractor performs and the CxA witnesses

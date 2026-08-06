@@ -382,6 +382,14 @@ model — the Cx Plan composer's split.
 the first real one is the specification.
 
 ### 7. Start-Up campaign
+**CLOSED 2026-08-06 — the family exists**
+
+113 templates, 3,123 items, 67 of the register's 68 types. As-built record with
+its departures table: [STARTUP-CAMPAIGN.md](STARTUP-CAMPAIGN.md). Release:
+[RELEASES 1.06](RELEASES.md).
+
+*Original entry below, kept as the record of what was gated and why.*
+
 **ACTIVE — both gates cleared 2026-08-05**
 
 Extraction and seeding of the Start-Up master forms, the last of the three
