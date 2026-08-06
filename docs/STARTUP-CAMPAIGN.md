@@ -165,6 +165,56 @@ on one distinction — **a bare noun-phrase names a thing (A); a verb of
 verification names an act (C).** *"Electric Operator"* is presence; *"After
 Cooler Verified"* is operation.
 
+#### ONE DEFINITION, AT CONTENT SCALE — the shared universal core
+
+The design law says *the universal core dominates*. Batch 5 gave that a
+structural form, endorsed 2026-08-06: **the core is a shared module every type
+imports, not a block copied into each type.**
+
+`phase2-universal-core.mjs` holds 17 rows. Thirty-three checklists import them
+and none restates them.
+
+**The argument, which is the one-definition principle applied to content rather
+than to code:** thirty-three copies of the same seven checks *drift*. One gets a
+better wording, another gets a fix, a third gets an item nobody meant to add —
+and within a year the "universal" core is **thirty-three dialects**, each
+defensible on its own and none identical to any other. At that point the word
+universal is a claim the artifacts no longer support.
+
+> **The core is universal because it is literally the same rows.** Not because
+> the rows agree, and not because somebody checks that they agree.
+
+The same reasoning that put `DOC` in one object and the document identity in one
+place — a value defined twice is a value that will eventually differ, and the
+version that differs is the one nobody is looking at.
+
+**Per-type variation sits on top and stays thin** — averaging ten rows against
+the core's seventeen. That ratio is the design law made measurable: if a type's
+own band ever outgrows the core, the type is either genuinely exotic or the band
+has stopped being a band.
+
+#### `firm practice—core` — the permanent shape for firm-universal rows
+
+Approved 2026-08-06. Three core rows are **universal across every type and every
+source the firm has, and carried by no code in the anchor set**: the area-clear
+row, the lock-out-and-confirm-zero-energy row, and the no-leaks row.
+
+They are not single-source in the sense the class means — the convergence is
+real, across the whole corpus. What is single is the **citation**, and the
+citation is ours.
+
+**The shape: a per-row suffix, visible on the row, never an exemption inside the
+guard.**
+
+```
+anchor: 'firm practice—core'   ->  classed universal, carries CORE_FIRM_NOTE
+anchor: 'firm practice'        ->  MUST be single-source, guard exits otherwise
+```
+
+A blanket exemption would have been shorter and would have hidden exactly the
+thing worth seeing. **Three rows carry a suffix a reader can grep for; a guard
+exemption would have carried nothing.**
+
 #### Commentary — the preaction split, and the known-good handoff
 
 Two framings from batch 4 that generalise beyond their types.

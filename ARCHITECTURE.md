@@ -1328,6 +1328,8 @@ somebody is already writing in it.
 |---|---|---|---|
 | First catch | Phase 2 batch 2 — the batch that introduced the permission | 6 of 7 | no — caught in review, guard added |
 | Second catch | Phase 2 batch 3 — the very next batch | 8 | no — the guard exited before any file was written |
+| Third catch | Phase 2 batch 4 | 6 | no |
+| Fourth catch | Phase 2 batch 5 — the batch that IMPORTED the guard rather than restating it | 5 | no |
 
 Same error, same author, one batch after writing this entry. The only difference
 is that the second time nothing reached a file, because the drafter exits instead

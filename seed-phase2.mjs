@@ -55,8 +55,41 @@ async function run(query) {
 // template happened to be created first would leave the other boilers without
 // their safety-device tests. The corpus has three boiler masters (forced
 // draft, natural draft, steam) and all three are fuel-fired.
-const tmpl = await run(`select id, name from checklist_templates where type='startup' and equipment_type=${q(a.equipment_type)} order by name`)
-if (!tmpl.length) { console.error(`REFUSE: no startup template for equipment_type '${a.equipment_type}'`); process.exit(1) }
+let tmpl = await run(`select id, name from checklist_templates where type='startup' and equipment_type=${q(a.equipment_type)} order by name`)
+
+// CREATING A TEMPLATE IS A BIGGER ACT THAN ADDING SECTIONS TO ONE, so it needs
+// to be asked for. A gap-fill artifact must never conjure a template — if the
+// type has no checklist, a D/E fill has nothing to attach to and the refusal is
+// the correct answer. Only a FULL artifact (A through E, for one of the
+// uncovered types) may create, and only with --create.
+const isFull = ['A', 'B', 'C', 'D', 'E'].every(k => a.sections.some(s => s.key === k && s.items.length))
+if (!tmpl.length) {
+  if (!process.argv.includes('--create')) {
+    console.error(`REFUSE: no startup template for equipment_type '${a.equipment_type}'.`)
+    console.error(isFull
+      ? 'This artifact is a FULL checklist. Pass --create to create the template from it.'
+      : 'This artifact is a gap fill and has nothing to attach to. A gap fill never creates a template.')
+    process.exit(1)
+  }
+  if (!isFull) {
+    console.error('REFUSE: --create given, but this artifact is not a full A-E checklist.')
+    console.error('A template created from a partial artifact would ship missing its pre-start section.')
+    process.exit(1)
+  }
+  if (!write) { console.log(`\nWOULD CREATE a template for '${a.equipment_type}'. DRY RUN — pass --write.`); process.exit(0) }
+  const name = `${a.subject} Start-Up Checklist`
+  const rev = `Phase 2 drafted 2026-08-06 · ${a._batch ?? 'standards-anchored'}`
+  await run(`insert into checklist_templates (name, type, equipment_type, description, revision_label, active)
+    values (${q(name)}, 'startup', ${q(a.equipment_type)},
+            ${q('Contractor performs, Commissioning Authority witnesses; both sign.')}, ${q(rev)}, true)`)
+  const created = await run(`select id from checklist_templates where type='startup' and equipment_type=${q(a.equipment_type)} limit 1`)
+  if (!created.length) { console.error('REFUSE: template creation reported no error but nothing arrived'); process.exit(1) }
+  await run(`insert into checklist_template_signoffs (template_id, role_label, sort_order) values
+    (${q(created[0].id)}, 'Start-Up Performed By — Contractor', 0),
+    (${q(created[0].id)}, 'Witnessed By — Commissioning Authority', 1)`)
+  console.log(`created template: ${name}`)
+  tmpl = await run(`select id, name from checklist_templates where type='startup' and equipment_type=${q(a.equipment_type)} order by name`)
+}
 
 
 const total = a.sections.reduce((n, s) => n + s.items.length, 0)
