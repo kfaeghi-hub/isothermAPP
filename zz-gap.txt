@@ -1,0 +1,126 @@
+zz-probe.sql: 594 chars, ~1 statements → isztyeczqndploybdtcn
+
+APPLIED.
+[
+  {
+    "equipment_type": "pump",
+    "templates": 14,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "plumbing_fixture",
+    "templates": 6,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "water_meter",
+    "templates": 5,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "water_tank",
+    "templates": 5,
+    "d_secs": 5,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "dhw_heater",
+    "templates": 4,
+    "d_secs": 4,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "mixing_valve",
+    "templates": 4,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "air_compressor",
+    "templates": 3,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "glycol_tank",
+    "templates": 3,
+    "d_secs": 3,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "chiller",
+    "templates": 2,
+    "d_secs": 2,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "cooling_tower",
+    "templates": 2,
+    "d_secs": 1,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "fan",
+    "templates": 2,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "generator",
+    "templates": 2,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "mau",
+    "templates": 2,
+    "d_secs": 1,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "rtu",
+    "templates": 2,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "backflow_preventer",
+    "templates": 1,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "bas_ahu_control",
+    "templates": 1,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "bas_chw_control",
+    "templates": 1,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "bas_hw_control",
+    "templates": 1,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "communication_system",
+    "templates": 1,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": "fcu",
+    "templates": 1,
+    "d_secs": 0,
+    "e_secs": 0
+  },
+  {
+    "equipment_type": 
