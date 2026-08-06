@@ -578,14 +578,16 @@ There are **two deliberately separate firm-level pools — never conflate them:*
    | Surface | Today | Delta |
    |---|---|---|
    | [`src/types/database.ts:8`](src/types/database.ts#L8) | `ChecklistType = 'ivc' \| 'pfc' \| 'fpt'` | `\| 'startup'` |
-   | `checklist_templates.type` DB CHECK | 3 values | 4 — **migration**, and the CHECK is the enforcement, not the TS union |
-   | `finding_origin_enum` ([`database.ts:5`](src/types/database.ts#L5)) | `site_visit\|ivc\|pfc\|fpt` | `+ startup` — a finding raised during start-up must say so |
+   | `checklist_templates.type` + `checklist_instances.type` | `checklist_type_enum` (3 values) | 4 — `ALTER TYPE ... ADD VALUE 'startup'`. ~~A CHECK constraint~~ — **corrected 2026-08-05: both columns are Postgres ENUMS, not CHECKs.** The enum is the enforcement, not the TS union |
+   | `finding_origin_enum` ([`database.ts:5`](src/types/database.ts#L5)) | DB: `site_visit\|ivc\|pfc\|fpt\|design_review`  ·  TS: the first four only | `+ startup` — a finding raised during start-up must say so. **The TS union had already drifted: `design_review` was in the enum and not in the union.** Both added |
    | `TYPE_LABELS` / `TYPE_COLORS` | ChecklistsPage:19-21, TemplatesPage:24-26 | `Record<ChecklistType,…>` is exhaustive, so both fail to compile until updated — **the compiler is the checklist here, deliberately** |
    | Filter tab rows | ChecklistsPage:1085, TemplatesPage:555 | `['all','ivc','pfc','fpt']` → `+ 'startup'`; both are `as const` literals the type does **not** police |
    | Audience default | [`api/generate-checklist.ts:1224`](api/generate-checklist.ts#L1224) | `ivc → 'field'`, else `'contractor'`. Start-Up is contractor-performed, so the existing else-branch is already correct — **verify, do not edit blind** |
    | Target/role branch | ChecklistsPage:1482-1531 | `fpt` is the special case; `startup` follows the `ivc\|pfc` equipment-target path |
    | Dashboard / index / deliverables counts | per the ruling | own counts on every surface, not merged into an "other" bucket |
    | `doc-palette-sweep.mjs` | `EXPECTED_TYPES` already lists `startup` | prints **NOT SWEPT** until a ZZ-TEST startup instance exists — listed ahead of the build on purpose |
+   | Response model — **HOLD** | `yn_nr_na` \| `pass_yn` | `+ yn_nr_na_hold`, a new **status_type** rather than a new status. Widening `yn_nr_na` would make HOLD legal on every IVC and PFC item ever written. Guard-proven by `migrations/startup-type-3-prove-hold.sql` |
+   | Legend wording | `legendLines()` branches on `fpt` | `+ startup` — four states, and the legend must name HOLD or the form teaches the wrong thing |
 
    **The two `as const` filter arrays are the trap.** `Record<ChecklistType, …>`
    breaks the build if a type is missed; a string-literal tuple does not. Those two
