@@ -1,0 +1,64 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "GAS & FLUID DISTRIBUTION",
+  "equipment_type": "gas_fluid_distribution",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B149.1": "gas piping",
+    "TSSA": "Ontario AHJ",
+    "National Plumbing Code": "fluid distribution"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Emergency shutoff valve located, labelled and proven to isolate",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · TSSA"
+        },
+        {
+          "label": "Excess-flow or seismic shutoff proven where fitted",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Over-pressure protection on regulated legs proven",
+          "convergence": "universal",
+          "anchor": "CSA B149.1"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Pressure test — medium, pressure and duration held (kPa / h)",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · National Plumbing Code"
+        },
+        {
+          "label": "Regulator inlet / outlet pressure at each station (kPa)",
+          "convergence": "universal",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Purge completion and gas quality confirmation at the appliance",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

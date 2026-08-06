@@ -1345,6 +1345,20 @@ doing no work — the manufacturer IOM already covered it. **The mention came ou
 rather than the class going down**, which is the correct direction: the fix for a
 weak citation is to drop the citation, not to weaken the claim it supports.
 
+**THIRD FIRE, THIRD BATCH, NOTHING SHIPPED.** Phase 2 batch 4 flagged six more
+rows citing firm practice as their sole anchor while claiming convergence. The
+tally is now three consecutive batches, three catches, one author — the author
+who wrote this entry.
+
+> Either the strongest possible argument for mechanical bounds or the weakest
+> possible argument for my memory. It is both, and the useful half is the first.
+
+**That is the case made in full.** A rule that lives in a habit decays across a
+batch boundary; a rule that lives in an exit code does not. The bound was written
+two paragraphs after the permission and still failed to hold as a habit three
+times running — so the measure of a guard is not whether the author believes it
+is needed, it is whether the author keeps setting it off.
+
 *Precedents in this family:* the drafter that could not write
 (`apply-ratified.mjs`), the applier that refuses a moved target, and the
 convergence assertion that refuses a sitting sheet whose single-source items

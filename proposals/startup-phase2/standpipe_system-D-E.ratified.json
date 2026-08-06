@@ -1,0 +1,65 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "STANDPIPE SYSTEM",
+  "equipment_type": "standpipe_system",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "NFPA 14": "standpipe and hose systems",
+    "NFPA 13": "where combined with sprinkler"
+  },
+  "_scope_note": "The FLOW TEST is NFPA 14 acceptance testing — BACKBURNER 7b, and it is the founding content of that family alongside the held-out sprinkler trio. A start-up records installation, lineup and the pressures available.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Pressure-regulating device set and its setting verified at each outlet where fitted",
+          "convergence": "universal",
+          "anchor": "NFPA 14",
+          "note": "An over-pressured hose connection is a hazard to the firefighter using it; the setting is the protection."
+        },
+        {
+          "label": "Control valves secured open and supervised",
+          "convergence": "universal",
+          "anchor": "NFPA 14"
+        },
+        {
+          "label": "Fire department connection accessible, capped and identified",
+          "convergence": "universal",
+          "anchor": "NFPA 14"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Static pressure at the topmost outlet (kPa)",
+          "convergence": "universal",
+          "anchor": "NFPA 14"
+        },
+        {
+          "label": "Residual pressure at the topmost outlet during flow (kPa)",
+          "convergence": "universal",
+          "anchor": "NFPA 14"
+        },
+        {
+          "label": "Outlet count by floor and size vs the approved drawing",
+          "convergence": "type-common",
+          "anchor": "NFPA 14"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

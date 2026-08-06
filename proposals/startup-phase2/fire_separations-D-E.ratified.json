@@ -1,0 +1,47 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "FIRE AND SMOKE SEPARATIONS",
+  "equipment_type": "fire_separations",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "National Building Code": "rated assemblies",
+    "CAN/ULC-S115": "firestop systems",
+    "firm practice": "where the codes are silent"
+  },
+  "_empty_section_reason": {
+    "D": "A rated separation is a BUILDING ASSEMBLY. It has no protective device, nothing to trip and nothing to prove by operating it — the damper inside it does, and the damper is its own type. D is empty on purpose; inventing a trip here would be inventing a device."
+  },
+  "sections": [
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Rated assembly count by rating and location vs the approved drawing",
+          "convergence": "universal",
+          "anchor": "National Building Code"
+        },
+        {
+          "label": "Firestop system numbers recorded per penetration type",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S115",
+          "note": "The listed system number is what makes a penetration defensible; without it the seal is just caulk."
+        },
+        {
+          "label": "Door and closer count by rating",
+          "convergence": "type-common",
+          "anchor": "National Building Code"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

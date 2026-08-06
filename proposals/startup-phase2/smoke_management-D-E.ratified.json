@@ -1,0 +1,71 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "SMOKE MANAGEMENT SYSTEM",
+  "equipment_type": "smoke_management",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CAN/ULC-S1001": "integrated systems testing",
+    "NFPA 92": "smoke control systems",
+    "National Building Code": "smoke control provisions"
+  },
+  "_scope_note": "S1001 INTEGRATED TESTING is the proof for this system and it is a separate engagement the firm performs in its own right. A start-up records that the fans, dampers and panel are installed, powered and individually operable BEFORE integrated testing begins — which is exactly the precondition S1001 assumes.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Each smoke control fan starts and stops from its own control, independent of the matrix",
+          "convergence": "universal",
+          "anchor": "NFPA 92"
+        },
+        {
+          "label": "Each smoke damper strokes fully open and closed from its own control",
+          "convergence": "universal",
+          "anchor": "NFPA 92"
+        },
+        {
+          "label": "Smoke control panel on standby power; supply proven",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S1001 · NFPA 92"
+        },
+        {
+          "label": "Firefighter smoke control station installed, labelled and lamps proven",
+          "convergence": "type-common",
+          "anchor": "NFPA 92"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Fan count, damper count and zone count vs the approved matrix",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S1001"
+        },
+        {
+          "label": "Airflow per smoke control fan (L/s)",
+          "convergence": "universal",
+          "anchor": "NFPA 92"
+        },
+        {
+          "label": "Pressure differential across a representative barrier (Pa)",
+          "convergence": "type-common",
+          "anchor": "NFPA 92",
+          "note": "Recorded at start-up as a baseline; the acceptance value is proven under S1001."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

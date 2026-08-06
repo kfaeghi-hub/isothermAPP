@@ -1,0 +1,62 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "COMMUNICATION SYSTEM",
+  "equipment_type": "communication_system",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CAN/ULC-S524": "where the system interfaces fire alarm",
+    "firm practice": "where the codes are silent"
+  },
+  "_scope_note": "Audibility and intelligibility testing belongs to the fire-alarm verification (S537) where the system is a voice-notification path, and to IST where it interfaces. A start-up records that it is installed, powered and sounds.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Backup power / battery supply proven — system operates on standby alone",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S524"
+        },
+        {
+          "label": "Fire alarm interface installed and operable",
+          "convergence": "type-common",
+          "anchor": "CAN/ULC-S524",
+          "note": "Installed and operable only. Proof of the notification response is IST scope, per the placement law."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Zone count and speaker count per zone vs the approved drawing",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard."
+        },
+        {
+          "label": "Standby battery voltage, charging and under load (V)",
+          "convergence": "type-common",
+          "anchor": "CAN/ULC-S524"
+        },
+        {
+          "label": "Sound pressure level at a representative point per zone (dBA)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. A number at start-up, not the intelligibility survey — that is S537 work."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

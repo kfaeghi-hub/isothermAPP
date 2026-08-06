@@ -1,0 +1,52 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "HOT WATER HEATING CONTROL SYSTEM",
+  "equipment_type": "bas_hw_control",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "ASHRAE Guideline 1.1": "commissioning process",
+    "CSA Z320": "building commissioning",
+    "firm practice": "where the codes are silent"
+  },
+  "_empty_section_reason": {
+    "D": "A BAS control system has NO protective devices of its own — the trips belong to the equipment it controls, and the SEQUENCES are FPT scope. What a start-up honestly records is that the panel is powered, addressed, communicating and backed up. D is empty on purpose."
+  },
+  "sections": [
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Controller count online vs the approved points list",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "Network communication verified end to end (pass/fail per trunk)",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "Point count — commanded / monitored, against the points list",
+          "convergence": "universal",
+          "anchor": "CSA Z320"
+        },
+        {
+          "label": "Outdoor air sensor reading vs a reference thermometer (°C)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. A reset schedule is only as good as the sensor driving it, and that sensor is on a wall nobody revisits."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

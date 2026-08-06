@@ -1,0 +1,78 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "HYDRONIC HEATING SYSTEM",
+  "equipment_type": "hydronic_heating_system",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B214": "hydronic heating systems",
+    "ASHRAE Guideline 1.1": "commissioning process",
+    "firm practice": "where the codes are silent"
+  },
+  "_scope_note": "The plant equipment carries its own D — boilers, pumps and tanks each have their own template. What is left for the SYSTEM is the protection that belongs to no single unit.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "System relief / pressure-reducing arrangement proven at the fill point",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Low-pressure or make-up failure alarm proven where fitted",
+          "convergence": "type-common",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Air separation and expansion arrangement proven to hold pressure through a heat-up",
+          "convergence": "universal",
+          "anchor": "CSA B214",
+          "note": "A system-level check by definition: no single unit owns whether the loop keeps its pressure as it warms."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Fill pressure cold, and pressure at operating temperature (kPa)",
+          "convergence": "universal",
+          "anchor": "CSA B214",
+          "note": "Two numbers, one check — the pair is what proves the expansion arrangement is sized."
+        },
+        {
+          "label": "System water volume (L)",
+          "convergence": "type-common",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Glycol concentration and freeze point where applicable (% / °C)",
+          "convergence": "type-common",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Supply / return temperature at design load (°C)",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1"
+        },
+        {
+          "label": "Water treatment initial sample result attached",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

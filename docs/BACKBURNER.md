@@ -89,6 +89,19 @@ route through `api/intake.ts` instead of taking a function each.
 they get their own session with their own gates.
 
 ### 3e. The IST module — integrated systems testing, parked whole
+
+> **THE START-UP / IST BOUNDARY, in one line** (from the Start-Up campaign,
+> 2026-08-06): *a start-up hands the integrated test a known-good starting
+> position. It does not duplicate the integrated test, and it does not leave it
+> to discover installation faults.*
+>
+> The Start-Up family now enforces its side of that boundary — every alarm and
+> interlock row is *installed and operable* with the response proven in IST, and
+> smoke management proves each fan and damper individually from its own control.
+> **When this module is built, it inherits a corpus that has already stopped
+> claiming IST's work.** See
+> [STARTUP-CAMPAIGN.md](STARTUP-CAMPAIGN.md) § the known-good handoff.
+
 **PARKED — born 2026-08-03, from the catalog campaign's IST addendum**
 
 A project-level surface holding **scenario-based integration test records**: an

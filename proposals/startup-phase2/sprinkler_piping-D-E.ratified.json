@@ -1,0 +1,50 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "SPRINKLER PIPING SYSTEM",
+  "equipment_type": "sprinkler_piping",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "NFPA 13": "sprinkler systems"
+  },
+  "_empty_section_reason": {
+    "D": "PIPING HAS NO PROTECTIVE DEVICE. Its valves, switches and stations are their own types, and its hydrostatic and trip testing is NFPA 13 ACCEPTANCE testing — BACKBURNER 7b. What a start-up honestly records about piping is that it is filled, pressurised and lined up, which is a reading, not a trip. D is empty on purpose."
+  },
+  "sections": [
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "System static and residual pressure at the riser (kPa)",
+          "convergence": "universal",
+          "anchor": "NFPA 13"
+        },
+        {
+          "label": "Hydrostatic test result — pressure and duration held (kPa / h)",
+          "convergence": "universal",
+          "anchor": "NFPA 13",
+          "note": "The test is acceptance scope; the RESULT is recorded here because a start-up may not proceed without it."
+        },
+        {
+          "label": "Sprinkler head count by type and temperature rating vs the approved drawing",
+          "convergence": "universal",
+          "anchor": "NFPA 13"
+        },
+        {
+          "label": "Control valve count, all secured open",
+          "convergence": "type-common",
+          "anchor": "NFPA 13"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

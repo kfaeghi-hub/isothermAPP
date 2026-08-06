@@ -1,0 +1,60 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 4 — the eleven system types",
+  "_note": "DRAFTED. System types. Four carry an EMPTY D section with its reason stated on the artifact — pre-ruled 2026-08-06: an honest empty section beats an invented trip.",
+  "subject": "PREACTION VALVE STATION",
+  "equipment_type": "preaction_station",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "NFPA 13": "sprinkler systems",
+    "CAN/ULC-S524": "detection interface"
+  },
+  "_scope_note": "THE TRIP TEST IS ACCEPTANCE TESTING — NFPA 13, BACKBURNER 7b. The detection-to-release INTEGRATION is IST. A start-up records that the station is installed, charged, supervised and lined up, which is a short list and an honest one.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Supervisory air / nitrogen pressure maintained and its loss annunciated at the panel",
+          "convergence": "universal",
+          "anchor": "NFPA 13",
+          "note": "The maintained pressure is the start-up check; the annunciation PROOF is IST, per the placement law."
+        },
+        {
+          "label": "Release solenoid and manual release installed and operable",
+          "convergence": "universal",
+          "anchor": "NFPA 13"
+        },
+        {
+          "label": "Valve supervision wired; control valve secured open",
+          "convergence": "universal",
+          "anchor": "NFPA 13"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Supervisory air pressure and system water pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "NFPA 13"
+        },
+        {
+          "label": "Detection zone count vs the approved drawing",
+          "convergence": "type-common",
+          "anchor": "CAN/ULC-S524"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 4 ratified as drafted, no amendments. All five stated-empty D sections approved with their reasons endorsed as findings."
+}

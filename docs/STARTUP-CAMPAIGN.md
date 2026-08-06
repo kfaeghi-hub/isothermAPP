@@ -165,6 +165,38 @@ on one distinction — **a bare noun-phrase names a thing (A); a verb of
 verification names an act (C).** *"Electric Operator"* is presence; *"After
 Cooler Verified"* is operation.
 
+#### Commentary — the preaction split, and the known-good handoff
+
+Two framings from batch 4 that generalise beyond their types.
+
+**THE PREACTION SPLIT.** Supervisory air resisted the placement law once already
+and was held out for it. Its resolution — *split the claim rather than pick a
+side* — applied again on the preaction valve station, to the same physical thing:
+
+| | Where it lives | Why |
+|---|---|---|
+| The pressure is **maintained** | **D**, start-up | a fact about the station, true with nobody watching |
+| Its loss is **annunciated** | **IST** | a fact about two systems agreeing, which is integration |
+
+**One device, two claims, two documents** — and neither document is lying by
+omission, because each says which half it holds.
+
+**THE KNOWN-GOOD HANDOFF.** Smoke management records each fan and each damper
+proven **individually**, from its own control, independent of the matrix.
+
+That is not a weaker version of integrated testing. **It is the precondition
+CAN/ULC-S1001 integrated testing assumes before it begins.** An S1001 test that
+fails because a damper actuator was never stroked has learned nothing about the
+integration — it has discovered an installation defect at the most expensive
+possible moment, with the AHJ in the room.
+
+> **A start-up hands the integrated test a known-good starting position. It does
+> not duplicate the integrated test, and it does not leave it to discover
+> installation faults.**
+
+That sentence is the start-up/IST boundary in one line, and it is quoted into
+[BACKBURNER 3e](BACKBURNER.md) where the IST module lives.
+
 #### Placement-law commentary — a protective function can land in TWO sections
 
 **Named 2026-08-06, from the first Phase 2 artifact, because it recurs.**
