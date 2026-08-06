@@ -1,0 +1,45 @@
+{
+  "_kind": "equipment-type-mint-ratification",
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_origin": "System-attachment ruling. Twelve Start-Up templates target systems, not units; they key the moment their system types exist.",
+  "_note": "kind='system' rows. BASE-ONLY, and deliberately WITHOUT ATTRIBUTES — a system has no nameplate, and an empty grid is worse than an absent one. The design-basis block is a named deferral, woken by the first real sprinkler acceptance.",
+
+  "kind": "system",
+
+  "mint": [
+    { "key": "sprinkler_system",   "name": "Sprinkler System",              "discipline": "Fire Protection",
+      "why": "The catalog ruled it a system in the equipment audit and refused it as an equipment type. This is that ruling being finished, not reversed." },
+    { "key": "standpipe_system",   "name": "Standpipe System",              "discipline": "Fire Protection",
+      "why": "Mint refused as EQUIPMENT on 2026-08-06 for the same reason. Its 11 orphaned items now have a home." },
+    { "key": "preaction_station",  "name": "Preaction Valve Station",       "discipline": "Fire Protection",
+      "why": "A discrete tagged assembly, but system-shaped — it is proven by tripping a system, not by starting a machine." },
+    { "key": "smoke_management",   "name": "Smoke Management System",       "discipline": "Fire Protection",
+      "why": "Decomposes into smoke_control_fan and smoke_control_panel as EQUIPMENT; the system itself is the thing a checklist targets." },
+    { "key": "egress_system",      "name": "Egress System",                 "discipline": "Architectural",
+      "why": "Doors, stairs, lighting and their ratings verified as one system." },
+    { "key": "fire_separations",   "name": "Fire and Smoke Separations",    "discipline": "Architectural",
+      "why": "A rated-assembly survey across a building — never a unit." },
+    { "key": "communication_system","name": "Communication System",         "discipline": "Electrical",
+      "why": "Paging, nurse call and intercom verified as one system." },
+    { "key": "gas_fluid_distribution","name": "Gas & Fluid Distribution",   "discipline": "Plumbing",
+      "why": "Distribution piping, not a unit." },
+    { "key": "sprinkler_piping",   "name": "Sprinkler Piping System",       "discipline": "Fire Protection",
+      "why": "The piping leg of the sprinkler system, tagged separately in the masters." },
+    { "key": "hydronic_heating_system","name": "Hydronic Heating System",   "discipline": "Mechanical",
+      "why": "The Heating System Start-Up Procedure master is a whole-plant sequence, not a boiler." },
+    { "key": "bas_ahu_control",    "name": "AHU Control System",            "discipline": "Controls/BAS",
+      "why": "A BAS control sequence. BAS-SPEC owns the module; the TYPE is what a start-up template attaches to." },
+    { "key": "bas_chw_control",    "name": "Chilled Water Control System",  "discipline": "Controls/BAS",
+      "why": "As above." },
+    { "key": "bas_hw_control",     "name": "Hot Water Heating Control System","discipline": "Controls/BAS",
+      "why": "As above." }
+  ],
+
+  "deferred": [
+    { "what": "System attributes — the design-basis block",
+      "detail": "Design density, area of operation, hazard classification, water supply and its test date, zone and riser counts, standpipe class.",
+      "why": "A system has no nameplate. This block should be designed against a real sprinkler acceptance rather than speculated, and an empty grid is worse than an absent one.",
+      "wakes": "The first real project recording a system's design basis — most likely fire protection on a new-construction job." }
+  ]
+}

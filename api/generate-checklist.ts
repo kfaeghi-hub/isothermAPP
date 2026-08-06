@@ -334,7 +334,7 @@ function mastheadHtml(instance: any, targets: any[]): string {
   const tags = (targets ?? []).map((t: any) => t.equipment?.tag).filter(Boolean)
   const sub = [descriptor, tags.join(', ')].filter(Boolean).join(' \u00b7 ')
   return `<div class="masthead">
-    <div class="mh-type">EQUIPMENT START-UP CHECKLIST</div>
+    <div class="mh-type">${targetsAreSystems(targets) ? 'SYSTEM' : 'EQUIPMENT'} START-UP CHECKLIST</div>
     ${sub ? `<div class="mh-eq">${esc(sub)}</div>` : ''}
   </div>`
 }
@@ -362,6 +362,20 @@ function signoffClaim(instance: any, roleLabel: string): string {
   if (instance.type !== 'startup') return ''
   const hit = STARTUP_CLAIMS.find(([re]) => re.test(roleLabel ?? ''))
   return hit ? `<span class="so-claim">${esc(hit[1])}</span>` : ''
+}
+
+/** A SYSTEM HAS NO NAMEPLATE. There is no plate on a sprinkler system, so the
+ *  Specified / Shop Drawing / Installed grid renders rows that can never be
+ *  filled — the empty grid the system-attachment ruling called worse than an
+ *  absent one. The design-basis block that belongs there instead (density,
+ *  hazard class, water supply, zones) is a NAMED DEFERRAL, woken by the first
+ *  project that needs one recorded.
+ *
+ *  The first target speaks for all of them: a database trigger refuses a
+ *  checklist whose targets mix kinds, so there is no case where this is
+ *  ambiguous. */
+function targetsAreSystems(targets: any[]): boolean {
+  return targets?.[0]?.equipment?.kind === 'system'
 }
 
 /** Legend wording depends on the checklist type. */
@@ -813,6 +827,7 @@ function buildChecklistHtml(d: DocData): string {
     <tbody>${unitIdRows}</tbody>
   </table>
 
+  ${targetsAreSystems(responseTargets) ? '' : `
   <h2 class="sec">Equipment Nameplate Data</h2>
   <table>
     ${colgroup(npWidths)}
@@ -821,7 +836,7 @@ function buildChecklistHtml(d: DocData): string {
       <tr>${npSubThs}</tr>
     </thead>
     <tbody>${npBodyRows}</tbody>
-  </table>
+  </table>`}
 
   ${checksBody.trim() ? `
   <h2 class="sec">Installation Checks</h2>
@@ -1065,6 +1080,7 @@ ${mode === 'blank' && audience === 'contractor' ? `<p style="background-color:#F
   <tbody>${unitIdRows}</tbody>
 </table>
 
+${targetsAreSystems(responseTargets) ? '' : `
 <h2>Equipment Nameplate Data</h2>
 <table ${T}>
   <thead>
@@ -1072,7 +1088,7 @@ ${mode === 'blank' && audience === 'contractor' ? `<p style="background-color:#F
     <tr>${npSubThs}</tr>
   </thead>
   <tbody>${npBodyRows}</tbody>
-</table>
+</table>`}
 
 ${checksBody.trim() ? `
 <h2>Installation Checks</h2>

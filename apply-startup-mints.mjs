@@ -12,7 +12,9 @@ import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
 const write = process.argv.includes('--write')
-const ART = 'proposals/startup-mints-ratified.json'
+// The artifact is an ARGUMENT, so one applier serves every ratified mint table
+// rather than a copy per batch drifting apart.
+const ART = process.argv.find(a => a.endsWith('.json')) ?? 'proposals/startup-mints-ratified.json'
 const a = JSON.parse(readFileSync(ART, 'utf8'))
 if (a._kind !== 'equipment-type-mint-ratification' || !a._ratified_by) {
   console.error('REFUSE: not a ratified mint artifact'); process.exit(1)
@@ -36,16 +38,21 @@ for (const m of a.mint) {
 }
 // The MAP and LEAVE rows write nothing — they are the reasoning, recorded with
 // the ruling so a future session can see what was decided NOT to mint and why.
-console.log(`  mint: ${toMint.length} of ${a.mint.length}`)
-console.log(`  map:  ${a.map.length} (no writes — recorded reasoning)`)
-console.log(`  leave:${a.leave.length} (no writes — recorded reasoning)\n`)
+console.log(`  kind: ${a.kind ?? 'equipment'}`)
+ console.log(`  mint: ${toMint.length} of ${a.mint.length}`)
+console.log(`  map:  ${(a.map ?? []).length} (no writes — recorded reasoning)`)
+console.log(`  leave:${(a.leave ?? []).length} (no writes — recorded reasoning)\n`)
 
 if (!toMint.length) { console.log('nothing to do'); process.exit(0) }
 for (const m of toMint) console.log(`    ${m.key.padEnd(20)} ${m.name}   [${m.discipline}]`)
 
 if (!write) { console.log('\nDRY RUN — pass --write to apply.'); process.exit(0) }
 
-const rows = toMint.map((m, i) => ({ key: m.key, name: m.name, sort_order: maxSort + 1 + i, active: true }))
+// kind comes from the ARTIFACT, defaulting to equipment. A system type minted
+  // as equipment would attach templates that then render a nameplate grid for a
+  // thing with no nameplate — the exact wrongness the targeting guard exists for.
+  const kind = a.kind ?? 'equipment'
+  const rows = toMint.map((m, i) => ({ key: m.key, name: m.name, kind, sort_order: maxSort + 1 + i, active: true }))
 const { error: insErr } = await svc.from('equipment_types').insert(rows)
 if (insErr) { console.error('REFUSE:', insErr.message); process.exit(1) }
 

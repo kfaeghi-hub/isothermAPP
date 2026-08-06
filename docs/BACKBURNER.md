@@ -396,6 +396,26 @@ Start-Up **master form** now has somewhere of its own to land.
 sign-off structure differs is not a variant of another type; that is the same
 bar the RTU-vs-AHU mint ruling set.
 
+### 7a. System attributes — the design-basis block
+**DEFERRED BY NAME 2026-08-06, with the system-attachment build**
+
+A system has no nameplate. The generator now OMITS the nameplate grid entirely
+for a `kind=system` target, because *an empty grid is worse than an absent one* —
+and that is the whole of the first cut, by ruling.
+
+What belongs there eventually is a **design-basis block**: design density and
+area of operation, hazard classification, water supply and its test date, zone
+and riser counts, standpipe class. Structurally it can reuse the field-def
+machinery; semantically it is a different claim — the nameplate answers *what was
+specified, drawn and installed for this unit*, the design basis answers *what is
+this system designed to do*. Single-value by default, with the three-column form
+available per attribute where it earns it (the Heating Medium precedent: the
+shape is data, not a fork).
+
+**Wakes when:** the first real project needs a system design basis recorded —
+most likely a fire-protection sprinkler acceptance. **Designed against that
+project, not speculated now.**
+
 ### 7b. Acceptance Testing — the FIFTH checklist family
 **PARKED — born 2026-08-06 out of the Start-Up campaign's residue**
 
