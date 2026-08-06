@@ -1,5 +1,11 @@
 # Document identity — navy or purple? (decision one-pager, 2026-07-25)
 
+> **SUPERSEDED IN PART — see [Amendment 1 — monochrome (2026-08-05)](#amendment-1--monochrome-2026-08-05)
+> at the end of this file.** The decision below is preserved as what was decided
+> on 2026-07-25 and is still the record of *why* the generators converged on a
+> single palette object. The palette it chose is no longer the live one. Read
+> both, in order; do not plan from this section alone.
+
 **Owed from the portal brief. This decides nothing — it is the page you decide from.**
 Supersedes the sketch at PORTAL-PROPOSAL §17, which got the test consequence wrong
 (see §4).
@@ -143,3 +149,114 @@ this phase" language from MASTER-BRIEF §10, Build Spec §6B/§12 and ARCHITECTU
 UI-debt 7, so the question stops re-opening itself every time the portal is touched.
 
 **Not decided here. Both options are real.**
+
+---
+
+# AMENDMENT 1 — monochrome (2026-08-05)
+
+**Ruled by Tony, 2026-08-05. Recorded as a dated amendment, not a silent rewrite:
+the decision above stands as what was decided on 2026-07-25, and this is what
+changed and why.**
+
+## The ruling
+
+**Generated documents go monochrome, effective now.** The purple/vermilion brand
+layer is **retired from documents** until the rebrand lands.
+
+**The reason:** the brand layer is going to change. Issuing documents in an
+identity that is known to be provisional means a third era of mixed files on
+every long project (§5's Rule 4 consequence, incurred a second time for a
+palette nobody intends to keep). Monochrome is not a placeholder — it is the
+format the firm's current **Site Note** already uses in the field, and it is
+correct on its own terms: black ink, gray section bands, light-gray field fills,
+white body, plain black-bordered tables.
+
+**Scope boundary, ruled explicitly:** generated documents only. The **app UI,
+landing page and portal keep the current palette** pending the rebrand. §3's
+question — "should the client-facing surfaces match?" — is therefore answered
+*deliberately no, for now*, and it will be re-asked once, at the rebrand, rather
+than per-surface.
+
+## The mapping
+
+`DOC` in `api/_shared/doc-common.ts` — every field, by role:
+
+| Field | Role | Was | Now |
+|---|---|---|---|
+| `INK` | letterhead, headings + underline, numeric cells, labels | `#443C8F` | `#000000` |
+| `BAND` | solid fill carrying **white** text | `#443C8F` | `#000000` |
+| `BAND_UNIT` | checklist UNIT band (level 2) | `#5D55AF` | `#4D4D4D` |
+| `BAND_SUB` | checklist SUB band (level 3) | `#7F78CB` | `#757575` |
+| `BAND_TINT` | light fill carrying INK text | `#E3E1F5` | `#D9D9D9` |
+| `BORDER` | structural borders | `#CFCCE0` | `#000000` |
+| `RULE` | table-body hairline | `#E1DEEB` | `#808080` |
+| `ZEBRA` | even-row striping, panel wash | `#F7F6FC` | `#F5F5F5` |
+
+**The band ramp is dark, and the reference's `~ADADAD` has no role.** All three
+band levels carry **white** text in the generators; a mid-gray fill would put
+white on ~2:1 and fail the same greyscale-print test that fenced vermilion out of
+structural roles in §6. The ramp holds 21:1 / 8.9:1 / 4.6:1. The reference's
+field-label gray `#D9D9D9` landed on `BAND_TINT`, where the field labels
+actually live.
+
+**`DOC_SEMANTIC` untouched, and that is the point.** Pass/fail, outstanding,
+recorded, and the meeting item statuses carry *meaning*, not brand. With the
+identity monochrome they are now the **only colour in a generated document** —
+so every remaining colour says something, and adding one is a semantic claim.
+The `BLANK FORM — FOR CONTRACTOR USE` amber banner stays for the same reason.
+
+Eleven cool-cast neutrals hardcoded outside `DOC` went with it — `#8A93A0`
+`#9AA3AE` `#E8EBEF` `#F2F5F8` `#FAFBFC` `#eef2f6` `#6B7280` → true grays. The
+pale blues named in the ruling, `#D9E2F3` and `#F4F7FB`, were **not present**.
+
+## What the verification found — and why the source grep would have lied
+
+§4 and the note in `doc-common` both say it plainly: **no automated gate catches
+colour.** `pw-report-regen` strips every tag and compares visible TEXT, so a
+palette change is invisible to it by construction. So this amendment was gated on
+a new harness, `doc-palette-sweep.mjs`, which **renders** every document family
+and greps the **DOCX WordprocessingML** — the one artifact where colour is
+greppable text.
+
+It caught something a source grep never could. After every value in `DOC` was
+monochrome and every literal in `api/` was swept clean, **the Cx Plan still came
+out purple.** Its heading identity is not in `doc-common` at all — it is Word
+**style definitions** baked into the committed binary
+`firm-knowledge/skeletons/cx-plan.docx` → `word/styles.xml`: `443C8F` ×4 as a
+`w:fill` behind white text, `5D55AF` ×2 as level-2 heading text. Fixed by
+`patch-skeleton-palette.mjs`, which asserts every other part comes out
+byte-identical; `prove-skeleton.mjs` stayed green afterwards.
+
+**The rule that generalises:** *identity can live in a binary, and source is not
+the artifact.* A grep over source proves the author's intent. Only the rendered
+output sees stored content, committed binaries, and a dependency's own defaults.
+
+## Evidence
+
+`doc-palette-sweep.mjs` → **SWEEP CLEAN**, 7 documents, 18 retired values each:
+site report · meeting minutes · PFC completed + blank · IVC completed + blank ·
+Cx Plan. `doc-palette-shots.mjs` rendered page 1 of all 7 in colour and BT.601
+greyscale; the pairs are indistinguishable, which is the confirmation that no
+colour is carrying structure.
+
+**Named gaps, so a clean report is not read as coverage it does not have:**
+
+- **`fpt` and `startup` have no ZZ-TEST instance** and were not swept. The
+  harness prints this by name below the results. `startup` is listed ahead of
+  its build on purpose — the fourth checklist type must not arrive unswept.
+- **The Cx Plan DOCX was grepped, not looked at.** Rendering a DOCX needs Word
+  or LibreOffice, and neither is available to the harness. `styles.xml` is
+  proven clean; the *appearance* of its headings in Word is not visually
+  confirmed. Open it once by hand.
+- **Local PDFs render in Playwright's Chromium, not Lambda's** (`@sparticuz/
+  chromium-min` ships a Linux pack and cannot resolve on Windows; aliased in
+  `doc-render-local.mjs`). Irrelevant to colour, which lives in the HTML the
+  generator built — not irrelevant to pagination or font fallback. Do not reuse
+  that shim for either question.
+
+## Rule 4, a second time
+
+Files already **ISSUED** stay exactly as issued. A long project may now hold
+navy, then purple, then monochrome documents. That mixed set is intentional and
+is not a defect to reconcile — **a document records what it looked like when it
+was issued.**

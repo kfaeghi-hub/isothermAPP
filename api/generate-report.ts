@@ -43,10 +43,10 @@ const CSS = `${BASE_CSS}
   .cat    { font-weight: 700; color: ${DOC.INK}; font-size: 9.5pt; display: block; margin-bottom: 4px; }
   .cattag { font-size: 8pt; color: #999; display: block; margin-top: -2px; margin-bottom: 6px; }
   .dentry { margin-bottom: 7px; }
-  .ddate  { font-style: italic; color: #8A93A0; font-size: 8.5pt; }
+  .ddate  { font-style: italic; color: #767676; font-size: 8.5pt; }
   .dtext  { margin-top: 1px; }
   /* register lines — rendered only when the field is present */
-  .floc   { font-size: 8pt; color: #8A93A0; margin: -2px 0 4px 0; }
+  .floc   { font-size: 8pt; color: #767676; margin: -2px 0 4px 0; }
   .fdesc  { margin: 2px 0 6px 0; }
   .fcorr  { font-size: 8.5pt; margin: 4px 0 2px 0; }
   .fcorr .lbl { font-weight: 700; color: ${DOC.INK}; }
@@ -271,7 +271,7 @@ function buildDocxHtml(
     const tdAct  = `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;text-align:center;font-weight:bold;background-color:${rowBg};color:${rowFg};"`
 
     const diaryHtml = entries.map((e: any) =>
-      `<p style="margin:4px 0;"><em style="color:#8A93A0;font-size:8.5pt;">${esc(isoShort(e.entry_date))}</em><br>${esc(e.body ?? '')}</p>`
+      `<p style="margin:4px 0;"><em style="color:#767676;font-size:8.5pt;">${esc(isoShort(e.entry_date))}</em><br>${esc(e.body ?? '')}</p>`
     ).join('')
 
     const allPhotos = (f.finding_photos ?? []).map((ph: any) => {
@@ -299,7 +299,7 @@ function buildDocxHtml(
 
     // Register lines render ONLY when present (byte-clean regen for historical findings).
     const locationHtml = f.building_area
-      ? `<p style="margin:2px 0 4px 0;font-size:8pt;color:#8A93A0;">Location: ${esc(f.building_area)}</p>` : ''
+      ? `<p style="margin:2px 0 4px 0;font-size:8pt;color:#767676;">Location: ${esc(f.building_area)}</p>` : ''
     const descHtml = f.description
       ? `<p style="margin:2px 0 6px 0;">${esc(f.description)}</p>` : ''
     const corrHtml = f.corrective_action

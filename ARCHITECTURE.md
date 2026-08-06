@@ -1258,6 +1258,37 @@ say where you stopped.**
 **not** contain — no scanned page carrying a schedule, no two-page continuation,
 no non-TDSB consultant — so their absence is never mistaken for coverage.
 
+### Identity can live in a BINARY — source is not the artifact
+
+A grep over source proves the **author's intent**. It cannot prove what the
+program produces, because output has inputs source never mentions: stored content
+in the database, committed binary assets, and a dependency's own defaults.
+
+Found on 2026-08-05, by the harness built for the monochrome amendment
+([DOCUMENT-IDENTITY-DECISION.md](docs/DOCUMENT-IDENTITY-DECISION.md), Amendment
+1). Every value in `DOC` was monochrome. Every hex literal in `api/` was swept.
+`grep -r` over the whole generator layer came back clean.
+
+**The Cx Plan still came out purple.**
+
+Its heading identity was never in `doc-common` at all — it is Word **style
+definitions** inside the committed binary `firm-knowledge/skeletons/cx-plan.docx`
+→ `word/styles.xml`: `443C8F` ×4 as a `w:fill` behind white text, `5D55AF` ×2 as
+level-2 heading text. The skeleton was carved out of a real firm document by
+`build-skeleton.mjs`, and it carried that document's palette with it. No amount
+of reading `api/` would ever have said so.
+
+**The general form: gate on the RENDERED ARTIFACT, not on the source that
+produced it.** Pick the rendered format where the property is actually legible —
+for colour that is the DOCX's WordprocessingML, where fills and text colours are
+greppable text. A PDF stores colour as content-stream operands, so grepping a PDF
+for a hex is a check that cannot fail: it reports clean on a fully purple
+document. Where no greppable artifact exists, say so and look at the thing.
+
+*Corollary for anything carved out of a firm document:* a skeleton inherits more
+than structure. `styles.xml`, `theme1.xml` and `numbering.xml` all carry identity
+decisions somebody made in Word, years ago, for another reason.
+
 ### An absence assertion proves ARRIVAL first, then absence
 
 The same disease, aimed at nothing. `check(!body.includes(X))` is true of a page

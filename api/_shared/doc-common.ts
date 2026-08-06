@@ -19,15 +19,29 @@ export const CHROMIUM_PACK_URL =
 
 // ── DOCUMENT IDENTITY PALETTE ─────────────────────────────────────────────────
 //
-// Converged to the brand purple/vermilion identity 2026-07-26 (Tony's ruling,
-// Option A of docs/DOCUMENT-IDENTITY-DECISION.md). Before this, the generators
-// rendered navy #1F3A5F and carried 104 hex literals across four files, 25 of
-// them in generate-checklist.ts's private copies. Those literals are gone: this
-// object is the single place the documents' identity is defined.
+// MONOCHROME as of 2026-08-05 (Tony's ruling — Amendment 1 of
+// docs/DOCUMENT-IDENTITY-DECISION.md). The brand layer is RETIRED from generated
+// documents until the rebrand lands. Reference standard: the firm's current Site
+// Note format (Isotherm_SiteNote_5_Combined) — black ink, gray bands, light-gray
+// field fills, white body, plain black-bordered tables.
 //
-// Rule 4 consequence, accepted with the ruling: files already ISSUED stay
-// exactly as issued. A project mid-flight will permanently hold navy documents
-// issued before this date and purple ones after. That mixed set is intentional.
+// History: navy #1F3A5F → purple/vermilion 2026-07-26 → monochrome 2026-08-05.
+// The convergence that produced this object is what made the amendment cheap:
+// 104 hex literals across four files became these eight fields, so the identity
+// changed in one place. That was the whole point of it.
+//
+// Rule 4 consequence, unchanged and now twice-applied: files already ISSUED stay
+// exactly as issued. A long project may hold navy, then purple, then monochrome
+// documents. That mixed set is intentional — a document records what it looked
+// like when it was issued.
+//
+// The band ramp is DARK, not the reference's ~ADADAD, and that is deliberate:
+// BAND/BAND_UNIT/BAND_SUB all carry WHITE text in the generators, so a mid-gray
+// fill would put white on ~2:1. The ramp below holds 21:1 / 8.9:1 / 4.6:1 and
+// survives the greyscale printing these documents get on site — the same test
+// that fenced vermilion out of structural roles below. ADADAD has no role here;
+// the reference's field-label gray D9D9D9 landed on BAND_TINT, where the field
+// labels actually live.
 //
 // NOTE FOR ANY FUTURE CHANGE: no automated gate catches colour. pw-report-regen
 // strips every tag and compares visible TEXT, so a palette edit is invisible to
@@ -36,32 +50,39 @@ export const CHROMIUM_PACK_URL =
 // type, PDF and DOCX.
 export const DOC = {
   /** The identity. Letterhead, section headings and their underline, numeric
-   *  cells, field labels, the brand rule. Was navy #1F3A5F. */
-  INK: '#443C8F',
+   *  cells, field labels, the brand rule. Was navy #1F3A5F, then purple #443C8F. */
+  INK: '#000000',
   /** Solid fills that carry WHITE text: table heads, minutes topic bands,
    *  checklist section bands. Same hex as INK by design — one identity, two
    *  roles; kept separate so a future tweak can move one without the other. */
-  BAND: '#443C8F',
-  /** Checklist UNIT header band — the second level of its three-deep header. */
-  BAND_UNIT: '#5D55AF',
-  /** Checklist SUB header band — the third level. */
-  BAND_SUB: '#7F78CB',
+  BAND: '#000000',
+  /** Checklist UNIT header band — the second level of its three-deep header.
+   *  White text at 8.9:1. */
+  BAND_UNIT: '#4D4D4D',
+  /** Checklist SUB header band — the third level. White text at 4.6:1; this is
+   *  the lightest step that still legally carries white. Do not lighten it. */
+  BAND_SUB: '#757575',
   /** Light band fills that carry INK text: checklist category bands, the
-   *  minutes action-summary group rows. */
-  BAND_TINT: '#E3E1F5',
+   *  minutes action-summary group rows. The Site Note's field-label gray. */
+  BAND_TINT: '#D9D9D9',
   /** Structural borders: project header, legend box, checklist header table,
-   *  signature rules, band borders. */
-  BORDER: '#CFCCE0',
-  /** Table body cell borders — lighter than BORDER, the hairline weight. */
-  RULE: '#E1DEEB',
+   *  signature rules, band borders. "Plain black-bordered tables." */
+  BORDER: '#000000',
+  /** Table body cell borders — lighter than BORDER, the hairline weight. Mid
+   *  gray rather than near-white: the old #E1DEEB printed as nothing. */
+  RULE: '#808080',
   /** Even-row striping and light panel washes (the project-header mid cell). */
-  ZEBRA: '#F7F6FC',
+  ZEBRA: '#F5F5F5',
 } as const
 
 // ── DOCUMENT SEMANTICS — deliberately NOT part of the identity ────────────────
 //
-// These survived the convergence unchanged, and that was a decision, not an
-// oversight. DO NOT fold them into DOC above.
+// These survived the convergence unchanged, and the 2026-08-05 monochrome
+// amendment explicitly did not touch them either. That was a decision both
+// times, not an oversight. DO NOT fold them into DOC above.
+//   · CONSEQUENCE OF THE AMENDMENT: these are now the ONLY colour in a generated
+//     document. That is the point — every remaining colour carries meaning, and
+//     none of it is decoration. Adding a colour here is now a semantic claim.
 //   · The closed-finding band says CLOSED, not PASSED. Recolouring it to
 //     conformance green would smuggle a semantic change in with a palette one.
 //   · Outstanding/recorded and the meeting item statuses are conformance

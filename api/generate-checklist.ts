@@ -82,7 +82,7 @@ function dashOr(mode: 'completed' | 'blank', value: string): string {
 }
 function dashOrInline(mode: 'completed' | 'blank', value: string): string {
   if (value) return esc(value)
-  return mode === 'completed' ? '<span style="color:#9AA3AE;">—</span>' : ''
+  return mode === 'completed' ? '<span style="color:#999999;">—</span>' : ''
 }
 
 // ── Nameplate ──────────────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ const CSS = `
 
   /* Header block — bordered, two columns, matching the real form */
   .hdr-tbl td { padding: 7px 10px; border: 1px solid ${DOC.BORDER}; vertical-align: top; font-size: 8.5pt; background: #fff !important; }
-  .hdr-lbl { color: #6B7280; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.3px; }
+  .hdr-lbl { color: #6E6E6E; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.3px; }
   .hdr-val { font-weight: 600; color: ${DOC.INK}; }
   .hdr-line { border-bottom: 1px solid ${DOC.BORDER}; display: inline-block; min-width: 55%; height: 11px; }
 
@@ -261,13 +261,13 @@ const CSS = `
   .np-val  { text-align: center; font-size: 8pt; }
   /* Not-applicable cell (field not defined for this section): shaded, NO text —
      on the blank hand-out the contractor instantly sees which cells to skip. */
-  .np-blocked { background: #E8EBEF !important; }
-  .empty-dash { color: #9AA3AE; }
+  .np-blocked { background: #E5E5E5 !important; }
+  .empty-dash { color: #999999; }
   /* Blank mode: fillable cells must be CLEAN WHITE for handwriting — zebra striping
      would read as almost the same grey as the not-applicable shade on paper. */
   body.mode-blank tbody tr:nth-child(even) td { background: #fff; }
   body.mode-blank tbody tr:nth-child(even) td.np-blocked,
-  body.mode-blank .np-blocked { background: #E8EBEF !important; }
+  body.mode-blank .np-blocked { background: #E5E5E5 !important; }
 
   .sec-row td { background: ${DOC.RULE} !important; font-weight: 700; font-size: 7.5pt; color: ${DOC.INK}; text-transform: uppercase; padding: 4px 8px; border-color: ${DOC.BORDER}; }
 
@@ -508,11 +508,11 @@ const CT_CSS = `
   @page { size: letter landscape; }
   .ct { table-layout: fixed; width: 100%; }
   .ct-band { background: ${DOC.BAND_TINT}; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 2px; border: 1px solid ${DOC.BORDER}; }
-  .ct-col { vertical-align: bottom; padding: 3px 2px; border: 1px solid #ccc; background: #F2F5F8; }
+  .ct-col { vertical-align: bottom; padding: 3px 2px; border: 1px solid #ccc; background: #F0F0F0; }
   .ct-num { font-size: 9pt; font-weight: 700; }
   .ct-lbl { font-size: 6.4pt; font-weight: 600; line-height: 1.25; word-wrap: break-word; }
   .ct-sub { font-size: 6pt; color: #999; font-weight: 400; border: 1px solid #ccc; padding: 1px; }
-  .ct-tag { font-weight: 700; font-size: 8pt; padding: 3px 4px; border: 1px solid #ccc; background: #FAFBFC; }
+  .ct-tag { font-weight: 700; font-size: 8pt; padding: 3px 4px; border: 1px solid #ccc; background: #FAFAFA; }
   .ct-cell { text-align: center; padding: 2px; border: 1px solid #ccc; font-size: 8pt; min-height: 18px; }
   .ct-date { font-size: 6pt; color: #666; font-family: monospace; }
   .ct-row { page-break-inside: avoid; }
@@ -791,7 +791,7 @@ function buildChecklistDocxHtml(d: DocData): string {
   const zebra = mode === 'completed'
   const td   = (i: number, extra = '') =>
     `style="padding:5px 6px;border:1px solid ${DOC.RULE};vertical-align:top;font-size:8pt;${zebra && i % 2 === 1 ? `background-color:${DOC.ZEBRA};` : ''}${extra}"`
-  const tdBlocked = `style="padding:5px 6px;border:1px solid ${DOC.RULE};background-color:#E8EBEF;font-size:8pt;"`
+  const tdBlocked = `style="padding:5px 6px;border:1px solid ${DOC.RULE};background-color:#E5E5E5;font-size:8pt;"`
   const tdSec = `style="background-color:${DOC.RULE};font-weight:bold;font-size:7.5pt;color:${DOC.INK};text-transform:uppercase;padding:4px 8px;border:1px solid ${DOC.BORDER};"`
 
   const unitTag = (t: any) => esc(t.equipment?.tag ?? t.equipment?.descriptor ?? '?')
@@ -936,7 +936,7 @@ function buildChecklistDocxHtml(d: DocData): string {
         ['Phone',   `<strong>${FIRM_PHONE}</strong>`],
         ['Date',    `<strong>${esc(isoShort(instance.completed_at ?? instance.date_performed))}</strong>`],
       ]
-  const hdrLbl = 'style="color:#6B7280;font-size:7.5pt;"'
+  const hdrLbl = 'style="color:#6E6E6E;font-size:7.5pt;"'
   const leftHtml = [
     ['Customer',        esc(project?.companies?.name ?? project?.companies?.abbreviation ?? '—')],
     ['Project',         esc(project?.name ?? '—')],
@@ -1076,7 +1076,7 @@ async function toDocx(html: string): Promise<Buffer> {
 function buildCheckTableDocxHtml(d: DocData): string {
   const { instance, project, responseTargets, sections, items, responseMap, mode } = d
   const T  = 'style="width:100%;border-collapse:collapse;font-size:7pt;"'
-  const TH = 'style="border:1px solid #999;background:#eef2f6;font-size:6.5pt;padding:2px;"'
+  const TH = 'style="border:1px solid #999;background:#efefef;font-size:6.5pt;padding:2px;"'
   const TD = 'style="border:1px solid #999;padding:2px;text-align:center;"'
   const ordered: { item: any; n: number }[] = []
   let n = 0

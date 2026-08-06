@@ -16,6 +16,72 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.06 — 2026-08-05 · OPEN
+
+*Ruled as "1.05" on the night; 1.05 was already spent on the extractor
+calibration campaign, so this opens one number up. **Still open** — it carries
+two rulings and only the first has landed. The Start-Up checklist type joins this
+entry as it is built.*
+
+### For the team
+
+**Documents you generate are black and white from today.** Reports, checklists,
+minutes and the Cx Plan now print the way the firm's Site Note already does —
+black ink, gray headers, plain black-bordered tables. The purple is gone from
+documents until the rebrand.
+
+**The colour that is left means something.** OUTSTANDING is still red, RECORDED
+still green, an open meeting item still amber, and the *BLANK FORM — FOR
+CONTRACTOR USE* banner is still yellow. That is deliberate: with the brand colour
+out of the way, every remaining colour on the page is telling you something.
+
+**Documents you have already issued do not change.** A file that went out purple
+stays purple. A long project may end up holding navy, then purple, then black-
+and-white documents, and that is correct — a document should look like what it
+looked like on the day it was issued. Nothing is regenerated behind you.
+
+**Print it and it still reads.** These get printed on mono lasers in trailers.
+Every page was checked in greyscale as well as in colour; the two are
+indistinguishable, which is the whole point.
+
+### For the architect
+
+**One object, one amendment — and one thing the object did not own.**
+`DOC` in [`api/_shared/doc-common.ts`](../api/_shared/doc-common.ts) moved to a
+grayscale ramp; `DOC_SEMANTIC` was not touched. The full mapping, the reasoning
+for a **dark** band ramp rather than the reference's `~ADADAD` (all three levels
+carry white text; a mid-gray fill is ~2:1 and dies in greyscale), and the scope
+boundary — documents only; app UI, landing and portal keep the current palette
+pending the rebrand — are in
+[DOCUMENT-IDENTITY-DECISION.md § Amendment 1](DOCUMENT-IDENTITY-DECISION.md#amendment-1--monochrome-2026-08-05).
+Eleven cool-cast neutrals hardcoded outside `DOC` went with it. `#D9E2F3` and
+`#F4F7FB` were named in the ruling and **were not present**.
+
+**The finding that justified the whole verification design.** The 2026-07-26 note
+in `doc-common` says no automated gate catches colour, and it is right —
+`pw-report-regen` strips tags and compares visible text. So the gate was a new
+harness that renders and greps the **artifact**, not the source:
+`doc-palette-sweep.mjs`. With every value in `DOC` monochrome and `grep -r` over
+`api/` clean, **the Cx Plan still came out purple** — its heading identity is Word
+style definitions inside the committed binary
+`firm-knowledge/skeletons/cx-plan.docx` → `word/styles.xml`. Recorded in
+ARCHITECTURE as *identity can live in a binary — source is not the artifact.*
+
+**Evidence: SWEEP CLEAN, 7 documents × 18 retired values**, plus page-1 renders of
+all seven in colour and BT.601 greyscale. Three gaps are named rather than
+papered over: `fpt` and `startup` have no ZZ-TEST instance and were **not swept**
+(the harness prints that by name); the Cx Plan **DOCX** was grepped, not looked
+at, because no DOCX renderer is available here; and local PDFs render in
+Playwright's Chromium, not Lambda's — irrelevant to colour, not to pagination.
+
+**New harnesses, all keepers:** `doc-palette-sweep.mjs` (the gate),
+`doc-render-local.mjs` (runs the real handlers in-process against the working
+tree, so a palette question costs no deployment), `doc-palette-shots.mjs`
+(render-and-look + greyscale), `patch-skeleton-palette.mjs` (rewrites the
+skeleton's `styles.xml` and asserts every other part is byte-identical).
+
+---
+
 ## Update 1.05 — 2026-08-04 · field-tested 2026-08-05
 
 *Field test **passed**: the full flow walked on Clairlea and Workman — upload,
