@@ -204,4 +204,4 @@ end $$;`)
 
 const check = await run(`select count(*) filter (where type = 'startup') as templates from checklist_templates`)
 console.log(`startup templates in the database: ${check[0]?.templates}`)
-writeFileSync('out/startup-mining/seed-report.json', JSON.stringify({ seeded, planned: planned.map(p => ({ subject: p.subject, key: p.key, items: p.items, held: p.held })) }, null, 2))
+writeFileSync('out/startup-mining/seed-report.json', JSON.stringify({ seeded, planned: planned.map(p => ({ file: p.file, subject: p.subject, key: p.key, items: p.items, held: p.held, master: p.master })) }, null, 2))

@@ -451,6 +451,16 @@ converted when their suite is next touched; new assertions use the wait helpers
 from birth.* The four that actually cost battery runs, plus the delete-side
 cousins, are already done. **Not a backlog item — do not schedule a sweep.**
 
+**Harness zip readers walk local headers, not the central directory.** Several
+harnesses here (pw-cx-plan, doc-palette-sweep, audit-template, mine-startup)
+enumerate a .docx by scanning for PK signatures. That is the fragile
+way: the central directory is the authoritative index, and a valid zip whose
+local-header layout differs walks wrong. It bit once on 2026-08-05 — a re-zipped
+skeleton made pw-cx-plan read an empty document and fail five content assertions
+on correct content. Fixed at the cause that day; the readers were left as they
+are. *Governed by the touch-policy: convert a reader when its suite is next
+touched. Not a backlog item — do not schedule a sweep.*
+
 **Portal email plumbing.** Steps 1–4 of [PORTAL-GOLIVE.md](PORTAL-GOLIVE.md) —
 the mailer, template capture, and rendered-appearance verification. §0A of that
 runbook goes live on **share links alone with no mailer**, which is a legitimate
