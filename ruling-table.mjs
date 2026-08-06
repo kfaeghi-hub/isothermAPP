@@ -13,6 +13,24 @@
 // fail. So the alternative comes from the strongest NON-winning signal in the
 // item's own text, and when nothing else registers the column says so.
 //
+// ── PHASE 2 OBLIGATION, ruled 2026-08-05 and recorded here so it cannot be
+// forgotten at the point of use ───────────────────────────────────────────────
+// Phase 2 items are DRAFTED against standards, not mined from a master, and an
+// item earns its place by CONVERGENCE across independent sources. Every Phase 2
+// artifact carries a convergence class — `universal` · `type-common` ·
+// `single-source` — and THIS TABLE MUST SHOW IT, so a sitting sees why an item
+// exists and not merely what it says. A single-source item with no stated reason
+// is cut before it ever reaches a sitting: the template holds consensus, not
+// collection. See ARCHITECTURE "Template content law" and
+// docs/STARTUP-CAMPAIGN.md § Phase 2.
+//
+// The column is deliberately NOT rendered yet. Phase 1 items are mined, and
+// their provenance is a named master / table / row, not a convergence class; a
+// column reading "—" on every row would be furniture that teaches nothing. It
+// arrives with the first drafted artifact, and `assertConvergence()` below
+// refuses to print a sitting sheet for an artifact that should have one and
+// does not.
+//
 // Run: node ruling-table.mjs [--batch N] [--md]
 //      --batch N   1-based batch of 10 forms, in the mine's own order
 //      --md        markdown table (default is fixed-width for a terminal)
@@ -48,6 +66,36 @@ function alternative(label, proposed) {
   return { section: '—', why: 'no competing signal; the default is probably simply right' }
 }
 
+/** A drafted (Phase 2) artifact MUST carry a convergence class on every item.
+ *  A mined (Phase 1) artifact must not — its provenance is master/table/row.
+ *  Refusing here is the point: the obligation is enforced where the sheet is
+ *  produced, not remembered by whoever produces it. */
+function assertConvergence(a, file) {
+  const drafted = a._phase && /Phase 2/i.test(a._phase)
+  if (!drafted) return
+  const bad = []
+  for (const s of a.sections) for (const i of s.items) {
+    if (i.source?.standing_item) continue
+    if (!['universal', 'type-common', 'single-source'].includes(i.convergence)) bad.push(i.label)
+  }
+  if (bad.length) {
+    console.error(`REFUSE: ${file} is a Phase 2 artifact and ${bad.length} item(s) carry no convergence class.`)
+    console.error(`  first: ${bad.slice(0, 3).join(' | ')}`)
+    console.error('  A sitting cannot rule on an item without knowing why it exists.')
+    process.exit(1)
+  }
+  const singles = []
+  for (const s of a.sections) for (const i of s.items) {
+    if (i.convergence === 'single-source' && !String(i.convergence_reason || '').trim()) singles.push(i.label)
+  }
+  if (singles.length) {
+    console.error(`REFUSE: ${file} carries ${singles.length} single-source item(s) with no stated reason.`)
+    console.error(`  first: ${singles.slice(0, 3).join(' | ')}`)
+    console.error('  These are cut before a sitting, not ruled on: the template holds consensus, not collection.')
+    process.exit(1)
+  }
+}
+
 const files = readdirSync(DIR).filter(f => f.endsWith('.json')).sort()
 const chosen = batch ? files.slice((batch - 1) * 10, batch * 10) : files
 if (!chosen.length) { console.error(`REFUSE: batch ${batch} is empty — ${files.length} forms mined`); process.exit(1) }
@@ -56,6 +104,7 @@ let total = 0, totalFlagged = 0, totalDistinct = 0
 const out = []
 for (const f of chosen) {
   const a = JSON.parse(readFileSync(`${DIR}/${f}`, 'utf8'))
+  assertConvergence(a, f)
   const flagged = []
   for (const s of a.sections) for (const i of s.items) {
     if (i.source?.standing_item) continue

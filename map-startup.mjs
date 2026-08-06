@@ -86,6 +86,8 @@ function mapForm(file) {
   const items = []
   let subject = null
   const skipped = { signature: 0, remarks: 0, headerTable: 0, unexplained: 0, unexplainedText: [] }
+  const nameplate = []
+  const notes = []
 
   for (const t of j.tables) {
     const head = t.rows[0]?.cells ?? []
@@ -104,12 +106,45 @@ function mapForm(file) {
       continue
     }
     const banner = (head[0] || '').trim()
-    const isSection = banner && head.slice(1).some(c => (c || '').trim().toUpperCase() === 'STATUS')
+    const cols = head.slice(1).map(c => (c || '').trim().toUpperCase())
+
+    // THE NAMEPLATE TABLE, in the corpus's own words. Its header is
+    // SPECIFIED | SHOP DRAWINGS | INSTALLED — which is exactly the three-column
+    // block the approved Phase 0 design already carries. Recognising it by that
+    // header is structural; it was landing in UNEXPLAINED because an earlier
+    // "all other cells blank" heuristic could not see past the header row.
+    if (cols.includes('SPECIFIED') && cols.some(c => /SHOP DRAWING/.test(c))) {
+      for (const r of t.rows.slice(1)) {
+        const v = (r.cells[0] || '').trim()
+        if (v.length >= 3) nameplate.push({ field: v, source: { master: src, table: t.t, row: r.r } })
+      }
+      continue
+    }
+
+    // A SECTION can be headed STATUS, or by a row of per-unit response slots —
+    // NO. | NO. | NO. or ROOM NO. | ROOM NO. — where one check is answered for
+    // several units or rooms across the row. The label in column 0 is the line
+    // item either way. Requiring the literal word STATUS dropped 51 real items
+    // into UNEXPLAINED; the structural question is "does column 0 label a check
+    // that the remaining columns answer", not "what is the header called".
+    const repeated = cols.length >= 2 && cols.every(c => c === cols[0]) && /^(NO\.?|ROOM NO\.?|UNIT NO\.?)$/.test(cols[0])
+    const isSection = banner && (cols.includes('STATUS') || repeated)
     if (!isSection) {
       // A skip count that does not say WHAT was skipped is noise, and noise is
       // where a real drop hides. Every skipped row is attributed; anything that
       // matches no known furniture shape is UNEXPLAINED and is the only number
       // here worth being alarmed by.
+      // A NAMEPLATE DATA TABLE is not furniture and not a line item. Several
+      // masters (Pumps, Generators) carry a block of Serial No. / Impeller Size
+      // / Flow Rate (L/S) / Head (kPa) / Power (kW) / R/Min: real equipment
+      // data with a blank to fill, no STATUS column. It belongs in the
+      // nameplate snapshot the approved design already carries, so it is
+      // COLLECTED — routing it to UNEXPLAINED would have thrown away content
+      // while reporting a clean sweep.
+      const bodyRows = t.rows.filter(r => (r.cells[0] || '').trim().length >= 3)
+      const looksNameplate = bodyRows.length >= 3 &&
+        bodyRows.every(r => r.cells.slice(1).every(c => !(c || '').trim())) &&
+        !bodyRows.some(r => /representative\s*$/i.test((r.cells[0] || '').trim()))
       for (const r of t.rows) {
         const v = (r.cells[0] || '').trim()
         if (v.length < 3) continue
@@ -118,6 +153,16 @@ function mapForm(file) {
         if (/representative\s*$/i.test(v)) skipped.signature++
         else if (/^remarks?:?$/i.test(v)) skipped.remarks++
         else if (/^(subject|service|location|equipment no)\b/i.test(v)) skipped.headerTable++
+        // A FORM NOTE is neither furniture nor a tick box. The Liquid Filled
+        // Power Transformer master carries "Note: Equipment to be isolated from
+        // all sources of power" — a lockout instruction, and the single most
+        // consequential sentence on that form. Dropping it would lose it;
+        // filing it as a line item would ask the field to tick a warning.
+        // Collected, and surfaced at ratification for placement.
+        else if (/^note\s*:/i.test(v)) {
+          notes.push({ note: v.replace(/\s*REMARKS:\s*$/i, '').trim(), source: { master: src, table: t.t, row: r.r } })
+        }
+        else if (looksNameplate) { nameplate.push({ field: v, source: { master: src, table: t.t, row: r.r } }) }
         else { skipped.unexplained++; skipped.unexplainedText.push(`${src} t${t.t}r${r.r}: ${v}`) }
       }
       continue
@@ -142,7 +187,7 @@ function mapForm(file) {
       })
     }
   }
-  return { file, subject, src, items, skipped }
+  return { file, subject, src, items, skipped, nameplate, notes }
 }
 
 // ── the named Excel exception ────────────────────────────────────────────────
@@ -195,6 +240,7 @@ const rows = []
 let totalItems = 0, totalFlagged = 0
 const skipTotals = { signature: 0, remarks: 0, headerTable: 0, unexplained: 0 }
 const unexplained = []
+let totalNameplate = 0, totalNotes = 0
 const bySection = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }
 
 for (const f of forms) {
@@ -204,6 +250,8 @@ for (const f of forms) {
   totalItems += f.items.length; totalFlagged += flagged
   for (const k of ['signature', 'remarks', 'headerTable', 'unexplained']) skipTotals[k] += f.skipped[k]
   unexplained.push(...f.skipped.unexplainedText)
+  totalNameplate += (f.nameplate ?? []).length
+  totalNotes += (f.notes ?? []).length
   rows.push({ name: f.subject || f.file.replace('.json', ''), n: f.items.length, ...counts, flagged, skipped: f.skipped.unexplained })
 
   if (!metricsOnly) {
@@ -224,6 +272,8 @@ for (const f of forms) {
              ...f.items.filter(i => i.section === k)]
           : f.items.filter(i => i.section === k),
       })),
+      nameplate_fields: f.nameplate ?? [],
+      form_notes: f.notes ?? [],
       flagged_count: flagged,
       skipped_rows: f.skipped,
     }
@@ -239,7 +289,7 @@ for (const r of rows) {
     String(r.C).padStart(5) + String(r.D).padStart(5) + String(r.E).padStart(5) +
     String(r.flagged).padStart(9) + String(r.skipped).padStart(9))
 }
-console.log('\n── PILOT METRICS, BATCH 1 ──')
+console.log('\n── MINE METRICS ──')
 console.log(`forms mapped        : ${forms.length}`)
 console.log(`line items harvested: ${totalItems}  (median ${median(rows.map(r => r.n))}/form)`)
 console.log(`by section          : A ${bySection.A} · B ${bySection.B} · C ${bySection.C} · D ${bySection.D} · E ${bySection.E}`)
@@ -249,6 +299,8 @@ if (xlAhu) {
   console.log(`  label overlap with the Word master: ${xlOverlap.length}` +
     (xlOverlap.length ? ` — REPORTED, NOT DEDUPED: ${xlOverlap.slice(0, 5).join(' | ')}` : ' (none)'))
 }
+console.log(`nameplate fields    : ${totalNameplate} — collected from data tables, not line items`)
+console.log(`form notes          : ${totalNotes} — safety/lockout instructions, surfaced for placement`)
 console.log(`rows skipped, attributed:`)
 console.log(`  six-party signature block  : ${skipTotals.signature}  — the source's own sign-off, DELIBERATELY REPLACED`)
 console.log(`  REMARKS: headers           : ${skipTotals.remarks}`)

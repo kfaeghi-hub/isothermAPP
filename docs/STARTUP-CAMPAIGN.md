@@ -137,19 +137,110 @@ paragraph count would flatter a blank one). Neither writes anything.
 
 ## Phase 2 — standards-anchored gap fill
 
-Coverage audit after Phase 1: which of the 47 types have no start-up checklist.
-Then the drafter pattern at checklist scale, **web-verifying anchors rather than
-recalling them** — ASHRAE Guideline 1.1 / Standard 202 and CSA Z320 for process
-structure; per-type anchors (NFPA 20 fire pumps; CSA B149 / TSSA for gas-fired
-equipment in Ontario; NETA ATS for electrical energization; AHRI conventions;
-manufacturer-IOM-standard sequences).
+**Ruled 2026-08-05, before Phase 2 starts, so it boots from the repo rather than
+from conversation memory.** Phase 1's batches finish and the ratification
+sittings proceed at the owner's pace first; nothing below begins early.
 
-Variants follow the ruled variant principle — **conditional sections where the
-medium or fuel changes the procedure** (the Heating Medium pattern), never
-per-manufacturer forks. Delivery in batches of ~10 through the **stored-artifact
-ratification path**, source notes per checklist. **Nothing seeds unratified.**
+Phase 2's input is two things: the **B / D / E gaps** the mined corpus left (the
+CSP masters are installation-completeness knowledge — they carry no energization
+sequence, almost no safety-device *testing*, and no readings table), and
+**complete checklists for types the corpus never covered**.
 
 ---
+
+### THE DESIGN LAW — universal first
+
+**The start-up family's product is the UNIVERSAL FORM: one form usable on most
+equipment as-is.** Everything below follows from that sentence.
+
+**1. The universal core dominates.** These are the all-sources consensus items —
+true of essentially any powered equipment being started for the first time:
+
+- rotation verification
+- terminations torqued / verified
+- safeties proven **before** operation
+- nameplate-vs-design confirmation
+- alignment / lubrication
+- system cleanliness / flush
+- permits and prerequisites to start
+
+**2. The type-common band is deliberately thin.** Only items with all-sources
+convergence *for that specific type* — a gas-train leak test on gas-fired
+equipment, seal and NPSH checks on pumps. **Target a handful of items. Never a
+page.** If a type-common band is growing toward page length, that is the signal
+that granular detail is leaking in, not that the type is unusually rich.
+
+**3. NO granular type or model detail in templates.** Manufacturer- and
+model-specific steps live **exclusively** in the standing line item:
+
+> Manufacturer's IOM start-up steps completed & attached
+
+**A template that hardcodes one manufacturer's sequence is wrong on every other
+manufacturer's unit. One that demands the IOM is right on all of them.** This is
+also the mechanism that prevents per-manufacturer template forks, which is why
+the standing item is added by the mapper rather than hoped for in a source.
+
+**4. Item-count discipline, at the nameplate campaign's bar: field-worthy, not
+exhaustive.** A lean form gets filled; a long one gets skipped. An unfilled form
+is worth nothing, so length is not a neutral choice — it is a decision to be
+ignored. (Precedent: `heat_pump` reached 25 fields and was trimmed back to 14.)
+
+---
+
+### THE METHODOLOGY — convergence-based drafting
+
+**An item earns its place by appearing across multiple independent sources.**
+Triangulation, not collection.
+
+Every drafted item records its **convergence class**, in the artifact, visible in
+the ratification table:
+
+| Class | Meaning | Disposition |
+|---|---|---|
+| `universal` | present across all sources, for all equipment | keep — this is the core |
+| `type-common` | present across all sources **for this type** | keep — the thin band |
+| `single-source` | appears in one source only | **CUT, unless a reason is stated** |
+
+**A single-source item with no stated reason is cut. The template holds
+consensus, not collection.** A legitimate stated reason looks like a
+jurisdictional requirement — e.g. an Ontario-specific TSSA obligation that no
+national source carries. "It seemed useful" is not a reason.
+
+**Ratification tables carry the convergence column**, so a sitting sees *why each
+item exists* rather than only what it says. `ruling-table.mjs` gains that column
+for Phase 2 artifacts; Phase 1's mined items carry a named master, table and row
+instead, which is their provenance.
+
+---
+
+### ANCHOR SCOPE — North America
+
+Web-verified and **cited per item**, never recalled:
+
+- **CSA Z320** — commissioning process
+- **CSA B149 / TSSA** — gas-fired equipment, Ontario
+- **NFPA 20 / 25** — where they govern (fire pumps, water-based systems)
+- **NETA ATS** — electrical energization and acceptance
+- **ASHRAE Guideline 1.1 / Standard 202** — process structure
+- **AHRI** and **manufacturer-IOM conventions**
+
+**Per-item citation is what makes a future regional re-scoping a RE-ANCHORING
+rather than a rewrite.** If the firm ever works outside North America, the items
+stay and their anchors change; without citations, the whole family would have to
+be re-derived.
+
+---
+
+### Variants
+
+Per the ruled variant principle: **conditional sections where the medium or fuel
+changes the procedure** (the Heating Medium pattern). Never per-manufacturer
+forks — see the design law, point 3.
+
+### Delivery
+
+Batches of ~10 through the **stored-artifact ratification path**, source notes
+and convergence class per item. **Nothing seeds unratified.**
 
 ## Open
 

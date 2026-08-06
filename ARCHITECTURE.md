@@ -2146,6 +2146,38 @@ generalised; that document grew to 26 ratified rules exactly this way.
 
 ---
 
+## Template content law — universal first, convergence earns the item
+
+Ruled 2026-08-05 for the Start-Up campaign's Phase 2, and written here rather
+than only in the campaign doc because it governs any future template family.
+Full statement: [STARTUP-CAMPAIGN.md](docs/STARTUP-CAMPAIGN.md) § Phase 2.
+
+**The product of a checklist family is the UNIVERSAL FORM** — one form usable on
+most equipment as-is. A universal core of all-sources consensus items, a
+deliberately thin type-common band (a handful of items, never a page), and
+nothing granular below that.
+
+**Manufacturer and model detail never enters a template.** It lives in one
+standing line item — *"Manufacturer's IOM start-up steps completed & attached"*.
+**A template that hardcodes one manufacturer's sequence is wrong on every other
+manufacturer's unit; one that demands the IOM is right on all of them.** This is
+the same reasoning that makes variants conditional sections rather than forks.
+
+**An item earns its place by CONVERGENCE across independent sources**, and its
+class is recorded with it: `universal` · `type-common` · `single-source`.
+A single-source item is **cut unless a reason is stated** — a jurisdictional
+requirement counts, "it seemed useful" does not. **The template holds consensus,
+not collection.** The ratification table shows the class, so a sitting sees why
+an item exists and not merely what it says.
+
+**Length is not a neutral choice.** Field-worthy, not exhaustive — a lean form
+gets filled and a long one gets skipped, and an unfilled form is worth nothing.
+The nameplate campaign set the bar the hard way: `heat_pump` reached 25 fields
+and was trimmed to 14.
+
+**Anchors are web-verified and cited PER ITEM**, never recalled. Citation is what
+makes a future regional re-scope a re-anchoring instead of a rewrite.
+
 ## The equipment taxonomy learns — ratified, never auto-minted
 
 `equipment_types` is firm vocabulary as **rows**, mirroring `trade_types` /

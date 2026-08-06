@@ -51,10 +51,31 @@ if ($batch.Count -eq 0) { Write-Host 'REFUSE: batch is empty -- Skip is past the
 
 $before = @(Get-Process WINWORD -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
 $okCount = 0; $failed = 0
+$claimed = @{}
 
 foreach ($f in $batch) {
-  $stem = ($f.Directory.Name + '__' + $f.BaseName) -replace '[^A-Za-z0-9\-_ ]', ''
+  # FULL RELATIVE PATH, not the parent folder. Parent-folder + basename still
+  # collided 81 masters down to 58 stems, because the same equipment folder name
+  # recurs under different system trees -- "Pumps" appears under HVAC Water
+  # Systems AND under Plumbing, four times over. 23 masters were silently
+  # overwritten by later ones. A shortfall is visible; a duplicate looks like
+  # data, and here it looked like a smaller corpus.
+  $rel = $f.FullName.Substring($Root.Length).TrimStart([char]92)
+  $stem = $rel -replace '\.docx?$', ''
+  $stem = $stem -replace '[\\/]', '__'
+  $stem = $stem -replace '[^A-Za-z0-9\-_ ]', ''
   $dest = Join-Path $OutDir "$stem.json"
+
+  # TRIPWIRE, not a rename. If two masters ever map to one output name again,
+  # the run REFUSES and says which two. Auto-suffixing would keep both files and
+  # hide that the naming rule had failed.
+  if ($claimed.ContainsKey($stem)) {
+    Write-Host "REFUSE: output-name collision '$stem'"
+    Write-Host "  already claimed by: $($claimed[$stem])"
+    Write-Host "  now also wanted by: $($f.FullName)"
+    exit 1
+  }
+  $claimed[$stem] = $f.FullName
   $job = Start-Job -ScriptBlock {
     param($src, $dst, $rel)
     $word = New-Object -ComObject Word.Application
@@ -130,4 +151,15 @@ Write-Host ''
 Write-Host "dumped $okCount/$($batch.Count) to out/startup-mining/csp/  (failed $failed)"
 if ($okCount -eq 0) { Write-Host 'REFUSE: nothing dumped'; exit 1 }
 if ($failed -gt 0) { Write-Host 'REFUSE: batch incomplete -- a partial dump must not read as a batch'; exit 1 }
+
+# COUNT THE ARTIFACTS, NOT THE SUCCESSES. The first run of this harness reported
+# "dumped 71/71" while 23 files were being overwritten -- every write succeeded,
+# and the batch was still wrong. Success counts measure the loop; file counts
+# measure the outcome.
+$onDisk = @(Get-ChildItem -Path $OutDir -Filter '*.json' -File).Count
+Write-Host "files on disk: $onDisk"
+if ($Skip -eq 0 -and $onDisk -lt $okCount) {
+  Write-Host "REFUSE: $okCount dumped but only $onDisk files exist -- names are colliding"
+  exit 1
+}
 exit 0
