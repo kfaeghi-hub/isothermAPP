@@ -66,6 +66,27 @@ or to acceptance testing.
 this release. The only colour left on a generated document is colour that means
 something.
 
+**The start-up list got shorter, and nothing was lost.** The family first shipped
+with the same checklist under several names — the pump form appeared thirteen
+times, once for each water system whose folder happened to contain it, and the
+boiler form three times. **113 start-up templates are now 77.** When you pick a
+start-up checklist you see one *Pump Start-Up Checklist*, not a choice between
+*DOMESTIC WATER SYSTEMS* and *PURE WATER SYSTEMS* that were the same form. The
+system a pump serves is on the equipment record, where it belongs; it was never a
+different checklist. Every merged form's source is still recorded on the survivor.
+
+**The boiler form learned steam.** Water column, gauge-glass blowdown, the
+two-cutoff low-water behaviour a steam boiler needs and a hot-water one does not,
+the safety-valve lift *and reseat*, and the pressure and conductivity readings.
+On a hot-water boiler those rows answer **NR** — one form, not two.
+
+**Two forms were filed under the wrong equipment and are now right.** A supply
+fan form was sitting under Air Handling Unit, and a fire pump form under Pump.
+Both offered the wrong checklist and the wrong nameplate block to whoever picked
+them. There is also a new type — **Compressed Air Dryer** — which had been
+sharing Air Compressor's file; a dryer is a different machine with a different
+duty and a different way of failing.
+
 ### For the architect
 
 **Two rulings, one release.**
@@ -109,6 +130,27 @@ added four directory entries Word never wrote, and `pw-cx-plan`'s hand-rolled
 PK walk then read an empty document and failed five content assertions on correct
 content. Fixed by restoring byte-layout parity rather than by patching the
 reader; the naive-walk hardening is on the residue list under the touch-policy.
+
+**Template hygiene pass (`hygiene-2026-08-06`)** — diagnosed read-only, ruled,
+then executed from a ratified artifact: **113 → 77 startup templates**, six true
+duplicate clusters merged 30→6 with the **union of provenance** preserved in
+`revision_label`, boiler 3→1 *after* twelve steam-conditional rows were seeded
+(merging first would have locked in a wash-out), pump 13→1 at 45 items with five
+adopted conditional rows and a sixth recorded as already-covered, `air_dryer`
+minted, two mis-keyed templates re-keyed. `ivc`/`pfc` untouched. The applier's
+unaccounted-row refusal **fired on the first run** (16 rows) and was answered
+with an enumerated alias list rather than a looser matcher — a matcher able to
+absorb those would also swallow rows that genuinely differ. The one live
+instance's five snapshot columns were re-read after the write and are
+byte-identical: Rule 4 proven, not asserted. Full record:
+[TEMPLATE-HYGIENE-PROPOSAL.md](TEMPLATE-HYGIENE-PROPOSAL.md) § As executed.
+
+**The naming law** comes out of that pass and is now standing for every family:
+`<Type display name> — <qualifier>`, display name from the **register** and never
+from the source document, qualifier only to distinguish siblings.
+*A qualifier that does not change the checklist does not belong in the
+checklist's name.* Enforced mechanically — the applier refuses a name that does
+not open with its type's register name.
 
 **Closing gates:** sweep CLEAN at 20 retired values across all families including
 both startup modes · battery 31/31 · tree clean.

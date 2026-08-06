@@ -1,9 +1,12 @@
 # Template hygiene — census, classification, proposal
 
-*Diagnosed 2026-08-06. **Nothing merged, renamed or deleted. Every row below is a
-recommendation awaiting a ruling.*** Data: `out/template-census.json` and
-`out/template-hygiene-proposal.json`, produced by `template-census.mjs` and
-`template-hygiene-proposal.mjs` — both read-only.
+*Diagnosed 2026-08-06. **Ruled and executed the same day** — see
+[As executed](#as-executed) at the foot of this document, which is the record of
+what actually happened and supersedes the recommendations where they differ.*
+Data: `out/template-census.json` and `out/template-hygiene-proposal.json`,
+produced by `template-census.mjs` and `template-hygiene-proposal.mjs` — both
+read-only. The applier is `apply-template-hygiene.mjs`, which executes
+`proposals/template-hygiene-ruled.json` and nothing else.
 
 ## Method, and one thing it caught about itself
 
@@ -202,3 +205,137 @@ checklist's name.**
 4. **`air_dryer`** — mint as its own type, or keep mapped to `air_compressor`?
 5. **The two re-keys** — Supply Fan → `fan`, Sprinkler Pumps → `fire_pump`.
 6. **The naming law** — as stated, or amended.
+
+---
+
+# As executed
+
+**Ruled 2026-08-06 — all six items approved. Batch `hygiene-2026-08-06`.**
+Applied by `apply-template-hygiene.mjs --write` from the ratified artifact
+`proposals/template-hygiene-ruled.json`. `ivc` and `pfc` untouched, as ruled.
+
+## Order of operations, and why it was that order
+
+**The steam rows were seeded BEFORE the boiler merge, not after.** Merging first
+would have collapsed three templates into one and *then* asked what was missing —
+which locks the wash-out in and calls it done. Twelve steam-conditional rows
+(water column, gauge-glass blowdown, two-cutoff LWCO behaviour proven by lowering
+the actual level, safety-valve lift-and-reseat, the four pressure readings)
+were drafted against CSA B51 / TSSA / CSA B149.1, ratified, and seeded to all
+three boiler templates. Only then did the three become one — identical now
+*because each carries the full conditional set*, which is the correct end state
+rather than the accidental one.
+
+`air_dryer` was minted before the re-key for the same reason: the applier refuses
+a target type that is not in the register.
+
+## What the numbers actually were
+
+| | Proposed | Executed |
+|---|---:|---:|
+| `startup` templates | 113 → **86** | 113 → **77** |
+| Types covered | 67 | **68** (`air_dryer` minted; `fire_pump` gained a template) |
+| Templates deleted | — | 36 |
+| Clusters still >1 | — | 8, all pre-existing and genuinely distinct |
+
+**The 86 was my arithmetic, and it was wrong.** The ruled *actions* were executed
+exactly as ruled; 77 is what those actions produce (21 true duplicates + 2 boiler
++ 12 pump + 1 air dryer = 36 removed). Recorded rather than quietly corrected,
+because the owner ruled against a figure I supplied.
+
+## The six-row claim, checked before it was acted on
+
+The proposal said the pump content sets "differ by six rows out of forty". The
+raw label diff is **19 and 13**. The surplus is *wording*, not checks: `&` vs
+`and`, a trailing period, and the boilerplate tail *"as per Drawings and
+Specifications"*. After reconciling those, **exactly six genuinely distinct
+checks remain** — so the figure was right, but the method that produced it was
+luckier than it looked.
+
+Five were adopted into the survivor, worded with their conditionals:
+
+- Isolation / check valves installed per drawings and specifications
+- Flow control valves … **where fitted**
+- Essential / emergency power supply … **where the pump is so served**
+- Flexible connectors installed **where fitted**
+- Strainers cleaned after flushing
+
+The sixth — *"Manufacturer's Operation and Maintenance Requirements and Data
+Received"* — was **not** adopted: the survivor's first row already reads
+*"Manufacturer's IOM start-up steps reviewed, completed & attached"*, and
+*attached* is the stronger claim. Adopting it would have re-introduced the
+duplicate this pass exists to remove. The decision is recorded in the artifact's
+`covered_by` block rather than left implicit.
+
+Survivor: **45 items** (40 + 5), one template where there were thirteen.
+
+## What the applier refuses
+
+Ratification binds to an artifact: `template-hygiene-proposal.mjs` cannot write
+and `apply-template-hygiene.mjs` cannot draft. Four refusals stand between the
+plan and a silent loss:
+
+1. **A record is never absorbed.** Any template being *deleted* that carries a
+   live instance stops the run. A survivor may carry instances; an absorbed one
+   may not.
+2. **Unaccounted rows stop the run.** Every item on every absorbed template must
+   match a survivor row after reconciliation, or be named in `adopt`, or be named
+   in `covered_by`. **This fired on the first run** — 16 rows across the pump
+   cluster, because the 35-row variant carries *terser* labels ("Pressure
+   Gauges") than the 34-row one ("Pressure Gauges Installed as per Drawings and
+   Specifications"). Each was ruled explicitly in the artifact. **The fix was an
+   enumerated alias list, not a fuzzier matcher** — a matcher loose enough to
+   absorb those would be loose enough to swallow a row that genuinely differs,
+   and that is the failure the guard exists to prevent.
+3. **The naming law is mechanical.** A surviving name that does not open with its
+   type's **register** display name is a refusal, not a warning.
+4. **Frozen records are proven, not asserted.** Rule 4 permits the *template*
+   correction; the *snapshot* is the record. The applier reads all five snapshot
+   columns before the write and re-reads them after, and a single changed byte
+   aborts the run.
+
+## The one live instance
+
+`AIR HANDLING UNIT Start-Up Checklist` (the ZZ-TEST fixture from Gap 1) was
+renamed to **`Air Handling Unit Start-Up Checklist`**. Its instance's five
+snapshot columns — name, type, revision label, nameplate, prestart banner — were
+**re-read from the database after the write and are byte-identical.** Confirmed,
+not assumed.
+
+## Two findings the pass surfaced
+
+**1. The `fire_pump` re-key produced a husk, and this is mine to own.** The
+proposal said `fire_pump` "gains its first mined template". It gained a template
+with **one** mined row. `03 Pumps/S02 Pumps- CSP.doc` yielded almost nothing; the
+other twelve rows on it are the *pump* type's Phase 2 fill — motor overload, seal
+chamber pressure, impeller rotation. It is a pump checklist wearing a fire pump
+name, and it sat beside the batch-8 drafted `FIRE PUMP` template, which is a real
+fire-pump checklist (churn pressure, automatic start on pressure drop, alternate
+power transfer, controller alarms).
+
+The re-key was still right — that template did not belong in the `pump` cluster.
+But it left two templates whose names differed only by capitalisation, which is
+precisely the fault this pass removes. **Named honestly rather than deleted
+unruled:** the complete drafted one takes `Fire Pump Start-Up Checklist`; the
+husk is `Fire Pump — Sprinkler Tree Source Start-Up Checklist`.
+**Open for ruling: the husk should almost certainly be absorbed into the drafted
+template — its single mined row already exists there verbatim.**
+
+**2. `startup/ahu` still holds `COMPARTMENT UNIT SYSTEM Start-Up Checklist`** (48
+items, genuinely distinct content, correctly keyed). Badly named under the new
+law but not covered by this ruling, so not touched. Residue.
+
+## Provenance
+
+No merge flattened a source. Every survivor's `revision_label` carries the union:
+
+```
+Phase 1 mine · hygiene merge 2026-08-06 (13→1)
+  · merged from: 01 Pumps/S02-Pump P- CSP.doc; 02 Pumps/S02-Pump P- CSP.doc;
+                 09 Pumps/S02-Pump P- CSP.doc; Pumps/S02-Pump P- CSP.doc
+  · source: 07 Pumps/S02-Pump P- CSP.doc
+```
+
+`source:` stays **last** so the census's existing provenance parser still reads a
+primary. That six folders independently found the same checklist is itself a fact
+about the firm's corpus, and it is now recorded rather than deleted.

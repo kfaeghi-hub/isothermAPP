@@ -534,6 +534,42 @@ do **not** feed `agent_feedback`, precisely so this track record stays honest.
 
 ---
 
+### 7c. Two open items from the template hygiene pass
+
+Both surfaced *by* the 2026-08-06 pass rather than closed by it, and both need a
+ruling because **nothing merges or deletes without one**.
+
+**The `fire_pump` husk — needs a ruling, and it is the author's own fault.** The
+hygiene proposal said re-keying the sprinkler-tree pump template would give
+`fire_pump` "its first mined template". It gave it a template with **one** mined
+row; the other twelve are the *pump* type's Phase 2 fill — motor overload, seal
+chamber pressure, impeller rotation. It is a pump checklist wearing a fire pump
+name, and it now sits beside the batch-8 drafted `Fire Pump Start-Up Checklist`,
+which is the real thing (churn pressure, automatic start on pressure drop,
+alternate-power transfer, controller alarms proven at the controller).
+
+The re-key was still correct — that template did not belong in the `pump` cluster
+and was polluting its similarity read. But it left two templates differing only
+by capitalisation, which is the exact fault the pass exists to remove. Named
+honestly in the interim: `Fire Pump — Sprinkler Tree Source Start-Up Checklist`.
+**Recommendation: absorb it into the drafted template.** Its single mined row —
+*"Manufacturer's IOM start-up steps reviewed, completed & attached"* — already
+exists there verbatim, so the absorption loses nothing but a provenance line,
+and the provenance line can be unioned as every other merge did.
+
+*The general lesson, which is the part worth keeping:* **a re-key is not free
+when the source was thin.** Moving a template to its correct type also moves
+whatever the mine failed to find, and a near-empty template under a correct key
+looks more legitimate than the same template under a wrong one. **Check what a
+re-keyed template actually contains before claiming the type "gained" it.**
+
+**`COMPARTMENT UNIT SYSTEM Start-Up Checklist`** — 48 items, genuinely distinct
+content, correctly keyed to `ahu`, and badly named under the new naming law. Not
+covered by the hygiene ruling, so not touched. Rename to
+`Air Handling Unit — Compartment Unit Start-Up Checklist`, or mint
+`compartment_unit` as its own type — the second is probably right, since a
+compartment unit is a distinct machine, but it is a mint and mints are ratified.
+
 ## 11. The residue
 
 Small, real, and deliberately not a backlog. Each is governed by a policy rather

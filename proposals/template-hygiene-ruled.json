@@ -1,0 +1,112 @@
+{
+  "_kind": "template-hygiene-ruling",
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_batch": "hygiene-2026-08-06",
+  "_scope": "startup ONLY. ivc and pfc are not touched by this pass.",
+
+  "_naming_law": "<Type display name> — <qualifier>. Display name from the REGISTER, not the source document. Qualifier only to distinguish siblings, and it states the distinction (service, medium, fuel, configuration). Never a system context; never a number. A qualifier that does not change the checklist does not belong in the checklist's name.",
+
+  "_correction_to_the_proposal": "The proposal reported startup/pump sets 1-3 as differing by 'six rows out of forty'. The raw label diff is 19/13, but the surplus is WORDING, not checks: '&' vs 'and', a trailing period, and the boilerplate tail 'as per Drawings and Specifications'. After reconciling those, exactly six genuinely distinct checks remain in the 34-row set. The figure was right; the method that produced it was luckier than it looked, so the harness now reconciles explicitly and REFUSES on any row it cannot account for.",
+
+  "merges": [
+    {
+      "cluster": "startup/plumbing_fixture",
+      "survivor": "ababce4c", "absorb": ["93ee36e0", "1bb4b931", "bebdd140", "e3325ebc", "0d81ac29"],
+      "rename": "Plumbing Fixture Start-Up Checklist"
+    },
+    {
+      "cluster": "startup/water_tank",
+      "survivor": "3d048a23", "absorb": ["f4eaa02d", "2591fc97", "a88ffc8f", "41cd9794"],
+      "rename": "Water Tank Start-Up Checklist"
+    },
+    {
+      "cluster": "startup/water_meter",
+      "survivor": "bf3badef", "absorb": ["942ecffd", "5facdc1b", "c0f383be", "f6d4f587"],
+      "rename": "Water Meter Start-Up Checklist"
+    },
+    {
+      "cluster": "startup/dhw_heater",
+      "survivor": "be79eac0", "absorb": ["7e078920", "49e57069", "3941a1b4"],
+      "rename": "Domestic Hot Water Heater Start-Up Checklist"
+    },
+    {
+      "cluster": "startup/mixing_valve",
+      "survivor": "acce33c3", "absorb": ["281fd896", "8d3ce073", "8172c11e"],
+      "rename": "Mixing Valve Start-Up Checklist"
+    },
+    {
+      "cluster": "startup/glycol_tank",
+      "survivor": "256eb191", "absorb": ["f50a545f", "11e28a3c"],
+      "rename": "Glycol Mixing & Fill Tank Start-Up Checklist"
+    },
+
+    {
+      "cluster": "startup/boiler",
+      "_note": "Merged AFTER the steam conditional rows were seeded, not before. Merging first would have locked in the wash-out; the three templates are now identical BECAUSE they each carry the full conditional set, which is the correct end state.",
+      "survivor": "90a48196", "absorb": ["7c5aca09", "94e71ceb"],
+      "rename": "Boiler Start-Up Checklist"
+    },
+
+    {
+      "cluster": "startup/pump",
+      "_note": "13 -> 1. Six genuinely distinct checks are ADOPTED from the water-system variants; every other surplus row is a wording variant of a row the survivor already carries, reconciled below and required to match.",
+      "survivor": "260c024b",
+      "absorb": ["b47e9322", "677b5075", "6cdd3b58", "4aff8e71", "d2d6529a", "ec8acaca",
+                 "5e54d4cf", "f8675584", "8830974b", "f39c155d", "402f513e", "7ba84ee7"],
+      "rename": "Pump Start-Up Checklist",
+      "_aliases": "The same check is written up to three ways across the corpus — full ('Pressure Gauges Installed as per Drawings and Specifications'), medium ('Pressure Gauges Installed') and terse ('Pressure Gauges'). Every form is enumerated below. The harness does NOT prefix-match or fuzzy-match; an unlisted form is a refusal, because a matcher loose enough to absorb these would also be loose enough to swallow a row that genuinely differs.",
+
+      "adopt": [
+        { "section": "A · Pre-Start Verification", "label": "Isolation / check valves installed per drawings and specifications",
+          "from": ["Isolation/Check Valves Installed as per Drawings and Specifications", "Isolation/Check Valves"] },
+        { "section": "A · Pre-Start Verification", "label": "Flow control valves installed per drawings and specifications where fitted",
+          "from": ["Flow Control Valves Installed as per Drawings and Specifications", "Flow Control Valves"] },
+        { "section": "A · Pre-Start Verification", "label": "Essential / emergency power supply installed per drawings and specifications where the pump is so served",
+          "from": ["Essential Power Installed as per Drawings and Specifications", "Essential Power"] },
+        { "section": "A · Pre-Start Verification", "label": "Flexible connectors installed where fitted",
+          "from": ["Flexible Connectors Installed", "Flexible Connectors"] },
+        { "section": "A · Pre-Start Verification", "label": "Strainers cleaned after flushing",
+          "from": ["Strainers Cleaned"] }
+      ],
+
+      "covered_by": [
+        { "from": ["Manufacturer’s Operation and Maintenance Requirements and Data Received"],
+          "by": "Manufacturer's IOM start-up steps reviewed, completed & attached",
+          "why": "'attached' is the stronger claim and already the survivor's first row. Adopting it would re-introduce the duplicate this pass exists to remove." },
+        { "from": ["Flow Direction Correct"],
+          "by": "Discharge Valve Location and Direction of Flow Correct",
+          "why": "Same check; the survivor's wording also names WHERE it is checked, which is the more useful form." },
+        { "from": ["Vibration Isolators Installed"],
+          "by": "Vibration Isolators Correct",
+          "why": "Same check; 'Correct' subsumes 'Installed' — an isolator that is absent is not correct." },
+        { "from": ["Pressure Gauges"],
+          "by": "Pressure Gauges Installed",
+          "why": "Terse form of a row the survivor already carries." }
+      ]
+    },
+
+    {
+      "cluster": "startup/air_compressor -> air_dryer",
+      "_note": "The two AIR DRYERS copies merge to one, and the survivor is RE-KEYED to the newly minted air_dryer. The AIR COMPRESSOR template stays where it is and is only renamed.",
+      "survivor": "a1eb0b26", "absorb": ["af7520da"],
+      "rekey": "air_dryer",
+      "rename": "Compressed Air Dryer Start-Up Checklist"
+    }
+  ],
+
+  "rekeys": [
+    { "template": "57a75efb", "from": "ahu", "to": "fan", "rename": "Fan — Supply Start-Up Checklist",
+      "why": "Mined from 18 Supply Fan/S02-Supply Fan SF- CSP.doc. A supply fan is not an air handling unit; keyed ahu it renders the wrong nameplate block and offers the wrong checklist." },
+    { "template": "e71d4c6e", "from": "pump", "to": "fire_pump", "rename": "Fire Pump Start-Up Checklist",
+      "why": "Mined from the sprinkler tree (03 Pumps/S02 Pumps- CSP.doc). fire_pump gains its first mined template." }
+  ],
+
+  "renames": [
+    { "template": "c535c399", "to": "Air Compressor Start-Up Checklist", "why": "naming law, bare type name normalised" },
+    { "template": "2cb1c2f3", "to": "Fan — Exhaust Start-Up Checklist", "why": "naming law; the fan cluster is a set once the supply fan re-keys into it" },
+    { "template": "2f5ea213", "to": "Fan — Fume Exhauster Start-Up Checklist", "why": "naming law; service qualifier, and the service genuinely changes the checklist" },
+    { "template": "aa5c9bb4", "to": "Air Handling Unit Start-Up Checklist", "frozen_record": true,
+      "why": "Carries the one live startup instance (ZZ-TEST). Rule 4 permits the TEMPLATE correction; what must not move is the instance snapshot. The harness reads the snapshot before and after and REFUSES if any snapshot column changed." }
+  ]
+}

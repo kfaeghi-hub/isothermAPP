@@ -1097,6 +1097,7 @@ same kind of mistake, and every one of them is the same sentence.
 | 5 | The finder's pre-ticked candidate pages | Pre-ticking asserted a claim the heuristic had not earned: a completed **checklist** scored "8 schedule terms in 30 columns" and arrived ticked, because a checklist is also a dense tagged table. | Offer without asserting. Only a page **titled** a schedule, or one the sorter confirmed, arrives ticked. |
 | 6 | Every structural assertion touching the type vocabulary | They read the **database**, and the data was correct. The Classifications screen — the owner's own ratification queue — had been rendering **nothing** since 2026-07-27 (hooks below an early return), and nothing in the battery could see it. | Found by taking a screenshot for the render-and-look gate. Hooks moved above the return. |
 | 7 | `node run-battery.mjs 2>&1 \| tail -12` | The pipeline's exit status is **`tail`'s**. The task notification reported "exit code 0" for a battery that had failed, and the tail truncated away the summary line. A suite was also running alongside it, producing a failure that turned out to be fictional. | Never pipe the runner. Never run anything beside it. Both re-run clean at 31/31. |
+| 8 | `.select()` on the template census — a read, and therefore assumed complete | **PostgREST caps a select at 1000 rows and truncates SILENTLY.** The census read 1000 sections, matched none of them to the 9,116 items it never fetched, and reported **"0 items" on every template in the library.** No error, no warning, no partial-result flag. | Paginate with `.range(from, from+999)` **and print the read counts**, so the input is visible before any conclusion rests on it. Survived only because "0 items on all 113 templates" was absurd on its face — **a subtler cap would have produced a plausible wrong answer, and a merge plan built on it would have deleted real content.** The lesson is not "paginate": it is that **a truncated read is indistinguishable from a small dataset unless you print what you read.** |
 
 **Read the table by column two.** The failures span a database index, a test
 assertion, a model contract, an empty-array property, a UI default, a whole
@@ -2255,6 +2256,42 @@ and was trimmed to 14.
 
 **Anchors are web-verified and cited PER ITEM**, never recalled. Citation is what
 makes a future regional re-scope a re-anchoring instead of a rewrite.
+
+## Template naming law — the register names the thing, not the source document
+
+Ruled 2026-08-06 out of the template hygiene pass, and standing for every family
+and every future campaign. Full working: [TEMPLATE-HYGIENE-PROPOSAL.md](docs/TEMPLATE-HYGIENE-PROPOSAL.md).
+
+> ### `<Type display name> — <qualifier>`
+>
+> **The type's display name comes from the REGISTER, not from the source
+> document.** A source names what its author was looking at; the register names
+> what the thing is.
+>
+> **The qualifier is added only to distinguish siblings**, and it states the
+> distinction: *service*, *medium*, *fuel*, *configuration*. Never a system
+> context the equipment does not depend on, and never a number.
+
+**A qualifier that does not change the checklist does not belong in the
+checklist's name.** A pump serving domestic water and a pump serving a heating
+loop get started the same way; the system it feeds belongs on the *equipment
+record*, where it already lives.
+
+**How the breach happened, because the shape recurs.** Phase 1 seeded one
+template per master *file*, and the corpus repeats masters across system folders
+— `S02-Pump P- CSP.doc` appears in twelve. The mine dumped each occurrence
+correctly and the seeder made a template for each. Their **names** then came from
+the master's `SUBJECT:` row, which on plumbing masters names the **system**, not
+the equipment. So one pump checklist shipped as *DOMESTIC WATER SYSTEMS*, *PURE
+WATER SYSTEMS*, *TREATED WATER SYSTEMS* — six names, one checklist.
+
+**The type resolver already read the folder for the equipment and got it right.
+The namer read the subject and got it wrong.** Two readers of the same document
+disagreed, and only one of them was checked. Where two paths derive the same fact
+from one source, the disagreement is the thing to assert on.
+
+The applier enforces this mechanically: a surviving name that does not open with
+its type's register display name is a **refusal**, not a warning.
 
 ## The equipment taxonomy learns — ratified, never auto-minted
 

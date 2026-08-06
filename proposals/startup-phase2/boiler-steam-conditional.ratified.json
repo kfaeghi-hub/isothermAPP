@@ -1,0 +1,77 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_batch": "Phase 2 mini-batch — steam-specific conditional rows, shipped WITH the boiler merge",
+  "_ratified": true,
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_note": "THE MERGE DOES NOT LOCK IN THE WASH-OUT. Forced-draft, natural-draft and steam boiler measured 100% identical because the mined content was thin and the Phase 2 D/E fill was written at the type level. These are the steam-specific rows that difference should always have contained. They are CONDITIONAL — a hot-water boiler answers NR, per the ruled variant principle, and no template forks.",
+  "subject": "BOILER — steam conditional rows",
+  "equipment_type": "boiler",
+  "source_master": "DRAFTED — the differences the type-level fill washed out.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+
+  "_anchors": {
+    "CSA B51": "boiler, pressure vessel and pressure piping code",
+    "TSSA": "Ontario AHJ — boiler registration and inspection",
+    "CSA B149.1": "fuel-fired appliances",
+    "manufacturer IOM": "per-unit sequence"
+  },
+
+  "_conditional": "Every row below applies to STEAM boilers. A hot-water boiler answers NR. The Heating Medium pattern: the shape is data, not a fork.",
+
+  "sections": [
+    {
+      "key": "A",
+      "title": "Pre-Start Verification",
+      "items": [
+        { "label": "STEAM: gauge glass installed, clear, and its try-cocks / blowdown valves operable",
+          "convergence": "type-common", "anchor": "CSA B51 · TSSA",
+          "note": "The gauge glass is the operator's only direct sight of water level; a fouled one is a boiler run blind." },
+        { "label": "STEAM: water column blown down and proven to re-establish level",
+          "convergence": "type-common", "anchor": "CSA B51",
+          "note": "A water column that does not blow down cleanly is reporting the level in its own sediment, not the boiler's." },
+        { "label": "STEAM: bottom and surface blowdown valves installed, tagged and accessible; discharge to an approved receptor",
+          "convergence": "type-common", "anchor": "CSA B51 · TSSA" },
+        { "label": "STEAM: boiler registered with TSSA; CRN and inspection record attached",
+          "convergence": "single-source",
+          "convergence_reason": "ONTARIO CODE REQUIREMENT — TSSA registers and inspects steam boilers as pressure vessels. No national source in the anchor set carries the registration step, so it is kept on a stated jurisdictional basis.",
+          "anchor": "TSSA · CSA B51" }
+      ]
+    },
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        { "label": "STEAM: primary low-water cutoff proven by lowering the actual water level, not by lifting the float",
+          "convergence": "universal", "anchor": "CSA B51 · manufacturer IOM",
+          "note": "The steam LWCO differs from the hot-water one: it must prove against a level that is moving and a vessel that is making steam. Lifting the float proves the float; dropping the level proves the installation." },
+        { "label": "STEAM: secondary / auxiliary low-water cutoff proven independently, with manual reset",
+          "convergence": "type-common", "anchor": "CSA B51",
+          "note": "Two independent cutoffs is the steam requirement that hot-water boilers do not carry." },
+        { "label": "STEAM: safety valve lifted and proven to reseat; capacity verified against boiler output",
+          "convergence": "universal", "anchor": "CSA B51 · TSSA",
+          "note": "A steam safety valve is lifted and reseated, not merely inspected — the reseat is half the device." },
+        { "label": "STEAM: high steam pressure limit tripped and proven; manual reset verified",
+          "convergence": "universal", "anchor": "CSA B51 · CSA B149.1" }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        { "label": "STEAM: operating pressure and high-limit setpoint (kPa)",
+          "convergence": "universal", "anchor": "CSA B51" },
+        { "label": "STEAM: safety valve set pressure and reseat pressure (kPa)",
+          "convergence": "universal", "anchor": "CSA B51",
+          "note": "The D row proves the lift; this row records the numbers. The pairing rule — a protective function proves in D and records in E when the same test yields both." },
+        { "label": "STEAM: normal water level at operating pressure (mm on the glass)",
+          "convergence": "type-common", "anchor": "CSA B51 · manufacturer IOM" },
+        { "label": "STEAM: feedwater temperature and conductivity at handover (°C / µS/cm)",
+          "convergence": "type-common", "anchor": "manufacturer IOM",
+          "note": "Conductivity at start-up is the baseline every later blowdown decision is argued against." }
+      ]
+    }
+  ]
+}

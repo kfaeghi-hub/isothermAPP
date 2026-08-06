@@ -1,0 +1,13 @@
+{
+  "_kind": "equipment-type-mint-ratification",
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_origin": "Template hygiene pass. startup/air_compressor held two genuinely different machines under one key — AIR DRYERS (18 items, ×2) and AIR COMPRESSOR (28 items). The mapping was a batch-time convenience.",
+  "_note": "BASE-ONLY, minimal defs. Drafter field-def table rides the next batch. A dryer is not a compressor: it removes moisture downstream of one, has its own dewpoint duty, and fails in a way a compressor does not.",
+  "kind": "equipment",
+
+  "mint": [
+    { "key": "air_dryer", "name": "Compressed Air Dryer", "discipline": "Mechanical",
+      "why": "Distinct machine, distinct duty, distinct failure mode. Its start-up is a dewpoint and a drain, not a discharge pressure and a receiver." }
+  ]
+}
