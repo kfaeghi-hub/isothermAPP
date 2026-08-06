@@ -87,12 +87,53 @@ the generic hand-out wording, because who performs it is the point.
 
 ## Phase 1 — content mining (not format conversion)
 
-~216 banked Start-Up sheets are mined for **line items and firm knowledge**, then
-mapped into the approved template per equipment type. The sheets supply *what to
-check*; Phase 0 supplies *how it is presented*. Batch provenance throughout.
+The banked sheets supply *what to check*; Phase 0 supplies *how it is presented*.
+Thin or absent content flows to Phase 2 rather than being padded.
 
-**Pilot first: one batch with metrics before the full run.** Thin or absent
-content flows to Phase 2 rather than being padded.
+### PILOT RESULT — 2026-08-05. The corpus is not one corpus, it is two.
+
+**This is why the pilot regime exists.** "~216 banked Start-Up sheets" turned out
+to describe two populations with opposite yields, and running the full mine
+against the average of them would have produced mostly nothing while looking
+like progress.
+
+**The Excel half is empty.** 123 CSA Z320 workbooks across Mech / Elec / Arch
+carry a sheet named `Start-Up`. 121 read; **exactly one — `Air_Handling_Unit` —
+has usable content.** The other 120 hold a placeholder:
+
+> SHEET INTENTIONALLY LEFT BLANK FOR INDIVIDUAL TO POPUPLATE AS NEEDED
+
+(sic). Their 3–4 counted "items" are the firm address block, `GENERAL COMMENTS:`
+and the date mask. The census counts them anyway — its classifier is deliberately
+generous, because a sheet that still reads thin under a rule biased toward
+content is unambiguously thin. Two workbooks have no `Start-Up` sheet at all
+(`Roof_Top_Unit`, `Fan_Coils - startup_contractors`).
+
+**The Word half is the real source.** The `S02 … CSP` masters — *Contractor
+Start-up*, per the CSA form legend — are dense, structured, table-based forms.
+A 12-file sample spread evenly across the 81-file corpus (not the first 12, which
+share a folder and a template and would measure one form twice):
+
+| | Excel `Start-Up` sheets | Word `S02 … CSP` masters |
+|---|---|---|
+| Corpus | 123 | 81 |
+| Sampled | 123 (all) | 12, evenly spaced |
+| Usable (≥ 8 content rows) | **1** | **12 of 12** |
+| Median content rows | 3 | **34** |
+| Projected content rows | ~30 | **~2,160** |
+
+**What this changes.** Phase 1 mines the **Word CSP corpus**; the Excel
+`Start-Up` sheets are not a content source and go to Phase 2 wholesale. The
+practical effect is that Phase 2 is larger than planned and Phase 1 is narrower
+and better — 81 real forms instead of 204 mixed ones.
+
+Harnesses: `mine-startup.mjs` (Excel census — reuses `audit-template.mjs`'s own
+dependency-free xlsx reader, so it measures the same bytes the IVC campaign
+measured) and `census-csp-word.ps1` (Word census via COM, counting content-bearing
+**table rows** rather than paragraphs, because these forms are tables and a
+paragraph count would flatter a blank one). Neither writes anything.
+
+**Awaiting a ruling before the full run** — see *Open* below.
 
 ## Phase 2 — standards-anchored gap fill
 
@@ -112,7 +153,17 @@ ratification path**, source notes per checklist. **Nothing seeds unratified.**
 
 ## Open
 
-- **Phase 0 awaits approval.** Nothing is generated until the design is ruled on.
+- **Phase 0 — APPROVED** 2026-08-05 on render review. All four family-defining
+  decisions ruled as proposed: HOLD as the fourth response state (and carried
+  into the app's response model, not just the paper), the two-party sign-off
+  verbatim, numbering confined to section B, the masthead type band.
+- **PHASE 1 NEEDS A RULING before the full run**, per the pilot regime:
+  1. **Confirm the source switch** — mine the 81 Word CSP masters; send all 123
+     Excel `Start-Up` sheets to Phase 2. The Excel half is placeholder text.
+  2. **`Air_Handling_Unit` is the one Excel exception** (30 items). Mine it with
+     the Word batch, or send it to Phase 2 with its siblings for consistency?
+  3. **Batch size.** The Word corpus is 81 forms; the ratified path runs in
+     batches of ~10. That is 8 batches.
 - **`doc-palette-sweep.mjs` already lists `startup` in `EXPECTED_TYPES`** and
   prints **NOT SWEPT** until a ZZ-TEST startup instance exists. Listed ahead of
   the build on purpose: the fourth type must not arrive unswept.
