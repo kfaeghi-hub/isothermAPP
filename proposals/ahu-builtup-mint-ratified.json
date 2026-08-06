@@ -1,0 +1,20 @@
+{
+  "_kind": "equipment-type-mint-ratification",
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_batch": "hygiene-7c-2026-08-06",
+  "_origin": "Template hygiene 7c(2). COMPARTMENT UNIT SYSTEM was keyed ahu and is a built-up (sectional, field-erected) central-station air handling unit. 51 mined items decide it: Compartment Lights Functional (a machine with lights inside is one a person walks into), Assembly of Unit, Access Doors, Eliminators, a filter section with DDC filter control.",
+  "_why_not_mapped": "Mapping means ~45 conditional rows on the existing ahu template. The Heating Medium pattern is for a handful; 45 is a second checklist hiding inside the first, well past the RTU-vs-AHU bar. A field-erected unit's checklist verifies the assembly that happened on site — a different document from a packaged unit's.",
+  "_note": "BASE-ONLY, minimal defs. Drafter field-def table rides the next batch, per the air_dryer precedent.",
+  "kind": "equipment",
+
+  "mint": [
+    { "key": "ahu_builtup", "name": "Built-Up Air Handling Unit", "discipline": "Mechanical",
+      "why": "Field-erected from compartments. What is commissioned is the assembly itself — section joints, internal access, interior lighting, acoustic treatment — none of which exists on a factory-packaged unit." }
+  ],
+
+  "aliases": [
+    { "type_key": "ahu_builtup", "alias": "Compartment Unit",
+      "note": "The historical spec name, seeded EXACT-MATCH so the next old specification resolves. Nothing shorter is seeded: 'CU' collides with condensing unit and 'Compartment' alone is not a machine." }
+  ]
+}

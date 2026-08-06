@@ -233,8 +233,8 @@ a target type that is not in the register.
 
 | | Proposed | Executed |
 |---|---:|---:|
-| `startup` templates | 113 → **86** | 113 → **77** |
-| Types covered | 67 | **68** (`air_dryer` minted; `fire_pump` gained a template) |
+| `startup` templates | 113 → **86** | 113 → **77**, then **76** after 7c |
+| Types covered | 67 | **69** (`air_dryer` and `ahu_builtup` minted) |
 | Templates deleted | — | 36 |
 | Clusters still >1 | — | 8, all pre-existing and genuinely distinct |
 

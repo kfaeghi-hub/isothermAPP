@@ -28,7 +28,7 @@ identity went monochrome, and the Start-Up family was built. Both are done.*
 
 Alongside IVC, PFC and FPT, every piece of equipment can carry a **Start-Up
 checklist** — the record of the machine being run for the first time. It has its
-own tab, its own counts, and **68 equipment and system types are covered**, from
+own tab, its own counts, and **69 equipment and system types are covered**, from
 boilers and chillers down to wall fin and water meters.
 
 **What a start-up checklist is for, and how it differs from the others.** An IVC
@@ -69,7 +69,7 @@ something.
 **The start-up list got shorter, and nothing was lost.** The family first shipped
 with the same checklist under several names — the pump form appeared thirteen
 times, once for each water system whose folder happened to contain it, and the
-boiler form three times. **113 start-up templates are now 77.** When you pick a
+boiler form three times. **113 start-up templates are now 76.** When you pick a
 start-up checklist you see one *Pump Start-Up Checklist*, not a choice between
 *DOMESTIC WATER SYSTEMS* and *PURE WATER SYSTEMS* that were the same form. The
 system a pump serves is on the equipment record, where it belongs; it was never a
@@ -86,6 +86,15 @@ Both offered the wrong checklist and the wrong nameplate block to whoever picked
 them. There is also a new type — **Compressed Air Dryer** — which had been
 sharing Air Compressor's file; a dryer is a different machine with a different
 duty and a different way of failing.
+
+**And one form turned out to be a different machine entirely.** The checklist
+filed as *COMPARTMENT UNIT SYSTEM* is a **built-up air handling unit** — the kind
+assembled on site from sections rather than delivered as one packaged box. It has
+its own type now, *Built-Up Air Handling Unit*, and the old name *Compartment
+Unit* still finds it, so an older specification using that term will resolve.
+Its checklist also got its headings back: the form's three sections — general
+construction, filters, cooling coil — had been flattened into one long list when
+it was first imported, and they read as sections again.
 
 ### For the architect
 
@@ -132,7 +141,8 @@ content. Fixed by restoring byte-layout parity rather than by patching the
 reader; the naive-walk hardening is on the residue list under the touch-policy.
 
 **Template hygiene pass (`hygiene-2026-08-06`)** — diagnosed read-only, ruled,
-then executed from a ratified artifact: **113 → 77 startup templates**, six true
+then executed from a ratified artifact: **113 → 76 startup templates** (77 after
+the main pass, 76 after the 7c follow-ups), six true
 duplicate clusters merged 30→6 with the **union of provenance** preserved in
 `revision_label`, boiler 3→1 *after* twelve steam-conditional rows were seeded
 (merging first would have locked in a wash-out), pump 13→1 at 45 items with five
@@ -144,6 +154,38 @@ absorb those would also swallow rows that genuinely differ. The one live
 instance's five snapshot columns were re-read after the write and are
 byte-identical: Rule 4 proven, not asserted. Full record:
 [TEMPLATE-HYGIENE-PROPOSAL.md](TEMPLATE-HYGIENE-PROPOSAL.md) § As executed.
+
+**Hygiene 7c — the two follow-ups, ruled and executed the same day.** The
+`fire_pump` husk was **deleted** after its mine artifact was read and shown to
+have yielded zero checklist rows (its one section-A row carries
+`"standing_item": true`); its master path is unioned onto the drafted survivor so
+the record that a sprinkler-tree master mined empty survives the template.
+**`ahu_builtup` minted** — *Built-Up Air Handling Unit*, alias `Compartment Unit`
+seeded exact-match — and `COMPARTMENT UNIT SYSTEM` re-keyed to it, which leaves
+`ahu` a single template. **113 → 76**, 69 types.
+
+**The coil repair, and the correction inside it.** The proposal read four
+repeated rows as two coil blocks and recommended `HEATING COIL:` / `COOLING COIL:`
+prefixes. Reading the raw source refuted both halves: the master has **three**
+content tables (general construction, filters, cooling coil) and **no heating
+coil at all**; the repetition is a second piping group inside the single cooling
+block, and three checks repeat, not four. So the repair got larger and more
+accurate — the mine had dropped **every** block heading, and all three are now
+restored as prefixes, with the two piping groups distinguished as *first* and
+*second* because the source shows two and names neither. The applier reads the
+headings out of the source artifact rather than carrying its own table, and a row
+it cannot place in a source block is a refusal (50/50 placed, zero refusals).
+Recorded in ARCHITECTURE as the phantom-data mirror: **eager dedup deletes real
+structure; the cure for apparent duplication is reading the source, not
+collapsing the rows** — inventing structure and deleting structure are the same
+mistake in opposite directions.
+
+Carried forward as its own act: `fire_pump`'s nameplate defs. The deleted
+master's eleven-field table was held out of the deletion and proposed separately
+(`proposals/fire-pump-nameplate-additive.json`, **unratified**) — five additive
+identity fields, because `fire_pump` carries 37 duty-and-controller defs and **no
+identity block at all**: it can say what a fire pump is rated to do and cannot
+say which machine it is.
 
 **The naming law** comes out of that pass and is now standing for every family:
 `<Type display name> — <qualifier>`, display name from the **register** and never

@@ -534,88 +534,83 @@ do **not** feed `agent_feedback`, precisely so this track record stays honest.
 
 ---
 
-### 7c. Two proposals from the template hygiene pass
+### 7c. CLOSED — the two hygiene follow-ups, ruled and executed 2026-08-06
 
-Both surfaced *by* the 2026-08-06 pass. Owner directed the same day that they be
-ruled rather than shelved; each is proposed below with the evidence that decides
-it. **Nothing merges, deletes or mints without the ruling.**
+Both proposed with evidence, ruled as proposed, executed the same day. **The
+hygiene pass closes with no residue and no holds.**
 
-#### (1) `Fire Pump — Sprinkler Tree Source` — PROPOSE: delete, provenance onto the survivor
+#### (1) `Fire Pump — Sprinkler Tree Source` — DELETED
 
-**The one row was read, and it is not mined content.** The mine artifact for
-`03 Pumps/S02 Pumps- CSP.doc` is explicit: section A holds a single item carrying
-`"standing_item": true, "ruled": "2026-08-05"`, and sections B/C/D/E/F are
-**empty arrays**. That row is the universal IOM item Phase 2 seeds on every form
-in the family. **The master yielded zero checklist rows.** The template's other
-twelve rows are the `pump` type's Phase 2 fill, which landed on it because it was
-keyed `pump` at the time.
+The mine artifact for `03 Pumps/S02 Pumps- CSP.doc` was read before the deletion,
+not after: section A held one item carrying `"standing_item": true`, and
+B/C/D/E/F were **empty arrays**. The master yielded zero checklist rows. The
+husk's other twelve rows were the `pump` type's Phase 2 fill, which landed on it
+because it was keyed `pump` at the time.
 
-So the question the ruling posed — *is the row real content, or does the husk
-delete?* — resolves to the second. There is nothing to fold in: the row already
-exists verbatim on the drafted `Fire Pump Start-Up Checklist`, and it got there
-the same way, from the same standing rule.
+Deleted; its master path unioned onto the drafted survivor's `revision_label`, so
+the corpus record that **a sprinkler-tree pump master was mined and found empty**
+survives the template that carried it. The standing IOM row needed no fold — it
+is on the survivor by the same rule that put it on the husk.
 
-**Proposed:** delete the husk; union its master path into the survivor's
-`revision_label` exactly as the six merges did, so the corpus record that *a
-sprinkler-tree pump master was mined and found empty* is not lost. The surviving
-`fire_pump` template is the batch 6–8 drafted one, already complete — churn
-pressure, automatic start on pressure drop, alternate-power transfer, controller
-alarms proven at the controller. **A type does not need two templates where one
-is a ghost.**
+*The applier printed the twelve rows it was about to remove and named them as
+type-level fill rather than deleting them silently.* A deletion that does not
+show its work is indistinguishable from one that was wrong.
 
-*One thing the master did carry:* an eleven-field nameplate table (impeller size,
-seal type, flow, head, power, r/min). Those are **generic pump** fields, and
-`fire_pump`'s nameplate defs are a separate question from this template — noted
-so it is not silently lost with the row, not proposed as part of the deletion.
+#### (2) `ahu_builtup` — MINTED, template re-keyed
 
-*The general rule this produced is now in ARCHITECTURE:* **a re-key is not free
-when the source was thin — a correct key vouches for content the way a wrong key
-never did.**
+`Built-Up Air Handling Unit`, Mechanical, base-only defs; the drafter field table
+rides the next batch per the `air_dryer` precedent. Alias seeded
+**`Compartment Unit`**, exact-match, so the next old specification resolves —
+and nothing shorter: `CU` collides with condensing unit, and *Compartment* alone
+is not a machine.
 
-#### (2) `COMPARTMENT UNIT SYSTEM` — PROPOSE: mint with a modern name
+`COMPARTMENT UNIT SYSTEM Start-Up Checklist` → `Built-Up Air Handling Unit
+Start-Up Checklist`, re-keyed `ahu` → `ahu_builtup`. `ahu` is now a single
+template, as it should always have been.
 
-**51 mined items, and their character settles what it is.** The likely guess — a
-packaged terminal or unit-ventilator-era assembly — does not survive the item
-list. The deciding rows:
+#### The coil repair — and the correction inside it
 
-- **`Compartment Lights Functional`** — a machine with lights *inside* it is one
-  a person walks into. No PTAC or unit ventilator has interior lighting.
-- **`Assembly of Unit`**, `Access to Components`, `Access Doors Installed` — the
-  unit is **field-erected from sections**, and the assembly itself is inspected.
-- **`Eliminators`** — moisture eliminators, i.e. a wetted or high-velocity
-  cooling section.
-- **Two complete coil-piping blocks**, plus a filter section with temporary
-  filters, panel filters in frames, a filter gauge and DDC filter control.
-- `Duct Cleanliness`, `Acoustic Insulation Complete`, `Unit Vibration Isolation
-  Installed`, `Test Holes for Temperatures and Pressure Measurement Installed`.
+**Approved as *qualify, never dedupe*. Executed differently from how it was
+proposed, because reading the source changed the answer.**
 
-**This is a built-up (sectional, field-erected) central-station air handling
-unit** — older Canadian spec vocabulary for what is now called a *built-up* or
-*custom* AHU. "Compartment unit" names the compartments it is assembled from.
+The proposal said the repeated rows were two coil blocks, heating and cooling,
+and that the fix was `HEATING COIL:` / `COOLING COIL:` prefixes. The raw source
+artifact shows the master has **three** content tables —
+`COMPARTMENT UNIT GENERAL CONSTRUCTION` (10), `FILTERS` (6), `COOLING COIL` (34)
+— and **no heating coil anywhere in the document.** The repetition is a second
+piping group *inside* the single cooling-coil block.
 
-**Why not map to `ahu`.** Mapping means the distinct rows ride the existing `ahu`
-template as conditionals. That is the Heating Medium pattern, and the pattern is
-for **a handful** of rows. Here it would be roughly **45** — not a conditional
-band but a second checklist hiding inside the first, and well past the
-RTU-vs-AHU bar. The existing `ahu` template is a packaged unit's checklist; a
-field-erected unit is genuinely a different machine to commission, because the
-thing being verified is the assembly that happened on site.
+So the repair got **larger and more accurate**: the mine had dropped **every**
+block heading, not just a coil one, which is why fifty rows arrived as one
+undifferentiated section. All three headings are restored as prefixes. The two
+piping groups are distinguished as *first* and *second* — **the source shows two
+and gives no heading naming them, so the count is stated and the distinction is
+not invented.**
 
-**Proposed mint:** key `ahu_builtup`, register name **`Built-Up Air Handling
-Unit`**, discipline Mechanical. Template renamed under the naming law to
-`Built-Up Air Handling Unit Start-Up Checklist`. Base-only defs; the drafter
-table rides the next batch, per the `air_dryer` precedent.
+Three checks repeat, six rows total — not the four the proposal claimed.
+(`Balancing Valves` and `Isolating/Balancing/Valves` are different labels, not a
+collision.)
 
-**One repair to make in the same pass, and it is a phantom-data case.** The
-template carries what read as four duplicate rows — `Pressure & Temperature
-Gauges or Fittings Installed`, `Flow Measuring Devices`, `Labels Visible`,
-`Balancing Valves`, each appearing twice in slightly different case. **They are
-not duplicates.** The source has two coil-piping blocks — one per coil — and the
-mine dropped the block headings, collapsing two sections into what looks like
-careless repetition. Qualify them (`HEATING COIL:` / `COOLING COIL:`) rather than
-dedupe: deduplicating would delete a real coil's piping checks, which is exactly
-what the phantom-data section warns about. *A duplicate looks like data* — and
-here, data looks like a duplicate.
+**The applier reads the headings out of the source artifact rather than carrying
+a table of its own, and a row it cannot place in a source block is a refusal.**
+Fifty of fifty placed; zero refusals. The mirror case is recorded in
+ARCHITECTURE's phantom-data section: *eager dedup deletes real structure; the
+cure for apparent duplication is reading the source, not collapsing the rows.*
+
+#### Carried forward as its own act — not part of the above
+
+**`fire_pump` nameplate defs.** The deleted master's eleven-field nameplate table
+was held out of the deletion, as ruled. Proposed separately in
+`proposals/fire-pump-nameplate-additive.json`, **unratified**: five additive
+fields (Manufacturer, Model or Size, Serial Number, Impeller Size, Seal Type),
+ten def rows, 37 → 47. Six of the master's eleven fields were **not** proposed
+because existing defs already cover them, and `Power (kW)` was not proposed
+because `Motor Horsepower (HP)` exists and the table has a `unit_imperial`
+column — that is a unit question on an existing field, not a new field.
+
+*The gap it exposes is the reason it is worth doing:* `fire_pump` carries 37
+duty-and-controller defs and **no identity block at all.** It can say what a fire
+pump is rated to do and cannot say which machine it is.
 
 
 ## 11. The residue

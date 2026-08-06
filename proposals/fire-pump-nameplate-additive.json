@@ -1,0 +1,35 @@
+{
+  "_kind": "nameplate-def-addition-proposal",
+  "_ratified": false,
+  "_note": "PROPOSAL. Nothing seeds unratified. Separate act from hygiene 7c(1), as ruled.",
+  "_origin": "The sprinkler-tree master `03 Pumps/S02 Pumps- CSP.doc` yielded zero checklist rows but DID carry an eleven-field nameplate table. The husk was deleted; these fields were held out of that deletion and are proposed here on their own merits.",
+
+  "equipment_type": "fire_pump",
+  "_existing": "37 defs, all duty-and-controller: pump type, rated flow/pressure/speed, driver, motor HP/V/FLA, controller type, engine make and BHP, fuel tank, battery arrangement, jockey pump setpoint.",
+
+  "_the_gap": "fire_pump carries NO IDENTITY BLOCK AT ALL. It can describe what a fire pump is rated to do and cannot say which machine it is. Every other pump-family type carries Manufacturer / Model / Serial. This is the gap the master's table exposes, and it is the reason the fields are worth keeping rather than a reason to copy the table.",
+
+  "_what_was_NOT_proposed": [
+    { "field": "Type of Pump", "why": "already covered by the existing `Pump Type`" },
+    { "field": "Flow Rate (L/S)", "why": "already covered by `Rated Flow (Duty Point)`" },
+    { "field": "Head (kPa)", "why": "already covered by `Rated Pressure (Duty Point)`" },
+    { "field": "R/Min", "why": "already covered by `Rated Speed (RPM)`" },
+    { "field": "Power (kW)", "why": "fire_pump carries `Motor Horsepower (HP)`. The table has a `unit_imperial` column, so kW/HP is a unit question on an existing field, not a new field. Adding both would print the same quantity twice in different units — the trim discipline that took heat_pump from 25 fields to 14." },
+    { "field": "PUMPS / Installation and Mounting", "why": "table section labels in the source, not fields" }
+  ],
+
+  "add": [
+    { "field_name": "Manufacturer",  "sections": ["shop_drawing", "installed"], "unit": null,
+      "why": "No spec row: a specification names a basis of design, and the shop drawing is where the actual make is committed." },
+    { "field_name": "Model or Size", "sections": ["shop_drawing", "installed"], "unit": null,
+      "why": "The master's own wording. Fire pumps are commonly identified by size as much as by model number." },
+    { "field_name": "Serial Number", "sections": ["installed"], "unit": null,
+      "why": "Installed only — a serial number does not exist at spec or shop-drawing stage." },
+    { "field_name": "Impeller Size", "sections": ["shop_drawing", "installed"], "unit": "mm",
+      "why": "The as-built impeller determines the actual curve. `pump` already carries this at installed; fire_pump should carry it at both, because a trim change between shop drawing and installation is exactly the discrepancy the three-column layout exists to catch." },
+    { "field_name": "Seal Type",     "sections": ["spec", "shop_drawing", "installed"], "unit": null,
+      "why": "The one field of the five a specification genuinely does call out. Neither `pump` nor `fire_pump` carries it today." }
+  ],
+
+  "_size": "10 def rows across 5 fields. fire_pump goes 37 → 47. Additive only; nothing existing is altered or removed."
+}

@@ -1038,6 +1038,41 @@ end at a human looking at it, which is the correct destination for both.
 cross-check between its parts — not a validation of its output.** Output
 validation cannot see a duplicate; only the parts, compared, can.
 
+#### The mirror case: eager dedup deletes real structure
+
+*Ruled 2026-08-06, and kept here rather than in a campaign doc because it is the
+counterweight this section needs.* Everything above says a duplicate hides. The
+mirror says: **something that looks duplicated may be structure whose label was
+lost, and collapsing it destroys the evidence that would have explained it.**
+
+*The evidence.* `COMPARTMENT UNIT SYSTEM` carried what read as repeated rows —
+*Pressure & Temperature Gauges*, *Flow Measuring Devices*, *Labels Visible*, each
+appearing twice in slightly different case. Every instinct built by the section
+above says *duplicate*.
+
+**Reading the source said otherwise, and it also refuted the first explanation.**
+The proposal guessed two coil blocks, heating and cooling. The raw artifact shows
+the master has **three** content tables — `COMPARTMENT UNIT GENERAL CONSTRUCTION`,
+`FILTERS`, `COOLING COIL` — and **no heating coil anywhere in the document.** The
+repetition is a second piping group *inside* the single cooling-coil block. The
+mine had dropped every block heading, so three labelled sections arrived as one
+undifferentiated run of fifty rows, and within it two piping groups arrived as
+apparent carelessness.
+
+So two readings were wrong — *duplicate*, and then *two coils* — and only the
+source settled it. **The cure for apparent duplication is reading the source, not
+collapsing the rows.**
+
+**What the repair does and does not claim.** The three block headings are restored
+as prefixes, because the source states them. The two piping groups are
+distinguished as *first* and *second*, because the source shows two and gives no
+heading naming them — **the count is stated; the distinction is not invented.**
+The applier reads the headings out of the source artifact rather than carrying a
+table of its own, and **a row it cannot place in a source block is a refusal.**
+
+**Inventing structure and deleting structure are the same mistake in opposite
+directions**, and a script that is willing to do either will eventually do both.
+
 ### A re-key is not free when the source was thin
 
 Ruled 2026-08-06, and it belongs beside the phantom-data family because it is the
