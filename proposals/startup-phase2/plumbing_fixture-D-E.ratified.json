@@ -1,0 +1,67 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "PLUMBING FIXTURES",
+  "equipment_type": "plumbing_fixture",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B125": "plumbing fittings",
+    "National Plumbing Code": "installation",
+    "firm practice": "where the codes are silent"
+  },
+  "_sparse_note": "A fixture has no protective device and no start-up readings in the usual sense. What it has is a temperature that can scald and a trap that can siphon. Three and three, and padding it would invent checks nobody performs.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Anti-scald / thermostatic limit verified at the outlet",
+          "convergence": "universal",
+          "anchor": "CSA B125"
+        },
+        {
+          "label": "Trap seal present and primed; no siphonage on adjacent discharge",
+          "convergence": "type-common",
+          "anchor": "National Plumbing Code"
+        },
+        {
+          "label": "Emergency fixture (eyewash / shower) flow and activation proven where fitted",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. An emergency fixture is a life-safety device that no start-up form in the corpus treats as one."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Hot water temperature at the outlet (°C)",
+          "convergence": "universal",
+          "anchor": "CSA B125"
+        },
+        {
+          "label": "Static and flowing pressure at the fixture (kPa)",
+          "convergence": "type-common",
+          "anchor": "National Plumbing Code"
+        },
+        {
+          "label": "Flow rate at the outlet (L/min)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. Recorded so a low-flow complaint later has a starting number."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

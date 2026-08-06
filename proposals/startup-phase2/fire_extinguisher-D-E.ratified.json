@@ -1,0 +1,67 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "FIRE EXTINGUISHER SYSTEM",
+  "equipment_type": "fire_extinguisher",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "NFPA 10": "portable fire extinguishers",
+    "NFPA 17 / 17A": "dry and wet chemical extinguishing systems",
+    "firm practice": "where the codes are silent"
+  },
+  "_sparse_note": "For portable extinguishers there is genuinely nothing to start up — placement, charge and tag are the whole check. The engineered systems (kitchen suppression) carry the real content, and their discharge testing is acceptance scope.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Engineered system: fuel and power shutdown on discharge proven where fitted",
+          "convergence": "universal",
+          "anchor": "NFPA 17 / 17A",
+          "note": "Installed-and-proven for the SHUTDOWN interlock only. Discharge testing of the agent is acceptance scope — see BACKBURNER 7b."
+        },
+        {
+          "label": "Manual pull station accessible and operable",
+          "convergence": "universal",
+          "anchor": "NFPA 17 / 17A"
+        },
+        {
+          "label": "Alarm initiation to the fire alarm panel installed and operable",
+          "convergence": "type-common",
+          "anchor": "NFPA 17 / 17A",
+          "note": "Installed and operable. Proof of the alarm response is IST scope, per the placement law."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Extinguisher count, type and rating by location",
+          "convergence": "universal",
+          "anchor": "NFPA 10"
+        },
+        {
+          "label": "Charge pressure / tag date on each unit",
+          "convergence": "universal",
+          "anchor": "NFPA 10"
+        },
+        {
+          "label": "Engineered system: nozzle count and coverage vs the approved drawing",
+          "convergence": "type-common",
+          "anchor": "NFPA 17 / 17A"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

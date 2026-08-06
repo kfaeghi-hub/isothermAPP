@@ -1,0 +1,81 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "SPLIT SYSTEM AIR CONDITIONER",
+  "equipment_type": "split_system",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AHRI 210/240": "unitary performance",
+    "CSA B52": "mechanical refrigeration",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "High / low refrigerant pressure cutouts proven",
+          "convergence": "universal",
+          "anchor": "CSA B52 · manufacturer IOM"
+        },
+        {
+          "label": "Compressor anti-recycle timer proven",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Line-set leak test and evacuation record verified before charging",
+          "convergence": "universal",
+          "anchor": "CSA B52",
+          "note": "The seam that defines a split system: two pieces joined on site, and the joint is the failure point."
+        },
+        {
+          "label": "Motor overloads set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Suction / discharge pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Superheat / subcooling (°C)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Line-set length and charge adjustment applied (m / g)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM",
+          "note": "A split system is charged for its actual line length; the adjustment is the number that makes the charge defensible."
+        },
+        {
+          "label": "Supply / return air temperature (°C)",
+          "convergence": "universal",
+          "anchor": "AHRI 210/240"
+        },
+        {
+          "label": "Amp draw per phase (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

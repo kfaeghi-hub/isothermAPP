@@ -1322,6 +1322,29 @@ adds the check that the widening is not over-used.** A permission and its bound
 travel together, because the gap between them is exactly one batch wide and
 somebody is already writing in it.
 
+**IT CAUGHT THE SAME AUTHOR AGAIN, ONE BATCH LATER.**
+
+| | Batch | Rows misclassified | Shipped? |
+|---|---|---|---|
+| First catch | Phase 2 batch 2 — the batch that introduced the permission | 6 of 7 | no — caught in review, guard added |
+| Second catch | Phase 2 batch 3 — the very next batch | 8 | no — the guard exited before any file was written |
+
+Same error, same author, one batch after writing this entry. The only difference
+is that the second time nothing reached a file, because the drafter exits instead
+of emitting. **That is the whole argument for putting the bound in code rather
+than in a habit: the habit was two paragraphs old and did not hold.**
+
+**THE SECOND CATCH SHARPENED THE RULE, and this is its permanent form:**
+
+> **Test the SOLE anchor.** An item anchored to a standard *and* firm practice
+> has a real second source, and the standard carries the class. An item anchored
+> only to us is **single-source, however it is worded.**
+
+That refinement came from a row the guard flagged whose firm-practice mention was
+doing no work — the manufacturer IOM already covered it. **The mention came out
+rather than the class going down**, which is the correct direction: the fix for a
+weak citation is to drop the citation, not to weaken the claim it supports.
+
 *Precedents in this family:* the drafter that could not write
 (`apply-ratified.mjs`), the applier that refuses a moved target, and the
 convergence assertion that refuses a sitting sheet whose single-source items

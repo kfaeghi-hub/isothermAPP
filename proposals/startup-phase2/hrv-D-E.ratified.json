@@ -1,0 +1,76 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "HEAT RECOVERY VENTILATOR",
+  "equipment_type": "hrv",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AHRI 1060": "air-to-air exchanger performance",
+    "AMCA convention": "fan testing",
+    "manufacturer IOM": "per-unit sequence"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Frost control / defrost cycle proven",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM",
+          "note": "The one protective sequence an HRV genuinely has, and the one whose failure ices the core."
+        },
+        {
+          "label": "Motor overloads set to nameplate FLA and proven",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        },
+        {
+          "label": "Access door / rotor guard interlock proven where fitted",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Supply / exhaust airflow (L/s)",
+          "convergence": "universal",
+          "anchor": "AMCA convention"
+        },
+        {
+          "label": "Entering / leaving air temperature, both streams (°C)",
+          "convergence": "universal",
+          "anchor": "AHRI 1060"
+        },
+        {
+          "label": "Sensible recovery effectiveness at test conditions (%)",
+          "convergence": "universal",
+          "anchor": "AHRI 1060"
+        },
+        {
+          "label": "Cross-leakage / EATR check result (%)",
+          "convergence": "type-common",
+          "anchor": "AHRI 1060",
+          "note": "The measured half of the mined \"Tested for Cross Contamination\" row — the proof is C, the number is E."
+        },
+        {
+          "label": "Amp draw per phase (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

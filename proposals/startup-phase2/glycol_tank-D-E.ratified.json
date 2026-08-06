@@ -1,0 +1,72 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "GLYCOL MIXING & FILL TANK",
+  "equipment_type": "glycol_tank",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B214": "hydronic heating systems",
+    "manufacturer IOM": "per-unit sequence",
+    "firm practice": "where the codes are silent"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Fill pump low-level cutout proven — pump will not run dry",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "System pressure cutout / relief on the fill line proven",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Backflow prevention between glycol and potable water proven",
+          "convergence": "universal",
+          "anchor": "National Plumbing Code",
+          "note": "A glycol fill connected to potable water without proven backflow protection is a cross-connection."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Glycol concentration at fill (%)",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Freeze point of the mixed solution (°C)",
+          "convergence": "universal",
+          "anchor": "CSA B214",
+          "note": "The concentration is the input; the freeze point is the answer, and it is the number that matters in February."
+        },
+        {
+          "label": "System fill pressure (kPa)",
+          "convergence": "universal",
+          "anchor": "CSA B214"
+        },
+        {
+          "label": "Tank level at handover (mm or %)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard."
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

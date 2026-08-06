@@ -1,0 +1,66 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "MIXING VALVES",
+  "equipment_type": "mixing_valve",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B125.3": "thermostatic mixing valves",
+    "National Plumbing Code": "installation",
+    "firm practice": "where the codes are silent"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Cold-water failure test — outlet temperature falls, does not spike",
+          "convergence": "universal",
+          "anchor": "CSA B125.3",
+          "note": "The defining safety behaviour of a mixing valve: on loss of cold, it must not deliver full hot."
+        },
+        {
+          "label": "Hot-water failure test — outlet does not deliver full cold where the application forbids it",
+          "convergence": "type-common",
+          "anchor": "CSA B125.3"
+        },
+        {
+          "label": "Checkstops / integral checks proven — no cross-flow between hot and cold",
+          "convergence": "universal",
+          "anchor": "CSA B125.3"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Setpoint and achieved outlet temperature (°C)",
+          "convergence": "universal",
+          "anchor": "CSA B125.3"
+        },
+        {
+          "label": "Outlet temperature at the furthest fixture served (°C)",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. The valve is commissioned at the valve and judged at the tap."
+        },
+        {
+          "label": "Inlet hot / cold temperatures at test (°C)",
+          "convergence": "universal",
+          "anchor": "CSA B125.3"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

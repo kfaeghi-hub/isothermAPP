@@ -1,0 +1,55 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "WATER METERS",
+  "equipment_type": "water_meter",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "AWWA convention": "metering practice",
+    "firm practice": "where the codes are silent"
+  },
+  "_sparse_note": "A meter is an instrument, not a machine. It has nothing to trip. Its start-up is a reading and a zero.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Bypass arrangement proven — meter can be isolated without loss of service",
+          "convergence": "single-source",
+          "anchor": "firm practice",
+          "convergence_reason": "FIRM PRACTICE — fifty years of Isotherm field practice, cited as the anchor because the code set is silent here. Not dressed as a standard. The bypass is the only thing on a meter installation that behaves like a protective device."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Initial register reading at handover",
+          "convergence": "universal",
+          "anchor": "AWWA convention"
+        },
+        {
+          "label": "Flow rate at test (L/s)",
+          "convergence": "type-common",
+          "anchor": "AWWA convention"
+        },
+        {
+          "label": "Pressure drop across the meter (kPa)",
+          "convergence": "type-common",
+          "anchor": "AWWA convention"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

@@ -1,0 +1,70 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "FIRE ALARM PANEL",
+  "equipment_type": "fire_alarm_panel",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CAN/ULC-S524": "installation of fire alarm systems",
+    "CAN/ULC-S537": "verification of fire alarm systems",
+    "CSA C282": "emergency power"
+  },
+  "_scope_note": "CAN/ULC-S537 VERIFICATION is its own discipline and its own document — it is not a start-up checklist and it is not folded into one. What belongs here is that the panel is installed, powered, on standby supply, and free of trouble before verification begins.",
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Panel on normal supply with no trouble or supervisory conditions present",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S524"
+        },
+        {
+          "label": "Standby battery capacity verified; panel operates on batteries alone",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S524 · CSA C282"
+        },
+        {
+          "label": "AC failure and battery trouble signals proven at the panel",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S524"
+        },
+        {
+          "label": "Ground fault detection proven",
+          "convergence": "type-common",
+          "anchor": "CAN/ULC-S524"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Standby battery voltage, charging and under load (V)",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S524"
+        },
+        {
+          "label": "Calculated vs measured standby duration (h)",
+          "convergence": "type-common",
+          "anchor": "CAN/ULC-S524"
+        },
+        {
+          "label": "Circuit count by type — initiating, notification, supervisory",
+          "convergence": "universal",
+          "anchor": "CAN/ULC-S524"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}

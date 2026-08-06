@@ -1,0 +1,64 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_batch": "Phase 2 batch 3 — D/E across ten more covered types",
+  "_note": "DRAFTED. The thinnest batch so far, and correctly: several of these types have almost no protective devices and little to record. Not padded.",
+  "subject": "BACKFLOW PREVENTERS",
+  "equipment_type": "backflow_preventer",
+  "source_master": "DRAFTED — no master.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B64.10": "selection, installation, maintenance and field testing of backflow preventers",
+    "National Plumbing Code": "installation"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "Field test performed by a certified tester; certificate attached",
+          "convergence": "universal",
+          "anchor": "CSA B64.10",
+          "note": "CSA B64.10 requires field testing by a certified tester at installation. The start-up records that it happened and attaches the certificate; it does not re-perform the test."
+        },
+        {
+          "label": "Relief port discharge routed to drain with an air gap",
+          "convergence": "universal",
+          "anchor": "CSA B64.10 · National Plumbing Code"
+        },
+        {
+          "label": "Isolation valves and test cocks present and operable",
+          "convergence": "universal",
+          "anchor": "CSA B64.10"
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Differential pressure across the first check (kPa)",
+          "convergence": "universal",
+          "anchor": "CSA B64.10"
+        },
+        {
+          "label": "Relief valve opening differential (kPa)",
+          "convergence": "type-common",
+          "anchor": "CSA B64.10"
+        },
+        {
+          "label": "Certificate number and tester registration recorded",
+          "convergence": "universal",
+          "anchor": "CSA B64.10"
+        }
+      ]
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Batch 3 ratified as drafted, no amendments. Instrument-shaped tables endorsed; all four scope boundaries approved as the placement and 7b laws applying themselves."
+}
