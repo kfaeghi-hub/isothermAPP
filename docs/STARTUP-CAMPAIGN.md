@@ -165,6 +165,30 @@ on one distinction — **a bare noun-phrase names a thing (A); a verb of
 verification names an act (C).** *"Electric Operator"* is presence; *"After
 Cooler Verified"* is operation.
 
+#### Placement-law commentary — a protective function can land in TWO sections
+
+**Named 2026-08-06, from the first Phase 2 artifact, because it recurs.**
+
+**When one test yields both a proof and a number, the proof goes in D and the
+number goes in E.** They are not duplicates and neither is optional:
+
+| The test | D records | E records |
+|---|---|---|
+| Flame failure | the main fuel valve closed | the closure time (s) |
+| Freezestat | the trip fired and locked out | the trip temperature (°C) |
+| Relief valve | seal intact, rating verified against MAWP | the set pressure (kPa) |
+| High limit | burner shut down, manual reset required | the cut-out setpoint |
+
+**Why both.** A proof without a number cannot be compared to the specification
+next year; a number without a proof records what a gauge said, not that the
+device works. The placement law already separates them — *protective-device trip
+proof is D, a numeric blank is E* — and this is that law applied to a single
+physical act rather than to two different items.
+
+**The practical rule for drafting:** every safety device with a timing or a
+setpoint generates a D row AND an E row. Neither is a convergence duplicate, and
+a drafter that emits only one has dropped half the evidence.
+
 #### One departure, stated rather than buried
 
 **Width · Height · Duration · Lighting Levels were ruled E** — *"numeric blanks

@@ -1,0 +1,171 @@
+{
+  "_kind": "startup-extraction",
+  "_phase": "Phase 2 — standards-anchored gap fill",
+  "_ratified": true,
+  "_note": "FIRST DRAFTED ARTIFACT. Fills the D and E gaps the Phase 1 mine left on boiler, which the placement pass named the priority. Every item carries a convergence class and an anchor; single-source items carry a stated reason or they are cut before this sheet reaches a sitting.",
+  "_batch": "Phase 2 batch 1 — D/E gap fill",
+  "subject": "BOILER",
+  "equipment_type": "boiler",
+  "source_master": "DRAFTED — no master. Phase 1's CSP corpus carries no safety-device tests and no readings table; that absence is what this fills.",
+  "type": "startup",
+  "status_type": "yn_nr_na_hold",
+  "_anchors": {
+    "CSA B149.1": "Natural Gas and Propane Installation Code — Ontario installation requirements for gas-fired appliances",
+    "TSSA": "Technical Standards and Safety Authority — Ontario AHJ for fuel-burning appliances",
+    "ASHRAE Guideline 1.1 / Standard 202": "commissioning process structure",
+    "CSA Z320": "building commissioning process",
+    "manufacturer IOM": "the standing line item; per-manufacturer sequences never enter a template"
+  },
+  "sections": [
+    {
+      "key": "D",
+      "title": "Safety Device Verification",
+      "items": [
+        {
+          "label": "High-limit control tripped and proven to shut down the burner (manual reset verified)",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · TSSA · manufacturer IOM",
+          "note": "A high limit is a manual-reset device by design; proving the trip without proving the reset leaves half the device untested."
+        },
+        {
+          "label": "Operating limit tripped and proven to cycle the burner",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM",
+          "note": "Distinct from the high limit: the operating control cycles, the high limit locks out."
+        },
+        {
+          "label": "Low-water cutoff proven — burner locks out on simulated low water",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · TSSA",
+          "note": "Required at installation on boilers above radiation level or where the AHJ requires it."
+        },
+        {
+          "label": "Flame failure proven — main fuel valve closes on loss of flame signal; closure time recorded",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · manufacturer IOM",
+          "note": "Loss of flame must close the safety shutoff valves immediately; the time is the evidence, so it is also an E row."
+        },
+        {
+          "label": "High gas pressure switch tripped and proven",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1",
+          "note": "Gas-fired only — a conditional section per the ruled variant principle, not a template fork."
+        },
+        {
+          "label": "Low gas pressure switch tripped and proven",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Blocked vent / air-proving switch tripped; burner lockout confirmed",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1 · manufacturer IOM"
+        },
+        {
+          "label": "Relief valve rating verified against MAWP; seal intact and discharge unobstructed",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · TSSA"
+        },
+        {
+          "label": "Emergency fuel shutoff at the room exit operated; fuel and power both drop",
+          "convergence": "single-source",
+          "convergence_reason": "ONTARIO CODE REQUIREMENT — TSSA requires a remote emergency shutoff for fuel-fired appliance rooms. No national source in the anchor set carries it, so it is kept on a stated jurisdictional basis rather than cut.",
+          "anchor": "TSSA · CSA B149.1"
+        },
+        {
+          "label": "Freezestat trip proven (where a coil is exposed to outdoor air)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM",
+          "note": "NAMED BY THE OWNER while ruling the residue: the missing half of 'Coil Protected From Freezing', which records the provisions and never proves the trip."
+        }
+      ]
+    },
+    {
+      "key": "E",
+      "title": "Readings to Record",
+      "items": [
+        {
+          "label": "Firing rate at each recorded point (%)",
+          "convergence": "universal",
+          "anchor": "ASHRAE Guideline 1.1 · manufacturer IOM"
+        },
+        {
+          "label": "Gas pressure — inlet (in. w.c.)",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1"
+        },
+        {
+          "label": "Gas pressure — manifold (in. w.c.)",
+          "convergence": "type-common",
+          "anchor": "CSA B149.1 · manufacturer IOM"
+        },
+        {
+          "label": "O₂ (%)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM · AHRI convention"
+        },
+        {
+          "label": "CO₂ (%)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM · AHRI convention"
+        },
+        {
+          "label": "CO, air-free (ppm)",
+          "convergence": "universal",
+          "anchor": "CSA B149.1 · manufacturer IOM"
+        },
+        {
+          "label": "Stack temperature (°C)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Combustion efficiency (%)",
+          "convergence": "universal",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Supply water temperature (°C)",
+          "convergence": "universal",
+          "anchor": "ASHRAE Standard 202"
+        },
+        {
+          "label": "Return water temperature (°C)",
+          "convergence": "universal",
+          "anchor": "ASHRAE Standard 202"
+        },
+        {
+          "label": "Flame signal (µA or V)",
+          "convergence": "type-common",
+          "anchor": "manufacturer IOM"
+        },
+        {
+          "label": "Flame-failure valve closure time (s)",
+          "convergence": "universal",
+          "anchor": "CSA B149.1",
+          "note": "The measured half of the D row above — the trip is proven there, the number is recorded here."
+        },
+        {
+          "label": "Amp draw — boiler circuit (A)",
+          "convergence": "universal",
+          "anchor": "NETA ATS convention"
+        }
+      ]
+    }
+  ],
+  "_cut_before_the_sitting": [
+    {
+      "label": "Burner nozzle part number recorded",
+      "convergence": "single-source",
+      "why_cut": "Single-source with no jurisdictional basis, and per-manufacturer detail — it belongs in the IOM attachment, not the template. The template holds consensus, not collection."
+    },
+    {
+      "label": "Refractory dry-out schedule followed",
+      "convergence": "single-source",
+      "why_cut": "Applies to one boiler construction only; no convergence and no code basis in the anchor set."
+    }
+  ],
+  "_ratified_by": "owner",
+  "_ratified_on": "2026-08-06",
+  "_ratification_note": "Ratified as drafted, no amendments. 13 universal / 8 type-common / 1 single-source; the TSSA item survives on the stated-reason standard; both pre-sitting cuts endorsed."
+}
