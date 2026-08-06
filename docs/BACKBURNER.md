@@ -369,19 +369,31 @@ model — the Cx Plan composer's split.
 the first real one is the specification.
 
 ### 7. Start-Up campaign
-**GATED**
+**ACTIVE — both gates cleared 2026-08-05**
 
 Extraction and seeding of the Start-Up master forms, the last of the three
-seeding campaigns. Roadmap position: MASTER-BRIEF §10, item 1.
+seeding campaigns. Roadmap position: MASTER-BRIEF §10, item 1. Live plan and
+progress: [RELEASES 1.06](RELEASES.md).
 
-**Two gates, both must clear before anything is extracted:**
-- **(a)** the Word COM conversion fix for the remaining `.doc` source masters —
-  a build task, mine.
-- **(b)** the **startup-type decision** — `ChecklistType` is `ivc|pfc|fpt` today.
-  Per EXTRACTION-PLAYBOOK R10/R11, start-up content embedded on a Static
-  Verification sheet stays `ivc`. Decide whether Start-Up masters seed as a
-  fourth type or fold into the existing rule. Owner's call, and it must be made
-  *before* extraction, not discovered during it.
+**Gate (a) — Word COM. CLEARED.** Tony fixed the environment; re-verified
+independently by `probe-word-com.ps1` on 2026-08-05, **2/2 converted**, including
+`ats_checklist.doc` — the exact file whose `Documents.Open` hung machine-wide on
+2026-07-21 and forced Batch F onto PDF render twins. The probe runs only against
+working copies already in gitignored `samples/`, never ShareSync: Word writes an
+owner-lock file next to whatever it opens, so a "read-only" probe against the
+firm tree would still be a write to it.
+
+**Gate (b) — the startup-type decision. RULED: a first-class fourth type.**
+Start-Up is not folded into `ivc`. It gets its own tab, its own counts in every
+dashboard / index / deliverables surface, and its own template family alongside
+IVC/PFC/FPT. R10/R11 are unchanged and still govern start-up content *embedded
+on a Static Verification sheet* — that stays `ivc`. What changes is that a
+Start-Up **master form** now has somewhere of its own to land.
+
+*Why it is not a fold:* start-up has a different signature from IVC —
+**the contractor performs and the CxA witnesses, and both sign.** A type whose
+sign-off structure differs is not a variant of another type; that is the same
+bar the RTU-vs-AHU mint ruling set.
 
 ### 8. Per-type field-def enrichment
 **WAITING**

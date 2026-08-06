@@ -115,8 +115,9 @@ FPT) starts from those three documents.**
   readers: the styling provenance and as-built record live in ARCHITECTURE.md
   "UI & Design System" — do not look for it in this spec's history.
 
-**Remaining after close-out:** Start-Up campaign (GATED: Word COM fix + the
-startup-type decision), FPT module + campaign (PARKED post-rollout; S03
+**Remaining after close-out:** Start-Up campaign (**ACTIVE** — both gates
+cleared 2026-08-05; `startup` ruled a first-class fourth `ChecklistType`),
+FPT module + campaign (PARKED post-rollout; S03
 Balancing-Report ruling flagged), then Phase 3 remainder — reminders/aging, Status
 & Action Summary (§6A), data import (contacts, equipment), long-form documents
 (Cx Plan, OPR, BOD, Systems Manual, Final Report), external project portal, MBCx/OCx.
@@ -558,10 +559,38 @@ There are **two deliberately separate firm-level pools — never conflate them:*
    Systems Manual Verification, Training Verification, Seasonal/Deferred Testing,
    10-Month Operations Review, OCx Plan, MBCx Plan, etc. These are what
    `project_deliverables` instantiates and tracks per project.
-2. **`checklist_templates` — equipment checklists.** IVC/PFC/FPT per equipment type,
-   with sections/items/grids/signoffs, instantiated as snapshotted checklist instances
-   (§ Phase 2 checklist engine). They are NOT deliverable documents and never appear
-   in deliverable composition.
+2. **`checklist_templates` — equipment checklists.** IVC/PFC/FPT/**Start-Up** per
+   equipment type, with sections/items/grids/signoffs, instantiated as snapshotted
+   checklist instances (§ Phase 2 checklist engine). They are NOT deliverable
+   documents and never appear in deliverable composition.
+
+   **`startup` is a first-class fourth type — ruled 2026-08-05, not a fold into
+   `ivc`.** Its sign-off structure is what makes it a type rather than a variant:
+   **the contractor performs, the CxA witnesses, and both sign.** That is the same
+   bar the RTU-vs-AHU mint ruling set — a differing signature is a type, a differing
+   value is data. EXTRACTION-PLAYBOOK R10/R11 are unchanged and still govern
+   start-up content *embedded on a Static Verification sheet*: that stays `ivc`.
+   What changed is that a Start-Up **master form** now has somewhere of its own
+   to land.
+
+   **Schema deltas — the complete surface, so none of it is discovered late:**
+
+   | Surface | Today | Delta |
+   |---|---|---|
+   | [`src/types/database.ts:8`](src/types/database.ts#L8) | `ChecklistType = 'ivc' \| 'pfc' \| 'fpt'` | `\| 'startup'` |
+   | `checklist_templates.type` DB CHECK | 3 values | 4 — **migration**, and the CHECK is the enforcement, not the TS union |
+   | `finding_origin_enum` ([`database.ts:5`](src/types/database.ts#L5)) | `site_visit\|ivc\|pfc\|fpt` | `+ startup` — a finding raised during start-up must say so |
+   | `TYPE_LABELS` / `TYPE_COLORS` | ChecklistsPage:19-21, TemplatesPage:24-26 | `Record<ChecklistType,…>` is exhaustive, so both fail to compile until updated — **the compiler is the checklist here, deliberately** |
+   | Filter tab rows | ChecklistsPage:1085, TemplatesPage:555 | `['all','ivc','pfc','fpt']` → `+ 'startup'`; both are `as const` literals the type does **not** police |
+   | Audience default | [`api/generate-checklist.ts:1224`](api/generate-checklist.ts#L1224) | `ivc → 'field'`, else `'contractor'`. Start-Up is contractor-performed, so the existing else-branch is already correct — **verify, do not edit blind** |
+   | Target/role branch | ChecklistsPage:1482-1531 | `fpt` is the special case; `startup` follows the `ivc\|pfc` equipment-target path |
+   | Dashboard / index / deliverables counts | per the ruling | own counts on every surface, not merged into an "other" bucket |
+   | `doc-palette-sweep.mjs` | `EXPECTED_TYPES` already lists `startup` | prints **NOT SWEPT** until a ZZ-TEST startup instance exists — listed ahead of the build on purpose |
+
+   **The two `as const` filter arrays are the trap.** `Record<ChecklistType, …>`
+   breaks the build if a type is missed; a string-literal tuple does not. Those two
+   lines are where a fourth type silently fails to appear in the UI while every
+   type-check stays green.
 
 **Composition:** any classification option may contribute deliverable defaults via
 `option_deliverable_defaults` (option → deliverable_template). At project creation the

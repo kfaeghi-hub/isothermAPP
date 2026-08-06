@@ -324,13 +324,14 @@ UI overhaul. The old Batch 1–3 seeding queue in earlier versions of this secti
 is COMPLETE — do not restart it.
 
 The real queue now:
-1. **Start-Up campaign — GATED, do not start until both gates clear:** (a) the
-   Word COM conversion fix for the remaining `.doc` source masters, and (b) the
-   startup-type decision (`startup` is not a checklist type today —
-   `ChecklistType = ivc|pfc|fpt`; per EXTRACTION-PLAYBOOK R10/R11 start-up
-   content embedded on a Static Verification sheet stays ivc. Decide whether
-   Start-Up masters seed as a new type or fold into the existing rule before
-   extracting anything).
+1. **Start-Up campaign — ACTIVE.** Both gates cleared 2026-08-05: (a) Word COM
+   re-verified 2/2 by `probe-word-com.ps1`, including the file that hung on
+   2026-07-21; (b) ruled — **`startup` is a first-class fourth checklist type**,
+   not a fold into `ivc`, because the contractor performs and the CxA witnesses
+   and both sign. R10/R11 still govern start-up content embedded on a Static
+   Verification sheet: that stays `ivc`. Phase 0 (document design, monochrome
+   from birth) → Phase 1 (mine the banked sheets) → Phase 2 (standards-anchored
+   gap fill). See [BACKBURNER 7](BACKBURNER.md) and RELEASES 1.06.
 2. **FPT campaign — PARKED until after rollout.** The S03 Balancing-Report
    ruling is flagged and must be resolved at campaign start, not assumed.
 3. **Live human items (Tony's, not build tasks): rollout · trim · promote.**
