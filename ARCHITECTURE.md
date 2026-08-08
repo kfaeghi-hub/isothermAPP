@@ -1112,6 +1112,29 @@ structure · an absent thing may be inherited from somewhere you did not look.**
 All three are the same error — *measuring a set that is not the set that matters*
 — and none of them announces itself.
 
+##### The ordering rule, which is the part that actually bites
+
+The uncomfortable detail: **the rule was already in this file and it still did
+not fire.** Two faces of this exact disease were written down hours earlier, by
+the same author, in the same session. Knowing the shape did not prevent the
+third instance — because the write and the audit were ordered wrongly, and
+nothing in the process objected.
+
+> **When one ruling orders both a write and an audit, the audit runs first.**
+
+The ruling that applied five `fire_pump` fields *also* ordered the sweep that
+would have shown those fields were unnecessary. Run in the ordered sequence, the
+write costs nothing to undo because it never happens. Run as it was, it costs a
+ratified act, a reversal, a ledger entry, and a live defect on a nameplate.
+
+**And the general form, which is the same finding as the
+[new-permission-audit law](#a-new-permission-is-audited-in-the-batch-that-introduces-it)
+approached from the other side: a rule that depends on being remembered
+mid-batch is demonstrably not a rule yet.** That law fired four times on its own
+author before it became a guard that refuses at the point of authorship. This one
+has now fired once. The difference between a written rule and an enforced one is
+the only difference that shows up in the register.
+
 ### A re-key is not free when the source was thin
 
 Ruled 2026-08-06, and it belongs beside the phantom-data family because it is the
@@ -1201,6 +1224,7 @@ same kind of mistake, and every one of them is the same sentence.
 | 5 | The finder's pre-ticked candidate pages | Pre-ticking asserted a claim the heuristic had not earned: a completed **checklist** scored "8 schedule terms in 30 columns" and arrived ticked, because a checklist is also a dense tagged table. | Offer without asserting. Only a page **titled** a schedule, or one the sorter confirmed, arrives ticked. |
 | 6 | Every structural assertion touching the type vocabulary | They read the **database**, and the data was correct. The Classifications screen — the owner's own ratification queue — had been rendering **nothing** since 2026-07-27 (hooks below an early return), and nothing in the battery could see it. | Found by taking a screenshot for the render-and-look gate. Hooks moved above the return. |
 | 7 | `node run-battery.mjs 2>&1 \| tail -12` | The pipeline's exit status is **`tail`'s**. The task notification reported "exit code 0" for a battery that had failed, and the tail truncated away the summary line. A suite was also running alongside it, producing a failure that turned out to be fictional. | Never pipe the runner. Never run anything beside it. Both re-run clean at 31/31. |
+| 9 | Killing a running battery to save wall-clock, then starting a fresh one | Three suites in the next run failed on the ZZ-TEST guard — *"did not appear in the projects list within 15s"* — none of which was a real defect. Stopping the run to save ~7 minutes cost a full extra cycle and **briefly made a clean state look dirty**, which is the expensive direction to be wrong in. | **Let batteries finish.** The suites are the slow part for a reason. Worth keeping for the other half: the guard **refused correctly in both directions** — it never ran against a real project, and it re-ran clean at 31/31 — and that is the only reason the noise was legible as noise rather than investigated as a finding. |
 | 8 | `.select()` on the template census — a read, and therefore assumed complete | **PostgREST caps a select at 1000 rows and truncates SILENTLY.** The census read 1000 sections, matched none of them to the 9,116 items it never fetched, and reported **"0 items" on every template in the library.** No error, no warning, no partial-result flag. | Paginate with `.range(from, from+999)` **and print the read counts**, so the input is visible before any conclusion rests on it. Survived only because "0 items on all 113 templates" was absurd on its face — **a subtler cap would have produced a plausible wrong answer, and a merge plan built on it would have deleted real content.** The lesson is not "paginate": it is that **a truncated read is indistinguishable from a small dataset unless you print what you read.** |
 
 **Read the table by column two.** The failures span a database index, a test
