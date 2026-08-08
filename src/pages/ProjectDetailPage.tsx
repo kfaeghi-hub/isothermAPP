@@ -22,6 +22,7 @@ import { EquipmentPage } from './EquipmentPage'
 import { SiteReportsPage } from './SiteReportsPage'
 import { MeetingsPage } from './MeetingsPage'
 import { ChecklistsPage } from './ChecklistsPage'
+import { ISTPage } from './ISTPage'
 import { TeamPage } from './TeamPage'
 import { DeliverablesPage } from './DeliverablesPage'
 import { CxPlanPage } from './CxPlanPage'
@@ -52,7 +53,7 @@ interface EditForm {
   notes: string
 }
 
-type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'meetings' | 'checklists' | 'deliverables' | 'cx_plan'
+type Tab = 'overview' | 'team' | 'issues' | 'cx_index' | 'equipment' | 'site_reports' | 'meetings' | 'checklists' | 'deliverables' | 'cx_plan' | 'ist'
 
 const TABS: { id: Tab; label: string; built: boolean }[] = [
   { id: 'overview',     label: 'Overview',     built: true  },
@@ -67,6 +68,11 @@ const TABS: { id: Tab; label: string; built: boolean }[] = [
   // Own tab, after Deliverables: a deliverable is a tracked obligation, this is a
   // document with a wizard and a review workflow. The deliverable row links here.
   { id: 'cx_plan',      label: 'Cx Plan',      built: true },
+  // Its own tab, not a Cx Index group: the index's fire-integration column stays
+  // the per-unit readiness tracker, and S1001 verifies the interconnections
+  // between systems while explicitly NOT verifying the individual systems. Two
+  // different questions, two different surfaces.
+  { id: 'ist',          label: 'IST',          built: true },
 ]
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -784,6 +790,8 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
         )}
 
         {/* Checklists */}
+        {activeTab === 'ist' && <ISTPage projectId={projectId} />}
+
         {activeTab === 'checklists' && (
           <ChecklistsPage projectId={projectId} phases={phases} />
         )}

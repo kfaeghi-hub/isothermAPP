@@ -318,8 +318,18 @@ waits for the same trigger.
    gate that now rides the battery.
 5. **Team seeding** on classification.
 
-Findings file to the existing register with `origin = 'ist'` — **already in the
-origin set**, never a parallel register.
+Findings file to the existing register with `origin = 'ist'`, never a parallel
+register.
+
+> **CORRECTION, made during phase 1.** This proposal said `'ist'` was *already in
+> the origin set*, repeating [BACKBURNER 3e](BACKBURNER.md#3e-the-ist-module--integrated-systems-testing-parked-whole).
+> **It was not.** The enum held `site_visit, ivc, pfc, fpt`, later joined by
+> `design_review` and `startup`. The phase-1 migration's first draft *asserted*
+> the value's presence and refused to run, which is the only reason the claim was
+> checked before a deficiency tried to use it — and a deficiency is raised in the
+> field, mid-test, where a failed insert is the worst possible time to discover a
+> missing enum label. The migration now adds the value and then re-asserts it,
+> because `ADD VALUE IF NOT EXISTS` is silent when it is a no-op.
 
 ---
 

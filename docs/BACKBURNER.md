@@ -139,6 +139,15 @@ IST is a core firm service — Seneca carries an IST plan at rev 10 — and OBC
 **Wakes when:** the first project schedules an IST — most likely Seneca. **No
 code now.**
 
+> **IN PROGRESS 2026-08-08 — phase 1 shipped.** Schema (11 tables), the three
+> guards, the 8 new role seats, `pw-ist` (20 checks). Phases 2-5 remain: matrix
+> UI + pre-IST, session field mode, document generation (gate: faithful
+> Scarborough regeneration), team seeding.
+>
+> **One correction this entry owes:** it said IST deficiencies would file with
+> `origin = 'ist'` because that value was *already in the origin set*. It was
+> not. The migration's own assertion caught it before a field deficiency did.
+>
 > **WOKEN 2026-08-08 by owner ruling — proposal stage.** Two sources combined: the
 > firm's own issued report (`Scarborough Gardens Arena_IST_REV2`, Peiman-authored,
 > ITC held by Isotherm) and fresh CAN/ULC-S1001 research. Full proposal:

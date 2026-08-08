@@ -16,6 +16,81 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.07 — 2026-08-08 · IN PROGRESS
+
+### For the team
+
+**The IST module has started.** Integrated Systems Testing to CAN/ULC-S1001 —
+the service the firm already performs and issues reports for — is becoming a
+module instead of a Word document. Phase 1 is the foundation: a project now has
+an **IST tab** where the plan revisions, the participating systems, the
+integrations between them and the test protocols live as data.
+
+Nothing generates a document yet. That is phase 4, and its gate is that the
+system must reproduce the **Scarborough Gardens Arena** report's structure from
+seeded data — the real issued report is the standard the build is measured
+against.
+
+**Why it matters beyond one project:** the Ontario Fire Code changed on
+2026-01-01. Buildings whose fire protection or life safety systems were installed
+or modified on or after 2020-01-01 now have to have integrated testing completed
+and **documented and available**, and every tested building comes back at one
+year and then every five. This is recurring work with dates attached, and the
+module is being built so those dates land on the dashboard like everything else
+the firm owes.
+
+### For the architect
+
+**IST module, phase 1 — schema + integrations/protocols CRUD.** 11 tables, RLS on
+the established member/lead shape, an `IST` project tab, and `pw-ist` (20 checks)
+in the battery from birth with wait helpers throughout. Full design:
+[IST-MODULE-PROPOSAL.md](IST-MODULE-PROPOSAL.md).
+
+**The schema's shape came from the firm's own issued report, not from a reading of
+the standard** — and the two disagreed in a way that mattered. The three
+attachment tables are **not the same shape**: A-1 enumerates *condition types*,
+A-3 enumerates *units*, and A-2 enumerates *points* with an equipment-type code,
+stacks several devices under one numbered row, and switches shape mid-attachment.
+So `ist_protocols.subject_kind` is `condition | unit | point`, and a CHECK
+constraint enforces which companion columns each kind may carry — **which is what
+makes the column mean something rather than merely be recorded.** A model assuming
+one shape would bend the firm's document.
+
+Two more things modelled from the document rather than assumed: **a result carries
+its own date, distinct from its session's** (table B-2 is one signed table holding
+rows tested on two different days), and **sign-off is per attachment table, not
+per report**, with participants differing per session.
+
+**Notes are a table, not a column.** Table B-3's note spans five rows, cites a
+spec section, states an apparent non-conformance and then carries two named
+engineers' written determinations resolving it — and **REV2 of the whole document
+exists because of it**. A determination that changed a revision is not a comment.
+
+**Four guards, each demonstrated REFUSING in `pw-ist`** rather than merely
+existing: the kind/companion-column shape (3 refusals proven), an integration
+pointing at itself, a scoped note with no target, and a second result for the same
+protocol in one session. **A constraint nobody has seen reject anything is a
+comment with syntax.**
+
+**A correction the module made to its own foundation.** BACKBURNER 3e said IST
+deficiencies would file with `origin = 'ist'` because that value was *already in
+the origin set*, and the proposal repeated it. **It was not there** — the enum
+held `site_visit, ivc, pfc, fpt`, later `design_review` and `startup`. The
+migration's first draft *asserted* the value's presence and refused to run, which
+is the only reason the claim was checked before a deficiency tried to use it —
+and a deficiency is raised in the field, mid-test, which is the worst possible
+place to discover a missing enum label. The migration now adds the value and
+re-asserts it, because `ADD VALUE IF NOT EXISTS` is silent when it is a no-op.
+
+**8 new role types** minted as ordinary admin data (16 → 24), including
+**Integrated Testing Coordinator as a distinct seat** — the standard requires a
+P.Eng or a ULC-listed individual at an authorized service provider, and on some
+projects that is not this firm. It is never a CxA synonym.
+
+**Closing gates:** battery 33/33 · tree clean.
+
+---
+
 ## Update 1.06 — 2026-08-05 · CLOSED 2026-08-06
 
 *Ruled as "1.05" on the night; 1.05 was already spent on the extractor
