@@ -1250,6 +1250,32 @@ wrong, and only opening it said so. That is the argument for render-and-look
 being a step rather than a courtesy — not that assertions are unreliable, but
 that at the feature level there is nothing else looking.
 
+#### A proof crop names what it must show
+
+*2026-08-08, and it is the render-and-look gate's own failure mode.*
+
+The dashboard card-header fix was to be proven by screenshot, so the harness took
+an **element screenshot of each card**. For `my-items` — seventy rows — that is a
+2000px image in which the header being fixed is a sliver across the top. **A
+picture that technically contains the evidence and shows none of it.** It would
+have passed a reviewer's glance and proved nothing.
+
+The same trap sits at the other end of the range: a full-page screenshot at one
+comfortable width, where a defect that only appears when text WRAPS does not
+appear at all. A single 1920px shot of these cards is green by construction.
+
+> **A proof artifact must be cropped and sized to the thing it claims to prove**,
+> and taken at the conditions where the defect lives — for a wrap-dependent
+> layout bug, that is a list of widths, not a width.
+
+So the harness clips the header band explicitly and runs 390 / 1280 / 1440 /
+1920. It is the same discipline the PDF work reached from the other side: the
+page-boundary tool crops the last 190px of each page, because a full-page
+thumbnail cannot show a missing 1px border.
+
+**Evidence is not "an image exists".** It is an image in which the claim is
+legible, at the condition that would falsify it.
+
 ### The 1.02 set — seven in one session, and the sentence they share
 
 The batch above found three in one day. The 1.02 trio found **seven**, and they
