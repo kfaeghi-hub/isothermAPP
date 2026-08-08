@@ -194,8 +194,64 @@ from the source document, qualifier only to distinguish siblings.
 checklist's name.* Enforced mechanically — the applier refuses a name that does
 not open with its type's register name.
 
+**Fix — site report PDF bled into the page footer.** On a multi-page report the
+last table row on a page was painted **inside the reserved footer band**: measured
+at y≈749 on a page whose content box ends at 739.2, i.e. 10px into the disclaimer,
+on five of nine pages of a real report. Two of the three usual suspects were
+already correct and are not the cause: rows never split (`break-inside: avoid`
+works) and `thead` already repeats on continuation pages. The cause is that
+Chromium places a row whose CONTENT fits and lets its padding and border overflow
+the content box; the old 0.55in reserve left the footer's rule ~2px below that
+edge, so any overflow landed on it. Three structural fixes were built and measured
+and **all three failed** — bigger margin alone, `border-collapse: separate`, and a
+repeating `tfoot` spacer.
+
+The fix is geometric and has two halves that only work together: reserve more than
+the footer needs (`PDF_BOTTOM_RESERVE = 0.72in`) **and** sink the footer's rule to
+the bottom of the band (`FOOTER_SINK_PX = 20`). Reserving more space alone just
+moves the collision, because the footer still starts at the top of the band — the
+allowance has to sit ABOVE the ink. A shared `footerBand()` wraps every family's
+footer so the allowance cannot be reserved in one document and painted over in
+another; `generate-checklist` keeps its own deliberate `toPdf` (landscape +
+per-mode footers) but now **imports** the geometry rather than restating it.
+
+**Two new tools, and the gate joins the battery.** `pdf-boundary-measure.mjs`
+rasterises a PDF through pdfjs inside Chromium and reports where rules land
+relative to the footer; `pdf-boundary-gate.mjs` regenerates one document per
+family and fails if any table rule reaches the footer's rule. The gate is now a
+battery suite: **the bug shipped because every existing gate looked at document
+CONTENT and none looked at page BOUNDARIES.**
+
+**Verified on real data without touching an issued record.** Ruled: the issued
+Muir and Clairlea PDFs are not regenerated — they keep the bleed as a
+point-in-time artifact of when they were made, exactly like any issued revision,
+and a re-issue would regenerate as a new rev through the normal flow. Clairlea was
+instead rendered locally against the working tree with `uploadDocPair` swapped for
+a disk writer, the row's storage columns restored **and re-read to prove it**, and
+the issued object confirmed still in storage.
+
+**Harness: a concurrency lock, and a guard that was crying wolf.** `run-battery`
+now takes a lockfile for its run and passes a token to the suites it spawns;
+every other entry point — suites, sweeps, gates, calibration tools — refuses
+while it is held and names the run holding it, with a logged `--no-harness-lock`
+break-glass. Its header had asked for this in prose for months and was violated
+twice in one day by its own author, which is the third law this session to reach
+the same conclusion: **a rule that depends on being remembered mid-session is not
+a rule yet.** Proven firing in all four states, including the first version of the
+test that wrongly passed.
+
+Separately, `openTestProject` was refusing on nine suites. It waited for
+`.first()` to become visible; the dashboard now names the test project 72 times
+and the first DOM match is a hidden `<span>`, so a project plainly on screen read
+as absent. It now navigates to the projects list — the surface its own refusal
+message always named — waits for a **visible** match, and reports how many DOM
+matches existed when none were. The refusal is not weakened. **The nine were
+first attributed to concurrency, which was wrong**; recorded in ARCHITECTURE as
+*yesterday's cause is the most seductive wrong answer for today's symptom*.
+
 **Closing gates:** sweep CLEAN at 20 retired values across all families including
-both startup modes · battery 31/31 · tree clean.
+both startup modes · boundary gate PASS across report/minutes/cx-plan/checklist ·
+battery 32/32 · tree clean.
 ## Update 1.05 — 2026-08-04 · field-tested 2026-08-05
 
 *Field test **passed**: the full flow walked on Clairlea and Workman — upload,

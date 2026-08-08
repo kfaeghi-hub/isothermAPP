@@ -12,6 +12,8 @@
 // inside the project root.
 import { chromium } from 'playwright'
 import { writeFile, mkdir } from 'node:fs/promises'
+import { assertHarnessFree } from './harness-lock.mjs'
+assertHarnessFree('cal-finder')
 
 const BASE = process.env.CAL_BASE ?? 'http://localhost:5174'
 const SETS = [

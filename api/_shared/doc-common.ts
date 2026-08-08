@@ -186,6 +186,40 @@ export const FIRM_HEADER_DOCX = `<h1 style="color:${DOC.INK};font-size:19pt;font
 
 // ── PDF via Puppeteer + @sparticuz/chromium-min ────────────────────────────────
 
+// ── the footer band: reserve, and why it is this size ─────────────────────────
+//
+// THE RESERVE IS SIZED TO THE FOOTER'S HEIGHT PLUS AN OVERFLOW ALLOWANCE.
+//
+// Chromium places a table row whose CONTENT fits the remaining space and then
+// lets that row's bottom padding and border overflow the content box. Measured
+// on a real nine-page site report: the last row's rule was painted at y≈749 on
+// a page whose content box ends at 739.2 — **10px inside the reserved band**,
+// straight through the disclaimer.
+//
+// The old reserve was 0.55in (52.8px) against a footer that is ~45px tall, so
+// the footer's top rule sat about 2px below the content box and any overflow
+// landed on it. Three structural fixes were tried and measured, and all three
+// FAILED to stop the overflow: a bigger margin alone, `border-collapse:
+// separate` so each border lives in its own cell box, and a repeating `tfoot`
+// spacer. `break-inside: avoid` was already working (rows never split) and
+// `thead` already repeated — the two usual suspects were not the cause.
+//
+// So the fix is geometric rather than structural, and it has two halves that
+// only work together:
+//   1. reserve MORE than the footer needs, and
+//   2. push the footer's INK to the bottom of what is reserved.
+// Reserving more space on its own just moves the collision, because the footer
+// still starts at the top of the band. The allowance has to sit ABOVE the ink.
+export const PDF_BOTTOM_RESERVE = '0.72in'   // 69px: ~45px footer + ~24px allowance
+const FOOTER_SINK_PX = 20                    // pushes the footer rule down the band
+
+/** Wrap a footer's inner HTML so its rule sits at the BOTTOM of the reserved
+ *  band. Every family's footer goes through this, so the allowance cannot be
+ *  reserved in one document and silently skipped in another. */
+export function footerBand(inner: string): string {
+  return `<div style="width:100%;box-sizing:border-box;padding:${6 + FOOTER_SINK_PX}px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;color:#888888;border-top:1px solid #e5e5e5;line-height:1.3;">${inner}</div>`
+}
+
 export async function toPdf(html: string, footerTemplate: string): Promise<Buffer> {
   const execPath = await chromium.executablePath(CHROMIUM_PACK_URL)
 
@@ -205,7 +239,9 @@ export async function toPdf(html: string, footerTemplate: string): Promise<Buffe
       printBackground: true,
       // top/bottom margins managed here so Puppeteer owns the footer zone;
       // position:fixed footer removed from HTML to prevent overlay clipping rows.
-      margin: { top: '0.5in', right: '0', bottom: '0.55in', left: '0' },
+      // bottom = PDF_BOTTOM_RESERVE — see the note above it for why it is 0.72in
+      // and not the footer's own height.
+      margin: { top: '0.5in', right: '0', bottom: PDF_BOTTOM_RESERVE, left: '0' },
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
       footerTemplate,

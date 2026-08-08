@@ -30,6 +30,8 @@ import { writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { inflateRawSync } from 'node:zlib'
 import { createClient } from '@supabase/supabase-js'
 import { loadHandler, invoke } from './doc-render-local.mjs'
+import { assertHarnessFree } from './harness-lock.mjs'
+assertHarnessFree('doc-palette-sweep')
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'   // ZZ-TEST — Do Not Use
 const OUT = 'out/palette'
 

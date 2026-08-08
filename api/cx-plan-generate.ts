@@ -180,12 +180,9 @@ export default async function handler(req: any, res: any) {
 }
 
 // ── PDF path: the same blocks, rendered through the established stack ───────
-import { BASE_CSS, FIRM_HEADER_PDF, esc, DOC } from './_shared/doc-common.js'
+import { BASE_CSS, FIRM_HEADER_PDF, esc, DOC, footerBand } from './_shared/doc-common.js'
 
-const PDF_FOOTER =
-  `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;` +
-  `font-size:7.5pt;font-style:italic;color:#888;border-top:1px solid #e5e5e5;box-sizing:border-box;">` +
-  `Isotherm Engineering Ltd. — Building Commissioning Plan</div>`
+const PDF_FOOTER = footerBand('<em>Isotherm Engineering Ltd. — Building Commissioning Plan</em>')
 
 function blocksToHtml(blocks: any[]): string {
   const body = blocks.map(b => {

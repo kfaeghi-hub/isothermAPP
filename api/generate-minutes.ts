@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import {
-  esc, isoShort, BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
+  esc, isoShort, BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair, footerBand,
   DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
@@ -405,7 +405,7 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[minutes] meeting=${meeting_id} topics=${topics.length} items=${items.length} attendees=${d.attendees.length}`)
 
-    const PDF_FOOTER = `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;font-style:italic;color:#888888;border-top:1px solid #e5e5e5;box-sizing:border-box;line-height:1.3;">${DISCLAIMER}&nbsp;&nbsp;·&nbsp;&nbsp;Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`
+    const PDF_FOOTER = footerBand(`<em>${DISCLAIMER}</em>&nbsp;&nbsp;·&nbsp;&nbsp;Page <span class="pageNumber"></span> of <span class="totalPages"></span>`)
 
     const [pdfBuffer, docxBuffer] = await Promise.all([
       toPdf(buildPdfHtml(d), PDF_FOOTER),

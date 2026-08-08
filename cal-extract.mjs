@@ -15,6 +15,8 @@ import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
 import { writeFile } from 'node:fs/promises'
 import { adminCredentials, BASE_URL, TEST_PROJECT } from './pw-config.mjs'
+import { assertHarnessFree } from './harness-lock.mjs'
+assertHarnessFree('cal-extract')
 
 const DEV = process.env.CAL_BASE ?? 'http://localhost:5174'
 

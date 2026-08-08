@@ -12,7 +12,7 @@ import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shar
 // different and merging them would risk pagination. Only the VALUES are shared
 // (identity ruling, 2026-07-26): 25 of the old 104 hex literals lived in this
 // file's private copies, which is why "change doc-common and you're done" was false.
-import { DOC, DOC_SEMANTIC } from './_shared/doc-common.js'
+import { DOC, DOC_SEMANTIC, PDF_BOTTOM_RESERVE, footerBand } from './_shared/doc-common.js'
 
 const CHROMIUM_PACK_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
@@ -1132,10 +1132,13 @@ async function toPdf(html: string, landscape = false): Promise<Buffer> {
       format: 'letter',
       landscape,
       printBackground: true,
-      margin: { top: '0.5in', right: '0', bottom: '0.55in', left: '0' },
+      // Shared geometry, deliberately imported rather than restated: this file
+      // keeps its own toPdf for landscape + per-mode footers, and the footer band
+      // is the one part that must NOT diverge from the other three families.
+      margin: { top: '0.5in', right: '0', bottom: PDF_BOTTOM_RESERVE, left: '0' },
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
-      footerTemplate: `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;color:#888888;border-top:1px solid #e5e5e5;box-sizing:border-box;line-height:1.3;">${FIRM_NAME} &nbsp;|&nbsp; ${FIRM_ADDR} &nbsp;|&nbsp; ${FIRM_PHONE} &nbsp;|&nbsp; ${FIRM_EMAIL} &nbsp;&bull;&nbsp; Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`,
+      footerTemplate: footerBand(`${FIRM_NAME} &nbsp;|&nbsp; ${FIRM_ADDR} &nbsp;|&nbsp; ${FIRM_PHONE} &nbsp;|&nbsp; ${FIRM_EMAIL} &nbsp;&bull;&nbsp; Page <span class="pageNumber"></span> of <span class="totalPages"></span>`),
     })
     return Buffer.from(pdf)
   } finally {

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   esc, isoShort, isoLong, isFilenameCaption, toBase64, primaryEmail,
-  BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair,
+  BASE_CSS, FIRM_HEADER_PDF, FIRM_HEADER_DOCX, toPdf, toDocx, uploadDocPair, footerBand,
   DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
@@ -209,7 +209,10 @@ function buildHtml(
 }
 
 // PDF footer: the disclaimer rides in Puppeteer's footer zone on every page.
-const PDF_FOOTER = `<div style="width:100%;padding:6px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;font-style:italic;color:#888888;border-top:1px solid #e5e5e5;box-sizing:border-box;line-height:1.3;">${DISCLAIMER}</div>`
+// The band wrapper (shared) owns the geometry — reserve size and how far the
+// rule is sunk into it — so no family can reserve the allowance and then paint
+// over it. This file supplies only the words.
+const PDF_FOOTER = footerBand(`<em>${DISCLAIMER}</em>`)
 
 // ── DOCX-specific HTML builder ────────────────────────────────────────────────
 // Generates a Word-friendly HTML using real <table> elements and inline styles

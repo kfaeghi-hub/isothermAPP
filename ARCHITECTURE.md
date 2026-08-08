@@ -1165,6 +1165,49 @@ whether or not anything was ever mined into it, so a row count is not evidence o
 content. That is the cross-check the phantom-data section demands, applied here:
 the parts (mined vs filled), compared — not the total, validated.
 
+### Yesterday's cause is the most seductive wrong answer for today's symptom
+
+*2026-08-08, and it is the diagnosis counterpart to everything above.*
+
+Nine suites went red. The day before, concurrent harness runs had produced three
+convincing fictional failures, and hours earlier a killed battery had produced
+three more. So the nine were attributed to concurrency — **stated to the owner as
+fact, with an apology attached** — and the investigation stopped there.
+
+**A clean run with nothing beside it failed the same nine.** The real cause was
+that `openTestProject` waited for `.first()` to become visible, and on a dashboard
+that now names the test project **72 times** the first DOM match is a hidden
+`<span>`. The guard timed out and refused with *"either it does not exist, or this
+account cannot see it"* — about a project the same page was displaying three
+times over. The correlation was exact and available from the first run: every
+failing suite called `openTestProject` as the non-admin user, and the one suite
+that calls it as admin passed.
+
+**Why the wrong answer was so easy to believe:** it was recent, it was true
+*before*, it had the same shape, and it came with the satisfying feeling of
+owning a mistake. Self-blame is not evidence. **A confession is still an
+unverified hypothesis**, and it closes an investigation just as effectively as a
+wrong exoneration does.
+
+Two further wrong turns on the way, both the same error one layer down: querying
+`site_reports.report_no` and `project_members.user_id`, neither of which exists,
+and reading the empty result as a finding rather than as a failed query. The
+second briefly "showed" that the test user had lost its project membership. It
+had not — it is a lead on the project.
+
+> **The rule: a symptom gets measured against the current system, not matched
+> against the last thing that went wrong.** Correlate first — which cases fail,
+> which pass, what separates them — and only then reach for a cause. The
+> correlation here took one command and would have been decisive on the first
+> run.
+
+And the cost, which is the part that makes this a guard-family entry rather than
+a note about humility: **this is how a correct guard gets explained away.** The
+ZZ-TEST refusal was doing its job — it protects client data from test writes, and
+its own comment says *"a guard that cries wolf gets explained away, and this one
+exists to protect client data."* It cried wolf, was explained away twice, and the
+explanation offered was a mistake the author had made the day before.
+
 ### The sibling rule: a guard that answers the same in both states is not a guard
 
 The silence family above is about ASSERTIONS that cannot fail. This is the same

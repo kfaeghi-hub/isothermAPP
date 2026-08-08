@@ -56,6 +56,13 @@
 // Adding a suite: append here ONLY if it runs bare, self-cleans (re-entrant),
 // and touches nothing outside the ZZ-TEST family (pw-config.mjs rule).
 import { spawnSync } from 'node:child_process'
+import { acquire } from './harness-lock.mjs'
+
+// The header above has asked for this since the first fictional-failure incident.
+// Asking did not work: it was violated twice in one day by its own author. The
+// lock makes the rule structural — held for the whole run, passed down to the
+// suites this runner spawns, refused to everything else.
+const releaseLock = acquire('run-battery')
 
 const SUITES = [
   'pw-access',
@@ -89,6 +96,13 @@ const SUITES = [
   'pw-drafter',
   'pw-schedule-finder',
   'pw-type-picker',
+  // Not a pw- suite, and here on purpose. It regenerates one document per family
+  // and asserts no table rule is painted inside the reserved footer band. The
+  // footer-bleed bug shipped because every gate looked at document CONTENT and
+  // none looked at page BOUNDARIES — a defect visible on five of nine pages of a
+  // real report passed every check the battery had. It qualifies on the rule
+  // above: runs bare, re-entrant (uploads upsert), ZZ-TEST only.
+  'pdf-boundary-gate',
 ]
 
 const t0 = Date.now()
@@ -112,4 +126,5 @@ for (const f of failed) {
   console.log(`\n──── FAIL ${f.s} — last 30 lines ────`)
   console.log(f.out.split('\n').slice(-30).join('\n'))
 }
+releaseLock()
 process.exit(failed.length ? 1 : 0)

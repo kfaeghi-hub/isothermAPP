@@ -6,6 +6,14 @@
 // Chiller; hence this file.)
 
 /** The only project Playwright is allowed to touch. */
+import { assertHarnessFree } from './harness-lock.mjs'
+
+// EVERY SUITE IMPORTS THIS FILE, which makes it the one place a harness-wide
+// refusal can live — the same reason the ZZ-TEST guard lives here. A suite the
+// battery spawned carries the battery's token and proceeds; anything else
+// started while a battery is running refuses and names the run holding the lock.
+assertHarnessFree(`suite ${process.argv[1]?.split(/[\/]/).pop() ?? 'unknown'}`)
+
 export const TEST_PROJECT = 'ZZ-TEST — Do Not Use'
 
 /** Its equipment fixture. */
@@ -93,6 +101,21 @@ export async function login(page) {
  * writing test data into a client's commissioning record.
  */
 export async function openTestProject(page) {
+  // GO TO THE PROJECTS LIST FIRST. This used to be called from wherever login()
+  // happened to land, which was fine while the dashboard's first ZZ-TEST mention
+  // was a link to the project. It is not any more: the dashboard now names the
+  // test project 72 times — portfolio table cells, attention queue rows, chart
+  // labels — and the first visible one is a <td> that does not navigate. The
+  // guard then reported "did not land on ZZ-TEST (visible: true, detail: false)",
+  // which is true and useless.
+  //
+  // The refusal message always said "the projects LIST". Now the function looks
+  // there, so the message and the behaviour describe the same surface.
+  if (!/\/projects(|$)/.test(page.url())) {
+    await page.goto(`${BASE_URL}/projects`)
+    await page.waitForLoadState('domcontentloaded')
+  }
+
   const target = page.getByText(TEST_PROJECT, { exact: false })
 
   // WAIT BEFORE JUDGING. This used to be a bare `count() === 0`, an INSTANT
@@ -107,16 +130,33 @@ export async function openTestProject(page) {
   //
   // The refusal still stands — absence after a bounded wait is still a refusal —
   // but the two states are now told apart and the message says which happened.
-  try {
-    await target.first().waitFor({ state: 'visible', timeout: 15000 })
-  } catch {
+  // AND WAIT FOR A VISIBLE MATCH, NOT THE FIRST MATCH. `.first()` resolves to the
+  // first node in DOM order, which on the dashboard is a hidden <span> (no box,
+  // visible=false) among 72 matches. Waiting for THAT to become visible times out
+  // while the project is plainly on screen — so the guard refused with "either it
+  // does not exist, or this account cannot see it" about a project the same page
+  // was displaying three times over.
+  //
+  // It cost nine suites in two consecutive batteries, and the first explanation
+  // reached for was concurrency, because that had been the cause the day before.
+  // The refusal is NOT weakened: absence after a bounded wait is still a refusal.
+  // What changed is that a hidden node can no longer mask the visible ones.
+  const visible = await waitUntil(async () => {
+    const n = await target.count()
+    for (let i = 0; i < n; i++) if (await target.nth(i).isVisible()) return target.nth(i)
+    return null
+  }, { timeout: 15000, what: `a VISIBLE "${TEST_PROJECT}"` })
+
+  if (!visible) {
+    const total = await target.count()
     throw new Error(
-      `Refusing to run: "${TEST_PROJECT}" did not appear in the projects list within 15s. ` +
-      `Either it does not exist, or this account cannot see it. Playwright must never ` +
-      `run against a real project, so this stops here either way.`,
+      `Refusing to run: "${TEST_PROJECT}" had no VISIBLE match within 15s ` +
+      `(${total} match(es) in the DOM, none visible). Either it does not exist, or this ` +
+      `account cannot see it. Playwright must never run against a real project, so this ` +
+      `stops here either way.`,
     )
   }
-  await target.first().click()
+  await visible.click()
   await page.waitForTimeout(1800)
 
   // Belt and braces: the open project detail must show the ZZ-TEST name AND the

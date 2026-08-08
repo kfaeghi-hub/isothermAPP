@@ -22,6 +22,8 @@
 import { readFileSync } from 'node:fs'
 import { inflateRawSync } from 'node:zlib'
 import { apiToken, adminCredentials } from './pw-config.mjs'
+import { assertHarnessFree } from './harness-lock.mjs'
+assertHarnessFree('audit-template')
 
 const TRADE_TYPES = ['Mechanical', 'Electrical', 'Controls/BAS', 'Plumbing', 'Structural', 'TAB',
   'Fire Protection', 'Geothermal', 'Refrigeration', 'HVAC', 'Life Safety', 'Security',
