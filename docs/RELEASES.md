@@ -249,6 +249,30 @@ matches existed when none were. The refusal is not weakened. **The nine were
 first attributed to concurrency, which was wrong**; recorded in ARCHITECTURE as
 *yesterday's cause is the most seductive wrong answer for today's symptom*.
 
+**Fix — dashboard card headings overlapping their own subtext.** On cards 6, 7,
+8 and 10 the explanatory grey line collided with the heading and clipped, worst
+where it wrapped. Not a fixed height and not absolute positioning: `ClauseHead`
+already draws a `border-b`, and those four cards wrapped it in a second
+`border-b` and then rendered their own note with `-mt-1`, pulling the text up
+into a rule painted through the middle of the header. **The correlation was
+exact — the four broken cards were the four that rendered their own note**;
+1–5 and 9 were always fine because they let the shared component do it. Same
+class as the radar labels and the footer band: *content painted where another
+element's space was never reserved.*
+
+Fixed at the component, not per card: `ClauseHead` now owns the note. One block,
+one border, normal document flow — the title row wraps (`flex-wrap`, `gap-y-1`)
+so a count or rule drops to its own line instead of overflowing, the note sits
+on `mt-1.5 leading-relaxed`, and a long note wraps to as many lines as it needs
+and pushes the body down. **No negative margins, no fixed heights on text that
+can wrap.** A layout decision that existed in four copies now exists once.
+
+Verified by render-and-look on the real build (`npm run build` + `vite preview`,
+so the working tree is what is judged) at **390 / 1280 / 1440 / 1920** — every
+numbered header clean, mobile wrapping to two lines and pushing the body down —
+plus a regression pass on the earlier Follow-up Radar label fix at the same
+widths, which holds.
+
 **Closing gates:** sweep CLEAN at 20 retired values across all families including
 both startup modes · boundary gate PASS across report/minutes/cx-plan/checklist ·
 battery 32/32 · tree clean.

@@ -3,7 +3,7 @@
 //   C · Findings (trend, by system, responsible rollup)   D · Mine (my items, activity)
 // All reads, zero writes; thresholds come from dashboardThresholds only.
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Cell, Legend,
@@ -378,10 +378,8 @@ export function DashboardPage() {
           </div>
 
           <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="responsible-table">
-            <div className="border-b border-gray-200">
-              <ClauseHead n="6" title="Open Items by Responsible Party" />
-              <p className="text-[10px] text-gray-400 px-4 pb-2 -mt-1">Meeting action items + findings, grouped by company via the team matrix. Free-text labels listed separately — never string-matched.</p>
-            </div>
+            <ClauseHead n="6" title="Open Items by Responsible Party"
+              note="Meeting action items + findings, grouped by company via the team matrix. Free-text labels listed separately — never string-matched." />
             {data.responsible.length === 0 ? (
               <p className="px-4 py-6 text-sm text-gray-400 text-center">No open assigned items.</p>
             ) : (
@@ -414,12 +412,9 @@ export function DashboardPage() {
           <MyDeliverablesCard items={data.myDeliverables} projName={projName} profileName={profile?.name} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="my-items">
-            <div className="border-b border-gray-200">
-              <ClauseHead n="8" title="My Items" />
-              <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400" title="Matched by your profile name against identified_by / prepared_by / authored_by — the existing text conventions.">
-                Matched by name · {profile?.name}
-              </p>
-            </div>
+            <ClauseHead n="8" title="My Items"
+              noteTitle="Matched by your profile name against identified_by / prepared_by / authored_by — the existing text conventions."
+              note={<>Matched by name · {profile?.name}</>} />
             {data.mine.length === 0 ? (
               <p className="px-4 py-6 text-sm text-gray-400 text-center">Nothing open under your name.</p>
             ) : (
@@ -486,14 +481,40 @@ function StatChip({ label, value, alert = false, testid }: {
   )
 }
 
-/** Clause head: the document's section grammar (number · title · rule). */
-function ClauseHead({ n, title, extra, sub }: { n: string; title: string; extra?: string; sub?: string }) {
+/**
+ * Clause head: the document's section grammar (number · title · rule), and the
+ * explanatory NOTE beneath it.
+ *
+ * THE NOTE BELONGS TO THIS COMPONENT. Cards 6, 7, 8 and 10 used to render it
+ * themselves, as a sibling `<p>` with `-mt-1`, inside a wrapper that added a
+ * SECOND `border-b` on top of this one. Two defects stacked: the extra border
+ * drew a rule through the middle of the header, and the negative margin pulled
+ * the note up into it — so the note collided with the rule and clipped, worst at
+ * the widths where it wraps to a second line.
+ *
+ * That was four copies of a layout decision that only ever needed to exist once,
+ * which is why the fix is here and not in the four call sites. Same disease as
+ * the radar labels and the footer band: CONTENT PAINTED WHERE ANOTHER ELEMENT'S
+ * SPACE WAS NEVER RESERVED.
+ *
+ * So: normal document flow, nothing negative, nothing fixed-height. The title
+ * row wraps rather than overflowing when the count and rule ride along, and a
+ * long note wraps to as many lines as it needs and pushes the body down.
+ */
+function ClauseHead({ n, title, extra, sub, note, noteTitle }: {
+  n: string; title: string; extra?: string; sub?: string; note?: ReactNode; noteTitle?: string
+}) {
   return (
-    <div className="px-4 py-2.5 border-b border-gray-200 flex items-baseline gap-2.5">
-      <span className="font-mono text-[11px] font-medium text-standard-600">{n}</span>
-      <h3 className="font-display text-xs font-bold text-gray-900 uppercase tracking-[0.08em]">{title}</h3>
-      {extra !== undefined && <span className="font-mono text-[10px] text-gray-400">{extra}</span>}
-      {sub && <span className="text-[10px] text-gray-400 ml-1">{sub}</span>}
+    <div className="px-4 py-3 border-b border-gray-200">
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="font-mono text-[11px] font-medium text-standard-600">{n}</span>
+        <h3 className="font-display text-xs font-bold text-gray-900 uppercase tracking-[0.08em]">{title}</h3>
+        {extra !== undefined && <span className="font-mono text-[10px] text-gray-400">{extra}</span>}
+        {sub && <span className="text-[10px] text-gray-400">{sub}</span>}
+      </div>
+      {note && (
+        <p className="mt-1.5 text-[10px] leading-relaxed text-gray-400" title={noteTitle}>{note}</p>
+      )}
     </div>
   )
 }
@@ -553,10 +574,8 @@ function MyDeliverablesCard({ items, projName, profileName }: {
 }) {
   return (
     <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="my-deliverables">
-      <div className="border-b border-gray-200">
-        <ClauseHead n="7" title="My Deliverables" extra={String(items.length)} />
-        <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400">Assigned to you · {profileName}</p>
-      </div>
+      <ClauseHead n="7" title="My Deliverables" extra={String(items.length)}
+        note={<>Assigned to you · {profileName}</>} />
       {items.length === 0 ? (
         <p className="px-4 py-6 text-sm text-gray-400 text-center">No deliverables assigned to you.</p>
       ) : (
@@ -609,12 +628,8 @@ function OutstandingDeliverablesCard({ items, projName }: {
   }
   return (
     <div className="card-tile bg-white rounded-xl border border-gray-200" data-testid="outstanding-deliverables">
-      <div className="border-b border-gray-200">
-        <ClauseHead n="10" title="Outstanding Deliverables" extra={String(items.length)} />
-        <p className="px-4 pb-2 -mt-1 text-[10px] text-gray-400">
-          Across your projects · assignee · due · notes — overdue flagged. Scoped to your memberships.
-        </p>
-      </div>
+      <ClauseHead n="10" title="Outstanding Deliverables" extra={String(items.length)}
+        note="Across your projects · assignee · due · notes — overdue flagged. Scoped to your memberships." />
       {items.length === 0 ? (
         <p className="px-4 py-6 text-sm text-gray-400 text-center">Nothing outstanding across your projects.</p>
       ) : (
