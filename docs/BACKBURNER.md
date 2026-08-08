@@ -139,6 +139,28 @@ IST is a core firm service — Seneca carries an IST plan at rev 10 — and OBC
 **Wakes when:** the first project schedules an IST — most likely Seneca. **No
 code now.**
 
+> **WOKEN 2026-08-08 by owner ruling — proposal stage.** Two sources combined: the
+> firm's own issued report (`Scarborough Gardens Arena_IST_REV2`, Peiman-authored,
+> ITC held by Isotherm) and fresh CAN/ULC-S1001 research. Full proposal:
+> **[IST-MODULE-PROPOSAL.md](IST-MODULE-PROPOSAL.md)** — awaiting ruling, no code.
+>
+> Two findings from that work worth surfacing here, because they change the
+> entry's own assumptions:
+>
+> 1. **The firm's document IS S1001 Appendix C**, section for section — not a
+>    house style. The generator's target is therefore a standard-defined structure
+>    that Ontario AHJs already read, which makes a faithful regeneration a real
+>    gate rather than a resemblance test.
+> 2. **O. Reg. 87/25 took effect 2026-01-01** and made the obligation retroactive
+>    for buildings whose systems were installed or modified on or after 2020-01-01.
+>    With the initial → 1-year → 5-year cycle, this is a recurring code-mandated
+>    service line, not a per-project one-off. §11's ongoing-testing table stops
+>    being a footnote.
+>
+> The entry's design notes survive intact: per-unit readiness stays the Cx Index's,
+> measurement structures stay [3d](#3d-repeating-measurement-test-structures),
+> scenario drafting stays [5](#5-fpt-agent).
+
 ### 3f. Extraction-rules harvest — the librarian's next client
 **WAITING — born 2026-08-04, from the extractor calibration campaign**
 
