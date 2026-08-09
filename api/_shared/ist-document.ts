@@ -48,7 +48,7 @@ export interface IstDoc {
   revisions: { revision_label: string; revision_date: string | null; description: string | null }[]
   systems: { label: string; overview_description: string | null; integrations_objectives: string | null }[]
   integrations: IstIntegration[]
-  prerequisites: { item_no: number; category: string; description: string; state: string }[]
+  prerequisites: { item_no: number; category: string; description: string; state: string; evidence_reference?: string | null }[]
   precompleted: { subject_text: string; integration_type: string | null; documentation_ref: string | null; comments: string | null }[]
   sessions: { id: string; test_date: string; test_type: string; description: string | null; records_ref: string | null }[]
   participants: { session_id: string; role_label: string; company: string | null; name: string | null }[]
@@ -219,12 +219,19 @@ export function buildIstHtml(doc: IstDoc, mode: IstMode): string {
         <tr><td>Fire Mode</td><td>${esc(p.fire_mode_steps ?? '')}</td></tr>
       </tbody></table>`).join('')}`).join('')
 
-  const prereqTable = `<table><thead><tr><th>Document Description</th><th style="width:30%">Document Received</th></tr></thead><tbody>
+  // A THIRD COLUMN THE ISSUED DOCUMENT'S §9.1 DOES NOT HAVE — deliberate, and
+  // recorded as a departure. The firm's §9.1 is two columns because the paper
+  // form had nowhere to say where a document lives; §9.2 names its documentation
+  // in a Comments column precisely because it needed to. This carries that
+  // habit up into §9.1, which is what the reference-not-upload ruling asks for:
+  // the claim names its evidence, and the reader can go find it.
+  const prereqTable = `<table><thead><tr><th>Document Description</th><th style="width:24%">Document Received</th><th style="width:28%">Reference</th></tr></thead><tbody>
     ${[...new Set(doc.prerequisites.map(p => p.category))].map(cat => `
-      <tr><td colspan="2" style="background:${DOC.ZEBRA};font-weight:600">${esc(cat)}</td></tr>
+      <tr><td colspan="3" style="background:${DOC.ZEBRA};font-weight:600">${esc(cat)}</td></tr>
       ${doc.prerequisites.filter(p => p.category === cat).map(p => `<tr>
         <td>${p.item_no}. &nbsp; ${esc(p.description)}</td>
-        <td>YES ${TRI(p.state, 'yes')} &nbsp; NO ${TRI(p.state, 'no')} &nbsp; N/A ${TRI(p.state, 'na')}</td></tr>`).join('')}`).join('')}
+        <td>YES ${TRI(p.state, 'yes')} &nbsp; NO ${TRI(p.state, 'no')} &nbsp; N/A ${TRI(p.state, 'na')}</td>
+        <td class="note-block">${esc(p.evidence_reference ?? '')}</td></tr>`).join('')}`).join('')}
     </tbody></table>`
 
   const ongoing = `<table><thead><tr><th style="width:14%">Date</th><th style="width:12%">Test Type</th><th>Description / Comments</th><th style="width:16%">Test Records</th></tr></thead><tbody>

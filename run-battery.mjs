@@ -104,6 +104,7 @@ const SUITES = [
   // the generator drifting away from the document an AHJ actually reads.
   'ist-regen-gate',
   'pw-ist-team',
+  'pw-ist-evidence',
   // Not a pw- suite, and here on purpose. It regenerates one document per family
   // and asserts no table rule is painted inside the reserved footer band. The
   // footer-bleed bug shipped because every gate looked at document CONTENT and

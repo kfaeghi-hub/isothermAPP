@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { plainError } from '../lib/plainError'
 import { ISTFieldMode } from './ISTFieldMode'
 
 type SubjectKind = 'condition' | 'unit' | 'point'
@@ -42,7 +43,9 @@ const CONDITION_LABEL: Record<ConditionType, string> = {
 interface Prereq {
   id: string; item_no: number; category: string; description: string
   state: 'yes' | 'no' | 'na'; document_id: string | null; received_on: string | null
+  evidence_reference: string | null
 }
+
 interface RegisterDoc { id: string; document_name: string; revision: string | null }
 interface Session { id: string; test_date: string; test_type: string; description: string | null }
 
@@ -124,7 +127,7 @@ export function ISTPage({ projectId }: { projectId: string }) {
         setResults(rs ?? [])
       } else { setProtocols([]); setResults([]) }
       const { data: pq } = await supabase.from('ist_prerequisites')
-        .select('id, item_no, category, description, state, document_id, received_on')
+        .select('id, item_no, category, description, state, document_id, received_on, evidence_reference')
         .eq('plan_id', active).order('item_no')
       setPrereqs(pq ?? [])
       const { data: ss } = await supabase.from('ist_sessions')
@@ -149,7 +152,7 @@ export function ISTPage({ projectId }: { projectId: string }) {
   async function run(fn: () => PromiseLike<{ error: unknown }>) {
     setErr(null)
     const { error } = await fn()
-    if (error) { setErr((error as { message?: string })?.message ?? String(error)); return false }
+    if (error) { setErr(plainError((error as { message?: string })?.message ?? String(error))); return false }
     await load(); return true
   }
 
@@ -328,8 +331,9 @@ export function ISTPage({ projectId }: { projectId: string }) {
                 <span className="font-mono text-[10px] text-gray-400">{prereqDone}/{prereqs.length}</span>
               </div>
               <p className="mt-1.5 text-[10px] leading-relaxed text-gray-400">
-                §9.1 of the standard. <strong>YES requires a document</strong> — the register row is the evidence,
-                not the tick. Per-unit readiness stays the Cx Index's; these are the document prerequisites.
+                §9.1 of the standard. <strong>YES names where its document is</strong> — a title and a location.
+                Documents live in ShareSync; this records the reference, not a copy. Per-unit readiness stays the
+                Cx Index's; these are the document prerequisites.
               </p>
             </div>
             <div className="p-4 space-y-2">
@@ -343,27 +347,100 @@ export function ISTPage({ projectId }: { projectId: string }) {
                   </button>
                 </div>
               ) : prereqs.map(q => (
-                <div key={q.id} className="flex flex-wrap items-center gap-2 text-[11px]" data-testid="ist-prereq-row">
-                  <span className="w-6 font-mono text-[10px] text-gray-400">{q.item_no}</span>
-                  <span className="min-w-[16rem] flex-1 text-gray-800">{q.description}</span>
-                  <select value={q.state} data-testid="ist-prereq-state"
-                    className="rounded border border-gray-300 px-1.5 py-0.5 text-[11px]"
-                    onChange={e => run(() => supabase.from('ist_prerequisites')
-                      .update({ state: e.target.value }).eq('id', q.id))}>
-                    <option value="na">N/A</option><option value="no">NO</option><option value="yes">YES</option>
-                  </select>
-                  <select value={q.document_id ?? ''} data-testid="ist-prereq-doc"
-                    className="w-48 rounded border border-gray-300 px-1.5 py-0.5 text-[11px]"
-                    onChange={e => run(() => supabase.from('ist_prerequisites')
-                      .update({ document_id: e.target.value || null }).eq('id', q.id))}>
-                    <option value="">— no document —</option>
-                    {docs.map(d => <option key={d.id} value={d.id}>{d.document_name}{d.revision ? ` (${d.revision})` : ''}</option>)}
-                  </select>
-                </div>
+                <PrereqRow key={q.id} q={q} docs={docs}
+                  onSet={patch => run(() => supabase.from('ist_prerequisites').update(patch).eq('id', q.id))} />
               ))}
             </div>
           </section>
         </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * ONE PREREQUISITE ROW, AND THE ONE MOTION THAT MARKS IT RECEIVED.
+ *
+ * Tapping YES opens a single field — "Where is the supporting document?" — and
+ * the status and the reference save TOGETHER, in one round trip. That matters
+ * more than it looks: this gets ticked standing in a mechanical room, and a
+ * two-step flow (set YES, get refused, find the note field, type, save again) is
+ * a flow that gets abandoned. The constraint is never reached because the UI
+ * never offers the state that would violate it.
+ *
+ * The register dropdown stays for the future/portal case, where a document
+ * genuinely does live in the app. It is the second option, not the first,
+ * because ShareSync is where the firm actually keeps documents.
+ */
+function PrereqRow({ q, docs, onSet }: {
+  q: Prereq; docs: RegisterDoc[]; onSet: (patch: Record<string, unknown>) => Promise<boolean>
+}) {
+  const [asking, setAsking] = useState(false)
+  const [ref, setRef] = useState(q.evidence_reference ?? '')
+  const satisfied = !!q.document_id || !!(q.evidence_reference ?? '').trim()
+
+  async function choose(next: string) {
+    if (next !== 'yes') { await onSet({ state: next }); setAsking(false); return }
+    if (satisfied) { await onSet({ state: 'yes' }); return }
+    setAsking(true)                       // ask first, write once
+  }
+  async function commit() {
+    const v = ref.trim()
+    if (!v) return
+    if (await onSet({ state: 'yes', evidence_reference: v, received_on: new Date().toISOString().slice(0, 10) }))
+      setAsking(false)
+  }
+
+  return (
+    <div className="text-[11px]" data-testid="ist-prereq-row">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-6 font-mono text-[10px] text-gray-400">{q.item_no}</span>
+        <span className="min-w-[14rem] flex-1 text-gray-800">{q.description}</span>
+        <select value={q.state} data-testid="ist-prereq-state"
+          className="rounded border border-gray-300 px-1.5 py-1 text-[11px]"
+          onChange={e => void choose(e.target.value)}>
+          <option value="na">N/A</option><option value="no">NO</option><option value="yes">YES</option>
+        </select>
+      </div>
+
+      {q.state === 'yes' && !asking && (
+        <div className="ml-8 mt-1 flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
+          <span data-testid="ist-prereq-evidence">
+            {q.evidence_reference
+              ? q.evidence_reference
+              : docs.find(d => d.id === q.document_id)?.document_name ?? '—'}
+          </span>
+          <button className="underline-offset-2 hover:underline" data-testid="ist-prereq-edit-evidence"
+            onClick={() => { setRef(q.evidence_reference ?? ''); setAsking(true) }}>edit</button>
+        </div>
+      )}
+
+      {asking && (
+        <div className="ml-8 mt-1.5 space-y-1.5" data-testid="ist-prereq-ask">
+          <label className="block text-[10px] font-medium text-gray-600">Where is the supporting document?</label>
+          <div className="flex flex-wrap gap-2">
+            <input autoFocus value={ref} onChange={e => setRef(e.target.value)} data-testid="ist-prereq-ref"
+              onKeyDown={e => { if (e.key === 'Enter') void commit() }}
+              placeholder="S537 Verification Cert — ShareSync /2.Bldg_Docs/5.Certs/"
+              className="min-w-[16rem] flex-1 rounded border border-gray-300 px-2 py-1.5 text-[11px]" />
+            <button disabled={!ref.trim()} data-testid="ist-prereq-save"
+              className="rounded bg-gray-900 px-3 py-1.5 text-[11px] text-white disabled:opacity-40"
+              onClick={() => void commit()}>Save</button>
+            <button className="px-2 text-[11px] text-gray-500" data-testid="ist-prereq-cancel"
+              onClick={() => setAsking(false)}>Cancel</button>
+          </div>
+          <p className="text-[10px] text-gray-400">
+            A title and a location is enough. Documents live in ShareSync — this records <em>where</em>, not a copy.
+          </p>
+          {docs.length > 0 && (
+            <select value={q.document_id ?? ''} data-testid="ist-prereq-doc"
+              className="w-full rounded border border-gray-200 px-1.5 py-1 text-[10px] text-gray-500"
+              onChange={async e => { if (await onSet({ state: 'yes', document_id: e.target.value || null })) setAsking(false) }}>
+              <option value="">…or point at a document already in the register</option>
+              {docs.map(d => <option key={d.id} value={d.id}>{d.document_name}{d.revision ? ` (${d.revision})` : ''}</option>)}
+            </select>
+          )}
+        </div>
       )}
     </div>
   )

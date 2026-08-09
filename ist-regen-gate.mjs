@@ -110,6 +110,12 @@ const PROTOS = [
 const { data: protos } = await svc.from('ist_protocols').insert(PROTOS).select('id, integration_id, subject_kind')
 
 await svc.rpc('ist_seed_prerequisites', { p_plan_id: plan.id })
+// Item 17 is the S537 verification report — marked received, with the evidence
+// where the firm actually keeps it.
+const EVIDENCE = 'S537 Verification Cert — ShareSync /2.Bldg_Docs/5.Certs/ rev 1'
+await svc.from('ist_prerequisites')
+  .update({ state: 'yes', evidence_reference: EVIDENCE, received_on: '2025-11-27' })
+  .eq('plan_id', plan.id).eq('item_no', 17)
 
 const { data: sess } = await svc.from('ist_sessions').insert({
   plan_id: plan.id, test_date: '2025-11-27', test_type: 'new',
@@ -218,6 +224,8 @@ check(reportHtml.includes('Tested 2025-11-13') && reportHtml.includes('Tested 20
   'per-result dates render, and they differ inside one signed report')
 check(count(reportHtml, /Riho Sikes/g) >= 2, 'per-attachment sign-off names render')
 check(count(reportHtml, /YES &#9744;|YES &#9746;/g) === 22, `all 22 prerequisites render tri-state (got ${count(reportHtml, /YES &#9744;|YES &#9746;/g)})`)
+check(reportHtml.includes(EVIDENCE) && planHtml.includes(EVIDENCE),
+  'the evidence reference survives into the §9 table, in BOTH modes — the claim names where its document lives')
 
 await cleanup()
 console.log(`\ncleanup: ${LABEL} removed from ZZ-TEST`)

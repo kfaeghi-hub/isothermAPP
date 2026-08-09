@@ -192,7 +192,26 @@ awaiting contacts"; the schema said otherwise. The seeding function was **droppe
 rather than left failing**, because a function that exists and cannot succeed
 reads as available.
 
-**Closing gates:** battery 35/35 · `pw-ist` 44 checks — five guards proven
+**Correction — evidence became a reference, not an upload.** The pre-IST
+checklist first required a document *in the app* before an item could be marked
+received. The model was wrong for the firm: documents live in ShareSync, and the
+app is the record of testing. Marking an item YES now opens one field — *Where is
+the supporting document?* — and the status and the reference **save together, in
+one round trip**, because a two-step flow is a flow that gets abandoned standing
+in a mechanical room. Pointing at a register document still works, for the future
+portal case. The reference prints in the generated §9 table, which is what the
+issued report does anyway: it *names* its pre-completed documentation rather than
+embedding it. **The document had been describing the right model all along.**
+
+Recorded in the Build Spec as §4.4, because it generalises: **a claim must name
+its evidence; it does not have to own it.** Audited across the system — this was
+the only place the assumption had been built. And the constraint's raw text no
+longer reaches anyone: `src/lib/plainError.ts` maps it to a sentence, unit-tested
+against real PostgREST messages. *(That extraction exists because the browser
+suite could otherwise only assert it with a `check(true, …)` — a check that
+cannot fail, which this codebase treats as a defect, not a placeholder.)*
+
+**Closing gates:** battery 36/36 · `pw-ist` 44 checks — five guards proven
 refusing, RLS proven as a real user, outbox replay proven idempotent, the seat
 list counted against its declared 18 · `pw-ist-team` 6 checks through a real
 browser login · `ist-regen-gate` 15 structural checks against the issued report ·

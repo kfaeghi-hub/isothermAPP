@@ -550,6 +550,45 @@ checklists), energy/digital flavors (lifecycle options or roadmap).
 Postgres type), `PROJECT_TYPES`/`projectTypes.ts`, the `ProjectType` TS type, and the
 transition dual-write. Classifications are the only source of truth.
 
+### 4.4 CORE PRINCIPLE: the app records that work happened and WHERE its evidence lives — it does not require custody of the evidence
+
+**Isotherm's documents live in ShareSync.** The app is the record of *testing*;
+ShareSync is the record of *documents*. Any control that demands an in-app upload
+before work can be recorded is not enforcing rigour — it is asking the firm to
+move its document store, and the reliable outcome of a control that is expensive
+to satisfy honestly is that it gets satisfied dishonestly.
+
+So, wherever the system asks for evidence:
+
+> **A claim must NAME its evidence. It does not have to OWN it.**
+>
+> Satisfy with either an in-app reference (a documentation-register row, a
+> generated artifact, a portal upload) **or** a free-text reference — title and
+> location, as the firm writes it: *"S537 Verification Cert — ShareSync
+> /2.Bldg_Docs/5.Certs/"*. **App-side upload is always offered, never required.**
+
+Negative states stay free. `NO` and `N/A` need no evidence, because there is
+nothing to point at; it is the affirmative claim that has to say where to look.
+
+**Where this came from.** The IST module's pre-test documentation checklist first
+required a `documentation_register` row before item 17 could be marked received.
+Every constraint was correct and the model was wrong: the firm's own issued
+report *names* its pre-completed documentation — *"10-Fire Alarm System
+Verification Report- Rev1"* — rather than embedding it. **The document had been
+describing the right model all along.**
+
+**Audited across the system when the rule was written (2026-08-09):** this was
+the only place the assumption had been built. `project_deliverables` carries no
+file column at all; `documentation_register` is a *register* — name, type,
+revision, date received — which already models reference-not-custody by design.
+The portal's `storage_url is not null` checks concern documents **the app itself
+generated**, where custody is genuine and not the same pattern.
+
+**And the refusal must speak plainly.** A constraint that a person can reach must
+map to a sentence they can act on — `src/lib/plainError.ts`, unit-tested against
+real PostgREST messages. The database text is for the log, not the mechanical
+room.
+
 ### 5.2 CORE PRINCIPLE: TWO template pools + composition from options
 
 There are **two deliberately separate firm-level pools — never conflate them:**
