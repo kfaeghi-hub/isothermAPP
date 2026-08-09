@@ -182,19 +182,39 @@ try {
   check(again === 0 && (qs ?? []).length === 22, `re-seeding adds nothing (added ${again}, total ${(qs ?? []).length})`)
   check((qs ?? []).every(q => q.state === 'na'), 'seeded prerequisites start at N/A, not at YES')
 
-  // ── GUARD 5: YES REQUIRES A DOCUMENT ──────────────────────────────────────
-  // The whole point of phase 2. A tick with no evidence behind it is the shape
-  // the guard family keeps catching, so it is refused rather than discouraged.
+  // ── GUARD 5: YES MUST NAME ITS EVIDENCE ───────────────────────────────────
+  // SUPERSEDED 2026-08-09. This leg used to assert `yes_needs_document` — that
+  // YES required a row in the in-app register. The ruling changed the model:
+  // documents live in ShareSync, the app is the record of testing, and a claim
+  // must NAME its evidence without having to OWN it. The constraint is now
+  // `yes_needs_evidence` and either satisfier works.
+  //
+  // Worth recording that this suite went RED on the change rather than quietly
+  // passing: the constraint was renamed and the assertion still named the old
+  // one, so it failed loudly in the next battery. That is the correct direction
+  // for a stale assertion to fail.
   const q1 = (qs ?? []).find(q => q.item_no === 17)     // S537 verification report
   const { error: bareYes } = await svc.from('ist_prerequisites').update({ state: 'yes' }).eq('id', q1.id)
-  check(!!bareYes && /yes_needs_document/.test(bareYes.message),
-    `REFUSED: prerequisite marked YES with no document${bareYes ? '' : ' — ACCEPTED, guard did not fire'}`)
+  check(!!bareYes && /yes_needs_evidence/.test(bareYes.message),
+    `REFUSED: prerequisite marked YES naming no evidence at all${bareYes ? '' : ' — ACCEPTED, guard did not fire'}`)
 
-  // NO and N/A with no document are honest states and must still be allowed.
+  const { error: blankRef } = await svc.from('ist_prerequisites')
+    .update({ state: 'yes', evidence_reference: '   ' }).eq('id', q1.id)
+  check(!!blankRef && /yes_needs_evidence/.test(blankRef.message),
+    `REFUSED: whitespace-only reference is not a reference${blankRef ? '' : ' — ACCEPTED, guard did not fire'}`)
+
+  // NO and N/A with nothing attached are honest states and must still be allowed.
   const { error: bareNo } = await svc.from('ist_prerequisites').update({ state: 'no' }).eq('id', q1.id)
-  check(!bareNo, `NO with no document is allowed${bareNo ? ': ' + bareNo.message : ''}`)
+  check(!bareNo, `NO with no evidence is allowed${bareNo ? ': ' + bareNo.message : ''}`)
 
-  // With a real register row attached, YES goes through.
+  // A FREE-TEXT reference satisfies it — the ShareSync case, which is the norm.
+  const { error: refYes } = await svc.from('ist_prerequisites')
+    .update({ state: 'yes', evidence_reference: 'S537 Verification Cert — ShareSync /2.Bldg_Docs/5.Certs/', received_on: '2026-01-10' })
+    .eq('id', q1.id)
+  check(!refYes, `YES accepted with a ShareSync reference and no in-app file${refYes ? ': ' + refYes.message : ''}`)
+
+  // And a register row still satisfies it — the future/portal case.
+  await svc.from('ist_prerequisites').update({ state: 'na', evidence_reference: null }).eq('id', q1.id)
   const { data: doc } = await svc.from('documentation_register')
     .insert({ project_id: proj.id, document_name: `${LABEL} S537 Verification`, doc_type: 'report' })
     .select('id').single()

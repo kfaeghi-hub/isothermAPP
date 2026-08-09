@@ -211,7 +211,34 @@ against real PostgREST messages. *(That extraction exists because the browser
 suite could otherwise only assert it with a `check(true, …)` — a check that
 cannot fail, which this codebase treats as a defect, not a placeholder.)*
 
-**Closing gates:** battery 36/36 · `pw-ist` 44 checks — five guards proven
+**The generation door.** The IST tab now has a **Generate** action at the top of
+the plan view — deliberately above the working sections, because the generator
+and endpoint were proven at 15/15 while the button did not exist, and **working
+code nobody can start is not a shipped feature.** Each mode states its purpose on
+the choice itself rather than behind a name: *IST Plan — protocols and blank test
+forms, for issue before testing*; *IST Report — results, test log and executive
+summary, for issue after testing.* Both produce the PDF + DOCX pair through the
+same pipeline as every other document.
+
+**Guards that offer rather than block.** Report mode with no results **warns**
+and generates anyway — a dry run or a partial-progress issue is a legitimate
+thing to want, and the warning makes the state known so the human decides. Plan
+mode with no protocols is refused, because that is not a partial document but an
+empty shell, and it says which piece is missing.
+
+**Rule 4 is enforced by construction.** Generating marks a revision issued;
+generating again from an issued revision creates the **next** revision — a full
+copy carrying its systems, integrations, protocols, prerequisites, sessions,
+results and sign-offs — and leaves the original exactly as issued. Scarborough is
+REV2 because a determination arrived after REV1; a system that regenerated over
+REV1 would have destroyed the only evidence that the determination changed
+anything. The plan view shows what was generated, in which mode, and when.
+
+**Discoverability is asserted, not assumed:** `pw-ist-generate` fails if the
+control is not inside the first viewport of the plan screen. *"It is on the page"*
+and *"it is on the screen"* are different claims and only the second one counts.
+
+**Closing gates:** battery 37/37 · `pw-ist` 44 checks — five guards proven
 refusing, RLS proven as a real user, outbox replay proven idempotent, the seat
 list counted against its declared 18 · `pw-ist-team` 6 checks through a real
 browser login · `ist-regen-gate` 15 structural checks against the issued report ·

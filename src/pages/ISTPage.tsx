@@ -48,6 +48,22 @@ interface Prereq {
 
 interface RegisterDoc { id: string; document_name: string; revision: string | null }
 interface Session { id: string; test_date: string; test_type: string; description: string | null }
+interface Generation { id: string; mode: string; generated_at: string; pdf_url: string | null; generated_by: string | null }
+
+/**
+ * THE TWO MODES, WITH THEIR PURPOSE ON THE CHOICE ITSELF.
+ *
+ * "Plan" and "Report" mean nothing to someone who has not read S1001. What they
+ * need to know at the moment of choosing is WHEN each one is issued and WHAT is
+ * in it — so that is what the button says, rather than a name plus a tooltip
+ * nobody opens.
+ */
+const MODES = [
+  { mode: 'plan' as const, title: 'IST Plan',
+    blurb: 'Protocols and blank test forms, for issue before testing — team, contractors, AHJ review.' },
+  { mode: 'report' as const, title: 'IST Report',
+    blurb: 'Results, test log and executive summary, for issue after testing.' },
+]
 
 const TEST_TYPE_LABEL: Record<string, string> = {
   new: 'Initial', one_year: 'One-year', five_year: 'Five-year', modification: 'After modification',
@@ -94,6 +110,8 @@ export function ISTPage({ projectId }: { projectId: string }) {
   const [results, setResults] = useState<{ protocol_id: string; normal_verdict: string | null; fire_verdict: string | null }[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
   const [fieldSession, setFieldSession] = useState<Session | null>(null)
+  const [generations, setGenerations] = useState<Generation[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
@@ -133,10 +151,13 @@ export function ISTPage({ projectId }: { projectId: string }) {
       const { data: ss } = await supabase.from('ist_sessions')
         .select('id, test_date, test_type, description').eq('plan_id', active).order('test_date')
       setSessions(ss ?? [])
+      const { data: gens } = await supabase.from('ist_generations')
+        .select('id, mode, generated_at, pdf_url, generated_by').eq('plan_id', active).order('generated_at', { ascending: false })
+      setGenerations(gens ?? [])
       const { data: dr } = await supabase.from('documentation_register')
         .select('id, document_name, revision').eq('project_id', projectId).order('sort_order')
       setDocs(dr ?? [])
-    } else { setSystems([]); setIntegrations([]); setProtocols([]); setPrereqs([]); setResults([]); setSessions([]) }
+    } else { setSystems([]); setIntegrations([]); setProtocols([]); setPrereqs([]); setResults([]); setSessions([]); setGenerations([]) }
     setLoading(false)
   }, [projectId, planId])
 
@@ -171,6 +192,68 @@ export function ISTPage({ projectId }: { projectId: string }) {
   }
 
   const prereqDone = prereqs.filter(p => p.state !== 'na').length
+  const activePlan = plans.find(p => p.id === planId) ?? null
+
+  /**
+   * MODE READINESS — offer, do not block, except where the document would be a
+   * shell rather than a document.
+   *
+   * REPORT with no results is a legitimate thing to want: a dry run, a
+   * partial-progress issue, a structure review before the test day. So it WARNS
+   * and generates. The field decides.
+   *
+   * PLAN with no protocols is different in kind. There is nothing to test and
+   * the attachment forms would be empty tables — not a partial document, an
+   * empty shell. So it says what is missing instead of producing one.
+   */
+  function readiness(mode: 'plan' | 'report'): { blocked: boolean; message: string | null } {
+    const withProtocols = integrations.filter(i => protocols.some(p => p.integration_id === i.id))
+    if (mode === 'plan') {
+      if (integrations.length === 0) return { blocked: true, message: 'No integrations yet — add at least one, with its protocols, before generating a plan.' }
+      if (withProtocols.length === 0) return { blocked: true, message: 'No protocols on any integration yet — the test forms would be empty. Add protocols first.' }
+      return { blocked: false, message: null }
+    }
+    const answered = results.filter(r => r.normal_verdict && r.fire_verdict).length
+    if (sessions.length === 0) return { blocked: false, message: 'No test session recorded yet — this will generate a report with no results.' }
+    if (answered === 0) return { blocked: false, message: 'No test results recorded yet — this will generate an empty results report.' }
+    if (answered < protocols.length) return { blocked: false, message: `Partial: ${answered} of ${protocols.length} protocols have both modes recorded.` }
+    return { blocked: false, message: null }
+  }
+
+  async function generate(mode: 'plan' | 'report') {
+    if (!activePlan) return
+    setErr(null); setBusy(mode)
+    try {
+      // RULE 4. An issued revision is frozen. Regenerating one produces the NEXT
+      // revision — a full copy carrying its content and its recorded tests — and
+      // the original keeps its documents exactly as issued.
+      let targetId = activePlan.id
+      if (activePlan.status === 'issued') {
+        const next = nextRevisionLabel(plans.map(p => p.revision_label))
+        const { data, error } = await supabase.rpc('ist_create_revision', {
+          p_plan_id: activePlan.id, p_label: next,
+          p_description: `Revised from ${activePlan.revision_label} for re-issue.`,
+        })
+        if (error) { setErr(plainError(error.message)); return }
+        targetId = data as string
+      }
+      const { data: sess } = await supabase.auth.getSession()
+      const res = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${sess.session?.access_token ?? ''}` },
+        body: JSON.stringify({ document: 'ist', plan_id: targetId, mode }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setErr(plainError(body?.error ?? `generation failed (${res.status})`)); return }
+      await supabase.from('ist_plans').update({ status: 'issued' }).eq('id', targetId)
+      await supabase.from('ist_generations').insert({
+        plan_id: targetId, mode, storage_url: body.storage_url, pdf_url: body.pdf_url,
+        generated_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+      })
+      setPlanId(targetId)
+      await load()
+    } finally { setBusy(null) }
+  }
 
   // Field mode replaces the page rather than nesting inside it: on a phone, in a
   // fire command room, every pixel of chrome above the current protocol is a
@@ -214,6 +297,68 @@ export function ISTPage({ projectId }: { projectId: string }) {
             supabase.from('ist_plans').insert({ project_id: projectId, revision_label: label, description: desc }))} />
         </div>
       </section>
+
+      {planId && activePlan && (
+        /* ── GENERATE ─────────────────────────────────────────────────────
+           Directly under the plan revisions and ABOVE the working sections, so
+           it is on screen the moment a plan is selected. The owner found this
+           feature unfindable when it lived at the bottom; a door at the end of
+           the corridor is a door nobody opens. */
+        <section className="rounded-xl border border-gray-300 bg-white" data-testid="ist-generate">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <div className="flex flex-wrap items-baseline gap-2.5">
+              <h3 className="font-display text-xs font-bold uppercase tracking-[0.08em] text-gray-900">Generate</h3>
+              <span className="font-mono text-[10px] text-gray-400">Rev {activePlan.revision_label}</span>
+              {activePlan.status === 'issued' && (
+                <span className="rounded bg-gray-900 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">issued</span>
+              )}
+            </div>
+            <p className="mt-1.5 text-[10px] leading-relaxed text-gray-400">
+              PDF and Word, into the project&rsquo;s documents. {activePlan.status === 'issued'
+                ? <>This revision is issued and stays as issued — generating again creates the next revision.</>
+                : <>The revision on the cover is part of the record.</>}
+            </p>
+          </div>
+          <div className="grid gap-2 p-4 sm:grid-cols-2">
+            {MODES.map(m => {
+              const r = readiness(m.mode)
+              return (
+                <div key={m.mode} className="rounded-lg border border-gray-200 p-3">
+                  <div className="text-xs font-bold text-gray-900">{m.title}</div>
+                  <p className="mt-1 text-[10px] leading-relaxed text-gray-500">{m.blurb}</p>
+                  {r.message && (
+                    <p data-testid={`ist-gen-warn-${m.mode}`}
+                      className={`mt-2 rounded px-2 py-1.5 text-[10px] leading-relaxed ${
+                        r.blocked ? 'bg-gray-100 text-gray-600' : 'bg-amber-50 text-amber-800'}`}>
+                      {r.blocked ? '' : '⚠ '}{r.message}
+                    </p>
+                  )}
+                  <button data-testid={`ist-generate-${m.mode}`}
+                    disabled={r.blocked || busy !== null}
+                    onClick={() => void generate(m.mode)}
+                    className="mt-2 w-full rounded bg-gray-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-40">
+                    {busy === m.mode ? 'Generating…' : `Generate ${m.title}`}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          {generations.length > 0 && (
+            <div className="border-t border-gray-100 px-4 py-3" data-testid="ist-gen-history">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Generated</div>
+              <div className="mt-1.5 space-y-1">
+                {generations.map(g => (
+                  <div key={g.id} className="flex flex-wrap items-baseline gap-2 text-[11px]" data-testid="ist-gen-row">
+                    <span className="font-medium text-gray-900">{g.mode === 'plan' ? 'IST Plan' : 'IST Report'}</span>
+                    <span className="text-gray-500">{new Date(g.generated_at).toLocaleString()}</span>
+                    <span className="ml-auto font-mono text-[10px] text-gray-400">Rev {activePlan.revision_label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {planId && (
         <>
@@ -565,4 +710,20 @@ function ProtocolForm({ integrationId, count, onCreate }: {
       <p className="text-[10px] leading-relaxed text-gray-400">{KIND_HELP[kind]}</p>
     </div>
   )
+}
+
+/**
+ * Next revision label. Numeric where the existing ones are numeric — the firm
+ * numbers revisions 0, 1, 2 — and suffixed otherwise.
+ *
+ * Deliberately dumb. A scheme that tried to be clever about "REV2a" would invent
+ * a convention nobody asked for, and revision numbering on an issued engineering
+ * document is not a place to be inventive.
+ */
+export function nextRevisionLabel(existing: string[]): string {
+  const nums = existing
+    .map(l => Number(String(l).match(/(\d+)\s*$/)?.[1] ?? NaN))
+    .filter(n => !Number.isNaN(n))
+  if (nums.length) return String(Math.max(...nums) + 1)
+  return `${existing[existing.length - 1] ?? '0'}-rev`
 }
