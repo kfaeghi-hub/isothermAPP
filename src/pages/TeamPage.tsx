@@ -19,7 +19,20 @@ interface CompanyLite { id: string; name: string; abbreviation: string | null; r
 
 interface Props { projectId: string }
 
+/** The Services-in-Scope option that puts IST on a project. A constant because
+ *  it is one value read from the vocabulary, not a rule — and if the firm ever
+ *  renames it, the IST group simply stops appearing rather than appearing
+ *  wrongly, which is the safe direction for a hint. `pw-ist-team` asserts the
+ *  option still resolves, so a rename is caught rather than silently obeyed. */
+const IST_OPTION_LABEL = 'CAN/ULC-S1001 IST'
+
 export function TeamPage({ projectId }: Props) {
+  // IST scope + its seat list. Both are DATA: the classification option lives in
+  // the vocabulary and the seat list in ist_team_seed_roles, so adding a Security
+  // Contractor the first time a project has mag-lock integrations is an edit on
+  // the Classifications screen, not a deploy.
+  const [istInScope, setIstInScope] = useState(false)
+  const [istSeatRoleIds, setIstSeatRoleIds] = useState<string[]>([])
   const [roleTypes, setRoleTypes]     = useState<CompanyRoleType[]>([])
   const [assignments, setAssignments] = useState<TeamAssignmentWithDetail[]>([])
   const [companies, setCompanies]     = useState<CompanyLite[]>([])
@@ -49,8 +62,13 @@ export function TeamPage({ projectId }: Props) {
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
-    const [rtRes, aRes, cRes, ctRes] = await Promise.all([
+    const [rtRes, clsRes, seatRes, aRes, cRes, ctRes] = await Promise.all([
       supabase.from('company_role_types').select('*').order('sort_order'),
+      // The scope signal is the classification OPTION, matched by its own id —
+      // resolved here rather than by comparing label strings at render time.
+      supabase.from('project_classifications')
+        .select('option_id, classification_options(label)').eq('project_id', projectId),
+      supabase.from('ist_team_seed_roles').select('role_type_id, sort_order').eq('active', true).order('sort_order'),
       supabase.from('project_team_assignments')
         .select('*, companies(id, name, abbreviation), contacts(id, name, trade, email, phone, contact_emails(*), contact_phones(*))')
         .eq('project_id', projectId)
@@ -61,6 +79,8 @@ export function TeamPage({ projectId }: Props) {
         .order('name'),
     ])
     const firstErr = rtRes.error ?? aRes.error ?? cRes.error ?? ctRes.error
+    // clsRes/seatRes errors are deliberately NOT fatal: the IST group is an
+    // additive hint, and a team matrix must still render if that lookup fails.
     if (firstErr) { setError(firstErr.message); setLoading(false); return }
     setRoleTypes((rtRes.data ?? []) as CompanyRoleType[])
     setAssignments((aRes.data ?? []) as unknown as TeamAssignmentWithDetail[])
@@ -69,6 +89,9 @@ export function TeamPage({ projectId }: Props) {
       roleTypeIds: (c.company_roles ?? []).map((r: any) => r.role_type_id).filter(Boolean),
     })))
     setContacts((ctRes.data ?? []) as ContactWithDetail[])
+    setIstInScope(((clsRes.data ?? []) as any[])
+      .some(c => (c.classification_options?.label ?? '') === IST_OPTION_LABEL))
+    setIstSeatRoleIds(((seatRes.data ?? []) as any[]).map(r => r.role_type_id))
     setLoading(false)
   }, [projectId])
 
@@ -210,7 +233,17 @@ export function TeamPage({ projectId }: Props) {
     if (j < 0 || j >= siblings.length) return
     // Swap sort_orders
     const [resA, resB] = await Promise.all([
+      // The scope signal is the classification OPTION, matched by its own id —
+      // resolved here rather than by comparing label strings at render time.
+      supabase.from('project_classifications')
+        .select('option_id, classification_options(label)').eq('project_id', projectId),
+      supabase.from('ist_team_seed_roles').select('role_type_id, sort_order').eq('active', true).order('sort_order'),
       supabase.from('project_team_assignments').update({ sort_order: siblings[j].sort_order }).eq('id', a.id),
+      // The scope signal is the classification OPTION, matched by its own id —
+      // resolved here rather than by comparing label strings at render time.
+      supabase.from('project_classifications')
+        .select('option_id, classification_options(label)').eq('project_id', projectId),
+      supabase.from('ist_team_seed_roles').select('role_type_id, sort_order').eq('active', true).order('sort_order'),
       supabase.from('project_team_assignments').update({ sort_order: a.sort_order }).eq('id', siblings[j].id),
     ])
     // On any error the reorder may be half-applied; report and reload to resync.
@@ -271,6 +304,35 @@ export function TeamPage({ projectId }: Props) {
         This team feeds the Cx Plan communication matrix and other project documents.
         &nbsp;{assignedCount}/{matrixRoles.length} roles assigned.
       </p>
+
+      {istInScope && (() => {
+        const gaps = istSeatRoleIds
+          .filter(id => (byRole[id]?.length ?? 0) === 0)
+          .map(id => roleTypes.find(r => r.id === id))
+          .filter((r): r is CompanyRoleType => !!r)
+        if (gaps.length === 0) return null
+        return (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3" data-testid="ist-team-gaps">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h4 className="text-xs font-bold uppercase tracking-wide text-amber-900">Needed for IST</h4>
+              <span className="font-mono text-[10px] text-amber-700" data-testid="ist-team-gap-count">{gaps.length}</span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
+              CAN/ULC-S1001 is in this project&rsquo;s scope. These roles have no company assigned yet — an
+              integrated test needs every party named before it can be coordinated.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {gaps.map(r => (
+                <button key={r.id} data-testid="ist-team-gap-seat"
+                  onClick={() => openAssign(r.id)}
+                  className="rounded border border-amber-400 bg-white px-2 py-1 text-[11px] text-amber-900 hover:bg-amber-100">
+                  {r.name} +
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       <div className="space-y-2">
         {matrixRoles.map(role => {

@@ -1165,6 +1165,32 @@ whether or not anything was ever mined into it, so a row count is not evidence o
 content. That is the cross-check the phantom-data section demands, applied here:
 the parts (mined vs filled), compared — not the total, validated.
 
+### A seed keyed by name silently seeds what matches — assert the count
+
+*2026-08-09, IST phase 5.*
+
+The IST team seat list is declared as eighteen role names and inserted with a
+join against the role vocabulary. One of them — `Commissioning Provider` — is
+called `CxP` in the vocabulary. The join matched seventeen, inserted seventeen,
+and **reported success**: no error, no warning, no phantom row. The guard behaved
+correctly. Seventeen seats look exactly like eighteen seats unless something
+counts them.
+
+> **A by-name seed must assert the COUNT against the declared list, not the
+> completion of the insert.** "It ran" and "it ran and produced what was
+> declared" are different claims, and only the second one is the one anybody
+> cares about.
+
+The same shape as the truncated `.select()` that reported *0 items on every
+template*, and the vacuous `.every()` on an empty array: **an operation that
+partially succeeded is indistinguishable from one that fully succeeded, unless
+the expected magnitude is stated somewhere and checked.**
+
+Note the direction of the failure, because it is the merciful one: matching by
+name *under*-seeds. A seed that invented a placeholder row for the unmatched name
+would have put a nameless role into an issued contacts matrix, which is worse and
+quieter. **Refusing to guess was right; not counting was the defect.**
+
 ### A suite that speaks only as the service role cannot see an RLS defect
 
 *2026-08-08, IST phase 3.*

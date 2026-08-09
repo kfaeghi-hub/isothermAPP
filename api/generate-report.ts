@@ -1,3 +1,23 @@
+// GENERATE-REPORT — two document families in one serverless function.
+//
+// WHY TWO. `api/` is at the platform's 12-function ceiling. That is physical,
+// not a preference, and this codebase's established answer is an allow-list
+// inside an existing function — the same reason `intake.ts` hosts the agent
+// calls rather than each taking a slot. The next reader should FIND that here
+// rather than infer it from a switch statement, which is why this paragraph
+// exists.
+//
+//   document: 'site'  → the Cx Site Note (§ everything below)
+//   document: 'ist'   → the CAN/ULC-S1001 Integrated Systems Testing plan/report
+//
+// Anything else is REFUSED loudly. An unknown document kind silently falling
+// through to the site report would generate the wrong document under the right
+// name, which is the failure mode this project keeps recording.
+//
+// The clean fix remains parked: folding the four portal endpoints into one
+// router frees three slots — BACKBURNER, and deliberately its own session,
+// because live security endpoints never get refactored as a side effect of a
+// feature.
 import { createClient } from '@supabase/supabase-js'
 import {
   esc, isoShort, isoLong, isFilenameCaption, toBase64, primaryEmail,
@@ -5,6 +25,8 @@ import {
   DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
+import { buildIstHtml, IST_FOOTER, type IstMode } from './_shared/ist-document.js'
+import { assembleIstDoc } from './_shared/ist-assemble.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -392,10 +414,41 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const { report_id } = req.body ?? {}
-    if (!report_id) return res.status(400).json({ error: 'report_id required' })
+    const { report_id, document, plan_id, mode } = req.body ?? {}
+
+    // THE ALLOW-LIST. Explicit, and unknown values are refused rather than
+    // defaulted — a default here means generating a site report for a caller
+    // that asked for something else.
+    const DOCUMENTS = ['site', 'ist'] as const
+    const kind: string = document ?? 'site'
+    if (!DOCUMENTS.includes(kind as typeof DOCUMENTS[number]))
+      return res.status(400).json({ error: `unknown document '${kind}'; expected one of ${DOCUMENTS.join(', ')}` })
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+
+    if (kind === 'ist') {
+      if (!plan_id) return res.status(400).json({ error: 'plan_id required for document=ist' })
+      const istMode: IstMode = mode === 'plan' ? 'plan' : 'report'
+      const { userId: istUser } = await requireUser(req, supabase)
+      const { data: istPlan, error: ipErr } = await supabase
+        .from('ist_plans').select('*').eq('id', plan_id).single()
+      if (ipErr || !istPlan) return res.status(404).json({ error: ipErr?.message ?? 'not found' })
+      await requireProjectAccess(supabase, istUser, istPlan.project_id)
+
+      const doc = await assembleIstDoc(supabase, istPlan)
+      const html = buildIstHtml(doc, istMode)
+      const [pdf, docx] = await Promise.all([toPdf(html, IST_FOOTER), toDocx(html)])
+      const base = `${istPlan.project_id}/IST-${istPlan.revision_label}-${istMode}`
+      const up = await uploadDocPair(supabase.storage.from('site-reports'), base, docx, pdf)
+      if ('error' in up) return res.status(500).json(up)
+      await supabase.from('ist_plans')
+        .update({ storage_url: up.storage_url, pdf_url: up.pdf_url, updated_at: new Date().toISOString() })
+        .eq('id', istPlan.id)
+      console.log(`[ist] plan=${istPlan.id} mode=${istMode} integrations=${doc.integrations.length} results=${doc.results.length}`)
+      return res.status(200).json({ ...up, mode: istMode })
+    }
+
+    if (!report_id) return res.status(400).json({ error: 'report_id required' })
 
     // Identity BEFORE any resource lookup (no id probing), then 404, then authz.
     const { userId } = await requireUser(req, supabase)

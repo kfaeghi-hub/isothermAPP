@@ -139,15 +139,27 @@ IST is a core firm service — Seneca carries an IST plan at rev 10 — and OBC
 **Wakes when:** the first project schedules an IST — most likely Seneca. **No
 code now.**
 
-> **IN PROGRESS 2026-08-08 — phases 1-3 shipped.** Schema (12 tables), five
+> **SHIPPED 2026-08-09 — all five phases.** Schema (12 tables), five
 > guards each proven refusing, the 8 new role seats, the tabular matrix with
 > status chips, §9.1's prerequisites as firm data wired to the documentation
 > register, and **session field mode** — phone-first, offline through the
 > existing checklist outbox on `ist_results`' natural key. `pw-ist` at 38 checks,
 > now including **RLS asserted as a real employee**, added after a policy
 > recursion made the whole tab read empty while a service-role suite stayed
-> green. **Phases 4-5 remain:** document generation (gate: faithful Scarborough
-> regeneration), team seeding.
+> green. **Phase 4 shipped:** one skeleton two modes, hosted in
+> `generate-report.ts` behind an explicit `document` allow-list (the 12-function
+> ceiling is physical), gated by `ist-regen-gate` — 15 structural checks against
+> the issued Scarborough report, now a battery suite.
+>
+> **Phase 5 shipped as PRESENT-rather-than-INSERT.** The Team tab surfaces a
+> **Needed for IST** group on scope-classified projects — the seats with no
+> company assigned, each one tap from an assignment, each disappearing as filled.
+> No phantom rows: `project_team_assignments.company_id` is NOT NULL and the
+> matrix groups by (role_type_id, company_id), so it is **company-first** and an
+> unfilled seat is an absence to show, not a row to fabricate. The first attempt
+> tried to insert and could not; the proposal had called seats "role rows
+> awaiting contacts" and the schema said otherwise — same shape as the
+> `origin='ist'` claim. `pw-ist-team` is sighted from birth.
 >
 > **One correction this entry owes:** it said IST deficiencies would file with
 > `origin = 'ist'` because that value was *already in the origin set*. It was

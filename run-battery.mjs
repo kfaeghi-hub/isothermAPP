@@ -97,6 +97,13 @@ const SUITES = [
   'pw-schedule-finder',
   'pw-type-picker',
   'pw-ist',
+  // Regenerates the real Scarborough Gardens content and asserts the STRUCTURE
+  // of what comes out — section order, three attachments from nine matrix rows,
+  // one sign-off per attachment, the Equip. Type column only where points live.
+  // The issued report is the fixture standard, so this is the gate that stops
+  // the generator drifting away from the document an AHJ actually reads.
+  'ist-regen-gate',
+  'pw-ist-team',
   // Not a pw- suite, and here on purpose. It regenerates one document per family
   // and asserts no table rule is painted inside the reserved footer band. The
   // footer-bleed bug shipped because every gate looked at document CONTENT and

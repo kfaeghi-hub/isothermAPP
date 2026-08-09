@@ -16,20 +16,23 @@ one written alongside the change is written from the diff.
 
 ---
 
-## Update 1.07 — 2026-08-08 · IN PROGRESS
+## Update 1.07 — 2026-08-09 · IST MODULE SHIPPED
 
 ### For the team
 
-**The IST module has started.** Integrated Systems Testing to CAN/ULC-S1001 —
-the service the firm already performs and issues reports for — is becoming a
-module instead of a Word document. Phase 1 is the foundation: a project now has
-an **IST tab** where the plan revisions, the participating systems, the
-integrations between them and the test protocols live as data.
+**The IST module has shipped.** Integrated Systems Testing to CAN/ULC-S1001 —
+the service the firm already performs and issues reports for — is a module now
+instead of a Word document. A project has an **IST tab** holding the plan
+revisions, the participating systems, the integrations between them and the test
+protocols; a **field mode** for recording a witnessed test on a phone, offline if
+the building has no signal; and it **generates the Plan and the Report** in the
+structure the standard specifies.
 
-Nothing generates a document yet. That is phase 4, and its gate is that the
-system must reproduce the **Scarborough Gardens Arena** report's structure from
-seeded data — the real issued report is the standard the build is measured
-against.
+The bar it was built against was the firm's own **Scarborough Gardens Arena**
+report. That document turned out to be CAN/ULC-S1001 Appendix C section for
+section — not a house style but the deliverable the standard asks for — so the
+system is checked, every time the test battery runs, against its ability to
+reproduce that structure from data.
 
 **Why it matters beyond one project:** the Ontario Fire Code changed on
 2026-01-01. Buildings whose fire protection or life safety systems were installed
@@ -149,10 +152,51 @@ that quietly disagrees with what ran is worse than an ugly one), and `pw-ist` no
 runs its RLS section **as the employee account** — not the admin, whose
 `is_admin_or_dev()` short-circuit would hide the same class of bug.
 
-**Closing gates:** battery 33/33 · `pw-ist` 38 checks — five guards proven
-refusing, RLS proven as a real user, outbox replay proven idempotent ·
-render-and-look at 360 / 390 / 1280 with horizontal overflow asserted, not
-eyeballed · real build (`tsc -b`) clean · tree clean.
+**Phases 4 and 5 — the documents, and the team.** The IST **Plan** and **Report**
+generate from one skeleton in two modes, because the standard says the report
+*consists of* the plan plus the collected documentation plus the forms — two
+generators would drift, and the first thing to drift would be section numbering,
+which is what an AHJ reads the document by. Plan mode emits the blank Attachment
+A forms; report mode adds the executive summary, the pre-completed table, the
+life-cycle log and Attachment B carrying results and sign-offs.
+
+**The generator is hosted inside `generate-report.ts` behind an explicit
+`document: 'site' | 'ist'` allow-list**, with unknown values refused loudly. That
+is not tidiness — `api/` is at the platform's 12-function ceiling, which is
+physical, and an allow-list inside an existing function is this codebase's
+established answer to it (the same reason `intake.ts` hosts the agent calls). The
+file's header says so, so the next reader finds the ceiling instead of inferring
+it. Portal consolidation stays parked as its own session; its entry now records
+that **slot pressure is real** — two features routing through shared functions.
+
+**The gate is a faithful Scarborough regeneration**, and it is a battery suite:
+`ist-regen-gate` seeds the real content and asserts **15 structural facts** — all
+13 Appendix-C sections present and in order, **three** attachment tables from
+**nine** matrix rows, six sign-off blocks, `Equip. Type` on the sprinkler
+attachment only, the B-3 note surviving with its author, per-result dates
+differing inside one signed report. Building the fixture caught a real error: the
+first draft rendered one attachment per integration, which would have produced
+nine attachments and nine sign-offs where the firm issues three. Counting against
+the real document caught it; a single page looked plausible.
+
+**Team seeding presents rather than inserts.** On a project whose scope includes
+`CAN/ULC-S1001 IST`, the Team tab shows a **Needed for IST** group listing the
+seats with no company assigned — each one tap from a real assignment, and each
+disappearing as it is filled. No phantom rows: the matrix is company-first, and
+**an unfilled seat is an absence to show, not a row to fabricate.**
+
+*A withdrawal worth recording:* the first attempt seeded rows directly and could
+not — `project_team_assignments.company_id` is NOT NULL and the matrix groups by
+`(role_type_id, company_id)`. The proposal had said seats were "role rows
+awaiting contacts"; the schema said otherwise. The seeding function was **dropped
+rather than left failing**, because a function that exists and cannot succeed
+reads as available.
+
+**Closing gates:** battery 35/35 · `pw-ist` 44 checks — five guards proven
+refusing, RLS proven as a real user, outbox replay proven idempotent, the seat
+list counted against its declared 18 · `pw-ist-team` 6 checks through a real
+browser login · `ist-regen-gate` 15 structural checks against the issued report ·
+render-and-look at 360 / 390 / 1280 · real build (`tsc -b`) clean · tree clean.
 
 ---
 

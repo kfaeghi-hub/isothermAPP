@@ -1,0 +1,18 @@
+-- IST PHASE 5 — the seeding FUNCTION is withdrawn pending a ruling. The seat
+-- list stays, because it is correct under either resolution.
+--
+-- WHAT THE SCHEMA SAID BACK. `project_team_assignments.company_id` is NOT NULL,
+-- and TeamPage groups assignments by (role_type_id, company_id). The matrix's
+-- model is COMPANY-FIRST: you assign a company to a role, and the contact is the
+-- optional part. There is no such thing in this schema as "a role row awaiting a
+-- contact" with neither filled.
+--
+-- The proposal said seats were role rows awaiting contacts, and the ruling rested
+-- on that. It was wrong about this table — the same shape as the origin='ist'
+-- claim: a stated fact about the schema that nothing had executed against until
+-- the first statement that needed it.
+--
+-- So `ist_seed_team` is dropped rather than left in place failing with a
+-- constraint error. A function that exists and cannot succeed is worse than one
+-- that does not exist: it reads as available.
+drop function if exists ist_seed_team(uuid);

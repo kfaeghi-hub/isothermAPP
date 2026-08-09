@@ -239,6 +239,18 @@ try {
   check((once ?? []).length === 1 && once[0].fire_verdict === 'pass',
     `replayed upsert lands ONE row, last write wins (${(once ?? []).length} row(s))`)
 
+  // ── PHASE 5 (partial): the IST seat list is complete ──────────────────────
+  // COUNTED, not spot-checked. The first draft named 'Commissioning Provider',
+  // which the vocabulary calls 'CxP'; the by-name join correctly seeded nothing
+  // for it and the list came out at 17 instead of 18. No phantom row, no error —
+  // just one seat quietly absent, which only a count reveals.
+  const { data: seats } = await svc.from('ist_team_seed_roles').select('role_type_id')
+  check((seats ?? []).length === 18, `IST seat list carries all 18 roles (got ${(seats ?? []).length})`)
+  const { data: rtAll } = await svc.from('company_role_types').select('id, name')
+  const seatNames = new Set((seats ?? []).map(s => rtAll.find(r => r.id === s.role_type_id)?.name))
+  for (const must of ['Integrated Testing Coordinator', 'Fire Department', 'Building Department', 'Electrical Authority (ESA)', 'CxP'])
+    check(seatNames.has(must), `seat present: ${must}`)
+
   // ── cascade: removing the plan removes everything hanging off it ──────────
   await svc.from('ist_plans').delete().eq('id', plan.id)
   const gone = await waitUntil(async () => {
