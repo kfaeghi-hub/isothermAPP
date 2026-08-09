@@ -13,7 +13,7 @@
 // ZZ-TEST only, self-cleaning.
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { login, openTestProject, waitUntil, BASE_URL } from './pw-config.mjs'
+import { login, loginAs, adminCredentials, openTestProject, waitUntil, BASE_URL } from './pw-config.mjs'
 import { assertHarnessFree } from './harness-lock.mjs'
 assertHarnessFree('pw-ist-generate')
 
@@ -48,19 +48,58 @@ await svc.from('ist_protocols').insert([
 await svc.rpc('ist_seed_prerequisites', { p_plan_id: plan.id })
 
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+let page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 
-async function openPlan(label) {
+async function openTab() {
   await page.goto(`${BASE_URL}/projects`)
   await openTestProject(page)
   await page.getByRole('button', { name: 'IST', exact: true }).click()
-  await page.waitForTimeout(2500)
+  await page.waitForTimeout(3000)
+}
+async function openPlan(label) {
+  await openTab()
   const radio = page.locator('[data-testid="ist-plan-row"]').filter({ hasText: label }).locator('input')
   if (await radio.count()) { await radio.first().check(); await page.waitForTimeout(2200) }
 }
 
+/**
+ * THE COLD LANDING — the state every real user meets first.
+ *
+ * Added after an incident this suite did NOT cause. The owner reported the
+ * Generate control missing on production; diagnosis showed a stale bundle inside
+ * the ~110s deploy window and the control present and correct. The check was
+ * exonerated — and it still owed a state it had never tested: it always CLICKED
+ * a plan radio before asserting, so it only ever answered "is it findable after
+ * you already know what to do". Arriving cold, with a plan auto-selected and no
+ * interaction, is the findability question.
+ *
+ * Run for BOTH accounts, because the suite had only ever spoken as the employee
+ * and the reporter was the admin.
+ */
+async function coldLandingLegs(who) {
+  await openTab()
+  const gen = page.locator('[data-testid="ist-generate"]')
+  const seen = await waitUntil(async () => (await gen.count()) > 0,
+    { timeout: 12000, what: `the Generate control on a cold landing (${who})` })
+  check(seen, `[${who}] Generate is present on a COLD landing — no plan clicked`)
+  if (!seen) return
+  const box = await gen.boundingBox()
+  const vh = page.viewportSize().height
+  check(!!box && box.y >= 0 && box.y < vh,
+    `[${who}] and inside the first viewport on that cold landing (top ${Math.round(box?.y ?? -1)}px of ${vh}px)`)
+  // A plan must actually be auto-selected — if none were, `planId` would be null
+  // and the ABSENCE of the control would be correct rather than a defect. The
+  // leg has to distinguish those two, or it cannot fail for the right reason.
+  const checked = await page.locator('[data-testid="ist-plan-row"] input:checked').count()
+  check(checked === 1, `[${who}] exactly one plan revision is auto-selected on arrival (${checked})`)
+}
+
 try {
   await login(page)
+
+  // ── 0. THE COLD LANDING, as the employee ─────────────────────────────────
+  await coldLandingLegs('employee')
+
   await openPlan(`${LABEL}-0`)
 
   // ── 1. the action exists, and is ON SCREEN ────────────────────────────────
@@ -124,9 +163,27 @@ try {
   }
 
   // ── 5. history is visible on the plan view ───────────────────────────────
-  await openPlan(nextRev?.revision_label ?? `${LABEL}-0`)
+  // Asserted on the ORIGINAL revision, whose label is unique to this suite. The
+  // first version opened the NEW revision by label — a bare "2", which
+  // `hasText` will happily match inside any other row's text. A locator that can
+  // select the wrong row is a check that can pass or fail for the wrong reason.
+  await openPlan(`${LABEL}-0`)
   const hist = page.locator('[data-testid="ist-gen-row"]')
-  check(await hist.count() > 0, 'the plan view shows what was generated, and when')
+  const histSeen = await waitUntil(async () => (await hist.count()) > 0,
+    { timeout: 10000, what: 'the generation history' })
+  check(histSeen, `the plan view shows what was generated, and when (${await hist.count()} row(s))`)
+
+  // ── 6. THE COLD LANDING, as the ADMIN — the reporter's own account ────────
+  // A FRESH CONTEXT, not clearCookies(): supabase-js keeps the session in
+  // localStorage, so clearing cookies left the employee signed in and the login
+  // form never appeared. Caught by this suite failing loudly rather than by
+  // quietly re-running the employee legs under an admin label — which is the
+  // failure that would have made the new leg decorative.
+  await page.close()
+  const adminCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  page = await adminCtx.newPage()
+  await loginAs(page, adminCredentials())
+  await coldLandingLegs('admin')
 
 } finally {
   await browser.close()

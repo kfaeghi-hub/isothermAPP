@@ -1165,6 +1165,69 @@ whether or not anything was ever mined into it, so a row count is not evidence o
 content. That is the cross-check the phantom-data section demands, applied here:
 the parts (mined vs filled), compared — not the total, validated.
 
+### Present-on-page and present-on-screen are different claims — findability is assertable
+
+*2026-08-09, IST generation UI.*
+
+The IST generator and its endpoint passed 15 structural checks while **the button
+to run them did not exist**. Working code nobody can start is not a shipped
+feature, and no data-level assertion can see the difference.
+
+So the control's position is asserted, not judged: `pw-ist-generate` fails if
+`[data-testid="ist-generate"]` is not inside the first viewport of the plan
+screen. **"It is on the page" and "it is on the screen" are different claims, and
+only the second one is the one a user experiences.**
+
+### A check exonerated by diagnosis still owes the states the incident revealed
+
+*Same day, immediately after.*
+
+The owner reported the Generate control missing on production. Diagnosis cleared
+the check: the served bundle carried the control, it rendered on the real project
+with no console errors, and the report had landed inside the **~110-second deploy
+window** — a stale build against a current claim.
+
+**The check was not at fault and it was still incomplete.** It always *clicked a
+plan radio* before asserting, so it only ever answered *"is this findable once you
+already know what to do"*. It had never tested the **cold landing** — arriving on
+the tab with a plan auto-selected and no interaction — which is the state every
+real user meets first and the one the report was made from. It had also only ever
+run as the **employee**; the reporter was the **admin**.
+
+> **An incident a check did not cause is still evidence about that check.**
+> Exoneration answers *did it fail*. It does not answer *what did it never look
+> at* — and the incident just told you, for free, which state a real person
+> actually occupies.
+
+Both legs were added. Neither would have caught this incident. Both close a gap
+that was real before it and after it.
+
+*Two of my own new legs were wrong on their first run, and both are recorded in
+the file: a plan-label locator that `hasText` could match inside another row, and
+`clearCookies()` for a session that lives in **localStorage** — which left the
+employee signed in and would have re-run the employee legs under an admin label.
+A new check that silently tests the old thing is worse than no new check.*
+
+### The forensic method for "the feature I just shipped is missing"
+
+Established by the incident above, in the order that resolves it fastest:
+
+1. **Read the served bundle**, not the deploy status. Fetch `index.html`, take the
+   asset URL, and grep it for a marker of the change *and* for the compiled
+   condition around it. A green deploy is not a shipped feature.
+2. **Reproduce as the reporter** — their account, their project, capturing console
+   and page errors. Roles and RLS differ; suites usually run as one user.
+3. **Read the absence structurally.** A section missing *between two siblings that
+   both rendered* cannot be a data problem, because the siblings are gated on the
+   same state. That single observation eliminated conditional visibility, role
+   gates, RLS and plan-selection in one step.
+
+**And the deploy window is a state.** For ~110 seconds after a push, a hard
+refresh serves the previous build. So the field-report protocol gains one line:
+**before reporting a just-shipped feature missing, confirm the served bundle hash
+postdates the push.** The check that resolved this incident third is the step a
+reporter should run first.
+
 ### A seed keyed by name silently seeds what matches — assert the count
 
 *2026-08-09, IST phase 5.*
@@ -1468,6 +1531,16 @@ Acting on the report alone would have sent the work to the extractor, the budget
 class, or the region splitter — all of which were correct — and left the
 presentation defect in place. **The reporter is describing the only thing they
 can see. The ledger is what they cannot.**
+
+**And for a just-shipped feature, the ledger is the served bundle.** *2026-08-09:*
+"the Generate control is missing" was an accurate description of the screen and
+the control was present in the deployed code — the report landed inside the
+~110-second window in which a hard refresh still serves the previous build.
+**Protocol line: before reporting a just-shipped feature missing, confirm the
+served bundle hash postdates the push.** One `curl` of `index.html` plus a grep
+of the asset settles it, and it is the reporter's cheapest possible first step
+rather than the diagnostician's third. Full method:
+[the forensic method](#the-forensic-method-for-the-feature-i-just-shipped-is-missing).
 
 This is the *prove the mechanism* rule pointed at bug reports: a symptom is
 evidence about the surface, and the run log is evidence about the machine. Read

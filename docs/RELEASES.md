@@ -238,6 +238,23 @@ anything. The plan view shows what was generated, in which mode, and when.
 control is not inside the first viewport of the plan screen. *"It is on the page"*
 and *"it is on the screen"* are different claims and only the second one counts.
 
+*A field report against this, and what it changed.* The owner reported the
+Generate control missing on production. It was a **timing shadow**: the report
+landed inside the ~110-second window in which a hard refresh still serves the
+previous build, and the control was present, correct and error-free in the
+deployed code. **No product defect — and the check still owed something.**
+`pw-ist-generate` had always *clicked a plan* before asserting, so it only ever
+answered *"is this findable once you know what to do"*; it had never tested the
+**cold landing** — arriving on the tab with a plan auto-selected and no
+interaction — which is the state every real user meets first and the one the
+report came from. It had also only run as the employee, and the reporter was the
+admin. Both legs added for both accounts. **An incident a check did not cause is
+still evidence about that check.**
+
+The protocol gained one line for reporters: **before reporting a just-shipped
+feature missing, confirm the served bundle hash postdates the push** — one
+`curl` and a grep, cheaper for the reporter than a diagnosis is for anyone.
+
 **Closing gates:** battery 37/37 · `pw-ist` 44 checks — five guards proven
 refusing, RLS proven as a real user, outbox replay proven idempotent, the seat
 list counted against its declared 18 · `pw-ist-team` 6 checks through a real
