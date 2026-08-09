@@ -87,7 +87,72 @@ re-asserts it, because `ADD VALUE IF NOT EXISTS` is silent when it is a no-op.
 P.Eng or a ULC-listed individual at an authorized service provider, and on some
 projects that is not this firm. It is never a CxA synonym.
 
-**Closing gates:** battery 33/33 · tree clean.
+**Phase 2 — the integrations matrix and the pre-IST checklist.** Each integration
+now carries a **status chip**, and the chip that shouts is `UNTESTED` — filled
+amber, the only loud one on the screen. That follows the ruling's own argument
+for the tabular form: *an integration that does not exist is not interesting; one
+that exists and was not tested is.* `Pass` is deliberately quiet, because a
+screen that shouts about its good news trains people to stop reading it.
+`NO PROTOCOLS` is a separate state from `UNTESTED` on purpose — both are zero
+results and they mean opposite things: work not yet planned versus a plan not yet
+executed. A protocol counts as tested only when **both** Normal and Off-Normal
+carry a verdict, since half of an S1001 test is not a tested integration.
+
+**§9.1's 22 prerequisites are firm data, not this project's data** — a firm-level
+default list copied into a plan by `ist_seed_prerequisites()`, idempotent, seeded
+at N/A. A function rather than app code because three surfaces will eventually
+create plans, and a rule that lives in one call site is a rule the other two will
+not have.
+
+**The link is the phase, not the list.** `document_id` now references
+`documentation_register`, and a CHECK **refuses** a prerequisite marked YES with
+no document attached. NO and N/A with nothing attached stay legal — those are
+honest states; it is the *claim* that needs evidence. **This is the
+known-good-handoff boundary made operational:** per-unit readiness stays the Cx
+Index's, and document prerequisites are checked here against real documents
+rather than against a tick.
+
+**Phase 3 — session field mode.** A witnessed test, recorded live on a phone.
+One protocol per card, 44px verdict targets three across, the observed note and
+the date out of the way until needed, and a sticky bar carrying the only two
+facts that matter mid-test: **how many are done, and whether the device is
+online**. A card is complete only when **both** Normal and Off-Normal carry a
+verdict — the same definition the matrix chip uses, deliberately, because two
+screens disagreeing about what *tested* means is how a green matrix ends up
+sitting over an unfinished test. The per-result date defaults to the session's
+and stays editable, because one signed attachment legitimately holds rows tested
+on different days.
+
+**Offline reuses the existing outbox rather than growing a second one.**
+`ist_results` already carries a unique key on `(session_id, protocol_id)`, which
+is exactly the natural key that queue requires: re-tapping a verdict REPLACES its
+queued op instead of appending, so a long session cannot grow an unbounded queue,
+and a replayed flush lands one row with last-write-wins. Photos ride a finding
+with `origin = 'ist'` — a photo in an integrated test exists because something
+failed, and a deficiency belongs in the findings register, never in a parallel
+store.
+
+**A defect that shipped green, and the hole in the suite that let it.** The IST
+tab read **"No IST plan yet"** over a row that existed. The phase-1 policy
+generator had emitted a `select` on `ist_plans` **inside `ist_plans`' own
+policy** — `infinite recursion detected in policy` — so the table read as empty
+to every real user and the feature was unusable from the moment it shipped.
+
+`pw-ist` was **28/28 green throughout**, because every check spoke through the
+**service role key, which bypasses RLS**. Eleven tables, five constraints, six
+proven refusals: all true, all irrelevant to whether anyone could see the data.
+**A suite that only ever speaks as the service role cannot see an RLS defect.**
+Found by the render-and-look gate at phone width — the third time render-and-look
+has caught what the assertions could not. The policy is corrected in its own
+migration, the phase-1 file annotated rather than silently rewritten (a history
+that quietly disagrees with what ran is worse than an ugly one), and `pw-ist` now
+runs its RLS section **as the employee account** — not the admin, whose
+`is_admin_or_dev()` short-circuit would hide the same class of bug.
+
+**Closing gates:** battery 33/33 · `pw-ist` 38 checks — five guards proven
+refusing, RLS proven as a real user, outbox replay proven idempotent ·
+render-and-look at 360 / 390 / 1280 with horizontal overflow asserted, not
+eyeballed · real build (`tsc -b`) clean · tree clean.
 
 ---
 

@@ -322,7 +322,13 @@ begin
     'ist_precompleted','ist_notes'
   ] loop
     plan_expr := case t
-      when 'ist_plans' then '(select project_id from ist_plans p where p.id = %1$s.id)'
+      -- ist_plans uses its OWN column. Selecting from ist_plans inside
+      -- ist_plans' policy is infinite recursion, and Postgres says so — see
+      -- migrations/ist-phase3-rls-fix.sql, which is the correction this line
+      -- originally needed. Left corrected here AND kept as its own migration,
+      -- because the deployed database was fixed by that file and a history that
+      -- silently disagrees with what ran is worse than an ugly one.
+      when 'ist_plans' then 'project_id'
       when 'ist_protocols' then '(select p.project_id from ist_plans p join ist_integrations i on i.plan_id = p.id where i.id = %1$s.integration_id)'
       when 'ist_session_participants' then '(select p.project_id from ist_plans p join ist_sessions s on s.plan_id = p.id where s.id = %1$s.session_id)'
       when 'ist_results' then '(select p.project_id from ist_plans p join ist_sessions s on s.plan_id = p.id where s.id = %1$s.session_id)'

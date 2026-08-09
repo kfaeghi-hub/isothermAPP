@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { ISTFieldMode } from './ISTFieldMode'
 
 type SubjectKind = 'condition' | 'unit' | 'point'
 type ConditionType = 'alarm' | 'supervisory' | 'trouble' | 'connection_integrity'
@@ -38,6 +39,40 @@ interface Protocol {
 const CONDITION_LABEL: Record<ConditionType, string> = {
   alarm: 'Alarm', supervisory: 'Supervisory', trouble: 'Trouble', connection_integrity: 'Connection Integrity',
 }
+interface Prereq {
+  id: string; item_no: number; category: string; description: string
+  state: 'yes' | 'no' | 'na'; document_id: string | null; received_on: string | null
+}
+interface RegisterDoc { id: string; document_name: string; revision: string | null }
+interface Session { id: string; test_date: string; test_type: string; description: string | null }
+
+const TEST_TYPE_LABEL: Record<string, string> = {
+  new: 'Initial', one_year: 'One-year', five_year: 'Five-year', modification: 'After modification',
+}
+
+/**
+ * INTEGRATION STATUS, and why UNTESTED is the loud one.
+ *
+ * The matrix is tabular rather than a systems grid because an integration that
+ * does not exist is not interesting — one that EXISTS AND WAS NOT TESTED is. So
+ * the chip that has to be seen from across the room is `untested`, and it is the
+ * only one carrying a filled amber treatment. Pass is quiet by design: a screen
+ * that shouts about its good news trains people to stop reading it.
+ *
+ * `no protocols` is separated from `untested` deliberately. They look identical
+ * in a count of results — both are zero — and they mean opposite things: one is
+ * work not yet planned, the other is a plan not yet executed.
+ */
+type IntegrationStatus = 'no-protocols' | 'untested' | 'partial' | 'pass' | 'fail'
+
+const STATUS_CHIP: Record<IntegrationStatus, { label: string; cls: string }> = {
+  'fail':         { label: 'FAIL',        cls: 'bg-red-600 text-white' },
+  'untested':     { label: 'UNTESTED',    cls: 'bg-amber-500 text-white' },
+  'partial':      { label: 'PART TESTED', cls: 'bg-amber-100 text-amber-800 border border-amber-300' },
+  'no-protocols': { label: 'NO PROTOCOLS', cls: 'bg-gray-100 text-gray-500 border border-gray-300' },
+  'pass':         { label: 'Pass',        cls: 'bg-gray-50 text-gray-500 border border-gray-200' },
+}
+
 const KIND_HELP: Record<SubjectKind, string> = {
   condition: 'One row per S1001 condition type — the Attachment A-1 shape.',
   unit: 'One row per machine — the Attachment A-3 shape (ERV-1, DH-1 …).',
@@ -51,6 +86,11 @@ export function ISTPage({ projectId }: { projectId: string }) {
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [protocols, setProtocols] = useState<Protocol[]>([])
   const [openIntegration, setOpenIntegration] = useState<string | null>(null)
+  const [prereqs, setPrereqs] = useState<Prereq[]>([])
+  const [docs, setDocs] = useState<RegisterDoc[]>([])
+  const [results, setResults] = useState<{ protocol_id: string; normal_verdict: string | null; fire_verdict: string | null }[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [fieldSession, setFieldSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
@@ -77,8 +117,23 @@ export function ISTPage({ projectId }: { projectId: string }) {
           .select('id, integration_id, subject_kind, subject_label, condition_type, equip_type_code, normal_mode_steps, fire_mode_steps, expected_result, sort_order')
           .in('integration_id', ids).order('sort_order')
         setProtocols(pr ?? [])
-      } else setProtocols([])
-    } else { setSystems([]); setIntegrations([]); setProtocols([]) }
+        const pids = (pr ?? []).map(x => x.id)
+        const { data: rs } = pids.length
+          ? await supabase.from('ist_results').select('protocol_id, normal_verdict, fire_verdict').in('protocol_id', pids)
+          : { data: [] }
+        setResults(rs ?? [])
+      } else { setProtocols([]); setResults([]) }
+      const { data: pq } = await supabase.from('ist_prerequisites')
+        .select('id, item_no, category, description, state, document_id, received_on')
+        .eq('plan_id', active).order('item_no')
+      setPrereqs(pq ?? [])
+      const { data: ss } = await supabase.from('ist_sessions')
+        .select('id, test_date, test_type, description').eq('plan_id', active).order('test_date')
+      setSessions(ss ?? [])
+      const { data: dr } = await supabase.from('documentation_register')
+        .select('id, document_name, revision').eq('project_id', projectId).order('sort_order')
+      setDocs(dr ?? [])
+    } else { setSystems([]); setIntegrations([]); setProtocols([]); setPrereqs([]); setResults([]); setSessions([]) }
     setLoading(false)
   }, [projectId, planId])
 
@@ -99,6 +154,28 @@ export function ISTPage({ projectId }: { projectId: string }) {
   }
 
   const sysName = (id: string) => systems.find(s => s.id === id)?.label ?? '—'
+
+  function statusOf(integrationId: string): IntegrationStatus {
+    const mine = protocols.filter(p => p.integration_id === integrationId)
+    if (mine.length === 0) return 'no-protocols'
+    const rows = results.filter(r => mine.some(p => p.id === r.protocol_id))
+    if (rows.some(r => r.normal_verdict === 'fail' || r.fire_verdict === 'fail')) return 'fail'
+    // A protocol counts as tested only when BOTH modes carry a verdict: S1001
+    // tests Normal AND Off-Normal, and half of that is not a tested integration.
+    const tested = rows.filter(r => r.normal_verdict && r.fire_verdict).length
+    if (tested === 0) return 'untested'
+    return tested < mine.length ? 'partial' : 'pass'
+  }
+
+  const prereqDone = prereqs.filter(p => p.state !== 'na').length
+
+  // Field mode replaces the page rather than nesting inside it: on a phone, in a
+  // fire command room, every pixel of chrome above the current protocol is a
+  // pixel of the thing being recorded that is not on screen.
+  if (fieldSession) {
+    return <ISTFieldMode sessionId={fieldSession.id} sessionDate={fieldSession.test_date}
+      onExit={() => { setFieldSession(null); void load() }} />
+  }
 
   return (
     <div className="space-y-5" data-testid="ist-page">
@@ -178,6 +255,11 @@ export function ISTPage({ projectId }: { projectId: string }) {
                     <div className="flex flex-wrap items-baseline gap-2 px-3 py-2">
                       <span className="text-xs font-medium text-gray-900">{sysName(i.system_a_id)} ↔ {sysName(i.system_b_id)}</span>
                       <span className="text-[10px] text-gray-500">{i.integration_type}</span>
+                      {(() => { const st = statusOf(i.id); return (
+                        <span data-testid={`ist-status-${st}`} title={`Integration status: ${STATUS_CHIP[st].label}`}
+                          className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${STATUS_CHIP[st].cls}`}>
+                          {STATUS_CHIP[st].label}
+                        </span>) })()}
                       {i.attachment_label && <span className="font-mono text-[10px] text-gray-400">{i.attachment_label}</span>}
                       <span className="ml-auto text-[10px] text-gray-400">{mine.length} protocol{mine.length === 1 ? '' : 's'}</span>
                       <button className="text-[10px] text-gray-500 hover:text-gray-900"
@@ -209,6 +291,76 @@ export function ISTPage({ projectId }: { projectId: string }) {
               })}
               <IntegrationForm systems={systems} onCreate={row => run(() =>
                 supabase.from('ist_integrations').insert({ ...row, plan_id: planId, sort_order: integrations.length }))} />
+            </div>
+          </section>
+
+          {/* ── test sessions ─────────────────────────────────────────── */}
+          <section className="rounded-xl border border-gray-200 bg-white" data-testid="ist-sessions">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="font-display text-xs font-bold uppercase tracking-[0.08em] text-gray-900">Test sessions</h3>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-gray-400">
+                Initial, then one year, then every five — §11's life-cycle table. Open a session to record results
+                in the field.
+              </p>
+            </div>
+            <div className="p-4 space-y-2">
+              {sessions.length === 0 && <p className="text-xs text-gray-400">No sessions yet.</p>}
+              {sessions.map(ss => (
+                <div key={ss.id} className="flex flex-wrap items-center gap-2 text-xs" data-testid="ist-session-row">
+                  <span className="font-mono text-gray-900">{ss.test_date}</span>
+                  <span className="text-gray-500">{TEST_TYPE_LABEL[ss.test_type] ?? ss.test_type}</span>
+                  <span className="text-gray-400">{ss.description ?? ''}</span>
+                  <button data-testid="ist-open-field"
+                    className="ml-auto rounded bg-gray-900 px-3 py-1.5 text-[11px] text-white"
+                    onClick={() => setFieldSession(ss)}>Field mode</button>
+                </div>
+              ))}
+              <SessionForm onCreate={(date, type) => run(() =>
+                supabase.from('ist_sessions').insert({ plan_id: planId, test_date: date, test_type: type }))} />
+            </div>
+          </section>
+
+          {/* ── pre-IST prerequisites ─────────────────────────────────── */}
+          <section className="rounded-xl border border-gray-200 bg-white" data-testid="ist-prereqs">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex flex-wrap items-baseline gap-2.5">
+                <h3 className="font-display text-xs font-bold uppercase tracking-[0.08em] text-gray-900">Pre-IST documentation</h3>
+                <span className="font-mono text-[10px] text-gray-400">{prereqDone}/{prereqs.length}</span>
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-gray-400">
+                §9.1 of the standard. <strong>YES requires a document</strong> — the register row is the evidence,
+                not the tick. Per-unit readiness stays the Cx Index's; these are the document prerequisites.
+              </p>
+            </div>
+            <div className="p-4 space-y-2">
+              {prereqs.length === 0 ? (
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-gray-400">Not seeded for this revision.</p>
+                  <button data-testid="ist-seed-prereqs"
+                    className="rounded bg-gray-900 px-3 py-1 text-xs text-white"
+                    onClick={() => run(async () => await supabase.rpc('ist_seed_prerequisites', { p_plan_id: planId }))}>
+                    Seed the standard 22
+                  </button>
+                </div>
+              ) : prereqs.map(q => (
+                <div key={q.id} className="flex flex-wrap items-center gap-2 text-[11px]" data-testid="ist-prereq-row">
+                  <span className="w-6 font-mono text-[10px] text-gray-400">{q.item_no}</span>
+                  <span className="min-w-[16rem] flex-1 text-gray-800">{q.description}</span>
+                  <select value={q.state} data-testid="ist-prereq-state"
+                    className="rounded border border-gray-300 px-1.5 py-0.5 text-[11px]"
+                    onChange={e => run(() => supabase.from('ist_prerequisites')
+                      .update({ state: e.target.value }).eq('id', q.id))}>
+                    <option value="na">N/A</option><option value="no">NO</option><option value="yes">YES</option>
+                  </select>
+                  <select value={q.document_id ?? ''} data-testid="ist-prereq-doc"
+                    className="w-48 rounded border border-gray-300 px-1.5 py-0.5 text-[11px]"
+                    onChange={e => run(() => supabase.from('ist_prerequisites')
+                      .update({ document_id: e.target.value || null }).eq('id', q.id))}>
+                    <option value="">— no document —</option>
+                    {docs.map(d => <option key={d.id} value={d.id}>{d.document_name}{d.revision ? ` (${d.revision})` : ''}</option>)}
+                  </select>
+                </div>
+              ))}
             </div>
           </section>
         </>
@@ -245,6 +397,23 @@ function PlanForm({ onCreate }: { onCreate: (label: string, desc: string) => Pro
       <button disabled={!label.trim()} data-testid="ist-add-plan"
         className="rounded bg-gray-900 px-3 py-1 text-xs text-white disabled:opacity-40"
         onClick={async () => { if (await onCreate(label.trim(), desc.trim())) { setLabel(''); setDesc('') } }}>Add revision</button>
+    </div>
+  )
+}
+
+function SessionForm({ onCreate }: { onCreate: (date: string, type: string) => Promise<boolean> }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [type, setType] = useState('new')
+  return (
+    <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+      <input type="date" value={date} onChange={e => setDate(e.target.value)} data-testid="ist-session-date"
+        className="rounded border border-gray-300 px-2 py-1 text-xs" />
+      <select value={type} onChange={e => setType(e.target.value)} data-testid="ist-session-type"
+        className="rounded border border-gray-300 px-2 py-1 text-xs">
+        {Object.entries(TEST_TYPE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+      <button data-testid="ist-add-session" className="rounded bg-gray-900 px-3 py-1 text-xs text-white"
+        onClick={() => onCreate(date, type)}>Add session</button>
     </div>
   )
 }

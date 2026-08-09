@@ -1,11 +1,13 @@
-// pw-ist — IST module, phase 1: plans, systems, integrations, protocols.
+// pw-ist — IST module, phases 1-3: plans, systems, integrations, protocols,
+// the pre-IST documentation prerequisites, RLS as a real user, and the field
+// mode's outbox replay guarantee.
 //
 // WAIT HELPERS FROM BIRTH. Not one instantaneous read in this file: every check
 // that follows a write goes through waitUntil/waitForCount, because "not there"
 // and "NOT THERE YET" are the same value to a count() and the difference has
 // cost this battery four reds in a week.
 //
-// THE GUARDS ARE THE POINT OF THE SCHEMA, SO THEY ARE ASSERTED HERE. Three
+// THE GUARDS ARE THE POINT OF THE SCHEMA, SO THEY ARE ASSERTED HERE. Five
 // constraints carry the design, and each is proven to REFUSE — not merely to
 // exist. A constraint nobody has seen reject anything is a comment with syntax:
 //
@@ -16,13 +18,31 @@
 //      systems, never a system with itself.
 //   3. ist_notes_scope_target — a scoped note must point at what it is scoped
 //      to, or it renders nowhere and reads as lost rather than as unscoped.
+//   4. ist_results_one_per_protocol_per_session — one verdict per protocol per
+//      witnessed session.
+//   5. ist_prerequisites_yes_needs_document — YES means a document arrived, not
+//      that a box was ticked. NO and N/A with nothing attached stay legal,
+//      because those are honest states; it is the CLAIM that needs evidence.
 //
 // And the refusals are asserted by ERROR CODE / message, not by row count: a
 // count of zero is what a silently-failing insert also produces.
 //
+// AND IT SPEAKS AS A REAL USER, NOT ONLY AS THE SERVICE ROLE. Phase 1 shipped
+// eleven tables, five constraints and six proven refusals — all asserted through
+// the service role key, which BYPASSES RLS. Every check was green while
+// `ist_plans` was unreadable to every actual user: the phase-1 policy generator
+// emitted a SELECT on ist_plans inside ist_plans' own policy, and Postgres
+// answered `infinite recursion detected in policy`, so the table read as empty.
+// The screen said "No IST plan yet" over a row that existed.
+//
+// A suite that only ever speaks as the service role CANNOT SEE AN RLS DEFECT.
+// So the RLS section below runs as the employee account (not the admin, whose
+// is_admin_or_dev() short-circuit would hide the same class of bug), and it is
+// the check that would have caught it.
+//
 // ZZ-TEST only, self-cleaning, re-entrant.
 import { createClient } from '@supabase/supabase-js'
-import { adminCredentials, waitUntil } from './pw-config.mjs'
+import { adminCredentials, credentials, waitUntil } from './pw-config.mjs'
 
 let pass = 0, fail = 0
 const check = (ok, what) => { ok ? pass++ : fail++; console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${what}`) }
@@ -39,6 +59,7 @@ const LABEL = 'PW-IST-TEMP'
 async function cleanup() {
   const { data: plans } = await svc.from('ist_plans').select('id').eq('project_id', proj.id).like('revision_label', `${LABEL}%`)
   for (const p of plans ?? []) await svc.from('ist_plans').delete().eq('id', p.id)   // cascades
+  await svc.from('documentation_register').delete().eq('project_id', proj.id).like('document_name', `${LABEL}%`)
 }
 await cleanup()
 
@@ -151,6 +172,73 @@ try {
   check(!!dupErr && /one_per_protocol_per_session/.test(dupErr.message),
     `REFUSED: a second result for the same protocol in one session${dupErr ? '' : ' — ACCEPTED, guard did not fire'}`)
 
+  // ── PHASE 2: prerequisites, seeded from firm data ─────────────────────────
+  const { data: seeded, error: seedErr } = await svc.rpc('ist_seed_prerequisites', { p_plan_id: plan.id })
+  check(!seedErr && seeded === 22, `22 prerequisites seeded from the firm list (got ${seeded}${seedErr ? ', ' + seedErr.message : ''})`)
+
+  // Idempotent: three surfaces will create plans and re-running must not double.
+  const { data: again } = await svc.rpc('ist_seed_prerequisites', { p_plan_id: plan.id })
+  const { data: qs } = await svc.from('ist_prerequisites').select('id, item_no, state').eq('plan_id', plan.id)
+  check(again === 0 && (qs ?? []).length === 22, `re-seeding adds nothing (added ${again}, total ${(qs ?? []).length})`)
+  check((qs ?? []).every(q => q.state === 'na'), 'seeded prerequisites start at N/A, not at YES')
+
+  // ── GUARD 5: YES REQUIRES A DOCUMENT ──────────────────────────────────────
+  // The whole point of phase 2. A tick with no evidence behind it is the shape
+  // the guard family keeps catching, so it is refused rather than discouraged.
+  const q1 = (qs ?? []).find(q => q.item_no === 17)     // S537 verification report
+  const { error: bareYes } = await svc.from('ist_prerequisites').update({ state: 'yes' }).eq('id', q1.id)
+  check(!!bareYes && /yes_needs_document/.test(bareYes.message),
+    `REFUSED: prerequisite marked YES with no document${bareYes ? '' : ' — ACCEPTED, guard did not fire'}`)
+
+  // NO and N/A with no document are honest states and must still be allowed.
+  const { error: bareNo } = await svc.from('ist_prerequisites').update({ state: 'no' }).eq('id', q1.id)
+  check(!bareNo, `NO with no document is allowed${bareNo ? ': ' + bareNo.message : ''}`)
+
+  // With a real register row attached, YES goes through.
+  const { data: doc } = await svc.from('documentation_register')
+    .insert({ project_id: proj.id, document_name: `${LABEL} S537 Verification`, doc_type: 'report' })
+    .select('id').single()
+  const { error: goodYes } = await svc.from('ist_prerequisites')
+    .update({ state: 'yes', document_id: doc.id, received_on: '2026-01-10' }).eq('id', q1.id)
+  check(!goodYes, `YES accepted once a register document is attached${goodYes ? ': ' + goodYes.message : ''}`)
+
+  const linked = await waitUntil(async () => {
+    const { data } = await svc.from('ist_prerequisites').select('state, document_id').eq('id', q1.id).single()
+    return data?.state === 'yes' && data?.document_id === doc.id
+  }, { timeout: 8000, what: 'prerequisite linked to the register' })
+  check(linked, 'prerequisite reads back linked to the documentation register')
+
+  // The register row must survive being unlinked, not be deleted with it.
+  await svc.from('ist_prerequisites').update({ state: 'na', document_id: null }).eq('id', q1.id)
+  const { data: stillThere } = await svc.from('documentation_register').select('id').eq('id', doc.id).maybeSingle()
+  check(!!stillThere, 'unlinking a prerequisite leaves the register document intact')
+  await svc.from('documentation_register').delete().eq('id', doc.id)
+
+  // ── PHASE 3: the data is READABLE BY A REAL USER, not just by the service role ─
+  const asUser = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+  const { error: userAuthErr } = await asUser.auth.signInWithPassword(credentials())
+  check(!userAuthErr, `employee account signed in${userAuthErr ? ': ' + userAuthErr.message : ''}`)
+
+  for (const t of ['ist_plans', 'ist_systems', 'ist_integrations', 'ist_protocols', 'ist_sessions', 'ist_results', 'ist_prerequisites']) {
+    const { error } = await asUser.from(t).select('id').limit(1)
+    // The recursion bug surfaced as an ERROR, but a mis-scoped policy surfaces as
+    // silence — so both are asserted: no error, and the plan is actually visible.
+    check(!error, `${t} readable as the employee${error ? ': ' + error.message.slice(0, 60) : ''}`)
+  }
+  const { data: visible } = await asUser.from('ist_plans').select('id').eq('id', plan.id)
+  check((visible ?? []).length === 1,
+    `the plan this suite created is VISIBLE to the employee (${(visible ?? []).length} row(s)) — the check that would have caught the RLS recursion`)
+
+  // ── the outbox's natural key: replay must not duplicate ───────────────────
+  // Field mode queues an upsert on (session_id, protocol_id). Re-tapping a
+  // verdict replaces the queued op; a double flush must land one row, not two.
+  const payload = { session_id: sess.id, protocol_id: proto1.id, normal_verdict: 'pass', fire_verdict: 'na', tested_on: '2026-01-14' }
+  await svc.from('ist_results').upsert(payload, { onConflict: 'session_id,protocol_id' })
+  await svc.from('ist_results').upsert({ ...payload, fire_verdict: 'pass' }, { onConflict: 'session_id,protocol_id' })
+  const { data: once } = await svc.from('ist_results').select('id, fire_verdict').eq('session_id', sess.id).eq('protocol_id', proto1.id)
+  check((once ?? []).length === 1 && once[0].fire_verdict === 'pass',
+    `replayed upsert lands ONE row, last write wins (${(once ?? []).length} row(s))`)
+
   // ── cascade: removing the plan removes everything hanging off it ──────────
   await svc.from('ist_plans').delete().eq('id', plan.id)
   const gone = await waitUntil(async () => {
@@ -166,5 +254,5 @@ try {
 }
 
 console.log('\n' + '='.repeat(60))
-console.log(fail ? `FAIL — ${fail} of ${pass + fail}` : `PASS — ${pass} checks, IST phase 1 schema and guards verified.`)
+console.log(fail ? `FAIL — ${fail} of ${pass + fail}` : `PASS — ${pass} checks, IST phases 1-3: schema, guards, RLS as a real user, outbox replay.`)
 process.exit(fail ? 1 : 0)

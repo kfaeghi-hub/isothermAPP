@@ -139,10 +139,15 @@ IST is a core firm service — Seneca carries an IST plan at rev 10 — and OBC
 **Wakes when:** the first project schedules an IST — most likely Seneca. **No
 code now.**
 
-> **IN PROGRESS 2026-08-08 — phase 1 shipped.** Schema (11 tables), the three
-> guards, the 8 new role seats, `pw-ist` (20 checks). Phases 2-5 remain: matrix
-> UI + pre-IST, session field mode, document generation (gate: faithful
-> Scarborough regeneration), team seeding.
+> **IN PROGRESS 2026-08-08 — phases 1-3 shipped.** Schema (12 tables), five
+> guards each proven refusing, the 8 new role seats, the tabular matrix with
+> status chips, §9.1's prerequisites as firm data wired to the documentation
+> register, and **session field mode** — phone-first, offline through the
+> existing checklist outbox on `ist_results`' natural key. `pw-ist` at 38 checks,
+> now including **RLS asserted as a real employee**, added after a policy
+> recursion made the whole tab read empty while a service-role suite stayed
+> green. **Phases 4-5 remain:** document generation (gate: faithful Scarborough
+> regeneration), team seeding.
 >
 > **One correction this entry owes:** it said IST deficiencies would file with
 > `origin = 'ist'` because that value was *already in the origin set*. It was

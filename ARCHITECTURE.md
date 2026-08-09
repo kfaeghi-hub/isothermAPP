@@ -1165,6 +1165,70 @@ whether or not anything was ever mined into it, so a row count is not evidence o
 content. That is the cross-check the phantom-data section demands, applied here:
 the parts (mined vs filled), compared — not the total, validated.
 
+### A suite that speaks only as the service role cannot see an RLS defect
+
+*2026-08-08, IST phase 3.*
+
+`pw-ist` shipped phase 1 at 28/28: eleven tables, five constraints, six proven
+refusals. Every assertion was true. **The feature was unusable** — the IST tab
+read *"No IST plan yet"* over a row that existed, because the policy generator had
+emitted a `select` on `ist_plans` inside `ist_plans`' own policy and Postgres
+answered `infinite recursion detected in policy`. The table read as empty to every
+real user from the moment it shipped.
+
+**The suite could not have caught it.** It authenticated with the **service role
+key, which bypasses row-level security entirely.** So it was asserting against a
+client that *cannot fail the way real users fail* — the same disease as the
+vacuous `.every()` on an empty array and the phantom identity block, moved into
+the authentication layer: **measuring with an instrument blind to the thing being
+measured.**
+
+**And the admin account would not have caught it either.** `is_admin_or_dev()`
+short-circuits every policy in this codebase, so a suite signing in as the admin
+is only marginally less blind. The RLS section runs as the **employee**.
+
+> **Any suite covering a table with RLS must read that table at least once as a
+> non-privileged user, and assert a specific expected row is visible** — not
+> merely that the query returned without error. A mis-scoped policy fails
+> silently, with an empty result and a clean status.
+
+Found by render-and-look at phone width: the screenshot said one thing, the
+database said another. **Third time that gate has caught what the assertions
+could not**, which is the argument for it being a step rather than a courtesy.
+
+### An asserted value three documents deep is still an assertion
+
+*2026-08-08, from the IST module's first migration.*
+
+BACKBURNER 3e recorded that IST deficiencies would file with `origin = 'ist'`
+because that value was **already in the origin set**. The module proposal
+repeated it. The owner ruled on it. Three documents and a ruling deep, it read
+like settled fact.
+
+**It was never there.** `finding_origin_enum` held `site_visit, ivc, pfc, fpt`,
+later joined by `design_review` and `startup`. Nothing had ever added `ist`.
+
+**The first thing that could refuse on it, did.** The migration's opening
+statement asserted the value's presence and raised rather than proceeding. Had it
+merely *used* the value later — or had the schema simply been written assuming it
+— the first party to discover the gap would have been someone raising a
+deficiency **in the field, mid-test, on a live integrated systems test**, where a
+failed insert is the most expensive possible place to learn a label is missing.
+
+> **A fact repeated across documents accumulates confidence, not evidence.** Each
+> restatement makes the next reader likelier to accept it and no likelier to check
+> it. The check has to be *executable*, and it has to run at the moment the fact
+> is first depended upon.
+
+This is the same family as *a pattern is verified by executing it, never by
+reading it*, moved from patterns to premises — and it pairs with the ordering
+rule below: the migration was, in effect, the audit running before the write, and
+it is the only reason this cost nothing.
+
+**The operational form: when a build depends on a stated fact about the schema,
+assert it in the first statement that needs it.** Not a comment saying it holds —
+a statement that stops if it does not.
+
 ### Yesterday's cause is the most seductive wrong answer for today's symptom
 
 *2026-08-08, and it is the diagnosis counterpart to everything above.*
