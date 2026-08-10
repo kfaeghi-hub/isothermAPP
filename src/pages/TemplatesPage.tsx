@@ -14,6 +14,7 @@ import type {
   GridColumn,
   GridRow,
 } from '../types/database'
+import { canConfigureFirm } from '../lib/capabilities'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -192,7 +193,7 @@ type DeleteTarget =
 
 export function TemplatesPage() {
   const { profile } = useAuth()
-  const canEdit = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
+  const canEdit = canConfigureFirm(profile)
 
   // List state
   const [templates, setTemplates]     = useState<ChecklistTemplate[]>([])

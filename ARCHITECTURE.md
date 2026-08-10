@@ -1165,6 +1165,106 @@ whether or not anything was ever mined into it, so a row count is not evidence o
 content. That is the cross-check the phantom-data section demands, applied here:
 the parts (mined vs filled), compared — not the total, validated.
 
+### An empty result and a wrong question are indistinguishable — assert the response shape
+
+*2026-08-10. Four incidents in one day, all the same shape, before it became a
+mechanism.*
+
+| Query | What it "found" |
+|---|---|
+| `site_reports.report_no` | "no site reports" |
+| `project_members.user_id` | "the test account lost its membership" |
+| `ist_prerequisites.received_on` | a leg failing against a field never fetched |
+| `project_cx_columns.group_id` | "every stage group has zero columns, on every project" |
+
+None of those columns exist. PostgREST answers an unknown column with an error on
+some paths and a silently absent key on others, and either way the caller reads
+**nothing** — which is exactly what a legitimately empty table looks like. Three
+of the four became a stated diagnosis before being caught.
+
+> **`sel(query, columns)`** — `pw-select.mjs` — runs the query and asserts the
+> **returned rows contain the columns that were asked for**. A typo raises;
+> genuinely-zero rows still pass, because no rows is a real answer and a wrong
+> question is not.
+
+It does not validate a schema, which would be expensive and is not the failure.
+It checks that the answer is an answer to the question asked. Harness first; app
+adoption follows the touch-policy.
+
+**The pattern this closes:** *a shortfall is visible, a duplicate looks like data*
+— and now, **a malformed question looks like an empty world.**
+
+### A rule enforced by memory is enforced by nothing
+
+*Same day.* "Playwright never runs against a real project" was a standing rule, a
+paragraph in `pw-config.mjs`, and a browser-path guard on `openTestProject`. A
+new suite needed *a project the test user is not a member of*, took
+`.neq('id', ZZ).limit(1)`, and wrote a synthetic row into a **real client's**
+equipment register to prove a delete was refused. It was removed; nothing was
+lost; the rule was still broken, by its own author, hours after invoking it.
+
+The browser guard covered the browser path and **nothing at all** covered a suite
+reaching the database directly — which is most of them.
+
+> **`FIXTURE_PROJECTS` + `assertFixtureProject()`.** A suite naming a project it
+> intends to write to passes it through the allow-list, and anything outside the
+> fixture family refuses **by name**, before the write. **`ZZ-TEST-LEED` exists so
+> that "a project the user is not a member of" never has to mean a real one.**
+
+Third mechanism of the day built for the same reason as the harness lock and the
+audit-order rule: **a rule that depends on being remembered mid-task is not a
+rule yet.** Four incidents in a day is the evidence, not the anecdote.
+
+### A predicate copied eleven times is not one policy — name each capability
+
+*2026-08-10, from a request to let employees delete equipment.*
+
+`['admin', 'developer', 'owner'].includes(role)` appeared in **eleven places** and
+answered at least six different questions: who configures the firm, who sees
+portfolio-wide dashboards, who reopens a completed checklist, who hard-deletes
+equipment. Identical text, unrelated rules.
+
+That made every widening a bad choice between two wrong things: edit a string in
+eleven files and change ten rules nobody asked about, or edit one and leave ten
+copies that no longer state a single policy — with nothing marking which is
+which.
+
+> **Extract one named helper per question** (`canConfigureFirm`,
+> `canSeePortfolioViews`, `canHardDeleteEquipment`, …). The next widening is then
+> a one-line change in one place, and it reads as *a decision about a named
+> capability* rather than a search-and-replace.
+
+Only **one** membership changed in the extraction — equipment delete. The other
+ten kept their exact behaviour under their new names, so the diff separates
+"renamed" from "widened", which is the property that makes it reviewable.
+
+**And a UI capability is never the enforcement.** These helpers decide whether to
+draw a control; RLS decides whether the write lands. That is why the policy and
+the button had to move in the same commit: a widened button over an unchanged
+policy produces a **silent no-op**, which is worse than a hidden button.
+
+### Assert the departure — a refused DELETE returns zero rows and no error
+
+*Same change.* Row-level security does not reject a forbidden `DELETE`. It
+matches nothing and returns **success with zero rows affected**. So
+
+```js
+const { error } = await supabase.from('equipment').delete().eq('id', id)
+if (error) return          // ← "nothing went wrong" ≠ "the row is gone"
+setSelectedId(null); fetchEquipment()
+```
+
+reports success over an untouched row, and the user watches the item stay on
+screen with no explanation. The fix is the **arrival rule pointed the other way**:
+
+> **`.select()` the delete and assert the row count.** Proving a thing arrived
+> and proving a thing departed are the same discipline; both fail silently when
+> you only check for an error.
+
+The equipment delete now says *"X was not deleted. Nothing was changed."* if the
+count is zero — and `pw-equipment-delete` asserts that count directly, because a
+leg that checked `error` alone would call the refusal a pass.
+
 ### Present-on-page and present-on-screen are different claims — findability is assertable
 
 *2026-08-09, IST generation UI.*

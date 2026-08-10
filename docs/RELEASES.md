@@ -16,6 +16,74 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.08 — 2026-08-10
+
+### For the team
+
+**You can delete equipment on your own projects now.** It used to need an owner.
+It doesn't, because the thing that makes a delete safe was never the job title —
+it's what the unit is attached to, and every attachment already stops you:
+
+- a unit with **findings** can't be deleted, and the message names which ones;
+- a unit with **checklist work** can't be deleted, and now says so in plain words
+  before you try, with the number of instances;
+- a unit with **Cx Index progress or attachments** warns you exactly what would
+  be destroyed;
+- a **clean** unit — a typo, a duplicate, a wrong tag — just deletes.
+
+**And if a delete doesn't go through, you'll be told.** Previously a refused
+delete did nothing at all and said nothing — the item simply stayed on screen.
+
+### For the architect
+
+**Equipment hard-delete widened from governors to project members**, RLS and UI
+in the same commit. The policy is `is_admin_or_dev() or is_project_member(...)`;
+the button is `canHardDeleteEquipment(profile, isMember)`. Moving one without the
+other produces a silent no-op, which is worse than a hidden button.
+
+**The FK's line is the line, and it did not move.**
+`checklist_instance_targets.equipment_id` is `ON DELETE RESTRICT` and refuses for
+every role — stricter than a status-based rule and, unlike one, impossible for
+the app to forget. What changed is only the sentence: the app counts targets and
+says *"This unit has checklist work recorded — N instances"* **before** the
+attempt, so nobody meets `violates foreign key constraint`. The findings
+hard-block is verbatim as it was.
+
+**Assert the departure.** RLS refuses a DELETE by matching nothing — zero rows,
+**no error** — so `!error` never meant "it is gone". The delete now `.select()`s
+and asserts the row count, and `pw-equipment-delete` asserts that count directly.
+Banked in ARCHITECTURE as the arrival rule pointed the other way.
+
+**The eleven-times predicate is now eleven named capabilities**
+(`src/lib/capabilities.ts`). `['admin','developer','owner']` answered six
+different questions in eleven files; each is now one definition with a name.
+**Only equipment-delete's membership changed** — the other ten kept exact
+behaviour under their new names, so the diff separates *renamed* from *widened*.
+Each future widening is a one-line change in one place and gets its own ruling.
+
+**Three harness mechanisms, each replacing a rule that had been enforced by
+memory and had just failed.** `FIXTURE_PROJECTS` + `assertFixtureProject()` — a
+suite may write only to ZZ-TEST or ZZ-TEST-LEED, refused by name otherwise, after
+a new suite wrote a synthetic row into a real client's equipment register to test
+a non-member path (removed, nothing lost, rule broken anyway). `sel()` in
+`pw-select.mjs` — asserts a query's response contains the columns it asked for,
+after **four** diagnoses in one day were built on queries naming columns that do
+not exist. And `pdf-boundary-gate` now seeds its own Cx Plan precondition instead
+of inheriting whatever `pw-cx-plan` left behind.
+
+**Fixture repair:** the ZZ-TEST **Start Up** stage group had zero columns — a
+Start-Up campaign leftover, group created and columns never seeded — sitting
+first by sort order, which is why `pw-applicability-rules` and `pw-intake` both
+failed pointing at themselves. Seeded from the startup family's own section
+structure. `pw-applicability-rules` now picks a group *with* columns and gains a
+leg asserting **no** group is empty, so the next one is a loud finding rather
+than a silent landmine for whatever sorts first.
+
+**Closing gates:** battery 38/38 · `pw-equipment-delete` 9 checks through a real
+browser login · 81 unit tests · real build (`tsc -b`) clean · tree clean.
+
+---
+
 ## Update 1.07 — 2026-08-09 · IST MODULE SHIPPED
 
 ### For the team

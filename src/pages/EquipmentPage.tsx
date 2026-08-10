@@ -13,6 +13,7 @@ import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
   EquipmentAttachment, NameplateExtra,
 } from '../types/database'
+import { canHardDeleteEquipment } from '../lib/capabilities'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,19 @@ interface Props {
 
 export function EquipmentPage({ projectId }: Props) {
   const { profile } = useAuth()
+
+  // MEMBERSHIP, resolved the same way ProjectDetailPage resolves lead-ness. It
+  // gates only the button; RLS is what actually decides, and the delete asserts
+  // its own departure in case the two ever disagree.
+  const [isMember, setIsMember] = useState(false)
+  useEffect(() => {
+    if (!profile) { setIsMember(false); return }
+    let alive = true
+    supabase.from('project_members').select('profile_id')
+      .eq('project_id', projectId).eq('profile_id', profile.id).maybeSingle()
+      .then(({ data }) => { if (alive) setIsMember(!!data) })
+    return () => { alive = false }
+  }, [projectId, profile])
   const [equipment, setEquipment]     = useState<Equipment[]>([])
   const [glossary, setGlossary]       = useState<EquipmentTagGlossary[]>([])
   const [fieldDefs, setFieldDefs]     = useState<ProjectEquipmentFieldDef[]>([])
@@ -313,12 +327,18 @@ export function EquipmentPage({ projectId }: Props) {
     const eq = equipment.find(e => e.id === id)
     const name = eq?.tag ?? eq?.descriptor ?? 'this item'
 
-    const [findings, cells, atts] = await Promise.all([
+    const [findings, cells, atts, targets] = await Promise.all([
       supabase.from('findings').select('finding_number, title', { count: 'exact' })
         .eq('linked_equipment_id', id).limit(5),
       supabase.from('cx_cell_values').select('id', { count: 'exact', head: true })
         .eq('equipment_id', id),
       supabase.from('equipment_attachments').select('id', { count: 'exact', head: true })
+        .eq('equipment_id', id),
+      // Checklist targets are REFUSED BY A FOREIGN KEY, for everyone, at every
+      // role. Counted here not to enforce anything — the database already does,
+      // and more reliably than a check the app could forget — but so the user
+      // reads a sentence instead of a Postgres constraint name.
+      supabase.from('checklist_instance_targets').select('id', { count: 'exact', head: true })
         .eq('equipment_id', id),
     ])
 
@@ -338,6 +358,20 @@ export function EquipmentPage({ projectId }: Props) {
       return
     }
 
+    // Said BEFORE the attempt, because the FK's refusal arrives as
+    // 'violates foreign key constraint "checklist_instance_targets_…"' — true,
+    // unactionable, and not a sentence anyone should meet.
+    if ((targets.count ?? 0) > 0) {
+      alert(
+        `This unit has checklist work recorded — ${targets.count} instance` +
+        `${targets.count === 1 ? '' : 's'}.
+
+` +
+        `Checklist-targeted equipment can't be deleted. Remove the targets first ` +
+        `if this is genuinely a mistake unit.`)
+      return
+    }
+
     const losses = [
       (cells.count ?? 0) > 0 && `${cells.count} Cx Index cell${cells.count === 1 ? '' : 's'} of recorded progress`,
       (atts.count ?? 0) > 0 && `${atts.count} attachment${atts.count === 1 ? '' : 's'}`,
@@ -350,8 +384,21 @@ export function EquipmentPage({ projectId }: Props) {
         `no attachments.`
     if (!confirm(msg)) return
 
-    const { error } = await supabase.from('equipment').delete().eq('id', id)
+    // ASSERT THE DEPARTURE. Row-level security refuses a delete by returning
+    // ZERO ROWS AND NO ERROR — so `!error` means "nothing went wrong", not
+    // "the row is gone", and a caller that stops there reports success over an
+    // untouched row. The arrival rule, pointed the other way: prove the absence.
+    const { data: removed, error } = await supabase.from('equipment').delete().eq('id', id).select('id')
     if (reportError(error, 'delete the equipment')) return
+    if ((removed ?? []).length === 0) {
+      alert(
+        `${name} was not deleted.
+
+` +
+        `You may not have permission on this project. Nothing was changed — ` +
+        `ask a project lead if this unit really should go.`)
+      return
+    }
     setSelectedId(null)
     fetchEquipment()
   }
@@ -860,8 +907,10 @@ export function EquipmentPage({ projectId }: Props) {
                         title="Duplicate this unit's type, category and nameplate. Verification state is never copied."
                         className="px-3 py-1.5 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-300 disabled:opacity-50"
                       >Copy</button>
-                      {/* Equipment hard-delete: admin/dev + owner (C3) */}
-                      {['admin', 'developer', 'owner'].includes(profile?.role ?? '') && (
+                      {/* Hard-delete: governors, or any MEMBER of this project.
+                          Widened 2026-08-10 — the protection is references, not
+                          role, and every reference already has its own guard. */}
+                      {canHardDeleteEquipment(profile, isMember) && (
                         <button
                           onClick={() => deleteEquipment(selected.id)}
                           className="px-3 py-1.5 text-xs border border-red-100 rounded text-red-500 hover:border-red-300 hover:bg-red-50"

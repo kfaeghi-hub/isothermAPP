@@ -14,6 +14,7 @@ import { Modal } from '../components/ui/Modal'
 import { ClassificationPicker } from '../components/ClassificationPicker'
 import { ClassificationBadges } from '../components/ClassificationBadges'
 import type { ProjectWithClient, Company, TradeType } from '../types/database'
+import { canAdministerProject } from '../lib/capabilities'
 
 // Dimensions surfaced as list filters (by name, gracefully absent if renamed)
 const FILTER_DIMENSIONS = ['Project Lifecycle', 'Facility Type', 'Sustainable Programs']
@@ -57,7 +58,7 @@ export function ProjectsPage() {
   // Governors (admin/dev/owner) create/complete/delete projects. Safe for the
   // owner role: their list is already RLS-scoped to member projects, so the row
   // buttons only ever appear on their own portfolio.
-  const isOwner = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
+  const isOwner = canAdministerProject(profile)
   const [projects, setProjects] = useState<ProjectWithClient[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)

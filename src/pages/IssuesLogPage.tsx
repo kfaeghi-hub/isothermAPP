@@ -8,6 +8,7 @@ import { Modal } from '../components/ui/Modal'
 import { EquipmentPicker, type PickerEquipment } from '../components/EquipmentPicker'
 import { useAuth } from '../contexts/AuthContext'
 import type { ProjectPhase, ContactWithCompany, FindingDiaryEntry, FindingPhoto } from '../types/database'
+import { canHardDeleteFinding } from '../lib/capabilities'
 
 interface ProjectTradeOption { id: string; name: string; sort_order: number }
 
@@ -571,7 +572,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
                 Edit
               </button>
               {/* Hard-delete: admin/dev + owner (portfolio-scoped by RLS) — C3 */}
-              {['admin', 'developer', 'owner'].includes(profile?.role ?? '') && (
+              {canHardDeleteFinding(profile) && (
                 <button
                   onClick={() => setConfirmDeleteId(selectedFinding.id)}
                   className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 hover:border-red-400 transition-colors"

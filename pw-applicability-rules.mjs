@@ -24,9 +24,23 @@ const TYPE = 'zz_applic_probe'
 const made = { equip: [], rules: [], type: false }
 
 try {
-  const { data: grp } = await adm.from('project_cx_stage_groups')
+  // ALL the groups, not `.limit(1)`. This used to take whichever group sorted
+  // first and assert it had columns — so when the Start-Up campaign left an
+  // empty "Start Up" group at position one, the suite failed pointing at itself
+  // rather than at the fixture. Pick a group that HAS columns, and assert the
+  // fixture's health separately.
+  const { data: groups } = await adm.from('project_cx_stage_groups')
     .select('id, name, project_cx_columns(id, label)')
-    .eq('project_id', zz.id).order('sort_order').limit(1).single()
+    .eq('project_id', zz.id).order('sort_order')
+
+  // THE FIXTURE LEG: no stage group may be empty. The next one that is becomes a
+  // loud finding here instead of a silent landmine for whatever sorts first.
+  const empty = (groups ?? []).filter(g => (g.project_cx_columns ?? []).length === 0)
+  check(empty.length === 0,
+    `every stage group on the fixture has columns${empty.length ? ` — EMPTY: ${empty.map(g => g.name).join(', ')}` : ` (${groups?.length ?? 0} groups)`}`)
+
+  const grp = (groups ?? []).find(g => (g.project_cx_columns ?? []).length >= 3)
+  if (!grp) { console.error('REFUSE: no stage group has 3+ columns; the fixture cannot exercise this rule'); process.exit(1) }
   const cols = grp.project_cx_columns ?? []
   check(cols.length >= 3, `stage group "${grp.name}" has ${cols.length} columns`)
 

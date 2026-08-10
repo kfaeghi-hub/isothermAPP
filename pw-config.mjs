@@ -235,3 +235,39 @@ export async function waitForText(page, pred, opts = {}) {
     return test(t) ? t : null
   }, { what: opts.what ?? `text ${typeof pred === 'string' ? JSON.stringify(pred) : 'predicate'}`, ...opts }))
 }
+
+// ── FIXTURE-PROJECT ALLOW-LIST ──────────────────────────────────────────────
+//
+// Playwright must never run against a real project. That rule has lived in prose
+// and in the ZZ-TEST guard on `openTestProject`, which covers the BROWSER path —
+// and covers nothing at all when a suite reaches the database directly.
+//
+// It got broken on 2026-08-10: `pw-equipment-delete` needed a project the test
+// user is NOT a member of, picked "the first project that is not ZZ-TEST", and
+// wrote a row into a real client's equipment register to prove a delete was
+// refused. The row was synthetic and removed, and nothing was lost — but the
+// rule was enforced by memory and memory is what failed.
+//
+// So it becomes a mechanism. A suite naming a project it may touch passes it
+// through here; anything outside the fixture family refuses BY NAME, loudly,
+// before the write.
+export const FIXTURE_PROJECTS = ['ZZ-TEST — Do Not Use', 'ZZ-TEST-LEED — Do Not Use']
+
+/**
+ * Assert a project is a fixture before a suite writes to it.
+ * @param {{id?: string, name?: string}} project  the row, or at least its name
+ * @param {string} what  what the suite is about to do, for the message
+ */
+export function assertFixtureProject(project, what = 'write to it') {
+  const name = project?.name ?? String(project ?? '')
+  if (FIXTURE_PROJECTS.includes(name)) return project
+  console.error(
+    `REFUSING to ${what}: "${name}" is not a fixture project.\n` +
+    `Suites may only touch: ${FIXTURE_PROJECTS.join(' · ')}.\n` +
+    `A second fixture exists precisely so "a project the user is not a member of" ` +
+    `never has to mean a real one.`)
+  process.exit(1)
+}
+
+/** The second fixture — for legs that need a project the test user does NOT belong to. */
+export const OTHER_FIXTURE = 'ZZ-TEST-LEED — Do Not Use'

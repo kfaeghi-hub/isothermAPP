@@ -15,6 +15,21 @@
 // document. This harness is the fast A/B in between, and it is only trusted
 // because it reproduces the same defect the Lambda artifact shows.
 //
+// ORDERING COUPLING — NAMED HERE BECAUSE THIS IS WHERE THE NEXT DEBUGGER LOOKS.
+// This gate GENERATES a Cx Plan, and cx-plan-generate refuses a plan whose
+// sections are not accepted ("These sections have not been accepted: background,
+// roles, process, operational"). `pw-cx-plan` runs earlier in the battery and
+// legitimately leaves the ZZ-TEST plan mid-workflow, so this gate can fail for a
+// reason that has nothing to do with page boundaries.
+//
+// FIXED 2026-08-10 by the touch-policy — this file was being edited to record
+// the coupling, which is exactly when the policy says to convert it. The gate now
+// SEEDS ITS OWN PRECONDITION: it accepts the plan's narrative sections before
+// generating, and restores their prior state afterwards. A gate that inherits
+// another suite's fixture state fails for reasons that have nothing to do with
+// what it tests, and a red that means "somebody else moved the furniture" trains
+// people to ignore reds.
+//
 // Run: node --env-file=.env pdf-boundary-gate.mjs [--out out/pdfdiag/after]
 
 import { loadHandler, invoke } from './doc-render-local.mjs'
@@ -67,6 +82,27 @@ const JOBS = [
 const H = {}
 for (const j of JOBS) H[j.handler] = await loadHandler(j.handler)
 H['get-file-url'] = await loadHandler('get-file-url')
+
+// ── the cx-plan precondition, seeded and restored ───────────────────────────
+// cx-plan-generate refuses a plan whose narrative sections are not accepted.
+// pw-cx-plan legitimately leaves them mid-workflow, so this gate sets what it
+// needs and puts it back — it is a boundary gate, not a workflow test, and it
+// must not silently redefine the fixture for whatever runs next.
+let restoreSections = null
+{
+  const planJob = JOBS.find(j => j.family === 'cx-plan')
+  if (planJob) {
+    const { data: before } = await svc.from('cx_plan_sections')
+      .select('id, accepted').eq('plan_id', planJob.body.plan_id)
+    const unaccepted = (before ?? []).filter(s => !s.accepted)
+    if (unaccepted.length) {
+      console.log(`cx-plan    accepting ${unaccepted.length} narrative section(s) for this run, and restoring after`)
+      await svc.from('cx_plan_sections').update({ accepted: true })
+        .in('id', unaccepted.map(s => s.id))
+      restoreSections = unaccepted.map(s => s.id)
+    }
+  }
+}
 
 let bad = 0
 for (const j of JOBS) {

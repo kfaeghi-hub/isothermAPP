@@ -17,6 +17,7 @@ import { ClassificationsPage } from './pages/ClassificationsPage'
 import { UsersPage } from './pages/UsersPage'
 import { PortalAccept } from './pages/portal/PortalAccept'
 import { PortalLink } from './pages/portal/PortalLink'
+import { canConfigureFirm } from './lib/capabilities'
 
 // Public landing page — lazy-split so the authenticated app path pays nothing.
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
@@ -110,7 +111,7 @@ export default function App() {
   }
 
   // Firm-config surfaces: admin/dev + owner. Super surfaces (user management): admin only (E6).
-  const canConfig = ['admin', 'developer', 'owner'].includes(profile.role)
+  const canConfig = canConfigureFirm(profile)
   const isSuper   = profile.role === 'admin'
   const isClient  = profile.role === 'client'
 

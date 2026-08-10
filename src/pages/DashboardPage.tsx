@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { daysSince, visitBand } from '../lib/dashboardThresholds'
 import { VisitChip } from '../components/VisitChip'
 import { formatDate } from '../lib/format'
+import { canSeePortfolioViews } from '../lib/capabilities'
 
 const QUEUE_KIND: Record<string, { label: string; cls: string }> = {
   overdue_item:    { label: 'OVERDUE',   cls: 'bg-red-50 text-red-700' },
@@ -93,7 +94,7 @@ export function DashboardPage() {
   }
 
   const projName = (id: string) => data.projects.find(p => p.id === id)?.name ?? '?'
-  const isGovernor = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
+  const isGovernor = canSeePortfolioViews(profile)
   const actives = data.projects.filter(p => p.status === 'active')
     .sort((a, b) => (a.finish_date ?? '9999').localeCompare(b.finish_date ?? '9999'))
 

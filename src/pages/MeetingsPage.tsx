@@ -9,6 +9,7 @@ import { openStoredFile } from '../lib/fileUrl'
 import { FindingPicker, type PickerFinding } from '../components/FindingPicker'
 import { useAuth } from '../contexts/AuthContext'
 import type { Meeting, MeetingType, MeetingTopic, MeetingAttendee, MeetingItem } from '../types/database'
+import { canDeleteMeeting } from '../lib/capabilities'
 
 // ── Local types ────────────────────────────────────────────────────────────
 
@@ -587,8 +588,7 @@ export function MeetingsPage({ projectId }: Props) {
               <button onClick={openEdit}
                 className="text-xs border border-gray-200 rounded px-3 py-1.5 text-gray-500 hover:text-teal-700 hover:border-teal-400 transition-colors">Edit</button>
               {/* Governors (admin/dev/owner) delete any; employees their OWN DRAFTS only */}
-              {(['admin', 'developer', 'owner'].includes(profile?.role ?? '')
-                || (meeting.status === 'draft' && meeting.prepared_by === profile?.name)) && (
+              {canDeleteMeeting(profile, meeting.status, meeting.prepared_by) && (
                 <button onClick={() => setConfirmDelete(meeting.id)}
                   className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 transition-colors">Delete</button>
               )}

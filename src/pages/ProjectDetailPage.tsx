@@ -29,6 +29,7 @@ import { CxPlanPage } from './CxPlanPage'
 import type {
   ProjectWithClient, ProjectPhase, Company, ContactWithCompany, TradeType,
 } from '../types/database'
+import { canAdministerProject } from '../lib/capabilities'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
   const { profile } = useAuth()
   // Governors: admin/dev see all; the owner role only ever reaches member
   // projects (RLS), so granting it these buttons is portfolio-scoped by construction.
-  const isOwner = ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
+  const isOwner = canAdministerProject(profile)
   const [isLead, setIsLead] = useState(false)
   useEffect(() => {
     if (isOwner || !profile) { setIsLead(isOwner); return }

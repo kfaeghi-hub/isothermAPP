@@ -13,6 +13,7 @@ import type {
   ChecklistInstanceSignoff, ChecklistResponse, ChecklistGridResponse,
   ChecklistFindingLink, ChecklistType, ResponseStatus, YnNrNaHoldStatus, Equipment,
 } from '../types/database'
+import { canReopenChecklist, canDeleteChecklistInstance } from '../lib/capabilities'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -353,8 +354,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
   const responseTargets = targets.filter(t => t.role !== 'related')
   // Reopen: governors (admin/dev/owner — E7 alignment) or the person who completed it
   const canReopen = instance?.status === 'complete' && (
-    ['admin', 'developer', 'owner'].includes(profile?.role ?? '') ||
-    (profile?.name != null && profile.name === instance.completed_by)
+    canReopenChecklist(profile, instance.completed_by)
   )
 
   // ── Create instance ────────────────────────────────────────────────────
@@ -1258,7 +1258,7 @@ export function ChecklistsPage({ projectId, phases }: Props) {
                 Edit
               </button>
               {/* A1: members delete non-completed; completed = governors only (admin/dev/owner) */}
-              {(['admin', 'developer', 'owner'].includes(profile?.role ?? '') || instance.status !== 'complete') && (
+              {canDeleteChecklistInstance(profile, instance.status) && (
                 <button onClick={() => setConfirmDelete(instance.id)}
                   className="text-xs border border-red-200 rounded px-3 py-1.5 text-red-500 hover:bg-red-50 transition-colors">
                   Delete

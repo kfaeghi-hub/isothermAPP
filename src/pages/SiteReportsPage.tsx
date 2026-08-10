@@ -7,6 +7,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import type { SiteReport, DocRegisterItem } from '../types/database'
+import { canDeleteSiteReport } from '../lib/capabilities'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,9 +51,7 @@ const STATUS_LABELS: Record<DocRegisterItem['status'], string> = {
 export function SiteReportsPage({ projectId }: Props) {
   const { profile } = useAuth()
   // Governors (admin/dev/owner) delete any report; employees their OWN UNGENERATED drafts.
-  const canDelete = (r: SiteReport) =>
-    ['admin', 'developer', 'owner'].includes(profile?.role ?? '')
-    || (!r.storage_url && r.authored_by === profile?.name)
+  const canDelete = (r: SiteReport) => canDeleteSiteReport(profile, !!r.storage_url, r.authored_by)
   const [reports, setReports]         = useState<SiteReport[]>([])
   const [loading, setLoading]         = useState(true)
   const [modalOpen, setModalOpen]     = useState(false)
