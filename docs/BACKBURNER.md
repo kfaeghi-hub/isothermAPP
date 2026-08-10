@@ -187,6 +187,94 @@ code now.**
 > measurement structures stay [3d](#3d-repeating-measurement-test-structures),
 > scenario drafting stays [5](#5-fpt-agent).
 
+### 3k. Internal onboarding — the half-onboarded account trap
+**PROPOSED 2026-08-10, from a real incident. No code.**
+
+**THE TRAP, documented so it is not rediscovered.** Creating an auth account is
+**one third** of onboarding here. A person needs three rows and nothing creates
+them together:
+
+| Row | Without it |
+|---|---|
+| `auth.users` | cannot sign in |
+| `user_profiles` | signs in to a **dead end** — see below |
+| `contacts` | invisible to every **team-assignment picker**, so no lead can add them to a project |
+
+`j.atherton@isothermengineering.com` was created in Supabase on 2026-08-10 and had
+**neither** of the other two. He would have signed in to *"Account setup
+incomplete — your account exists but has no profile. Contact your administrator."*
+and been unable to do anything else. Both rows were created by hand.
+
+**The second gap is the quieter one.** A profile alone still leaves the person
+unassignable, because the team matrix lists **contacts**, not accounts. Someone
+fixing the visible dead end would very reasonably create the profile, watch the
+app work, and ship a person nobody can put on a project.
+
+**Nothing warns the admin who created the account.** The only signal is a screen
+that appears to the *one person who cannot act on it*, at a moment the admin is
+not present. That is the shape this codebase keeps naming: **a failure whose only
+witness is the party without the power to fix it.**
+
+---
+
+#### (a) Make the dead end name what is missing — cheap, do first
+
+The current copy tells the user to contact an administrator and tells the
+administrator nothing. Proposed: keep the plain sentence and add the two rows an
+admin must create, plus the account id, in a copyable block — so the user's
+screenshot to their admin *is* the work order.
+
+**One tension worth ruling on rather than assuming.** That screen renders for
+anyone with an auth account and no profile — which could include an external
+person created by mistake. Naming internal table names to them is mild schema
+disclosure. Two ways out, both fine:
+
+- print the **account id and a plain checklist** ("this account needs a staff
+  profile and a directory contact") without table names — enough for an admin,
+  meaningless to anyone else; **recommended**;
+- or gate the detail behind a query param the admin sends, which is more
+  machinery than the problem deserves.
+
+#### (a2) Show the gap where an admin already looks — the cheapest durable fix
+
+The Users screen lists `user_profiles`. It cannot show a person who has **no**
+profile, which is precisely the broken state. Proposed: one strip at the top —
+**"2 accounts have no profile"** — from a server-side comparison of `auth.users`
+against `user_profiles`, each with a one-tap fix.
+
+This is the guard family's own move: **make the absence visible to the person who
+can act on it.** It catches the trap permanently and is far smaller than (b).
+*Note the instrument problem:* listing auth users needs the service role, so this
+cannot be a browser query — it needs a server endpoint, which is the constraint
+below.
+
+#### (b) An admin "Add team member" flow — one act instead of three
+
+**The pattern already exists, inward-facing.** `api/portal-invite.ts` +
+`api/portal-redeem.ts` already do this for clients: issue a token, then create the
+auth user, the profile and the membership together — including a guard that
+refuses to demote an existing internal account. The internal case is the same
+shape **minus the token, plus a contact row**. This is a port, not an invention.
+
+**Two constraints to design against, both real:**
+
+1. **`api/` is at the 12-function ceiling.** A new endpoint does not exist to be
+   had. It rides an existing function's action allow-list (the `intake.ts` and
+   `generate-report.ts` precedent) or it waits for
+   [3b](#3b-portal-endpoint-consolidation) — whose slot pressure this entry
+   increases again.
+2. **Auth and the database are not one transaction.** `auth.admin.createUser`
+   cannot be rolled back by a failed `insert`. So "atomic" here means
+   **idempotent and repairable**, not transactional: create in a fixed order,
+   make each step a no-op when it already exists, and let (a2) be the net that
+   catches whatever still lands half-done. Designing for a rollback that cannot
+   exist is how the half-state becomes invisible instead of impossible.
+
+**Recommended order: (a) now, (a2) next, (b) when 3b frees a slot or a real
+onboarding batch makes it worth an allow-list entry.**
+
+**Wakes when:** the next person is hired, or 3b runs.
+
 ### 3f. Extraction-rules harvest — the librarian's next client
 **WAITING — born 2026-08-04, from the extractor calibration campaign**
 
