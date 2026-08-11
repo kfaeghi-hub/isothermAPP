@@ -1265,6 +1265,47 @@ The equipment delete now says *"X was not deleted. Nothing was changed."* if the
 count is zero — and `pw-equipment-delete` asserts that count directly, because a
 leg that checked `error` alone would call the refusal a pass.
 
+### Assert the PREMISE — a broken fixture and a broken control look identical
+
+*2026-08-11, `pw-storage-privacy`.*
+
+The storage-privacy suite reported `non-member -> 200`: the account with no access
+had just been handed a signed URL. Read literally, the storage control had failed.
+
+It had not. `dev.owner` had genuinely become a **member** of ZZ-TEST — a
+`project_members` row left behind by a run of `pw-deliverable-access` that was
+**killed before its `finally`**. That suite seeds this exact account into ZZ-TEST
+for its scoping legs and removes it in teardown; a killed process never reaches
+teardown. The endpoint returned 200 because 200 was the **correct answer for a
+member**. The check was right about the number and wrong about the meaning.
+
+> **A leg whose subject is "an account with no access" must prove the account has
+> no access before its verdict means anything.** A control that broke and a
+> premise that moved arrive as the same unexpected status, and the suite cannot
+> tell them apart unless it measures the premise itself.
+
+This is the arrival rule aimed at the fixture rather than the write. Leg 4 now
+reads the memberships, and when any exist it **withholds its verdict** and names
+them, the account, and the likely source — instead of crying breach.
+
+Two corollaries, both learned the expensive way:
+
+- **It refuses; it does not self-heal.** A suite that deletes the row in its way
+  erases the evidence that residue is accumulating, and would silently discard a
+  membership someone added on purpose. Loud refusal that names the remedy beats a
+  quiet repair.
+- **An unasserted teardown is the same defect wearing cleanup's clothes.**
+  `pw-deliverable-access` asserted that its probe *project* was removed and never
+  that its membership row was — so a teardown removing zero membership rows still
+  printed a clean self-clean. It now asserts both, with the honest limit stated in
+  the suite: **this cannot catch the killed-process case**, because nothing after
+  `finally` runs. That case is caught where it does damage, by the premise-assert
+  in the consuming suite.
+
+The general shape: **fixture residue does not stay local.** It surfaces in whatever
+suite runs next and depends on the state that moved — twelve positions later, in a
+different file, wearing the costume of a security failure.
+
 ### Present-on-page and present-on-screen are different claims — findability is assertable
 
 *2026-08-09, IST generation UI.*

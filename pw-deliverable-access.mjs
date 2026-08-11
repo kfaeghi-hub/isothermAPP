@@ -177,6 +177,21 @@ try {
   await teardown()
   const { data: leftover } = await adm.from('projects').select('id').ilike('name', 'ZZ-TEST-DELIV %')
   check((leftover ?? []).length === 0, 'self-clean: probe project removed')
+  // The membership seeded at #3b is the OTHER half of the mess this suite makes,
+  // and it was never asserted — so a teardown that removed the probe project but
+  // silently removed zero membership rows still reported a clean self-clean. It
+  // leaked once (2026-08-11) and the account it belongs to is the one
+  // pw-storage-privacy uses as its no-access subject, so the residue surfaced
+  // two suites later as a fake storage-privacy breach.
+  //
+  // HONEST LIMIT: this cannot catch the case that actually happened — a process
+  // killed before `finally` never reaches this line. It catches a REFUSED or
+  // MISTARGETED delete. The killed-process case is caught where it does damage,
+  // by the premise-assert in pw-storage-privacy leg 4.
+  const { data: stray } = await adm.from('project_members')
+    .select('project_id').eq('project_id', ZZ).eq('profile_id', ownUser.id)
+  check((stray ?? []).length === 0,
+    `self-clean: the seeded owner membership on ZZ-TEST is gone (${(stray ?? []).length} row(s) left)`)
 }
 
 console.log('\n' + '='.repeat(64))

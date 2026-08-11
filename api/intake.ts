@@ -50,6 +50,37 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 /** The fields an ENRICH may fill. A row changes only what the reviewer ticked. */
 const ENRICH_COLS = ['descriptor', 'equipment_type', 'location', 'area_served'] as const
 
+/**
+ * Storage read with bounded retry.
+ *
+ * Returns the supabase shape plus `attempts` and `retryable`, so the caller can
+ * both report how hard it tried and distinguish "the object would not come" from
+ * "the object is not there".
+ *
+ * NOT a general retry wrapper: it is deliberately scoped to this one read,
+ * because this read is the one that is provably flaky and provably safe to
+ * repeat. A retry on a write, or on a call with side effects, is a different
+ * decision and should be made separately.
+ */
+async function downloadWithRetry(service: any, path: string, tries = 3) {
+  const RETRYABLE = /timeout|timed out|gateway|temporarily|unavailable|502|503|504|econnreset|socket hang up|fetch failed/i
+  let last: any = null
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    const r = await service.storage.from('intake-files').download(path)
+    if (!r.error && r.data) return { data: r.data, error: null, attempts: attempt, retryable: false }
+    last = r.error
+    const status = Number(r.error?.statusCode ?? r.error?.status ?? 0)
+    const retryable = (status >= 500 && status <= 599) || RETRYABLE.test(String(r.error?.message ?? ''))
+    if (!retryable) {
+      console.log(`[intake] storage read failed permanently (attempt ${attempt}, status ${status || '?'}): ${r.error?.message}`)
+      return { data: null, error: r.error, attempts: attempt, retryable: false }
+    }
+    console.log(`[intake] storage read attempt ${attempt}/${tries} failed (${r.error?.message}) — retrying`)
+    if (attempt < tries) await new Promise(r2 => setTimeout(r2, attempt * 400))
+  }
+  return { data: null, error: last, attempts: tries, retryable: true }
+}
+
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res)) return
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
@@ -329,9 +360,33 @@ export default async function handler(req: any, res: any) {
 
 
       // ── the page itself ───────────────────────────────────────────────────────
-      const dl = await service.storage.from('intake-files').download(up.storage_path)
+      //
+      // RETRIED, BECAUSE THIS READ IS FLAKY AND IDEMPOTENT. On 2026-08-11 a
+      // 0.9 MB PNG failed with a storage `Gateway Timeout` and threw away the
+      // whole run — the object was fine, and downloaded in 436 ms on the next
+      // attempt. Fetching a byte-identical immutable object has no side effects,
+      // so a retry costs a few hundred milliseconds and converts that failure
+      // into a non-event.
+      //
+      // RETRYABLE ONLY. A 404 or 403 means the path or the permission is wrong,
+      // and retrying a wrong path is just slower wrongness — those fail
+      // immediately and loudly. Only 5xx and timeouts are tried again.
+      const dl = await downloadWithRetry(service, up.storage_path)
       if (dl.error || !dl.data) {
-        return res.status(502).json({ error: `Could not read the stored file: ${dl.error?.message}` })
+        return res.status(502).json({
+          error: `Could not read the stored file: ${dl.error?.message}`,
+          // The CLIENT needs to tell "we never fetched the page" from "the page
+          // held nothing". They are different facts about the user's document
+          // and only one of them is about their document at all.
+          failure: 'fetch',
+          attempts: dl.attempts,
+          retryable: dl.retryable,
+        })
+      }
+      if (dl.attempts > 1) {
+        // A flaky-but-succeeding read must not be silent: if this line starts
+        // appearing often, storage is degrading and the retry is hiding it.
+        console.log(`[intake] storage read succeeded on attempt ${dl.attempts} for ${up.storage_path}`)
       }
       const bytes = Buffer.from(await dl.data.arrayBuffer())
 

@@ -79,8 +79,48 @@ structure. `pw-applicability-rules` now picks a group *with* columns and gains a
 leg asserting **no** group is empty, so the next one is a loud finding rather
 than a silent landmine for whatever sorts first.
 
-**Closing gates:** battery 38/38 · `pw-equipment-delete` 9 checks through a real
-browser login · 81 unit tests · real build (`tsc -b`) clean · tree clean.
+**Fix — a storage hiccup no longer throws away an extract, and no longer blames
+your drawing.** A 0.9 MB drawing page failed with a `Gateway Timeout` from
+storage; the object was fine and downloaded in 436 ms on the next attempt, but
+the run returned nothing and the screen said *"0 page(s) read"* — which reads as
+*your document had nothing in it*.
+
+The page read now **retries up to three times** with a short backoff, and only
+where retrying can help: 5xx and timeouts are retried, a 404 or 403 fails
+immediately, because retrying a wrong path is just slower wrongness. A read that
+succeeds on attempt two is **logged**, so storage degrading slowly shows up
+instead of hiding behind the retry.
+
+And the message now says what happened. *"Could not fetch page 9 after 3
+attempts — nothing was read from your drawing, and nothing is wrong with it."*
+**Never-fetched and read-and-empty are different facts about a document**, only
+one of them is about the document at all, and a summary that conflates them sends
+someone to re-scan a drawing that was never the problem. On a multi-page run the
+good pages still land and the failures are named per page, as before, with the
+fetch failures marked as such.
+
+**A storage-privacy "breach" that was a broken premise, not a broken control.**
+The battery closed at 38/39 with `pw-storage-privacy` reporting `non-member ->
+200` — the account with no access being handed a signed URL. It reproduced in
+isolation, so it was not contention. It was also not a breach: `dev.owner` had
+genuinely become a **member** of ZZ-TEST, via a `project_members` row left behind
+by a run of `pw-deliverable-access` **killed before its `finally`**. The endpoint
+returned 200 because 200 was the correct answer for a member.
+
+The leg now **asserts its own premise** — it reads the account's memberships, and
+when any exist it withholds its verdict and names them and the likely source
+rather than crying breach. It refuses instead of self-healing: deleting the row
+in passing would erase the evidence that residue is accumulating and could
+discard a membership added on purpose. `pw-deliverable-access` now also asserts
+that the membership it seeds is gone, not just its probe project — its self-clean
+had been checking one half of the mess it makes. Both guards were proven by
+injecting the exact residue and watching them fire. Banked in ARCHITECTURE as
+*assert the premise*, beside the arrival and departure rules.
+
+**Closing gates:** battery 39/39 · `pw-equipment-delete` 9 checks and
+`pw-intake-retry` 11 through a real login · `pw-storage-privacy` green with the
+premise guard fired and cleared · 81 unit tests · real build (`tsc -b`) clean ·
+tree clean.
 
 ---
 

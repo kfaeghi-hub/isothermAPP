@@ -154,7 +154,16 @@ export function IntakeUpload({ projectId, onStaged }: {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => null)
-      throw new Error(body?.error ?? `extraction failed (${res.status})`)
+      // The KIND of failure travels with the message. "We could not fetch your
+      // page" and "your page held nothing" are different facts about a
+      // document, and a summary that conflates them teaches the user the wrong
+      // thing about their own file.
+      const err = new Error(body?.error ?? `extraction failed (${res.status})`) as Error & {
+        failure?: string; attempts?: number
+      }
+      if (body?.failure) err.failure = body.failure
+      if (body?.attempts) err.attempts = body.attempts
+      throw err
     }
     staged.push(upload.id)
   }
@@ -163,6 +172,7 @@ export function IntakeUpload({ projectId, onStaged }: {
     setFindingIn(null); setBusy(true); setError(null)
     const staged: string[] = []
     const failed: string[] = []
+    const fetchFailures: { page: number; attempts?: number }[] = []
     try {
       const { data: { user } } = await supabase.auth.getUser()
       for (const [i, p] of pages.entries()) {
@@ -189,6 +199,8 @@ export function IntakeUpload({ projectId, onStaged }: {
           // ONE BAD PAGE DOES NOT LOSE THE OTHERS, and it is NAMED rather than
           // counted. "2 pages failed" sends someone hunting; "page 44 failed"
           // sends them to page 44.
+          const fe = e as Error & { failure?: string; attempts?: number }
+          if (fe?.failure === 'fetch') fetchFailures.push({ page: p.page, attempts: fe.attempts })
           failed.push(`page ${p.page}: ${e instanceof Error ? e.message : String(e)}`)
           continue
         }
@@ -239,7 +251,28 @@ export function IntakeUpload({ projectId, onStaged }: {
       }
 
       if (failed.length) {
-        setError(`${staged.length} page(s) read. These did not:\n` + failed.join('\n'))
+        // NEVER FETCHED IS NOT "READ AND EMPTY". "0 page(s) read" describes the
+        // outcome and misattributes the cause: it reads as *your document had
+        // nothing in it*, when the truth was that we could not pull the file.
+        // A message that blames the wrong thing sends someone to re-scan a
+        // drawing that was fine.
+        const allFetch = fetchFailures.length === failed.length
+        if (staged.length === 0 && allFetch) {
+          const a = fetchFailures[0]?.attempts
+          const pageList = fetchFailures.map(f => f.page).join(', ')
+          setError(
+            `Could not fetch page ${pageList}${a ? ` after ${a} attempt${a === 1 ? '' : 's'}` : ''} — ` +
+            `nothing was read from your drawing, and nothing is wrong with it. ` +
+            `This is a storage problem on our side. Retry the extract.`)
+        } else {
+          setError(
+            `${staged.length} page(s) read. These did not:\n` + failed.join('\n') +
+            (fetchFailures.length
+              ? `\n\n${fetchFailures.length === failed.length ? 'All of those' : 'Some of those'} ` +
+                `could not be FETCHED — those pages were never read, so this says ` +
+                `nothing about their contents. Retry the extract.`
+              : ''))
+        }
       }
       // ONE PAGE'S ROWS ARE ONE THING TO REVIEW.
       //

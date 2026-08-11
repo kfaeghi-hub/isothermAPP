@@ -62,10 +62,43 @@ if (!report) { console.error('ZZ-TEST has no generated report — run pw-dates/p
   check(r.status === 401, `no JWT -> ${r.status}`)
 }
 
-// 4 · non-member -> 403 (dev.owner holds zero memberships at rest)
+// 4 · non-member -> 403 — AND THE PREMISE IS ASSERTED FIRST.
+//
+// FROM A REAL FALSE ALARM, 2026-08-11: this leg reported `non-member -> 200`,
+// which reads as *the storage control has failed*. It had not. dev.owner had
+// genuinely become a member of ZZ-TEST — a project_members row left behind by a
+// run of pw-deliverable-access that was KILLED before its `finally` (that suite
+// seeds this exact account into ZZ-TEST for its scoping legs and removes it in
+// teardown). The endpoint answered 200 because 200 was the CORRECT answer for a
+// member. The check was right about the number and wrong about the meaning.
+//
+// A leg whose subject is "an account with no access" is worthless if it cannot
+// tell A CONTROL THAT BROKE from A PREMISE THAT MOVED — both surface as one
+// unexpected status. So the premise is now measured, not assumed, and when it
+// has moved the suite says WHICH memberships exist and where they came from
+// rather than crying breach. This is the arrival rule aimed at a fixture: assert
+// the state the question depends on before trusting the answer.
+//
+// It refuses rather than self-heals. Deleting the row to make the leg run would
+// erase the evidence that residue is accumulating, and would silently discard a
+// membership someone added on purpose.
 {
-  const { status } = await sign(own, { table: 'site_reports', id: report.id, kind: 'docx' })
-  check(status === 403, `non-member -> ${status}`)
+  const svc = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+  const { data: ownProfile } = await svc.from('user_profiles').select('id').eq('email', process.env.owner_email).single()
+  const { data: held } = await svc.from('project_members')
+    .select('project_id, projects(name)').eq('profile_id', ownProfile.id)
+  const names = (held ?? []).map(m => (Array.isArray(m.projects) ? m.projects[0]?.name : m.projects?.name) ?? m.project_id)
+
+  if (names.length > 0) {
+    check(false, `PREMISE BROKEN — ${process.env.owner_email} holds ${names.length} membership(s): ${names.join(', ')}. `
+      + 'This leg needs an account with ZERO memberships; it cannot test non-member access and its verdict is withheld. '
+      + 'Most likely fixture residue from a suite killed before teardown (pw-deliverable-access seeds this account into ZZ-TEST). '
+      + 'Delete the row and re-run — do NOT read this as a storage-privacy failure.')
+  } else {
+    check(true, `premise holds — ${process.env.owner_email} is a member of nothing`)
+    const { status } = await sign(own, { table: 'site_reports', id: report.id, kind: 'docx' })
+    check(status === 403, `non-member -> ${status}`)
+  }
 }
 
 // 5 · app renders finding photos through signed srcs (browser, dev.test)

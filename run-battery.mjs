@@ -107,6 +107,7 @@ const SUITES = [
   'pw-ist-evidence',
   'pw-ist-generate',
   'pw-equipment-delete',
+  'pw-intake-retry',
   // Not a pw- suite, and here on purpose. It regenerates one document per family
   // and asserts no table rule is painted inside the reserved footer band. The
   // footer-bleed bug shipped because every gate looked at document CONTENT and
