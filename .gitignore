@@ -88,3 +88,8 @@ vite-dev.log
 zz-*.sql
 zz-*.log
 zz-*.txt
+
+# The battery's concurrency lock — generated, held only while a run is in flight.
+# Untracked and never committed: a lock file in the repo would make every clone
+# look like a run was already in progress.
+.harness.lock
