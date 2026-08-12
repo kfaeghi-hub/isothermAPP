@@ -179,7 +179,22 @@ export class AiError extends Error {
  * The ONLY place this system talks to a model. Every feature goes through here,
  * so cost, model choice and failure handling have exactly one implementation.
  */
-export async function callModel(c: ModelCall): Promise<ModelResult> {
+/**
+ * TRANSPORT RETRY — added 2026-08-12, and it was found the expensive way.
+ *
+ * `callModel` had none. A 429 or a 529 became an immediate `AiError` with no
+ * backoff and no attempt count, so a burst of calls that tripped a rate limit
+ * killed everything after it. A corpus run of 37 sheets did exactly that:
+ * FOURTEEN consecutive files came back "the drafting service did not respond",
+ * the run reported the model leg at 18%, and none of it was about extraction.
+ *
+ * A benchmark that cannot tell "the model read badly" from "the API said no" is
+ * measuring the weather. This is the same fix, and the same reasoning, as the
+ * intake storage retry: retry ONLY what retrying can help — 429 and 5xx — with
+ * backoff, bounded, and say how many attempts it took so gradual degradation
+ * surfaces instead of hiding.
+ */
+async function callModelOnce(c: ModelCall): Promise<ModelResult> {
   if (!ANTHROPIC_KEY) throw new AiError(503, 'AI is not configured on this deployment')
 
   // A BACKSTOP, NOT A DEADLINE (2026-08-12, Phase 1).
@@ -234,7 +249,10 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
     const body = await res.text().catch(() => '')
     console.error('[ai-common] model call failed:', res.status, body.slice(0, 400))
     // Fail closed and legibly: the caller surfaces this to a human who can retry.
-    throw new AiError(502, 'The drafting service did not respond. Nothing was saved.')
+    throw new AiError(res.status === 429 || res.status >= 500 ? 503 : 502,
+      res.status === 429 || res.status >= 500
+        ? `The model service is temporarily unavailable (${res.status}). Nothing was saved.`
+        : 'The drafting service did not respond. Nothing was saved.')
   }
 
   const j = await res.json() as any
@@ -561,6 +579,27 @@ export interface AgentRun<T> {
   raw?: string
   usage: ModelResult | null
   budget: number
+}
+
+/** Retry a rate-limited or overloaded call; never retry a refusal or a 400. */
+export async function callModel(c: ModelCall, tries = 3): Promise<ModelResult> {
+  let last: unknown = null
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const r = await callModelOnce(c)
+      if (attempt > 1) console.warn(`[ai-common] call succeeded on attempt ${attempt}/${tries}`)
+      return r
+    } catch (e) {
+      last = e
+      const retryable = e instanceof AiError && (e.status === 503 || e.status === 504)
+      if (!retryable || attempt === tries) break
+      // Backoff with a little spread, so a burst does not re-collide in lockstep.
+      const wait = attempt * 1500 + Math.floor(attempt * 500)
+      console.warn(`[ai-common] attempt ${attempt}/${tries} failed (${(e as AiError).message}) — waiting ${wait}ms`)
+      await new Promise(r => setTimeout(r, wait))
+    }
+  }
+  throw last
 }
 
 export interface RunAgentOpts {

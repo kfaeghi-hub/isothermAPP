@@ -98,6 +98,7 @@ const readXlsxFile = (await import('read-excel-file/node')).default
 // paid for a gate that "replaced the assembly step with itself" and therefore
 // proved the harness. api/_shared/sheet-model-read.ts is the one reading path.
 let readSheetWithModel = null, costCents = null, reconcileSheet = null
+let readSheetChunked = null, planChunks = null
 if (WITH_AI) {
   await build({
     entryPoints: ['api/_shared/sheet-model-read.ts'], outfile: 'out/bench-model-read.mjs',
@@ -106,6 +107,8 @@ if (WITH_AI) {
   })
   const m = await import('./out/bench-model-read.mjs')
   readSheetWithModel = m.readSheetWithModel
+  readSheetChunked = m.readSheetChunked
+  planChunks = m.planChunks
   costCents = m.costCents
   await build({
     entryPoints: ['api/_shared/reconcile.ts'], outfile: 'out/bench-reconcile.mjs',
@@ -143,15 +146,31 @@ async function readFile(path) {
   }))
 }
 
-/** Read every sheet of a file with the MODEL, through the shipped path. */
+/** Read every sheet of a file with the MODEL, through the shipped path.
+ *
+ *  A sheet whose answer will not fit in one call is read in BANDS. The plan comes
+ *  from the deterministic parser's header row — geometry only, never meaning. */
 async function readWithModel(path, sheetsRaw) {
+  const knownTypes = VOCAB.map(v => `${v.key} (${v.name})`)
   const out = []
   for (const s of sheetsRaw) {
-    const r = await readSheetWithModel({
-      grid: s.grid, sheetName: s.sheet, merges: s.merges,
-      knownTypes: VOCAB.map(v => `${v.key} (${v.name})`),
-    })
-    out.push({ sheet: s.sheet, ...r })
+    const dataStart = s.parsed.header_row ?? 1
+    const plan = planChunks(s.grid, dataStart, 7000)
+    if (plan.bands > 1) {
+      const c = await readSheetChunked({
+        grid: s.grid, sheetName: s.sheet, merges: s.merges, knownTypes, dataStart,
+      }, 7000)
+      out.push({
+        sheet: s.sheet, chunked: true, plan, bands: c.bands, overlaps: c.overlaps,
+        run: { ok: c.bands.some(b => b.ok), failure: c.bands.every(b => b.ok) ? undefined : 'band-failure',
+               usage: null },
+        checked: { ok: true, rows: c.rows, problems: [], mappings: [], ambiguities: c.ambiguities },
+        _cost: c.cost, _calls: c.calls,
+      })
+    } else {
+      const r = await readSheetWithModel({ grid: s.grid, sheetName: s.sheet, merges: s.merges, knownTypes })
+      out.push({ sheet: s.sheet, chunked: false, ...r, _cost: costCents(r.run), _calls: 1 })
+    }
   }
   return out
 }
@@ -235,6 +254,8 @@ function survey(name, results) {
 const scored = [], surveyed = [], skipped = [], broke = []
 const modelRuns = []   // --with-ai only
 const mergedRows = [], allDisagreements = [], holes = []
+let chunkedSheets = 0, chunkBands = 0
+const overlaps = []
 
 for (const src of CORPUS) {
   if (!existsSync(src.dir)) {
@@ -260,12 +281,14 @@ for (const src of CORPUS) {
     if (WITH_AI) {
       const rulesRows  = results.flatMap(r => r.parsed.rows)
       const rulesTyped = rulesRows.filter(r => r.proposed_type).length
-      let mRows = [], cost = 0, failures = [], flags = 0, ambiguities = 0
+      let mRows = [], cost = 0, failures = [], flags = 0, ambiguities = 0, calls = 0
       const ambList = []
       const perSheetModel = new Map()
       try {
         for (const r of await readWithModel(path, results)) {
-          cost += costCents(r.run)
+          cost += r._cost ?? costCents(r.run)
+          calls += r._calls ?? 1
+          if (r.chunked) { chunkedSheets++; chunkBands += r._calls; if (r.overlaps?.length) overlaps.push(...r.overlaps) }
           if (!r.run.ok)      { failures.push(`run:${r.run.failure}`); continue }
           if (!r.checked?.ok) { failures.push(`boundary:${(r.checked?.problems ?? []).filter(p => p.severity === 'fatal').map(p => p.where).join(',') || 'refused'}`); continue }
           mRows.push(...r.checked.rows)
@@ -277,7 +300,7 @@ for (const src of CORPUS) {
       } catch (e) { failures.push('threw:' + String(e.message ?? e).split(String.fromCharCode(10))[0]) }
       const mTyped = mRows.filter(r => r.proposed_type).length
       modelRuns.push({
-        name: f, label: src.label, cost,
+        name: f, label: src.label, cost, calls,
         rulesRows: rulesRows.length, rulesTyped,
         modelRows: mRows.length, modelTyped: mTyped,
         flags, ambiguities, failures,
@@ -391,8 +414,17 @@ if (JSON_OUT) {
     // that, and keeps hiding it as the failures get fixed. Two numbers converge
     // only when nothing is being paid for twice.
     const usable = modelRuns.length - failed.length
+    const totalCalls = modelRuns.reduce((n, m) => n + (m.calls ?? 1), 0)
     log(`  COST: ${c.toFixed(1)}c total · ${(c / modelRuns.length).toFixed(1)}c per sheet READ · ` +
         `${usable ? (c / usable).toFixed(1) : '—'}c per USABLE sheet (${usable}/${modelRuns.length})`)
+    // CHUNKING MULTIPLIES CALLS AND THE MULTIPLIER IS ITS OWN LINE, not folded into
+    // an average where it disappears.
+    if (chunkedSheets) {
+      log(`  CHUNKED: ${chunkedSheets} sheet(s) read in ${chunkBands} bands ` +
+          `(x${(chunkBands / chunkedSheets).toFixed(1)} calls each) · ` +
+          `${totalCalls} model calls across ${modelRuns.length} sheets` +
+          `${overlaps.length ? ` · OVERLAPS: ${overlaps.join(', ')}` : ' · no tag appeared in two bands'}`)
+    }
     if (failed.length) log(`  FAILED: ${failed.map(m => `${m.name} (${m.failures.join('; ')})`).join(' · ')}`)
 
     // ── THE THREE LEGS, ALL AGAINST 298 ───────────────────────────────────

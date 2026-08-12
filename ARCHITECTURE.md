@@ -1705,6 +1705,38 @@ This is the *prove the mechanism* rule pointed at bug reports: a symptom is
 evidence about the surface, and the run log is evidence about the machine. Read
 the second before rewriting the first.
 
+### A merge keyed on data must prove its key is total
+
+*Promoted to law 2026-08-12, earned twice in one function.*
+
+`reconcileSheet` joins two readings of a sheet by tag. Twice it silently lost rows,
+and both times the loss showed up as a **denominator that did not add up**:
+
+- **Untagged rows.** Both sides were keyed on `norm(tag)`, so every row without a
+  tag was dropped on the floor. The merge returned **293 rows against a 298-row
+  denominator**. The parser one layer down already has a rule for this — *a row
+  that names only what it serves is still a row* — and the merge reintroduced the
+  defect above it.
+- **Repeated tags.** With untagged rows carried, the count was **still 293**,
+  because a second occurrence of a tag overwrote the first. Real schedules repeat
+  tags — a cooling coil and a heating coil on one unit — and the intake path
+  carries `duplicate_of` precisely because they do. **Seven rows** across the
+  Seneca corpus.
+
+> **Before a keyed merge is trusted with a count, prove the key is TOTAL: every
+> input row must map to a distinct output slot.** A key drawn from the data —
+> a tag, a name, an id from a document — is a guess about uniqueness that the
+> document never promised.
+
+The tell is arithmetic, not an error: nothing threw, nothing logged, and the only
+symptom was a number five short of one it should have equalled. That is why the
+denominator is fixed and printed on every benchmark line — **a total that cannot
+be checked is a total that will drift**.
+
+The general form, beyond merges: `Map.set` is a silent overwrite, and any
+`for (x of xs) map.set(key(x), x)` over data-derived keys is a row-loss waiting for
+input that repeats. Count in, count out, or key by identity plus occurrence.
+
 ### Client content never reaches a log
 
 *2026-08-12. A privacy incident class, found by reading our own console output.*
