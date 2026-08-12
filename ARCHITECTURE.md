@@ -1730,6 +1730,26 @@ last hop had nowhere to put them.
 > the schema. When a pipeline gains an output, the migration is part of the output,
 > not a follow-up.
 
+**AND THE BOUNDARY REFUSES AS WELL AS SWALLOWS — the same law, other side.**
+*2026-08-12, Phase 5a.* The orchestrator was written to set `status: 'reading'` on
+an upload, a state progressive staging had just made real. Nothing checked whether
+`intake_uploads_status_check` permitted it. It did not: the insert was **rejected**,
+the run produced nothing at all, and the sighted gate reported **"0 sheets staged"**
+— which reads as a broken pipeline and was a refused write.
+
+So a contract meeting a table fails in two directions, and they look identical from
+a distance:
+
+| | what happens | what it looks like |
+|---|---|---|
+| **swallowed** | an unknown key is dropped, the write returns success | the pipeline produced it and the database does not have it |
+| **refused** | a disallowed value raises, the write never lands | the pipeline looks dead |
+
+> **A gate must distinguish a rejected write from a dead pipeline.** They cost the
+> same diagnosis and have nothing in common. `pw-intake-orchestrator` now asserts
+> the upload row exists within 12s and prints what the screen said if it does not —
+> because the first two runs spent 75 and 150 seconds each proving nothing.
+
 The tell is the shape of the loss: nothing errors. `.insert()` with an extra key is
 not rejected by PostgREST — the key is simply not written, and the write returns
 success. So the pipeline reports it produced the thing, the database quietly does

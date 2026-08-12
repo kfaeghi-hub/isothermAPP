@@ -27,6 +27,7 @@ import { authedFetch } from './api'
 import type { Cell, ParsedSheet, MergeRange } from './intakeExcel'
 import { reconcileSheet, type MergedRow, type ReadRow } from './reconcile'
 import { planBands, sliceBands, assembleBands } from './sheetBands'
+import { runBounded, isBackPressure } from './bounded'
 
 export interface SheetInput {
   name: string
@@ -124,26 +125,45 @@ async function runSheet(
   const readBands: { rows: ReadRow[] }[] = []
   const ambiguities: { about: string; question: string; where?: string }[] = []
 
-  for (let i = 0; i < bands.length; i++) {
-    emit({ phase: 'reading', band: bands.length > 1 ? { n: i + 1, of: bands.length } : undefined })
+  // BOUNDED PARALLELISM — three bands in flight, and the FIRST 429 collapses the
+  // rest of the sheet to sequential. The transport retry handles a transient; a
+  // 429 is not a transient, it is the service saying the rate is wrong, and
+  // retrying into it is arguing. Ruled 2026-08-12.
+  let done = 0
+  const bandResult = await runBounded(bands.map((b, i) => async () => {
+    emit({ phase: 'reading', band: { n: ++done, of: bands.length } })
     const res = await authedFetch('/api/intake', {
       action: 'read-sheet', project_id: ctx.projectId,
-      sheet: bands.length > 1 ? `${s.name} (rows ${bands[i].from}-${bands[i].to})` : s.name,
-      grid: bands[i].rows, merges: i === 0 ? s.merges : [],
+      sheet: bands.length > 1 ? `${s.name} (rows ${b.from}-${b.to})` : s.name,
+      grid: b.rows, merges: i === 0 ? s.merges : [],
     })
-    calls++
     const body = await res.json().catch(() => null)
-    cost += Number(body?.cost ?? 0)
     if (!res.ok) {
-      // A BAND THAT FAILED IS NAMED, and the sheet continues. Losing one band of
-      // eighteen is a shortfall the assembly count will show; abandoning the sheet
-      // loses seventeen good bands to one bad one.
-      readBands.push({ rows: [] })
-      emit({ phase: 'reading', note: `band ${i + 1}/${bands.length} failed: ${body?.error ?? res.status}` })
-      continue
+      const err = new Error(body?.error ?? `HTTP ${res.status}`)
+      // Back-pressure must REACH runBounded to trip the throttle; every other
+      // failure is a hole in this band and nothing more.
+      if (isBackPressure(err) || res.status === 429 || res.status === 503) throw err
+      return { rows: [] as ReadRow[], ambiguities: [], cost: Number(body?.cost ?? 0) }
     }
-    readBands.push({ rows: (body.rows ?? []) as ReadRow[] })
-    ambiguities.push(...(body.ambiguities ?? []))
+    return {
+      rows: (body.rows ?? []) as ReadRow[],
+      ambiguities: (body.ambiguities ?? []) as { about: string; question: string; where?: string }[],
+      cost: Number(body?.cost ?? 0),
+    }
+  }), bands.length > 1 ? 3 : 1, () => emit({ phase: 'reading', note: 'rate limited — the rest of this sheet reads one at a time' }))
+
+  calls += bands.length
+  for (const r of bandResult.results) {
+    // A BAND THAT FAILED IS A HOLE, NAMED BY THE ASSEMBLY COUNT. Losing one band
+    // of eighteen is a shortfall; abandoning the sheet loses seventeen good bands
+    // to one bad one.
+    readBands.push({ rows: r?.rows ?? [] })
+    if (r) { ambiguities.push(...r.ambiguities); cost += r.cost }
+  }
+  if (bands.length > 1) {
+    const seq = bandResult.durations.reduce((a, b) => a + b, 0)
+    emit({ phase: 'reading', note: `${bands.length} bands · ${(seq / 1000).toFixed(0)}s of work` +
+      (bandResult.throttledAt !== null ? ` · throttled at band ${bandResult.throttledAt + 1}` : '') })
   }
 
   const assembled = assembleBands(readBands)

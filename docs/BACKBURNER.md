@@ -673,6 +673,44 @@ be guessing with extra steps.
 
 ---
 
+### 3q. Cheaper-tier band reads — a hypothesis with its test written first
+**BANKED 2026-08-12, not built. Wakes after the extraction arc, as its own measured step.**
+
+**The hypothesis:** a band read is TRANSCRIPTION, not judgment. The band already
+arrives with its header attached, its columns already mapped by the sheet itself,
+and the reader's whole job is to turn rows of cells into rows of JSON. The hard
+part of extraction — deciding what a unit IS, spotting that a duty column is not a
+description, noticing an ambiguity nobody wrote down — happens once per sheet, not
+once per band.
+
+If that is true, bands could run on a cheaper tier and the expensive tier could be
+reserved for the sheet-level questions. On the 199×52 fixture that is 18 of the 19
+calls for that sheet.
+
+**It is a hypothesis, and it is banked with the test it has to pass:**
+
+| | |
+|---|---|
+| corpus | the same 37 files, the same 298 denominator |
+| accuracy | typed count must HOLD — measured, not felt, and against the fixed divisor |
+| cost | the delta reported as its own line, both per sheet read and per usable sheet |
+| labelling | model figures `[SAMPLE]`, and more than one run before the number is believed |
+
+**Why it is not built now.** The arc has just spent four phases learning that a
+change measured in the same window as another change cannot be attributed. Cheaper
+band reads would land while parallelism, the fragment rule and chunking are all
+still fresh in the corpus numbers — and a movement nobody can attribute is not a
+result.
+
+**The risk to watch,** stated so the test is not designed to pass: a cheaper tier
+may transcribe fine and lose exactly the things this arc added — the mappings
+record, the ambiguity questions, the refusal to invent a tag on a fragment sheet.
+Those are judgment, and they are asked for on every call including band calls. If
+accuracy holds but questions stop being raised, the number will look fine and the
+capability will be gone.
+
+---
+
 ### Not backlogged, and the reason is the point
 
 **Tier-3 enterprise items — SOC 2 / ISO 27001, SSO, public API, BIM/IFC,
