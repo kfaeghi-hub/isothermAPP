@@ -1705,6 +1705,41 @@ This is the *prove the mechanism* rule pointed at bug reports: a symptom is
 evidence about the surface, and the run log is evidence about the machine. Read
 the second before rewriting the first.
 
+### A contract is only as real as the table it lands in
+
+*2026-08-12, extraction Phase 5's migration.*
+
+Five things the extraction pipeline produced were **specified, validated, returned
+— and then died at the database boundary**, because `intake_rows` had no column for
+them:
+
+| produced by | what was lost |
+|---|---|
+| `ExtractorOutput.rows[].reasoning` | why a row was read that way — **accepted by the contract since the feature shipped, discarded on arrival every time** |
+| `reconcileSheet` | which leg read the row, and the per-field claims |
+| `reconcileSheet` | the disagreements — the whole point of Phase 3 |
+| the extractor | the questions the sheet does not answer |
+| `row-verifier` | the per-claim verdicts and their source cells |
+
+Each had a type. Each was validated at a boundary. Each was returned by a function
+that a test asserted on. **None of them could be seen by a human**, because the
+last hop had nowhere to put them.
+
+> **A field that is declared, produced and validated is still lost if the table it
+> writes to has no column for it.** The contract is not the schema; the schema is
+> the schema. When a pipeline gains an output, the migration is part of the output,
+> not a follow-up.
+
+The tell is the shape of the loss: nothing errors. `.insert()` with an extra key is
+not rejected by PostgREST — the key is simply not written, and the write returns
+success. So the pipeline reports it produced the thing, the database quietly does
+not have it, and both statements are true at once.
+
+**`reasoning` is the one to remember.** It was in `ExtractorOutput` from the day the
+extractor shipped, it was populated on every row of every extraction the system ever
+ran, and not one of those values was ever stored. Months of a real signal, produced
+and dropped, with no error anywhere.
+
 ### A merge keyed on data must prove its key is total
 
 *Promoted to law 2026-08-12, earned twice in one function.*
