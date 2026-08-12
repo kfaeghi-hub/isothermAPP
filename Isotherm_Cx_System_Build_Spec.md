@@ -375,6 +375,28 @@ TEMPLATE LIBRARY (firm-level, reusable across all projects)
 - The project's copy stays **sovereign**: seeded once from the firm set at the
   project's unit system, never overwritten, editable per project thereafter.
 
+**What an import read is always visible** (BUILT 2026-08-11, from Avondale)
+- A schedule can carry more than the firm's field set holds. Its columns are the
+  **engineer's own words**; the nameplate table's rows are the firm's **declared
+  field names**. Where those two vocabularies do not meet, the reading is kept and
+  **shown on the unit** under *"From the schedule · not mapped to a field"* —
+  never dropped, never silently stored where nothing can render it.
+- **A value only lands under a label that means the same thing.** Matching
+  compares the unit as well as the name: units that agree write as-is, a known
+  conversion writes the converted value **and states the arithmetic**
+  (800 MBH → 234 kW), and an unbridgeable pair writes **nothing** and says so. A
+  number under a label that means something else renders, prints, and is only
+  discovered when somebody computes with it.
+- **What a unit serves is not what it is.** A duty column (SERVICE) fills *Area
+  Served* and never decides a type. See the ARCHITECTURE law; a pump on the
+  boiler's primary loop is not a boiler.
+- **Extraction reports names, never counts.** Every path — Excel and PDF — names
+  which columns became which fields, which were captured as spec, and which were
+  read and empty. *"3 columns mapped · 13 kept as nameplate"* reads as *it only
+  got three things*, and a count cannot say which thirteen.
+- Where a sheet shows the **PDF→Excel conversion fingerprint**, the app says so
+  and suggests the original pages — a suggestion, never a refusal.
+
 **User** (team + future client)
 - id, name, email, role (Admin / Developer / Owner / User / Client — `user_role_enum`)
 

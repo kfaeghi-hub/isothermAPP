@@ -173,10 +173,11 @@ ruling. Its Phase 2 gate is that the harvest can rediscover, from recorded
 corrections alone, the SERVICE → area_served rule that was worked out by hand
 this week.
 
-**Closing gates:** battery 39/39 · `pw-equipment-delete` 9 checks and
-`pw-intake-retry` 11 through a real login · `pw-storage-privacy` green with the
-premise guard fired and cleared · 81 unit tests · real build (`tsc -b`) clean ·
-tree clean.
+**Closing gates:** battery 41/41 · `pw-equipment-delete` 9 checks,
+`pw-intake-retry` 11, and `pw-schedule-coverage` 14 through a real login ·
+`avondale-schedule-gate` 34 over the three real client files (skips loudly by name
+when they are absent) · `pw-storage-privacy` green with the premise guard fired
+and cleared · 103 unit tests · real build (`tsc -b`) clean · tree clean.
 
 ---
 

@@ -67,19 +67,35 @@ try {
 
   // ── 1 · the mapped values are ON SCREEN, not merely in the row ─────────────
   //
-  // The Spec section is COLLAPSED by default, which the first run of this leg
-  // discovered by failing: 1760 was in the DOM and not on the screen. That is the
-  // distinction this suite is named for, so the leg opens the section the way a
-  // person would rather than asserting against innerHTML.
-  await page.getByText('Spec (Design)', { exact: false }).first().click().catch(() => {})
-  await page.waitForTimeout(1200)
-  const body = await page.locator('body').innerText()
-  check(/\b1760\b/.test(body), 'the mapped Speed value 1760 is visible once Spec is open')
-  check(/Speed/i.test(body), 'and its declared field name renders')
+  // ── WAIT FOR THE PANEL BEFORE READING IT ──────────────────────────────────
+  //
+  // Two drafts of this leg failed here and neither failure was a defect.
+  //
+  //   1. It clicked "Spec (Design)" to expand the section. Sections default to
+  //      OPEN (`useState(true)`), so the click COLLAPSED it — a check that created
+  //      the very condition it was testing for.
+  //   2. With the click gone it still failed, because the body snapshot was taken
+  //      2s after selecting the unit while the strip assertion below had a 15s
+  //      wait. The panel simply had not rendered yet. A screenshot showed
+  //      "SPEED 1760 RPM" plainly on screen.
+  //
+  // So the wait comes FIRST and everything reads the same settled page. A timing
+  // race that reports "not visible" is indistinguishable from a real rendering
+  // failure, and this suite exists precisely to tell those apart.
+  const strip = page.locator('[data-testid="unmapped-from-schedule"]')
+  await strip.first().waitFor({ timeout: 20000 }).catch(() => {})
+
+  // Asserted with a LOCATOR, not a body-text regex. The claim is "a person can see
+  // this value", and `getByText(...).isVisible()` is that claim; a substring of a
+  // page-wide innerText dump is a weaker proxy that also proved flaky here.
+  const speedValue = page.getByText('1760', { exact: false }).filter({ visible: true })
+  await speedValue.first().waitFor({ timeout: 20000 }).catch(() => {})
+  check(await speedValue.count() > 0, 'the mapped Speed value 1760 is visible on the unit')
+  // Labels are uppercased by CSS, so this matches case-insensitively on purpose.
+  check(await page.getByText(/speed/i).filter({ visible: true }).count() > 0,
+    'and its declared field name renders')
 
   // ── 2 · the unmapped strip exists, is findable, and names its readings ─────
-  const strip = page.locator('[data-testid="unmapped-from-schedule"]')
-  await strip.first().waitFor({ timeout: 15000 }).catch(() => {})
   check(await strip.count() > 0, 'the "from the schedule · not mapped" strip renders')
 
   if (await strip.count() > 0) {

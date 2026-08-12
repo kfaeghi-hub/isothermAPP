@@ -69,7 +69,12 @@ try {
   // ── THE MAPPING IS SHOWN BEFORE ANYTHING IS WRITTEN ───────────────────────
   check(/5 rows/.test(preview), 'preview reports 5 rows (3 pumps + 2 VAV; cover sheet contributes none)')
   check(/tag ← TAG/.test(preview), 'preview shows which column it read as the tag')
-  check(/kept as nameplate: GPM, HEAD \(FT\)/.test(preview),
+  // NAMES, NEVER COUNTS (2026-08-11). This read "kept as nameplate: …" until a
+  // real user read "3 columns mapped · 13 kept as nameplate" as "it only got three
+  // things". The preview now separates what was CAPTURED (read, and on the unit)
+  // from what was READ BUT EMPTY, because reporting them as one number inflates
+  // what the import claims to have found.
+  check(/captured as spec \(2\): GPM, HEAD \(FT\)/.test(preview),
     'preview names the engineering columns it kept rather than silently dropping them')
   check(/1 match existing equipment/.test(preview),
     'preview flags the row matching seeded P-01 as an enrich, before staging')
@@ -139,7 +144,20 @@ try {
   check(/Intake review/.test(review), 'staging opens the review screen')
   check(/CHANGES EXISTING EQUIPMENT/.test(review),
     'the enrich block is present and named for what it does, not for its data shape')
-  check(/Clean — 4/.test(review), 'four clean rows (5 staged, 1 is the enrich)')
+  // TWO CLEAN, NOT FOUR — AND THAT IS THE POINT (2026-08-11).
+  //
+  // The fixture still stages 5 rows and still types all of them correctly. What
+  // changed is CONFIDENCE. The VAV sheet's only prose column is SERVICE, which is
+  // now `area_served` rather than the description, so TBS-101/102 are typed from
+  // the schedule's TITLE instead of their own row — and a type inferred from the
+  // document's frame scores 0.15 below one read from the row, which puts them at
+  // 0.80 against CLEAN_AT 0.85.
+  //
+  // So they move out of bulk-accept and into "needs a look". That is the ruling
+  // working, not a regression: the rows a human should glance at are exactly the
+  // ones whose type came from the page rather than from the line.
+  check(/Clean — 2/.test(review), 'two clean rows — the two pumps with their own DESCRIPTION column')
+  check(/TBS-101/.test(review), 'and the title-typed VAVs are staged, not dropped')
 
   // THE DIFF SHOWS ONLY WHAT WOULD CHANGE. The seeded P-01 has no location, and
   // the schedule proposes one — so exactly that line should appear.
@@ -152,18 +170,19 @@ try {
 
   // ── bulk-accept settles the body and NOTHING ELSE ─────────────────────────
   page.once('dialog', d => d.accept())
-  await page.getByRole('button', { name: /Accept all 4 clean/ }).click()
+  await page.getByRole('button', { name: /Accept all 2 clean/ }).click()
   await page.waitForTimeout(2500)
 
   const { data: afterBulk } = await adm.from('intake_rows')
     .select('tag, disposition, match_equipment_id').eq('upload_id', up.id)
   const acceptedTags = (afterBulk ?? []).filter(r => r.disposition === 'accepted').map(r => r.tag).sort()
-  check(acceptedTags.length === 4, `bulk accepted exactly 4 (${acceptedTags.length})`)
+  check(acceptedTags.length === 2, `bulk accepted exactly 2 (${acceptedTags.length})`)
   check(!acceptedTags.includes('P-01'),
     'THE ENRICH ROW WAS NOT BULK-ACCEPTED — the one row that could alter an existing unit')
   const stillPending = (afterBulk ?? []).filter(r => r.disposition === 'pending')
-  check(stillPending.length === 1 && stillPending[0].tag === 'P-01',
-    'P-01 is still pending an individual decision')
+  const pendingTags = stillPending.map(r => r.tag).sort()
+  check(stillPending.length === 3 && pendingTags[0] === 'P-01',
+    `P-01 and the two title-typed VAVs still await an individual decision (${pendingTags.join(', ')})`)
 
   // ── the ledger is for AGENTS, and this upload had none ────────────────────
   const { count: fbAfter } = await adm.from('agent_feedback')
@@ -204,6 +223,30 @@ try {
     'the human-written descriptor was NOT carried into the approved change set')
   check(enrichRow?.edited?.location === 'Mech Room 1' && enrichRow?.edited?.proposed_type === 'pump',
     'the two additive fields WERE carried')
+
+  // ── rule on the two TITLE-TYPED rows, the way a reviewer would ────────────
+  //
+  // TBS-101/102 are typed `vav` from the schedule's title rather than from their
+  // own row, so they sit at 0.80 against CLEAN_AT 0.85 and are deliberately kept
+  // out of bulk-accept (see the Clean — 2 note above). They are still correct
+  // rows, and a reviewer glances at them and takes them.
+  //
+  // The suite does this rather than lowering the assertions below, because
+  // everything downstream — the batch tag, the applicability rules, the upload
+  // closing as `approved` — only means something on a fully-ruled upload. Weakening
+  // those to match a half-ruled one would quietly delete the coverage.
+  for (const tag of ['TBS-101', 'TBS-102']) {
+    const row = page.locator('div').filter({ hasText: new RegExp(`^${tag}`) }).last()
+    await row.getByRole('button', { name: 'Accept', exact: true }).first().click().catch(async () => {
+      await page.getByText(tag, { exact: false }).first().click()
+      await page.getByRole('button', { name: 'Accept', exact: true }).first().click()
+    })
+    await page.waitForTimeout(1200)
+  }
+  const { data: vavRows } = await adm.from('intake_rows')
+    .select('tag, disposition').eq('upload_id', up.id).in('tag', ['TBS-101', 'TBS-102'])
+  check((vavRows ?? []).every(r => r.disposition === 'accepted'),
+    `both title-typed VAVs accepted individually (${(vavRows ?? []).map(r => `${r.tag}:${r.disposition}`).join(', ')})`)
 
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   await page.waitForTimeout(1000)
