@@ -51,12 +51,20 @@ gates. **Five of Ruling 3's requirements have no foundation to build on.**
 
 Three more, found in passing, that this build must not step on:
 
-- **`budgetOverride` bypasses the class ceiling entirely**, and the internal retry
-  does `budget *= 2` without re-clamping — a retried extraction runs at 16,000 and
-  a retried reasoning call at 32,000, above their declared classes. The file's own
-  stated Law 4 is "the ceiling comes from `budget_class`, never from a caller".
+- **`budgetOverride` bypasses the class ceiling entirely** — `opts.budgetOverride
+  ?? Math.min(...)` sits two lines under the comment "the number still comes from
+  the registry, not the caller". It is **latent, not live**: the field is declared
+  and **no call site passes it**. Worth closing before a second pass gives someone
+  a reason to.
+
+  *The recon also reported the retry's `budget *= 2` as the same violation. It is
+  not.* `ai-common.ts:396` records the ruling: *"the ceiling is unchanged at 8,000
+  **with the 16,000 retry**"* — the escalation is deliberate and the calibration
+  campaign depends on it. Checked rather than taken on the agent's word, and
+  recorded here so nobody "fixes" it later.
 - **No timeout on any model call.** Bare `fetch`, no `AbortController`. A second
-  pass doubles the exposure.
+  pass doubles the exposure, and the schema file already notes a 170s call that
+  returned nothing.
 - **No prompt caching**, though the system prefix is a large deterministic corpus
   assembly re-billed on every page of a set — which is exactly what caching is for,
   and matters more once every sheet becomes a model call.
