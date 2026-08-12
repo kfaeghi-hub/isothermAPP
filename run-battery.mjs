@@ -65,6 +65,7 @@
 // Adding a suite: append here ONLY if it runs bare, self-cleans (re-entrant),
 // and touches nothing outside the ZZ-TEST family (pw-config.mjs rule).
 import { spawnSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { acquire } from './harness-lock.mjs'
 import { classify, excerpt, record, promoted, allPromoted, sessionId } from './harness-transients.mjs'
 import { assertZzTestQuiet } from './harness-settle.mjs'
@@ -198,6 +199,8 @@ const runOne = (s) => {
   return { r, out: (r.stdout ?? '') + (r.stderr ?? ''), secs: ((Date.now() - t) / 1000).toFixed(0) }
 }
 
+const measurements = []
+
 for (const s of SUITES) {
   process.stdout.write(`── ${s} … `)
   let { r, out, secs } = runOne(s)
@@ -232,9 +235,18 @@ for (const s of SUITES) {
   // single-quoted string, so `\s` and `\[` lost their backslashes and the pattern
   // compiled to something that matched nothing — the echo silently never fired and
   // the measurement was lost a second time.
-  const MARKER = /^\s*\[[A-Z-]+\]/
+  //
+  // THE CONVENTION (ruling 3, 2026-08-12). A suite that MEASURES something prints
+  // a tagged line: `[TAG] key-value`, TAG in caps. The battery collects every one
+  // of them PASS OR FAIL, echoes it inline, and lands them durably in
+  // out/battery-measurements.json. Right-for-noise stays right — suite stdout is
+  // still only dumped on failure — but measurements stop dying with success.
+  const MARKER = /^\s*\[([A-Z][A-Z-]*)\]\s*(.+)$/
   for (const line of out.split(String.fromCharCode(10))) {
-    if (MARKER.test(line)) console.log(`      ${line.trim()}`)
+    const m = MARKER.exec(line)
+    if (!m) continue
+    console.log(`      ${line.trim()}`)
+    measurements.push({ suite: s, tag: m[1], value: m[2].trim(), passed: pass, seconds: secs })
   }
 
   // ── SETTLE BETWEEN SUITES ──────────────────────────────────────────────────
@@ -282,5 +294,41 @@ for (const f of failed) {
   console.log(`\n──── FAIL ${f.s} — last 30 lines ────`)
   console.log(f.out.split('\n').slice(-30).join('\n'))
 }
+// ── MEASUREMENTS LAND DURABLY ────────────────────────────────────────────────
+//
+// Ruling 3. A measurement that lives only in this terminal dies with the scroll
+// buffer, and one that only prints on failure dies with success. Both happened to
+// the same number in one session. The ledger is append-only across runs so a value
+// can be COMPARED to itself — a settle time drifting upward run over run is the
+// signal, and a single reading cannot show it.
+if (measurements.length) {
+  console.log(`\n──── MEASUREMENTS (${measurements.length}) ────`)
+  for (const m of measurements) console.log(`  ${m.suite.padEnd(26)} [${m.tag}] ${m.value}`)
+
+  const LEDGER = 'docs/battery-measurements.json'
+  let prior = []
+  try { prior = JSON.parse(readFileSync(LEDGER, 'utf8')) } catch { /* first run */ }
+  // THE LEDGER IS COMMITTED, so the standing law applies to it: client content
+  // never reaches a log, and never reaches GitHub. Measurement VALUES are free
+  // text written by suites, so a suite that one day prints a schedule's filename
+  // would publish it. Path-like and workbook-like tokens are refused here rather
+  // than trusted not to appear — the value still shows in the terminal, it just
+  // does not land in a tracked file.
+  // A slash BETWEEN DIGITS is a ratio, not a path — "merged 269/298" is exactly
+  // the measurement this ledger exists to keep, and a naive slash class eats it.
+  // Verified in both directions before shipping (out/scrub-test.mjs).
+  const CLIENT_SHAPED = /[\\]|(?<![0-9])\/|\/(?![0-9])|[.](?:xlsx|xls|pdf|docx|csv)\b/i
+  const safe = measurements.map(m => CLIENT_SHAPED.test(m.value)
+    ? { ...m, value: '(withheld: path- or document-shaped)', withheld: true }
+    : m)
+  const entry = {
+    run: sessionId, at: new Date().toISOString(),
+    passed: results.length - failed.length, of: results.length,
+    measurements: safe,
+  }
+  writeFileSync(LEDGER, JSON.stringify([...prior, entry].slice(-50), null, 2) + '\n')
+  console.log(`  -> appended to ${LEDGER} (${prior.length + 1} runs)`)
+}
+
 releaseLock()
 process.exit(failed.length ? 1 : 0)

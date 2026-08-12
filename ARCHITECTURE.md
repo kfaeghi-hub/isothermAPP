@@ -1588,6 +1588,52 @@ thumbnail cannot show a missing 1px border.
 **Evidence is not "an image exists".** It is an image in which the claim is
 legible, at the condition that would falsify it.
 
+### The second audit: does the guard fail for the reason it CLAIMS?
+
+*2026-08-12. The sibling rule above asks whether a guard CAN fail. This asks the
+other half, and it took two instances in one day to see it.*
+
+> **A guard is audited not only for whether it can fail, but for whether it fails
+> for the reason it claims. A false refusal spends a real alarm — and every alarm
+> spent on a slow paint makes the next one easier to wave through.**
+
+A guard that cannot fail is dead weight; everyone can see the problem once it is
+named. A guard that fires **for the wrong reason** is worse, because it looks like
+it is working. It produces exactly the output it was built to produce, at exactly
+the moment it was built to produce it, and the reason is false. The cost is not
+the wasted run. It is that the alarm is a finite resource: this project's loudest
+refusal is *"Playwright must never run against a real project, so this stops
+here"*, and every time that sentence is spent on a page that took two seconds to
+paint, it is worth slightly less the next time it appears.
+
+**Both instances were a clock standing in for a state.**
+
+| Guard | What it claimed | What had actually happened |
+|---|---|---|
+| **`pw-meetings`, the 25s sleep** | The generated minutes were never issued — a 404 on the file URL. | The endpoint wrote correctly. Generation had simply taken longer than a fixed 25 seconds under battery load. The guard could not tell *took 26 seconds* from *never happened*, which is the entire question. Instrumented, it now reports `appeared-after-6717ms` or `never-appeared-within-90000ms`. |
+| **`openTestProject`, the 1800ms wait** | *"Refusing to run: did not land on ZZ-TEST"* — the safety refusal, spent in full. | The project detail page had not finished rendering inside a fixed 1800ms while eleven suites' load was still draining. Both conditions read false because neither had painted yet. |
+
+**AND THE SECOND ONE WAS HALF-FIXED ALREADY, WHICH IS THE SHARPEST PART.**
+`openTestProject` appears in the sibling-rule table above for its FIRST half —
+the `count() === 0` race that was converted to a bounded wait. The second half of
+the same function, eight lines below, kept its fixed sleep. The tool was in the
+file. The comment block condemning fixed sleeps was in the file, eighty lines
+down. The lesson had been written and not finished.
+
+> **A lesson is not learned where it is written down. It is learned where it is
+> applied — and the same file is the first place to look, not the last.**
+
+**The repair does not weaken the guard.** The predicate is unchanged and both
+conditions must still hold; absence after a bounded wait is still a refusal. What
+changes is that the message can now say it *waited* rather than implying it
+*looked*, and green runs stop paying the fixed cost.
+
+**The inventory this triggered is in `docs/HARNESS-SLEEP-INVENTORY.md`** — every
+`waitForTimeout` in the harness classified as *guard* (its expiry can refuse or
+alarm) or *convenience* (pacing, animation, screenshot timing). The guard class
+was 78 sites inside the battery. Flushing them out one red at a time is the
+expensive way to find them.
+
 ### The 1.02 set — seven in one session, and the sentence they share
 
 The batch above found three in one day. The 1.02 trio found **seven**, and they
