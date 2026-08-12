@@ -157,17 +157,36 @@ export async function openTestProject(page) {
     )
   }
   await visible.click()
-  await page.waitForTimeout(1800)
 
   // Belt and braces: the open project detail must show the ZZ-TEST name AND the
   // Checklists tab. If a selector ever goes stale, fail loudly here rather than
   // quietly start writing test data into a client's commissioning record.
-  const onTestProject = await page.getByText('ZZ-TEST').count() > 0
-  const onProjectDetail = await page.getByRole('button', { name: 'Checklists', exact: true }).count() > 0
+  //
+  // BOUNDED, NOT SLEPT — and this one was found the hard way. The check used to be
+  // `waitForTimeout(1800)` then an instant count, which is the exact pattern the
+  // comment block below this function condemns, surviving eight lines above it. It
+  // went red mid-battery with BOTH conditions false: not a stale selector, not a
+  // visibility problem, just a detail page that took longer than 1.8s to render
+  // while eleven suites' worth of load was still draining.
+  //
+  // A FALSE REFUSAL IS THE WORST FAILURE A SAFETY GUARD HAS. It spends the same
+  // alarm as a real one — "you are about to write into a client's record" — on a
+  // slow paint, and every one it spends makes the next one easier to wave through.
+  // The refusal is NOT weakened by this: the predicate is unchanged and absence
+  // after a bounded wait is still a refusal, with the same verdict and a message
+  // that now says how long it waited.
+  let onTestProject = false, onProjectDetail = false
+  await waitUntil(async () => {
+    onTestProject = await page.getByText('ZZ-TEST').count() > 0
+    onProjectDetail = await page.getByRole('button', { name: 'Checklists', exact: true }).count() > 0
+    return onTestProject && onProjectDetail
+  }, { timeout: 15000, what: `the "${TEST_PROJECT}" detail page` })
+
   if (!onTestProject || !onProjectDetail) {
     throw new Error(
-      `Refusing to run: did not land on "${TEST_PROJECT}" ` +
-      `(zz-test visible: ${onTestProject}, project detail: ${onProjectDetail}).`,
+      `Refusing to run: did not land on "${TEST_PROJECT}" within 15s ` +
+      `(zz-test visible: ${onTestProject}, project detail: ${onProjectDetail}). ` +
+      `Waited for both, so this is not a slow paint.`,
     )
   }
 }
