@@ -214,6 +214,28 @@ are built on it.
 
 ---
 
+## 7b. A named future question — the title-typed confidence band
+
+*Ruled 2026-08-11, deferred here rather than left in a commit message.*
+
+`CLEAN_AT` is 0.85 and a title-typed row scores 0.80, so **every row whose type
+came from the schedule's frame rather than its own line routes to review instead
+of bulk-accept.** On the intake fixture that moved `Clean — 4` to `Clean — 2`.
+
+**That stands, and it is not a defect.** Title-typed is exactly the class the
+Avondale incident burned — four pumps, two of them typed `boiler` — review clicks
+are cheap, and each one is a correction event this harvest captures. Paying two
+clicks to feed the loop that removes the clicks is the right trade at this volume.
+
+**What would change it is evidence, not comfort.** When Phase 2's recorded
+corrections show title-typed rows being *confirmed* at a high rate — the human
+agreeing with the frame-derived type, over and over, across sources — that is the
+case for giving them their own confidence band rather than the general one. Ruled
+then, on data.
+
+Stated here so it is a question the harvest is expected to answer, not a threshold
+somebody eventually wonders about.
+
 ## 8. The question this proposal cannot answer
 
 Whether the firm's upload volume will ever make this pay. Four Excel uploads and

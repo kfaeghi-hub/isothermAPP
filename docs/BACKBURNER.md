@@ -462,6 +462,86 @@ detour from it. Building it separately would mean building it twice.
 
 ---
 
+### 3l. Document-set context — the set corroborates itself
+**DESIGNED 2026-08-11, not built. Wakes on the first full tender set uploaded after the extraction upgrade ships.**
+
+*Numbered 3l, not 3k. `3k` is the half-onboarded account trap (2026-08-10) and is
+occupied; the ruling that asked for these two entries named 3k/3l before that was
+checked. Renumbered rather than overwritten — nothing cross-references 3k, but an
+id that silently changes meaning is worse than a gap.*
+
+**Extraction today is per-page, and a tender set is self-corroborating.** Every
+page is read alone, against nothing, as if it arrived by itself. The set it came
+from already contains the answers to most of what a single page leaves ambiguous.
+
+Three capabilities, in the order they pay:
+
+- **Read the legend and abbreviations page FIRST, and apply it everywhere.** A set
+  defines its own dialect on one sheet — `EWT`, `TDH`, `NPS`, the tag prefixes,
+  the drawing-number grammar — and then uses it for two hundred pages. Reading
+  that sheet first turns a per-page guess into a set-wide fact. This is the
+  cheapest of the three and probably the largest single accuracy gain available.
+- **Cross-reference units across pages.** `P-1` on the pump schedule and `P-1` on
+  the heating piping diagram are the same unit, and each page carries what the
+  other omits — the schedule has the duty and the electrical data, the diagram has
+  what it connects to. Agreement across two independent pages is **corroboration**
+  in the dual-path sense: a wrong reading would have to be wrong identically on
+  both.
+- **Validate against the drawing index.** The set says what it contains. A read
+  that produced nothing from `M-501` when the index calls `M-501` the mechanical
+  schedule sheet is a finding, not a quiet zero.
+
+**Why it waits.** It needs a real set to be worth anything, and the review screen
+on that first set is the evidence: every correction a human makes that the set
+already answered is a measurement of what set-context would have caught. Building
+it before that means guessing at which corroborations matter.
+
+**Wakes when:** the first full tender set is uploaded after the extraction upgrade
+ships. The wake is not a date — it is the moment there is a review to read.
+
+**Competitive note, stated honestly.** The 2026-08 audit records **no competitor
+doing this**, and it also records no competitor being *asked* about it: every
+capability in that matrix is per-artifact — P&ID tag extraction, nameplate OCR,
+single-document spec Q&A. So this is an unoccupied position rather than a proven
+one, and the audit cannot be cited as evidence that the position is valuable. It
+is evidence that nobody is standing there.
+
+---
+
+### 3m. Full-document intelligence — import becomes design review
+**DESIGNED 2026-08-11, not built. Wakes with the FPT campaign.**
+
+**Specifications, sequences of operation, and IOMs ingest alongside the schedules
+and cross-check each other.** The schedule says `B-1` is 1000 MBH; spec section
+23 52 00 says 1200 MBH. Today nobody notices until somebody reads both. The point
+is not that the app stores more documents — it is that **disagreement between two
+documents about the same equipment is a finding**, and findings are the backbone.
+
+That changes what import *is*. Data entry is a cost the firm absorbs; **automated
+design review is billable work**, and it is produced as a by-product of an import
+the firm was going to do anyway.
+
+**Shares ingestion machinery with 3j (spec/document Q&A) and the FPT agent.** All
+three need the same thing: project documents parsed, chunked, cited, and
+answerable. Building any of them alone builds two thirds of the others.
+
+*Recon note: 3j's own entry does not claim this shared machinery — it names only
+the FPT campaign. The overlap is asserted here as a design judgement, not quoted
+from 3j, and should be re-checked when either is built.*
+
+**Boundaries, so this does not become "AI reviews the design":**
+
+- It **flags disagreements between documents**; it does not adjudicate them. The
+  spec and the schedule disagreeing is a fact; which one is right is an engineering
+  judgement and stays with the CxA.
+- Every flag carries **both readings and both citations**. A flag a human cannot
+  check against the source is not usable in a deliverable.
+- It creates **candidate findings**, never issues. Law 2, unchanged.
+
+**Wakes with:** the FPT campaign.
+
+---
+
 ### Not backlogged, and the reason is the point
 
 **Tier-3 enterprise items — SOC 2 / ISO 27001, SSO, public API, BIM/IFC,

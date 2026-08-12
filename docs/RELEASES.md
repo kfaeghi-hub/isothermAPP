@@ -173,6 +173,47 @@ ruling. Its Phase 2 gate is that the harvest can rediscover, from recorded
 corrections alone, the SERVICE → area_served rule that was worked out by hand
 this week.
 
+### The extraction target now has a number
+
+**For the architect.** Every extraction fix so far was argued from one file. There
+was no way to say whether extraction as a whole was getting better, because there
+was no measurement. `extraction-bench.mjs` is that measurement, over 37 real
+schedules — Adam's three, the 33 Seneca files the parser was first proven against,
+and one committed synthetic fixture.
+
+**Baseline, deterministic path only: 3/4 scored files clean (75%)**, against a
+target of ≥90%. The corpus survey is the more useful half: **286 rows across 33
+Seneca schedules, 69% typed — and 12 of those files return 0% typed**, 86 rows of
+ordinary VAV terminals, DOAS units and an energy-recovery wheel that the rules
+extract and cannot identify. That is the measured case for model-first reading.
+
+Scored and surveyed are counted separately and both numbers always print. A file
+is scored only against truth **written by hand from the sheet** — expectations
+recorded by running the parser and keeping what came out assert that the code
+still does whatever it does, and this repo has paid for that lesson twice. A rate
+over 4 files must never read as a rate over 37.
+
+**The hostile fixture earned its keep on its first run.** It fails on exactly one
+clause — `ambiguity-unflagged` — because the deterministic path has no mechanism
+to flag an ambiguity at all; the requirement is real and unmet, and naming it is
+what makes the next build measurable. It also found a defect rules cannot fix:
+`MBH` in column J was labelled `MOTOR MBH` because forward-fill carries a group
+header past its own merge, and `read-excel-file` never reports a merge's width.
+The extent is not in the data the rules are given.
+
+**BACKBURNER gains 3l** (document-set context — read the legend page first,
+cross-reference units across pages, validate against the drawing index) **and 3m**
+(full-document intelligence — specs and sequences cross-checking the schedules, so
+import becomes billable design review). Numbered 3l/3m rather than 3k/3l: `3k` is
+the half-onboarded account trap and is occupied.
+
+`docs/EXTRACTION-UPGRADE-PROPOSAL.md` carries the model-first build plan, six
+gated phases, grounded in a nine-subsystem recon that found **five of the
+requirements have no foundation yet** — no structured outputs or tool-forcing
+anywhere, a verifier that only takes prose, no second-reading model, no ambiguity
+surface in intake, and no Node-side workbook read. Cost is stated before it is
+spent, and reported at every phase boundary.
+
 **Closing gates:** battery 41/41 · `pw-equipment-delete` 9 checks,
 `pw-intake-retry` 11, and `pw-schedule-coverage` 14 through a real login ·
 `avondale-schedule-gate` 34 over the three real client files (skips loudly by name
