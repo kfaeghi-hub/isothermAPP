@@ -1,6 +1,13 @@
 # The Documents tab — the per-project document pool
 
-**Status: PROPOSAL PENDING RULING.** Shelf entry: BACKBURNER **3o**.
+**Status: RULED 2026-08-12 — build after extraction Phase 6 and after 3b.**
+Shelf entry: BACKBURNER **3o**.
+
+*Eight open questions ruled and two review findings folded on 2026-08-12. Each
+ruling is recorded **inline in the section it changes** and again in §10; the
+review findings are §10.5. Where a ruling amended the proposal, the original
+recommendation is kept and the ruling appended — the reasoning is the part worth
+keeping, including the reasoning that was corrected.*
 
 *Written in a parallel session (callsign `ATLAS`) while the extraction upgrade's
 Phases 2–6 run in another. **Nothing in this document was built.** Every finding
@@ -198,17 +205,27 @@ create table document_categories (
 );
 ```
 
-Seeded, per the brief's scope ruling:
+Seeded, per the brief's scope ruling — and per **Q1's amendment**, three of them
+seeded **inactive** in Build 1:
 
-| key | label | `sheet_indexed` |
-|---|---|---|
-| `drawing_set` | Discipline drawing set | **true** |
-| `specification` | Specification (Cx divisions) | false |
-| `shop_drawing` | Shop drawing | false |
-| `submittal` | Submittal | false |
-| `certificate` | Certificate | false |
-| `test_report` | Test report | false |
-| `om_manual` | O&M manual | false |
+| key | label | `sheet_indexed` | `active` at Build 1 |
+|---|---|---|---|
+| `drawing_set` | Discipline drawing set | **true** | true |
+| `specification` | Specification (Cx divisions) | false | true |
+| `shop_drawing` | Shop drawing | false | **false** → flipped in Build 3 |
+| `submittal` | Submittal | false | **false** → flipped in Build 3 |
+| `certificate` | Certificate | false | true |
+| `test_report` | Test report | false | true |
+| `om_manual` | O&M manual | false | **false** → flipped in Build 3 |
+
+> **Why three categories ship switched off.** Those three are the classes
+> `equipment_attachments` already holds. Between Build 1 and Build 3 the strangler
+> (§3.3) is not yet in place, so offering them in the upload picker would open the
+> two-write-path split for two builds — the exact failure §3.3 exists to prevent.
+> **The category rows exist from day one; the picker does not offer them until
+> there is exactly one write path.** `active = false` is the seeded-dormant pattern
+> the Envelope deliverable templates already use: the data is there, activation is
+> a flag, and nothing needs a second migration to turn it on.
 
 `document_disciplines` (`key`, `label`, `sort_order`) seeded **from the distinct
 `discipline` values already in `equipment_tag_glossary`** — the firm has one
@@ -261,9 +278,16 @@ Three consequences, all of which have to be built or the model is decoration:
    with a one-click jump to the successor sheet where the mapping exists. A link
    that quietly resolves to the newest revision would rewrite history, which is
    rule 12.
-3. **A superseded set stays whole.** Its per-sheet derivatives may be dropped once
-   the successor's index is confirmed (Q4) — the derivatives are a cache, the set
-   PDF is the record.
+3. **A superseded set stays whole.** Its per-sheet derivatives are dropped once the
+   successor's index is confirmed (Q4) — the derivatives are a cache, the set PDF
+   is the record.
+
+   **RULED 2026-08-12: re-split-on-demand is deferred, not built.** The proposal
+   originally offered to regenerate a superseded sheet's derivative on request. It
+   does not. **A user who opens a superseded sheet pays one full-set download** —
+   a rare path at an accepted price. *Reason: the split then lives in exactly one
+   place — index confirmation — and one code path that runs on every set beats two
+   where the second runs almost never and is therefore almost never right.*
 
 ---
 
@@ -324,10 +348,31 @@ pool rows plus legacy `equipment_attachments` rows, with legacy rows read-only.
 - No data migration, no file copying, no `equipment-files` deletion.
 - The backfill becomes optional cleanup, done or not done on its own merits.
 
-The cost, stated: this touches a live surface (`EquipmentPage`) in the pool's first
-build, and the union read is a real complexity the code will carry until the
-backfill happens. That is the price of not opening the split, and it is the
-cheaper of the two.
+The cost, stated: this touches a live surface (`EquipmentPage`), and the union read
+is a real complexity the code will carry until the backfill happens. That is the
+price of not opening the split, and it is the cheaper of the two.
+
+> **RULED 2026-08-12 — strangler ratified, with an amendment that fixes a
+> contradiction in the proposal as written.**
+>
+> **The defect:** this section said the write path switches *"on the day the pool
+> ships"*, while §8 scheduled the strangler in **Build 3**. Both cannot be true, and
+> the gap between them is not cosmetic — it leaves the two-write-path split **open
+> across Builds 1 and 2**, which is precisely the state this section exists to
+> prevent. The proposal argued the right principle and then scheduled against it.
+>
+> **The amendment, which resolves it without moving the strangler earlier:**
+> `shop_drawing`, `submittal` and `om_manual` seed **`active = false` in Build 1**
+> (§2.3) and are **flipped active in the strangler commit in Build 3**. The category
+> rows exist from day one — nothing needs a second migration — but the upload picker
+> does not offer them until there is exactly one write path. Until the flip, a
+> submittal has exactly one home: `equipment_attachments`, unchanged and unambiguous.
+>
+> **"On the day the pool ships" is therefore withdrawn and replaced by: on the day
+> those three categories become selectable.** Which is the same sentence, said
+> about the thing that actually opens the split.
+>
+> **Backfill remains never-or-later**, on its own merits, as proposed.
 
 ### 3.4 Storage — a sixth bucket, `project-documents`
 
@@ -386,6 +431,39 @@ alter table documentation_register
   untouched and the prerequisite just as satisfied as before. This is exactly
   §4.4's *"App-side upload is always offered, never required"* extended to linking.
 
+> **DEFECT FOUND AND FIXED IN THE RULING PASS, 2026-08-12 — §10.5 Finding 1.**
+>
+> **`ON DELETE SET NULL` and the widened CHECK collide.** The CHECK accepts
+> `pool_document_id` as a **sole** satisfier of `yes`. So a prerequisite whose only
+> evidence is a pool link is a row the CHECK holds up by that column alone —
+> and deleting the linked document fires the `SET NULL`, which fires the CHECK,
+> which **fails the delete**. That is `RESTRICT` behaviour arrived at by accident,
+> reported as a constraint violation on `ist_prerequisites` while the user is
+> deleting a row in `project_documents` — a refusal two tables away from the
+> action, which is the class of error §4.4's plain-error rule exists to prevent.
+>
+> Worse than the error is what it does to the model: a pool document that cannot be
+> removed because an IST ruling points at it makes the pool un-prunable, which is
+> the exact outcome the `SET NULL` choice above was reasoned toward avoiding. The
+> schema said one thing and the constraint enforced the opposite.
+>
+> **The fix is in the upgrade flow, not the schema.** The FK stays `SET NULL`; the
+> CHECK stays as written. What changes is that **the free-text satisfier always
+> survives**:
+>
+> - **Accepting a link never clears `evidence_reference`.** A link is an *addition*
+>   to the claim, never a replacement for it — which is what §4.4 said in the first
+>   place: *a claim must NAME its evidence*, and the name is the free text.
+> - **A link created where there was no prior free text auto-populates
+>   `evidence_reference` with the document's title at link time.** The claim gets its
+>   name from the thing it is naming.
+>
+> `pool_document_id` is then never a sole satisfier in practice, the `SET NULL`
+> lands cleanly, and the prerequisite is exactly as satisfied after the deletion as
+> before — by the reference it always had. **Fixing this in the schema would have
+> meant a CHECK that refuses the link column, which would have made the link
+> decorative.** Applies at Build 3; its gate is in §8.
+
 ### 3.6 Portal visibility
 
 One new SECURITY DEFINER RPC beside `portal_documents(pid)`, in the same file and
@@ -420,6 +498,15 @@ leg with a `refuseUnlessIssued`-equivalent gate: **`client_visible` is tested tw
 independently** — once in the RPC that lists, once in the endpoint that signs. The
 portal's existing design already does exactly this for `site_reports` and
 `meetings`, and the reason it does is that one test is one place to get it wrong.
+
+> **RULED 2026-08-12 (Q5), with one precision that is load-bearing: a
+> category-level default applies at UPLOAD TIME ONLY, never retroactively.**
+> Changing a category's default visibility changes what the *next* upload starts
+> as, and moves **no existing document's flag**. A default that reached backwards
+> would mean one admin toggle silently publishing a project's back-catalogue to a
+> client — a whole-project disclosure produced by a settings change, with no upload
+> event, no audit line and nobody in the room. `client_visible` is a per-document
+> fact that a human set; the category default is only ever its starting value.
 
 ### 3.7 Audit
 
@@ -533,6 +620,31 @@ in order to discard 360 MB spends the egress and the storage anyway and turns th
 discard into a *deletion*, which is a thing that can fail or be forgotten. Carved
 at the door, the bulk is a never-was. Q3.
 
+> **RULED 2026-08-12 (Q3): client-side carve, conditional on the measurement — and
+> the failure branch is decided now rather than left to whoever hits it.**
+>
+> The open cost was always whether a browser on real field hardware can page-extract
+> a 400 MB PDF. That measurement still has to be taken, but the branch no longer
+> waits on it:
+>
+> | measurement | what ships |
+> |---|---|
+> | the browser carves a representative 400 MB spec on representative field hardware | **automatic client-side carve** — the finder proposes division boundaries from the spec's own table of contents, the user confirms, only the carve uploads |
+> | it does not | **manual carve by the user before upload** — the app states the divisions it needs and accepts only the carved file; the user produces it with the tools they already have |
+>
+> **Whole-upload-then-delete is not a fallback and is not available in either
+> branch.** It spends the egress and the storage in full to reach the same place,
+> and converts a never-was into a deletion — a step that can fail, be interrupted,
+> or be forgotten, leaving 400 MB of out-of-scope specification sitting in a bucket
+> that §4.4 says should never have held it.
+>
+> **Server-side carving stays off the table** for the two reasons already named: it
+> would want a function slot against a 12-of-12 ceiling, and a 400 MB page
+> extraction is not a job to run inside a `maxDuration` window.
+>
+> The degraded branch is a worse product and an honest one: **the scope rule is
+> enforced either way**, and only the convenience differs.
+
 ---
 
 ## 6. The one new screen — sheet-index review
@@ -596,6 +708,13 @@ the classifier is a *widening* of the finder, so the gate must assert the existi
 the new kinds are measured fresh. A widened prompt that improves plan detection by
 moving a schedule verdict has not improved anything.
 
+> **HARDENED 2026-08-12 — §10.5 Finding 2.** That regression requirement is **a
+> named assertion inside `pw-sheet-index.mjs`**, not a number a reviewer is trusted
+> to check by eye. *A rule enforced by memory is enforced by nothing* — and this
+> particular rule is enforced at exactly the moment nobody is looking, because a
+> prompt change that moves a schedule verdict arrives inside a commit that is
+> improving something else.
+
 **Tab placement.** Eleven tabs today; Documents makes twelve. Recommended position:
 **last, after IST** — it is a foundation surface rather than a step in a workflow,
 and re-ordering existing tabs is a change nobody asked for. (Alternative, if the
@@ -639,10 +758,10 @@ Four phases, separately gated, in the house pattern.
 
 | # | Ships | Gate |
 |---|---|---|
-| **1** | Schema, bucket, categories/disciplines/issuances as admin data, resumable upload, the Documents tab listing with per-project usage. No index yet — upload, categorise, supersede, download. | A set uploads at 60 MB over TUS with visible progress; supersede chain proven on ZZ-TEST including the two-successors refusal; RLS proven **as a member and as a lead**, not as the service role. |
-| **2** | Sheet index: classifier (widened `scanPdfPages`), the review screen, client-side derivative split. | **The FIXTURES corpus.** Existing `schedule` verdicts unchanged (3 / 4 / 2); new kinds measured and the numbers printed; an unreadable sheet reaches the human **as unread**; derivatives exist for every confirmed sheet. |
-| **3** | Consumers: intake re-home (§3.1), IST link offer (§3.5), `equipment_attachments` strangler (§3.3), revision sheet-mapping. | An intake runs end-to-end from a pool document; a prerequisite upgrades from free text to a link **and refusing the offer leaves it just as satisfied**; a submittal written from the Equipment tab lands in the pool and the union read shows both eras. |
-| **4** | Portal visibility + the spec carve-at-the-door. | `client_visible` tested twice independently, asserted by error code at both walls; a superseded document is invisible to the portal; a 400 MB spec is carved to ~25 MB **and the bulk never reaches the bucket** — asserted by bucket byte count, not by inspection. |
+| **1** | Schema, bucket, categories/disciplines/issuances as admin data — **`shop_drawing` · `submittal` · `om_manual` seeded `active = false` (Q1 amendment, §2.3)** — resumable upload, the Documents tab listing with per-project usage. No index yet — upload, categorise, supersede, download. | A set uploads at 60 MB over TUS with visible progress; supersede chain proven on ZZ-TEST including the two-successors refusal; RLS proven **as a member and as a lead**, not as the service role. **And the dormant three are asserted absent from the upload picker** — a category that ships switched off is only switched off if something checks; an inactive row that the picker renders anyway is the split opening silently, which is the failure Q1's amendment exists to prevent. |
+| **2** | Sheet index: classifier (widened `scanPdfPages`), the review screen, client-side derivative split. | **The FIXTURES corpus.** New kinds measured and the numbers printed; an unreadable sheet reaches the human **as unread**; derivatives exist for every confirmed sheet. **And the regression is a NAMED ASSERTION in `pw-sheet-index.mjs` (§10.5 Finding 2): existing `schedule` verdicts unchanged at Workman 3 / Clairlea 4 / West Humber 2, failing by name and per fixture** — not a number checked by eye at review time. |
+| **3** | Consumers: intake re-home (§3.1), IST link offer (§3.5), `equipment_attachments` strangler **including the `active = true` flip on the three dormant categories** (§3.3), revision sheet-mapping. | An intake runs end-to-end from a pool document; a submittal written from the Equipment tab lands in the pool and the union read shows both eras; the three categories are selectable **only after** the flip, asserted across the boundary. **The prerequisite leg is now two claims, not one:** *refusing the offer leaves it just as satisfied* — and its sibling, **deleting the linked document leaves it just as satisfied** (§10.5 Finding 1). The second is the one that fails today: it must delete cleanly, leave the prerequisite `yes`, and leave `evidence_reference` naming the document. |
+| **4** | Portal visibility + the spec carve-at-the-door. | `client_visible` tested twice independently, asserted by error code at both walls; **a category-default change moves no existing document's flag** (§3.6, Q5) — asserted by re-reading the rows, not by trusting the write path; a superseded document is invisible to the portal; a 400 MB spec is carved to ~25 MB **and the bulk never reaches the bucket** — asserted by bucket byte count, not by inspection. **The carve measurement (§5.4, Q3) is taken here and its branch recorded**; if the automatic path fails on field hardware, the manual-carve branch ships and the gate stands unchanged, because the gate is about what reaches the bucket and not about who did the carving. |
 
 Testing follows the standing rules: **prove the mechanism, never the silence**;
 every suite runs against **ZZ-TEST only**; a suite that cannot find its fixture
@@ -697,12 +816,18 @@ independent of everything the arc touches and would give the firm somewhere to p
 a specification today. It is a real option; it is not my recommendation, because a
 pool with no index is a folder, and a folder is what ShareSync already is.
 
+> **RULED 2026-08-12 (Q7): §9 stands as written. The Build-1-early option is
+> DECLINED**, on the proposal's own closing reason — a pool with no index is a
+> folder, and the firm has one. Build order is 1 → 2 → 3 → 4, entered after
+> extraction Phase 6 and after 3b, not folded into an extraction phase.
+
 ---
 
-## 10. Open questions for ruling
+## 10. The eight questions — recommendations, and the rulings
 
-Each carries a recommendation and its reason. None of them blocks writing the
-proposal; all of them change what gets built.
+**All eight ruled 2026-08-12.** Each question keeps its original recommendation and
+reason as written; the ruling is appended. Two were amended, one was narrowed, five
+were ratified as proposed.
 
 **Q1 · Does `equipment_attachments` fold into the pool?**
 → **Yes eventually; strangler now, migration never-or-later.** Ship the pool with
@@ -712,6 +837,15 @@ concept is the failure mode, and it opens the moment the pool ships. A strangler
 closes it with no data migration; the backfill then stands on its own merits
 instead of being forced.
 
+> **RULED — strangler, WITH AMENDMENT.** The recommendation was internally
+> inconsistent: *"on the day the pool ships"* here against a Build 3 strangler in
+> §8, which leaves the split open across Builds 1–2. **Amendment:** seed
+> `shop_drawing` · `submittal` · `om_manual` **`active = false` in Build 1**, flip
+> them active in the strangler commit in **Build 3**. Category rows exist from day
+> one; the picker does not offer them until there is exactly one write path.
+> Backfill remains never-or-later. Folded into §2.3, §3.3 and the §8 Build 1 / Build
+> 3 gate rows.
+
 **Q2 · Is `sheet_kind` a CHECK or an admin table?**
 → **CHECK.** *Reason:* it is the classifier's alphabet, and extraction Phase 1's law
 requires a strict enumerated output schema that fails at the boundary. An
@@ -719,6 +853,16 @@ enumeration assembled from a user-editable table at prompt-build time cannot be
 reasoned about, and a user who adds a kind gets a vocabulary the model was never
 told about. Document *categories* stay admin data — they are firm policy, and
 policy is exactly what §4.3 says must be editable.
+
+> **RULED — CHECK, as proposed. And the general law is recorded, because this
+> question will be asked again about the next vocabulary:**
+>
+> > **A vocabulary consumed by a model contract is CODE. A vocabulary consumed by
+> > humans is POLICY.** Code ships in a constraint and changes in a commit; policy
+> > ships in a table and changes in the admin UI.
+>
+> That is why `sheet_kind` and `document_categories` land on opposite sides of §4.3
+> without §4.3 being weakened: they are not two instances of one kind of thing.
 
 **Q3 · Where does the specification carve happen?**
 → **Client-side, before upload.** The finder proposes division boundaries from the
@@ -729,6 +873,14 @@ forgotten, or be half-done. Carved at the door it is a never-was. The cost is th
 a browser has to page-extract a 400 MB PDF, which needs measuring on a real spec
 before the gate is set.
 
+> **RULED — client-side carve, conditional on the measurement, with the failure
+> branch decided now:** if page-extracting a 400 MB PDF fails on representative
+> field hardware, the fallback is **manual carve by the user before upload** — the
+> app names the divisions it needs and accepts only the carved file.
+> **Whole-upload-then-delete is not available in either branch.** Server-side
+> carving stays off the table (function slot + `maxDuration`). Folded into §5.4 and
+> the §8 Build 4 gate.
+
 **Q4 · What happens to a superseded set's derivatives?**
 → **Drop the derivatives once the successor's index is confirmed; keep the set PDF
 forever.** *Reason:* the derivatives are a cache, the set is the record. Rule 4 is
@@ -736,12 +888,25 @@ about the record. This roughly halves the long-tail storage without deleting one
 byte of evidence — and a superseded sheet that someone does open can be re-split on
 demand from the set that is still there.
 
+> **RULED — drop the derivatives, keep the set. The re-split-on-demand clause is
+> struck.** A user opening a superseded sheet pays **one full-set download**; a rare
+> path at an accepted price. *Reason:* the split then lives in exactly one place —
+> index confirmation. A second split path that runs almost never is a path that is
+> almost never right, and it would be discovered wrong by the one person a year who
+> needs it. Folded into §2.5(3).
+
 **Q5 · Portal visibility default.**
 → **`false` for everything, set per document at upload, with a category-level
 default an admin can change.** *Reason:* the portal's entire design is
 whitelist-not-blacklist — a separate membership table, column whitelists, filters in
 SQL. A document class that defaults visible is the one that leaks, and the leak is
 discovered by a client rather than by us.
+
+> **RULED — as proposed, with one precision: a category-default change applies at
+> UPLOAD TIME ONLY and never retroactively.** Existing documents' flags never move
+> when a category default changes. *Reason:* a retroactive default would let one
+> admin toggle publish a project's back-catalogue with no upload event and nobody in
+> the room. Folded into §3.6, with its assertion in the §8 Build 4 gate.
 
 **Q6 · Does the pool hold pointer-only rows for out-of-scope documents (a
 ShareSync path with no file)?**
@@ -751,10 +916,22 @@ models it. Admitting pointer rows would make *"is it in the pool"* stop meaning
 *"can a feature read it,"* and that equivalence is the pool's only definition.
 Losing it turns the pool back into a folder.
 
+> **RULED — no pointer rows, ratified as written. And this is now THE STANDING
+> ANSWER to any future "add a ShareSync link field to the pool" request**, which
+> will arrive, and will arrive sounding reasonable and small. It is refused for the
+> reason above and not re-litigated: the pool's only definition is *a document a
+> feature can read*, and a row with no file cannot be read. Where a pointer is what
+> is wanted, `documentation_register` and §4.4's free-text reference are the two
+> mechanisms that already exist for it.
+
 **Q7 · Sequencing.**
 → **After extraction Phase 6, after 3b, not folded in.** Reasons in §9. This is the
 one I would most like ruled explicitly, because the intake re-homing (§3.1) is a
 real collision and the arc is in flight right now.
+
+> **RULED — after extraction Phase 6, after 3b, not folded into an extraction
+> phase.** The Build-1-early option is **declined**, on the proposal's own closing
+> reason: a pool with no index is a folder. §9 stands as written.
 
 **Q8 · Who can do what, and under which named helpers?**
 → Three new helpers, because these are three questions and the 2026-08-10 law says
@@ -771,6 +948,81 @@ anyway — client visibility is the one that will be widened or narrowed on its 
 someday, and a widening that has to find itself inside a shared predicate is the
 eleven-copies problem being recreated on purpose. And the helpers draw controls;
 the RLS in §2.4 decides whether writes land. Both move in one commit.
+
+> **RULED — three named helpers, as proposed. Helpers draw controls; RLS decides
+> writes; both move in one commit**, because a widened button over an unchanged
+> policy is a silent no-op, which is worse than a hidden button.
+
+---
+
+## 10.5 Review findings (2026-08-12 ruling pass)
+
+Two findings from the review of this document. Both are folded into their sections
+above; they are collected here so the ruling pass leaves a record of what it caught
+and not only of what it decided.
+
+### Finding 1 — DEFECT. `ON DELETE SET NULL` collides with the widened CHECK
+
+**Applies at Build 3. Fix specified; folded into §3.5 and the §8 Build 3 gate.**
+
+§3.5 gives `ist_prerequisites.pool_document_id` an `ON DELETE SET NULL` and, in the
+same breath, rewrites `ist_prerequisites_yes_needs_evidence` to accept that column
+as a **sole** satisfier of `yes`. The two cannot both hold. Deleting a pool document
+that solely satisfies a `yes` prerequisite fires the `SET NULL` update, which fails
+the CHECK, which fails the delete.
+
+**Three things are wrong with that, in increasing order of seriousness:**
+
+1. It is `RESTRICT` behaviour arrived at by **accident** — the schema chose
+   `SET NULL` deliberately and got the opposite.
+2. The refusal surfaces **two tables away from the action**: a constraint violation
+   on `ist_prerequisites` while the user is deleting a row in `project_documents`.
+   That is the class of error `src/lib/plainError.ts` exists to translate, and it is
+   better not to generate it.
+3. It makes the pool **un-prunable** — the exact outcome the `SET NULL` reasoning
+   was aimed at avoiding.
+
+**The fix is in the upgrade flow, not the schema.** The FK stays `SET NULL`; the
+CHECK stays as written. What changes is that the free-text satisfier always
+survives: **accepting a link never clears `evidence_reference`**, and **a link
+created where there was no prior free text auto-populates `evidence_reference` with
+the document's title at link time.** `pool_document_id` is then never a sole
+satisfier in practice.
+
+**Why not fix it in the schema.** The two schema-side options are both worse. A
+CHECK that refuses to count `pool_document_id` makes the link decorative — it would
+satisfy nothing, and a link that satisfies nothing is not the upgrade §4.4
+promised. `ON DELETE RESTRICT` makes the collision deliberate instead of accidental,
+which is honest but leaves the pool un-prunable and the refusal still two tables
+away.
+
+**And the flow-side fix is the more faithful reading of §4.4 anyway.** *A claim must
+NAME its evidence.* The name is the free text. The link is an **addition** to the
+claim, never a replacement for it — which is what a link should always have been.
+
+**Gate:** *"refusing the offer leaves it just as satisfied"* gains its sibling —
+**"deleting the linked document leaves it just as satisfied."** The delete must
+succeed, the prerequisite must remain `yes`, and `evidence_reference` must still
+name the document.
+
+### Finding 2 — GATE HARDENING. The regression must be an assertion, not a habit
+
+**Applies at Build 2. Folded into §6 and the §8 Build 2 gate.**
+
+§6 requires that the widened classifier leave the existing `schedule` verdicts
+unchanged — Workman 3, Clairlea 4, West Humber 2 — while the new kinds are measured
+fresh. As written that is a **review-time habit**: a number a person is trusted to
+check when they happen to look.
+
+*A rule enforced by memory is enforced by nothing*, and this rule is enforced at
+exactly the moment nobody is looking. A prompt change that moves a schedule verdict
+does not arrive announcing itself; it arrives inside a commit that is legitimately
+improving plan or detail detection, and the schedule regression rides along as a
+rounding error in a table of numbers that all moved.
+
+**It is therefore a named assertion in `pw-sheet-index.mjs`, failing by name and per
+fixture** — so a regression reports *"Clairlea: schedule verdicts 3, expected 4"*
+rather than passing quietly inside an otherwise-improved run.
 
 ---
 

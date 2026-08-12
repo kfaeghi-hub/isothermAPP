@@ -543,8 +543,8 @@ from 3j, and should be re-checked when either is built.*
 ---
 
 ### 3o. The Documents tab — the per-project document pool
-**PROPOSAL PENDING RULING, 2026-08-12. Full design:
-[DOCUMENTS-TAB-PROPOSAL.md](DOCUMENTS-TAB-PROPOSAL.md).**
+**RULED 2026-08-12 — build after extraction Phase 6 and after 3b. Not built. Full
+design and the eight rulings: [DOCUMENTS-TAB-PROPOSAL.md](DOCUMENTS-TAB-PROPOSAL.md).**
 
 *Numbered 3o at the owner's instruction, leaving `3n` unused. Recorded rather than
 quietly closed up: nothing cross-references 3n, and a gap costs less than an id
@@ -599,13 +599,38 @@ is the archive, and a claim names its evidence without having to own it.
   existing `schedule` verdicts fixed (3 / 4 / 2) while the new kinds are measured
   fresh — no acquisition needed.
 
-**Recommended sequencing (for ruling): after the extraction arc's Phase 6, and
-after 3b.** The decisive reason is a collision, not a preference — extraction
-Phase 5 migrates `intake_rows` while this re-homes `intake_uploads`, and an arc
-gated on measured accuracy must not have its upload side move underneath it.
+**Sequencing — RULED: after the extraction arc's Phase 6, and after 3b, not folded
+into an extraction phase.** The decisive reason is a collision, not a preference —
+extraction Phase 5 migrates `intake_rows` while this re-homes `intake_uploads`, and
+an arc gated on measured accuracy must not have its upload side move underneath it.
+The build-1-early option was **declined** on the proposal's own reason: a pool with
+no index is a folder, and the firm has one.
 
-**Wakes when:** the owner rules. The proposal carries eight open questions, each
-with a recommendation and its reason.
+**The eight questions are ruled** (proposal §10): strangler over migration for
+`equipment_attachments`, with an amendment; `sheet_kind` as a CHECK, under the
+recorded law that *a vocabulary consumed by a model contract is code and a
+vocabulary consumed by humans is policy*; client-side spec carve with a manual-carve
+fallback and whole-upload-then-delete refused in both branches; superseded
+derivatives dropped with **no re-split on demand**; portal visibility false by
+default and category defaults that **never apply retroactively**; **no pointer rows,
+now the standing answer to any future "add a ShareSync link field" request**; three
+named capability helpers. Two review findings folded (§10.5): an
+`ON DELETE SET NULL` that collides with the widened IST evidence CHECK, fixed in the
+upgrade flow rather than the schema; and the classifier regression promoted from a
+review-time habit to a named assertion in `pw-sheet-index.mjs`.
+
+**Q1's amendment, captured here because it shapes Build 1's seed data:**
+`shop_drawing`, `submittal` and `om_manual` seed **`active = false`** and are
+flipped active in the strangler commit at Build 3. The proposal originally said the
+Equipment tab's write path switches *"on the day the pool ships"* while scheduling
+the strangler at Build 3 — which would have left two write paths open across Builds
+1 and 2. The category rows exist from day one; the upload picker does not offer them
+until there is exactly one write path. Backfill remains never-or-later.
+
+**Wakes when:** **extraction Phase 6 is complete AND 3b is complete.** Both, not
+either — Phase 6 clears the `intake_uploads` collision and the review-idiom
+duplication; 3b ratifies the action-router before `api/intake.ts` takes a fifth
+action.
 
 ---
 
