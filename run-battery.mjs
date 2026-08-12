@@ -322,7 +322,7 @@ if (measurements.length) {
     ? { ...m, value: '(withheld: path- or document-shaped)', withheld: true }
     : m)
   const entry = {
-    run: sessionId, at: new Date().toISOString(),
+    run: sessionId(), at: new Date().toISOString(),
     passed: results.length - failed.length, of: results.length,
     measurements: safe,
   }

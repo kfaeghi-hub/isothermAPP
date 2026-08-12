@@ -1,0 +1,16 @@
+[
+  {
+    "at": "2026-08-12T23:54:25.161Z",
+    "passed": 40,
+    "of": 41,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-5586ms",
+        "passed": true,
+        "seconds": "30"
+      }
+    ]
+  }
+]
