@@ -136,6 +136,29 @@ reported at **every** phase boundary, so accuracy always carries its price tag.
 | **5** | **Review surfaces.** Per-row questions and answers, disagreement rendering, per-field provenance and confidence. Migration for the columns none of this has. | Sighted legs. The hostile fixture's `MBH` question reaches a human as a question. **Benchmark ≥ 90%.** |
 | **6** | **Harvest Phases 1–2** (3f, already approved) on top of the capture surface this creates. | Per 3f's own gate: rediscover `SERVICE → area_served` from recorded corrections alone. |
 
+### The denominator is 298, and what 298 actually is
+
+*Ruled 2026-08-12, folded in here where the denominator was first fixed.*
+
+**298 stays the fixed comparator.** A moving denominator kills a climb chart, and
+every score from Phase 3 onward reports against it.
+
+**But 298 is the RULES LEG'S BASELINE COUNT, not the sheets' ground truth**, and
+the merge proved it: Phase 4b returned **300 merged rows against a 298 divisor**,
+because the model found two units the rules leg never saw. That is the miss-hunt
+working, not an accounting error.
+
+Three consequences, binding:
+
+- **Rows found beyond the baseline get their own named line** —
+  *found-beyond-baseline* — in every report. Never folded into the divisor, and
+  never quietly dropped to make the arithmetic tidy.
+- **The eventual honest divisor is per-sheet ground truth**, established fixture by
+  fixture the way the four scored files were: read the sheet, write the truth by
+  hand. That is curriculum work, not a mid-arc renumbering.
+- **Nobody may read 298 as "every unit in the corpus."** It is what one reader
+  counted, once, and it is useful precisely because it does not move.
+
 ### Phase 2's actual result: neither leg dominates
 
 *Corrected on the record 2026-08-12. The first write-up of this reported the model

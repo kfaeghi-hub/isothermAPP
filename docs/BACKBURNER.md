@@ -634,6 +634,45 @@ action.
 
 ---
 
+### 3p. Cross-file fragment assembly — the data that is dropped by design
+**BANKED 2026-08-12 from a measurement. Wakes after the Documents pool's sheet index exists (3o).**
+
+*Numbered 3p; 3o is the Documents tab. Named here rather than left as an invisible
+known-issue, because it is real data loss and it is currently invisible.*
+
+**Four files in the Seneca corpus carry no equipment tag at any width.** They are
+horizontal continuations of wider schedules — the unit tags live in a different
+file, and these carry only the right-hand property columns:
+
+| file | grid | what it holds |
+|---|---|---|
+| `AHU-Coils1.xlsx` | 10 × 31 | a **cooling coil block** — fluid type, rows, FPI, total/sensible capacity, air-side and fluid-side temperatures, flows, pressure drops |
+| `DOAS-1.xlsx` | 7 × 25 | **exhaust filters** + blender/economizer flags, humidification, energy recovery, electrical, dimensions, operating weight |
+| `DOAS-3.xlsx` | 7 × 35 | **afterfilters** — the same shape |
+| `DOAS-coil1.xlsx` | 17 × 41 | a **coil fluid-side block** — flow, EWT, LWT, velocity, pressure drop |
+
+**Today the read returns `rows: []` and says why, and that is correct.** A property
+row with no unit to attach it to is not a register row; inventing a tag, or
+borrowing one from a neighbouring column, would be worse than saying "I cannot
+tell". The alternative — writing rows with empty tags — is what the boundary was
+already refusing, correctly, and the fix went into the read rather than loosening
+the contract.
+
+**What it costs, stated so it is not forgotten:** real engineering data — coil
+capacities, filter sizes, entering and leaving water temperatures — is read,
+understood, and then dropped, because nothing can say which unit it belongs to.
+
+**What would close it:** fragment-to-parent matching. Given a document set with a
+sheet index, a fragment's parent is findable — same drawing number, adjacent sheet,
+matching column geometry, matching row count. That is **document-set context**, and
+it is 3l's problem wearing a narrower hat.
+
+**Wakes when:** the Documents pool's sheet index exists (3o). Before that there is
+no set to search, and fragment-to-parent matching over a flat pile of uploads would
+be guessing with extra steps.
+
+---
+
 ### Not backlogged, and the reason is the point
 
 **Tier-3 enterprise items — SOC 2 / ISO 27001, SSO, public API, BIM/IFC,
