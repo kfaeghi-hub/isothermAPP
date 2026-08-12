@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "suite": "pw-finding-register",
+      "signature": "socket-hangup",
+      "excerpt": "Error: report generation failed (500): socket hang up",
+      "outcome": "failed_twice",
+      "session": "14a2e18:2026-08-12",
+      "at": "2026-08-12T19:41:45.915Z"
+    }
+  ]
+}
