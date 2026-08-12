@@ -1744,6 +1744,29 @@ rule, applied to a pipeline instead of a function.
    runs the shipped code. `zz-gate3.mjs` did not, and that gap is exactly where
    the defect lived.
 
+3. **A HARNESS MUST COMPILE THE CODE THE WAY IT SHIPS.** *Promoted to standing
+   law 2026-08-12, earned by `pw-extractor`.*
+
+   That suite imported the real parser — obligation 2 satisfied — but compiled it
+   with `esbuild` **without `--bundle`**, so the output kept `from './sheetMerges'`,
+   a specifier with no extension that Node's ESM loader refuses. The suite had been
+   green for months because the parser was a single file. The moment it gained a
+   second module the harness died with `ERR_MODULE_NOT_FOUND` while the
+   application, which bundles through Vite, was perfectly fine.
+
+   **It was not testing the parser. It was testing its own build of the parser** —
+   calling the right module through the wrong toolchain, which is the sibling
+   failure moved from the code into the build step. A green harness proves the
+   shipped artifact only if it is the shipped artifact.
+
+   > Import the production module, and **build it the way production builds it**.
+   > Where a harness must compile, it bundles and resolves as the app does; where
+   > it can, it consumes the app's own output instead of making its own.
+
+   The tell is a failure that appears on a *structural* change — a file split, a
+   new import, a moved module — rather than on a behavioural one. Behaviour did
+   not change; the shape of the code did, and only the harness noticed.
+
 ### A test boundary chosen for SAFETY creates a known-untested seam — name it
 
 **Every gate report names the legs it deliberately did not walk.**

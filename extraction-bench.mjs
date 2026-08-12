@@ -97,7 +97,7 @@ const readXlsxFile = (await import('read-excel-file/node')).default
 // THE SAME CODE THE ENDPOINT RUNS. Not a re-implementation: this repo has already
 // paid for a gate that "replaced the assembly step with itself" and therefore
 // proved the harness. api/_shared/sheet-model-read.ts is the one reading path.
-let readSheetWithModel = null, costCents = null
+let readSheetWithModel = null, costCents = null, reconcileSheet = null
 if (WITH_AI) {
   await build({
     entryPoints: ['api/_shared/sheet-model-read.ts'], outfile: 'out/bench-model-read.mjs',
@@ -107,6 +107,11 @@ if (WITH_AI) {
   const m = await import('./out/bench-model-read.mjs')
   readSheetWithModel = m.readSheetWithModel
   costCents = m.costCents
+  await build({
+    entryPoints: ['api/_shared/reconcile.ts'], outfile: 'out/bench-reconcile.mjs',
+    format: 'esm', bundle: true, platform: 'node', logLevel: 'error',
+  })
+  reconcileSheet = (await import('./out/bench-reconcile.mjs')).reconcileSheet
 }
 
 const svc = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
@@ -229,6 +234,7 @@ function survey(name, results) {
 // ── walk the corpus ─────────────────────────────────────────────────────────
 const scored = [], surveyed = [], skipped = [], broke = []
 const modelRuns = []   // --with-ai only
+const mergedRows = [], allDisagreements = [], holes = []
 
 for (const src of CORPUS) {
   if (!existsSync(src.dir)) {
@@ -256,12 +262,14 @@ for (const src of CORPUS) {
       const rulesTyped = rulesRows.filter(r => r.proposed_type).length
       let mRows = [], cost = 0, failures = [], flags = 0, ambiguities = 0
       const ambList = []
+      const perSheetModel = new Map()
       try {
         for (const r of await readWithModel(path, results)) {
           cost += costCents(r.run)
           if (!r.run.ok)      { failures.push(`run:${r.run.failure}`); continue }
           if (!r.checked?.ok) { failures.push(`boundary:${(r.checked?.problems ?? []).filter(p => p.severity === 'fatal').map(p => p.where).join(',') || 'refused'}`); continue }
           mRows.push(...r.checked.rows)
+          perSheetModel.set(r.sheet, r.checked.rows)
           flags += r.checked.problems.filter(p => p.severity === 'flag').length
           ambiguities += r.checked.ambiguities.length
           ambList.push(...r.checked.ambiguities)
@@ -274,6 +282,25 @@ for (const src of CORPUS) {
         modelRows: mRows.length, modelTyped: mTyped,
         flags, ambiguities, failures,
       })
+      // ── PHASE 3: reconcile, per sheet, and keep the argument ──────────────
+      // THE DENOMINATOR IS 298 AND DOES NOT MOVE. A sheet the model could not read
+      // is a NAMED HOLE filled by the rules leg, never a file that quietly leaves
+      // the divisor.
+      for (const rSheet of results) {
+        const mSheet = perSheetModel.get(rSheet.sheet) ?? null
+        const merged = reconcileSheet(
+          rSheet.parsed.rows.map(r => ({
+            tag: r.tag, descriptor: r.descriptor, location: r.location,
+            area_served: r.area_served, proposed_type: r.proposed_type,
+            nameplate: r.nameplate, confidence: r.confidence,
+          })),
+          mSheet, mSheet ? [] : [],
+        )
+        mergedRows.push(...merged.rows)
+        allDisagreements.push(...merged.disagreements)
+        if (!mSheet) holes.push(`${f}:${rSheet.sheet}`)
+      }
+
       modelAmb = ambList
       log(`  · ${f.padEnd(22)} rules ${rulesTyped}/${rulesRows.length} typed → ` +
           `model ${mTyped}/${mRows.length} typed   ${cost.toFixed(1)}c` +
@@ -359,8 +386,45 @@ if (JSON_OUT) {
     log(`  model: ${mt}/${mr} typed (${Math.round((mt / (mr || 1)) * 100)}%)`)
     log(`  questions raised: ${modelRuns.reduce((n, m) => n + m.ambiguities, 0)} · ` +
         `boundary flags: ${modelRuns.reduce((n, m) => n + m.flags, 0)}`)
-    log(`  COST: ${c.toFixed(1)}c total · ${(c / modelRuns.length).toFixed(1)}c per file`)
+    // COST PER SHEET READ vs COST PER USABLE SHEET. The five failed files were
+    // paid for at full price and produced nothing; a single "cost per sheet" hides
+    // that, and keeps hiding it as the failures get fixed. Two numbers converge
+    // only when nothing is being paid for twice.
+    const usable = modelRuns.length - failed.length
+    log(`  COST: ${c.toFixed(1)}c total · ${(c / modelRuns.length).toFixed(1)}c per sheet READ · ` +
+        `${usable ? (c / usable).toFixed(1) : '—'}c per USABLE sheet (${usable}/${modelRuns.length})`)
     if (failed.length) log(`  FAILED: ${failed.map(m => `${m.name} (${m.failures.join('; ')})`).join(' · ')}`)
+
+    // ── THE THREE LEGS, ALL AGAINST 298 ───────────────────────────────────
+    // Ruled permanent: a leg may exclude files in its own diagnostics, but the
+    // climb chart has ONE denominator or it stops being a climb chart.
+    const DEN = rr
+    const mergedTyped = mergedRows.filter(r => r.proposed_type).length
+    log(`\n── THREE LEGS, one denominator (${DEN} rows) ──`)
+    log(`  rules  ${String(rt).padStart(4)} typed  ${(rt / DEN * 100).toFixed(0)}%`)
+    log(`  model  ${String(mt).padStart(4)} typed  ${(mt / DEN * 100).toFixed(0)}%   ` +
+        `(read ${mr} rows; ${DEN - mr} it never saw)`)
+    log(`  MERGED ${String(mergedTyped).padStart(4)} typed  ${(mergedTyped / DEN * 100).toFixed(0)}%   ` +
+        `of ${mergedRows.length} rows`)
+    if (holes.length) {
+      log(`  named holes carried by the rules leg (${holes.length}): ${holes.join(', ')}`)
+    }
+
+    const byKind = {}
+    for (const d of allDisagreements) byKind[d.kind] = (byKind[d.kind] ?? 0) + 1
+    log(`\n── DISAGREEMENT (${allDisagreements.length}) — recorded, never resolved away ──`)
+    for (const [k, n] of Object.entries(byKind).sort((a, b) => b[1] - a[1])) {
+      log(`  ${String(n).padStart(5)}  ${k}`)
+    }
+    const conflicts = allDisagreements.filter(d => d.kind === 'type-conflict')
+    if (conflicts.length) {
+      log(`  the ${conflicts.length} type-conflicts (the ones that matter most):`)
+      for (const d of conflicts.slice(0, 12)) log(`     ${d.tag}: rules ${d.rules} vs model ${d.model}`)
+      if (conflicts.length > 12) log(`     … ${conflicts.length - 12} more`)
+    }
+    try {
+      writeFileSync('out/extraction-bench-disagreements.json', JSON.stringify(allDisagreements, null, 2))
+    } catch { /* reporting must never fail the run */ }
   }
 
   log('\n' + '='.repeat(78))

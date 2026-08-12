@@ -679,9 +679,24 @@ export async function runAgent<T>(
   if (!outcome.ok && opts.retry !== false) {
     const ranOutOfRoom =
       outcome.failure === 'truncated' || outcome.failure === 'thinking-overrun'
+    // THE RAW OUTPUT IS CLIENT CONTENT AND NO LONGER GOES TO THE LOG.
+    //
+    // This printed 2,000 characters of the model's answer on every retry. On a
+    // schedule read that answer IS the client's drawing — manufacturer, model
+    // numbers, capacities, room names — and it was going to the console, which on
+    // Vercel means the deployment's log stream. Found 2026-08-12 while capturing
+    // the five failed sheets: a Seneca fan-coil schedule printed in full.
+    //
+    // What a debugger actually needs is the SHAPE, and that is what is logged. The
+    // content is available behind an explicit opt-in for a developer working a
+    // specific failure on their own machine — never on by default, because "it is
+    // only in the logs" has never been a place client data belongs.
+    const raw = String(outcome.raw ?? '')
+    const shape = raw ? `${raw.length} chars, starts ${JSON.stringify(raw.slice(0, 24))}` : 'no text'
     console.warn(`[runAgent:${agentKey}] ${outcome.failure} — retrying once ` +
-      `(${ranOutOfRoom ? `budget ${budget} -> ${budget * 2}` : 'same budget, JSON reminder'}).` +
-      `\nRaw:\n` + String(outcome.raw ?? '').slice(0, 2000))
+      `(${ranOutOfRoom ? `budget ${budget} -> ${budget * 2}` : 'same budget, JSON reminder'}). ` +
+      `Response: ${shape}.`)
+    if (process.env.AI_LOG_RAW === '1') console.warn(`\nRaw:\n${raw.slice(0, 2000)}`)
     if (ranOutOfRoom) budget *= 2
     result = await callModel({
       system,
@@ -693,10 +708,15 @@ export async function runAgent<T>(
   }
 
   if (!outcome.ok) {
+    // SAME RULE AS THE RETRY LOG ABOVE — this one printed 4,000 characters. Both
+    // were found in the same sweep; fixing one and leaving the other would have
+    // been the sibling-guard failure in a logger.
+    const rawAfter = String(outcome.raw ?? '')
     console.error(`[runAgent:${agentKey}] ${outcome.failure} after retry. ` +
       `stop=${result.stopReason} out=${result.outputTokens} think=${result.thinkingTokens} ` +
-      `blocks=${result.blockTypes.join('+') || 'none'} budget=${budget}\nRAW:\n` +
-      String(outcome.raw ?? '').slice(0, 4000))
+      `blocks=${result.blockTypes.join('+') || 'none'} budget=${budget} ` +
+      `response=${rawAfter ? `${rawAfter.length} chars, starts ${JSON.stringify(rawAfter.slice(0, 24))}` : 'none'}`)
+    if (process.env.AI_LOG_RAW === '1') console.error(`\nRAW:\n${rawAfter.slice(0, 4000)}`)
     // 'wrong-shape' means the output failed THIS agent's contract. Name it as a
     // contract failure so the log distinguishes "the model returned nonsense" from
     // "the model returned the wrong thing" — different fixes.

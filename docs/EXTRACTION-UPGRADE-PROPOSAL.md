@@ -136,6 +136,30 @@ reported at **every** phase boundary, so accuracy always carries its price tag.
 | **5** | **Review surfaces.** Per-row questions and answers, disagreement rendering, per-field provenance and confidence. Migration for the columns none of this has. | Sighted legs. The hostile fixture's `MBH` question reaches a human as a question. **Benchmark ≥ 90%.** |
 | **6** | **Harvest Phases 1–2** (3f, already approved) on top of the capture surface this creates. | Per 3f's own gate: rediscover `SERVICE → area_served` from recorded corrections alone. |
 
+### Phase 2's actual result: neither leg dominates
+
+*Corrected on the record 2026-08-12. The first write-up of this reported the model
+at **203/205 typed (99%)** against the rules' **209/298 (70%)**, and named the five
+zero-read files beside it. Both numbers were true and the pairing was misleading:
+they have different denominators, and a reader scanning the table takes 99% vs 70%
+as the headline.*
+
+**On the full 298-row denominator the model typed 203 = 68%, BELOW the rules' 70%.**
+
+| leg | typed / 298 | |
+|---|---|---|
+| rules | 209 | 70% |
+| model | 203 | **68%** |
+
+The model is **more precise and less complete**; the rules are **more complete and
+less precise**. The model typed 99% of what it read and read five files' worth of
+nothing; the rules read everything and could not identify 89 rows of it.
+
+**So Phase 2 is not "model beats rules".** It is proof that **neither leg
+dominates** — which is precisely the empirical justification for reconciliation
+existing. Had either leg won outright, Phase 3 would be a wrapper around the
+winner instead of a merge.
+
 ### Phase 2 must carry merge extents — the datum rules cannot recover
 
 *Named here rather than left as an observation, ruled 2026-08-12.*
