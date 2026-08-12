@@ -542,6 +542,73 @@ from 3j, and should be re-checked when either is built.*
 
 ---
 
+### 3o. The Documents tab — the per-project document pool
+**PROPOSAL PENDING RULING, 2026-08-12. Full design:
+[DOCUMENTS-TAB-PROPOSAL.md](DOCUMENTS-TAB-PROPOSAL.md).**
+
+*Numbered 3o at the owner's instruction, leaving `3n` unused. Recorded rather than
+quietly closed up: nothing cross-references 3n, and a gap costs less than an id
+that silently changes meaning — the same call the 3k/3l renumbering made.*
+
+**The shared foundation that four shelf entries quietly assume, and that none of
+them owns.** 3h needs plan sheets to pin findings to; 3j needs a specification to
+be an agent over; 3l needs a sheet index for all three of its capabilities; 5
+needs the sequence of operations, which lives on a sheet inside a drawing set
+nobody has uploaded. Each would build a private version of the same thing.
+
+**The model, in one line: upload by discipline, organize by sheet, consume by
+function.** Documents do not arrive as the things features want. The mechanical
+engineer issues one 60-sheet PDF with schedules, plans, details, schematics and
+SOOs inside it; electrical, fire protection and plumbing do the same. The pool
+takes the whole set, runs the existing finder/sorter machinery over it to
+**propose a sheet index** — page-level kind, sheet numbers read off title blocks —
+confirmed in one review pass, offer-never-assert. Every consumer then reads at the
+sheet level.
+
+**Revisions are first-class.** A new issuance is a new row pointing at the old one
+(rule 4, supersede-not-delete); sheets map across revisions by sheet number where
+identifiable; anything referencing a superseded sheet **says so** rather than
+quietly resolving to the newest revision, which would be rule 12.
+
+**Scope is defined by consumption — a document belongs if a feature reads it or a
+workflow references it.** Drawing sets (sheet-indexed) · specifications, Cx
+divisions 21–28 only, carved client-side *before* upload so the bulk is a
+never-was · shop drawings and submittals for scheduled equipment · certificates
+and test reports · O&Ms at closeout, major equipment only. **Out: architectural
+and structural sets, contracts, coordination models, full-set reference dumps.**
+Build Spec §4.4 stands and is the reason: the pool is the working set, ShareSync
+is the archive, and a claim names its evidence without having to own it.
+
+**Three findings from the recon worth having on the shelf even before a ruling:**
+
+- **Egress, not storage, is the constraint — by 60×.** At realistic scale the pool
+  costs ~1 GB per project and under $3/month past 200 projects; storage is
+  effectively free. But a consumer that opens the *whole set* to read *one sheet*
+  spends 24 MB per view — ~10,600 views inside Pro's 250 GB quota. Per-sheet
+  derivatives cut that to 0.4 MB. **They must be in the first commit**: retrofitting
+  means re-splitting every stored set, at full egress cost, to fix an egress
+  problem.
+- **Zero new function slots.** `api/` stays at 12 of 12: the classifier rides
+  `api/intake.ts` (the `find-pages` precedent), signed URLs are two rows in
+  `get-file-url`'s `DOC_TABLES`, the portal list is an RPC. **3b's pressure is not
+  increased — but it is argued from the other side:** a fifth action on a 783-line
+  file is 3b's "or sooner."
+- **The calibration corpus already gates the sheet classifier.** `FIXTURES.md`
+  carries three consultants' sets with per-page ground truth published. The
+  classifier is a *widening* of the existing finder, so the gate must hold the
+  existing `schedule` verdicts fixed (3 / 4 / 2) while the new kinds are measured
+  fresh — no acquisition needed.
+
+**Recommended sequencing (for ruling): after the extraction arc's Phase 6, and
+after 3b.** The decisive reason is a collision, not a preference — extraction
+Phase 5 migrates `intake_rows` while this re-homes `intake_uploads`, and an arc
+gated on measured accuracy must not have its upload side move underneath it.
+
+**Wakes when:** the owner rules. The proposal carries eight open questions, each
+with a recommendation and its reason.
+
+---
+
 ### Not backlogged, and the reason is the point
 
 **Tier-3 enterprise items — SOC 2 / ISO 27001, SSO, public API, BIM/IFC,
