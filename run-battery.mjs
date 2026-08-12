@@ -122,6 +122,33 @@ const SUITES = [
   'pdf-boundary-gate',
 ]
 
+// ── THE DEPLOY WINDOW IS A STATE, AND THIS CHECKS FOR IT ────────────────────
+//
+// A rule that depends on being remembered mid-session is not a rule yet. The
+// standing rule — confirm the served bundle postdates the push before believing a
+// field report — was written down and then broken by its own author: a battery
+// started in the same shell command as a `git push` hit Vercel mid-rollout and
+// pw-finding-register came back with an HTML error page where JSON belonged. It
+// looked exactly like a real defect for the length of one diagnosis.
+//
+// Vercel takes ~110s. If HEAD was committed inside that window, say so LOUDLY
+// before spending fifteen minutes producing a red run nobody can trust.
+{
+  const { execSync } = await import('node:child_process')
+  try {
+    const committed = Number(execSync('git log -1 --format=%ct', { encoding: 'utf8' }).trim()) * 1000
+    const age = Date.now() - committed
+    if (age < 180_000) {
+      const wait = Math.ceil((180_000 - age) / 1000)
+      console.log('!'.repeat(70))
+      console.log(`HEAD was committed ${Math.round(age / 1000)}s ago — a deploy is probably still rolling.`)
+      console.log(`Waiting ${wait}s before starting, so a rollout does not read as a defect.`)
+      console.log('!'.repeat(70))
+      await new Promise(r => setTimeout(r, 180_000 - age))
+    }
+  } catch { /* not a git checkout, or git absent — the battery still runs */ }
+}
+
 const t0 = Date.now()
 const results = []
 for (const s of SUITES) {
