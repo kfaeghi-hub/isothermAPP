@@ -106,10 +106,36 @@ try {
 
   // ── Generate + document content ──────────────────────────────────────────
   await page.locator('[data-testid="generate-minutes"]').click()
-  await page.waitForTimeout(25000)   // cold-start chromium can be slow
-  check(await page.getByText('ISSUED').count() >= 1, 'meeting flips to ISSUED')
 
-  const { data: mtg1 } = await sb.from('meetings').select('id, storage_url, issued_at').eq('project_id', ZZ).single()
+  // ── INSTRUMENTED, because a fixed sleep cannot tell slow from broken ───────
+  //
+  // This was `waitForTimeout(25000)` and then three assertions. Under a full
+  // battery it failed three times with `issued_at` unset and the file 404 — and
+  // passed every time the suite ran alone. A blind sleep reports the same failure
+  // whether generation took 26 seconds or never happened, which is the difference
+  // that matters: LATE is a load story, NEVER is a production defect where a user
+  // gets a meeting row with no minutes.
+  //
+  // So: poll, and NAME THE OUTCOME. Reaching the deadline is a failure, not a
+  // shrug — the same contract as assertSettled.
+  const genT0 = Date.now()
+  const GEN_DEADLINE = 90_000
+  let mtg1 = null
+  while (Date.now() - genT0 < GEN_DEADLINE) {
+    const { data } = await sb.from('meetings').select('id, storage_url, issued_at').eq('project_id', ZZ).single()
+    if (data?.storage_url && data?.issued_at) { mtg1 = data; break }
+    mtg1 = data
+    await new Promise(r => setTimeout(r, 500))
+  }
+  const genMs = Date.now() - genT0
+  if (mtg1?.storage_url && mtg1?.issued_at) {
+    console.log(`  [GENERATION] appeared-after-${genMs}ms`)
+  } else {
+    console.log(`  [GENERATION] never-appeared-within-${GEN_DEADLINE}ms ` +
+      `(issued_at=${mtg1?.issued_at ?? 'null'}, storage_url=${mtg1?.storage_url ?? 'null'}) ` +
+      `— the endpoint did not finish; this is NOT a slow write`)
+  }
+  check(await page.getByText('ISSUED').count() >= 1, `meeting flips to ISSUED (generation ${genMs}ms)`)
   check(!!mtg1?.issued_at, 'issued_at stamped')
   // storage_url is a bucket-relative path (storage privacy pass) — sign to fetch.
   const docxUrl = await signedFileUrl(credentials(), { table: 'meetings', id: mtg1.id, kind: 'docx' })

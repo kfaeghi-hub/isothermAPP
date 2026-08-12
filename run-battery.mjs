@@ -67,6 +67,8 @@
 import { spawnSync } from 'node:child_process'
 import { acquire } from './harness-lock.mjs'
 import { classify, excerpt, record, promoted, allPromoted, sessionId } from './harness-transients.mjs'
+import { assertZzTestQuiet } from './harness-settle.mjs'
+import { createClient } from '@supabase/supabase-js'
 
 // The header above has asked for this since the first fictional-failure incident.
 // Asking did not work: it was violated twice in one day by its own author. The
@@ -177,6 +179,12 @@ if (PROMOTED.length) {
 const SETTLE = Number((process.argv.find(a => a.startsWith('--settle=')) ?? '').slice(9)) || 0
 if (SETTLE) console.log(`(diagnostic: ${SETTLE}ms settle between suites — NOT the default path)`)
 
+// Read-only, for the inter-suite invariant. Absent env simply disables it.
+const SVC = process.env.VITE_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+  : null
+const ZZ_ID = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
+
 const SESSION = sessionId()
 const t0 = Date.now()
 const results = []
@@ -215,6 +223,20 @@ for (const s of SUITES) {
   results.push({ s, pass, out })
   console.log(pass ? `PASS (${secs}s)` : `FAIL exit=${r.status} (${secs}s)`)
 
+  // INSTRUMENTATION SURVIVES A PASSING RUN. Suite stdout is only printed on
+  // failure, which is right for noise and wrong for measurements: the first
+  // instrumented pw-meetings run PASSED and its `[GENERATION] appeared-after-Nms`
+  // — the whole point of the exercise — went into a buffer nobody reads. A number
+  // that only survives failure is a number you will pay for twice.
+  // A LITERAL, not a string. The first version built this with `new RegExp` from a
+  // single-quoted string, so `\s` and `\[` lost their backslashes and the pattern
+  // compiled to something that matched nothing — the echo silently never fired and
+  // the measurement was lost a second time.
+  const MARKER = /^\s*\[[A-Z-]+\]/
+  for (const line of out.split(String.fromCharCode(10))) {
+    if (MARKER.test(line)) console.log(`      ${line.trim()}`)
+  }
+
   // ── SETTLE BETWEEN SUITES ──────────────────────────────────────────────────
   //
   // THE BATTERY IS SERIAL AND THAT WAS NEVER THE PROBLEM. `spawnSync` blocks;
@@ -228,6 +250,20 @@ for (const s of SUITES) {
   // ALONE, and the set now includes pw-pfc-verify — a naming assertion with no
   // document generation in it at all. Weather does not select for neighbours.
   //
+  // ── THE INTER-SUITE INVARIANT ─────────────────────────────────────────────
+  //
+  // ONE HARNESS EDIT INSTEAD OF FORTY-ONE. A suite that leaves residue breaks its
+  // NEIGHBOUR, and the neighbour is what turns red — so today's failure names the
+  // victim and hides the offender. This reads ZZ-TEST after each suite and says
+  // who left what, immediately, while the name is still attached.
+  //
+  // It REPORTS rather than fails: a suite legitimately mid-campaign may hold rows,
+  // and turning that into a red run would be inventing a rule nobody ruled. What
+  // it removes is the guessing.
+  if (SVC) {
+    try { await assertZzTestQuiet(SVC, ZZ_ID, s) } catch { /* reporting never fails a run */ }
+  }
+
   // RULED 2026-08-12: THIS DOES NOT SHIP ON THE DEFAULT PATH. A sleep that makes
   // the battery pass is the battery learning to shrug. It stays behind a flag
   // because it is a useful DIAGNOSTIC — it was the probe that separated
