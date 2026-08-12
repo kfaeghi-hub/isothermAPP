@@ -173,6 +173,61 @@ ruling. Its Phase 2 gate is that the harvest can rediscover, from recorded
 corrections alone, the SERVICE → area_served rule that was worked out by hand
 this week.
 
+### Extraction upgrade · Phase 2 — the model reads first
+
+**For the team.** Schedules the importer used to read and not understand now get
+read properly. On the Seneca corpus the old path typed 69% of what it extracted —
+and twelve files came back with **nothing identified at all**, including all 51
+VAV terminals. Those now type correctly. Where a schedule genuinely does not say
+what a column means, the reader **asks** instead of guessing: 27 questions across
+37 files.
+
+A clean spreadsheet used to cost nothing to read and now costs about **10.6¢ a
+sheet**. That is a real change to the per-project spend and it is reported rather
+than absorbed.
+
+**For the architect.** The contract reversal is on the record: `extractor.md` said
+*"Deterministic first — the model is the fallback… proven against 33 real
+schedules."* Measured on those same 33: **69% typed, twelve files at 0%.** "Proven
+against 33 schedules" meant *parsed without crashing*, not *read correctly*. The
+old text is quoted in place above the new — a doctrine reversal that erases what
+it reversed leaves the next reader unable to check the reasoning.
+
+**Merge extents, the datum rules provably cannot recover.** `read-excel-file`
+returns a merged cell as value-plus-nulls and never reports its width, so the
+header fold could not know where a group header ended and labelled column J
+`MOTOR MBH`. `sheetMerges.ts` reads `<mergeCells>` from the worksheet XML; the
+fold now stops at the span. **The fix is a better input, not a better heuristic**,
+and the same extents go to the model, so both readers see one answer rather than
+two that drift.
+
+**One reading path, two callers.** `sheet-model-read.ts` is called by the endpoint
+and by the benchmark. Not a re-implementation, deliberately: the 88/88 region gate
+passed through a harness that replaced the assembly step with itself, proved the
+harness, and left 87 rows in uploads nobody opened.
+
+**The numbers — 37 files, $3.92, 10.6¢ per sheet:**
+
+| | before | after |
+|---|---|---|
+| scored corpus | 3/4 (75%) | **4/4 (100%)** |
+| hostile fixture | FAIL `ambiguity-unflagged` | **CLEAN**, all four clauses |
+| VAV-lvl1 | 0/29 typed | **29/29** |
+| VAV-lvl2 | 0/22 typed | **21/21** |
+| on files it read | rules 209/298 (70%) | model 203/205 (99%) |
+
+**And the part that is not a win, stated with it.** **Five files failed
+outright** — `AHU-Coils1`, `DOAS-1`, `DOAS-3`, `DOAS-coil1` (the output did not
+satisfy the contract) and `FanCoils` (truncated at the budget). The model's
+205-row denominator **excludes those files**; it is not the rules' 298. The honest
+sentence is: *on the sheets it read, the model typed nearly everything the rules
+could not — and on five sheets it read nothing at all.* Those five are the next
+curriculum entry, not a rounding error.
+
+The bench now writes per-file results to `out/`. The first $3.92 run lost most of
+its per-file lines to a `tail` in the invoking command, and a measurement that
+exists only in a terminal buffer is one you pay for twice.
+
 ### Extraction upgrade · Phase 1 — the boundary
 
 **For the architect.** Nothing model-produced now reaches the register without

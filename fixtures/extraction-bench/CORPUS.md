@@ -126,6 +126,29 @@ fingerprint, which is worth a look on its own.
 
 ---
 
+---
+
+## Phase 2 — the model leg, 2026-08-12
+
+`--with-ai` runs the shipped model read (`api/_shared/sheet-model-read.ts`) over
+the corpus. **37 files, $3.92, 10.6c per sheet.**
+
+| | rules | model |
+|---|---|---|
+| scored corpus clean | 3/4 (75%) | **4/4 (100%)** |
+| typed, on files the model read | 209/298 (70%) | **203/205 (99%)** |
+| VAV-lvl1 / VAV-lvl2 | 0/29, 0/22 | **29/29, 21/21** |
+| questions raised | none possible | **27** |
+
+**The denominators differ and that is the point.** Five files produced no model
+rows at all — `AHU-Coils1`, `DOAS-1`, `DOAS-3`, `DOAS-coil1` (contract-output) and
+`FanCoils` (truncated) — so 205 is not 298. *On the sheets it read, the model
+typed nearly everything the rules could not; on five sheets it read nothing.*
+
+**The five are now the curriculum.** Four failed the output contract and one ran
+out of budget on a 64-row sheet, which are two different problems: one is shape,
+one is size. Neither is fixed by trying again.
+
 ## Standing rules
 
 - **Skip loudly.** A corpus directory that is absent prints by name and says it is

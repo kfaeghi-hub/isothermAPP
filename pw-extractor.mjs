@@ -39,8 +39,14 @@ console.log(`target: ${zz.name}  ${REAL ? '(REAL AI)' : '(mocked)'}\n`)
 // Compile the SHIPPED modules for this harness rather than restating them. A
 // hand-copied expectation would drift from the parser the moment either changed,
 // and the whole point is to compare two live paths.
+// BUNDLED, not merely transpiled. Transpiling left `from './sheetMerges'` in the
+// output — a specifier with no extension, which Node's ESM loader refuses — so the
+// moment the parser gained a second module this harness died with
+// ERR_MODULE_NOT_FOUND while the app itself was fine. The suite was compiling the
+// code differently from the way anything ships it.
 execFileSync('npx', ['esbuild',
   'src/lib/intakeExcel.ts', 'api/_shared/agent-schemas.ts',
+  '--bundle', '--external:read-excel-file', '--external:jszip',
   '--format=esm', '--platform=node', '--outdir=dist-test', '--outbase=.',
   '--log-level=error',
 ], { stdio: 'inherit', shell: process.platform === 'win32' })
