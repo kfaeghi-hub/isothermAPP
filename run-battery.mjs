@@ -66,6 +66,7 @@
 // and touches nothing outside the ZZ-TEST family (pw-config.mjs rule).
 import { spawnSync } from 'node:child_process'
 import { acquire } from './harness-lock.mjs'
+import { classify, excerpt, record, promoted, allPromoted, sessionId } from './harness-transients.mjs'
 
 // The header above has asked for this since the first fictional-failure incident.
 // Asking did not work: it was violated twice in one day by its own author. The
@@ -158,23 +159,66 @@ const SUITES = [
   } catch { /* not a git checkout, or git absent — the battery still runs */ }
 }
 
+// PROMOTED SIGNATURES ARE ANNOUNCED BEFORE THE RUN, not buried after it. A
+// signature that has recurred across sessions is a defect investigation, and this
+// run will NOT retry it.
+const PROMOTED = allPromoted()
+if (PROMOTED.length) {
+  console.log('!'.repeat(70))
+  console.log('PROMOTED TRANSIENTS — these recur and are no longer treated as weather:')
+  for (const p of PROMOTED) {
+    console.log(`  ${p.suite} / ${p.signature}: ${p.hits} times across ${p.sessions} sessions since ${p.since.slice(0, 10)}`)
+  }
+  console.log('  They will NOT be retried. Each is a defect until somebody rules otherwise.')
+  console.log('!'.repeat(70))
+}
+
+const SESSION = sessionId()
 const t0 = Date.now()
 const results = []
-for (const s of SUITES) {
-  process.stdout.write(`── ${s} … `)
+const retried = []
+
+const runOne = (s) => {
   const t = Date.now()
   const r = spawnSync(process.execPath, ['--env-file=.env', `${s}.mjs`], {
     stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8',
   })
-  const secs = ((Date.now() - t) / 1000).toFixed(0)
+  return { r, out: (r.stdout ?? '') + (r.stderr ?? ''), secs: ((Date.now() - t) / 1000).toFixed(0) }
+}
+
+for (const s of SUITES) {
+  process.stdout.write(`── ${s} … `)
+  let { r, out, secs } = runOne(s)
+
+  // ONE RETRY, ONLY ON AN ENUMERATED TRANSPORT SIGNATURE, NEVER ON AN ASSERTION.
+  if (r.status !== 0) {
+    const sig = classify(out)
+    const isPromoted = sig ? promoted(s, sig.name) : null
+    if (sig && !isPromoted) {
+      const ex = excerpt(out, sig)
+      process.stdout.write(`TRANSIENT(${sig.name}) — retrying once … `)
+      const second = runOne(s)
+      const outcome = second.r.status === 0 ? 'passed_on_retry' : 'failed_twice'
+      record({ suite: s, signature: sig.name, excerpt: ex, outcome, session: SESSION })
+      if (outcome === 'passed_on_retry') retried.push({ suite: s, signature: sig.name })
+      r = second.r; out = second.out; secs = `${secs}+${second.secs}`
+    } else if (isPromoted) {
+      process.stdout.write(`PROMOTED(${sig.name}, not retried) `)
+    }
+  }
+
   const pass = r.status === 0
-  results.push({ s, pass, out: (r.stdout ?? '') + (r.stderr ?? '') })
+  results.push({ s, pass, out })
   console.log(pass ? `PASS (${secs}s)` : `FAIL exit=${r.status} (${secs}s)`)
 }
 
 const failed = results.filter(r => !r.pass)
 console.log('\n' + '='.repeat(64))
-console.log(`BATTERY: ${results.length - failed.length}/${results.length} passed in ${((Date.now() - t0) / 60000).toFixed(1)} min`)
+// A GREEN RUN THAT NEEDED A RETRY NEVER LOOKS CLEAN.
+console.log(`BATTERY: ${results.length - failed.length}/${results.length} passed in ${((Date.now() - t0) / 60000).toFixed(1)} min` +
+  (retried.length
+    ? ` (${retried.length} after retry: ${retried.map(x => `${x.suite}/${x.signature}`).join(', ')})`
+    : ''))
 for (const f of failed) {
   console.log(`\n──── FAIL ${f.s} — last 30 lines ────`)
   console.log(f.out.split('\n').slice(-30).join('\n'))

@@ -9,6 +9,9 @@ export default defineConfig({
     // silently never run — which is the same shape as a gate that reports a pass
     // on a corpus that was not there. The extraction boundary is a pure function
     // over a parsed payload and is exactly the kind of thing that belongs here.
-    include: ['src/**/*.test.ts', 'api/**/*.test.ts'],
+    // Harness modules at the repo root are testable too — the transient guard is a
+    // pure classifier and is exactly the kind of thing that must be proven by
+    // injection rather than by having never fired.
+    include: ['src/**/*.test.ts', 'api/**/*.test.ts', '*.test.ts'],
   },
 })
