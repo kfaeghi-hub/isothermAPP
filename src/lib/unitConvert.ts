@@ -47,8 +47,18 @@ export const ALTERNATES: Record<string, Conversion[]> = {
   'kg/h': [{ to: 'lb/h', factor: 2.20462, offset: 0, label: '× 2.2046' }],
   'lb/h': [{ to: 'kg/h', factor: 0.453592, offset: 0, label: '÷ 2.2046' }],
 
-  'kW':   [{ to: 'HP',   factor: 1.34102, offset: 0, label: '× 1.341' }],
+  'kW':   [{ to: 'HP',   factor: 1.34102, offset: 0, label: '× 1.341' },
+           { to: 'MBH',  factor: 3.41214, offset: 0, label: '× 3.412' }],
   'HP':   [{ to: 'kW',   factor: 0.745700, offset: 0, label: '÷ 1.341' }],
+
+  // MBH ADDED 2026-08-11. The note above says MBH "is the same in both systems on
+  // Ontario drawings" — true of the UNIT, and it was never the point. The firm's
+  // boiler def set declares `Input Rating (kW)` and `Output Rating (kW)`, while
+  // every North American boiler schedule states them in MBH: Avondale's B-1 reads
+  // MAX INPUT 800 MBH against a field expecting kW. Without this pair the value
+  // matches its field and still cannot be written, because writing 800 under a kW
+  // label is the relabelling defect wearing an import's clothes.
+  'MBH':  [{ to: 'kW',   factor: 0.293071, offset: 0, label: '÷ 3.412' }],
 }
 
 export const alternatesFor = (unit: string | null): Conversion[] =>

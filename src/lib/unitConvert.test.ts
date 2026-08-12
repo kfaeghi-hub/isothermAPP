@@ -63,12 +63,30 @@ describe('NON-NUMERIC VALUES ARE REFUSED, NOT MANGLED', () => {
 })
 
 describe('units both systems share have no alternates', () => {
-  // These are Ontario drawing practice: air in CFM, capacity in MBH, pipe in
-  // NPS, on drawings that are otherwise metric. Offering a swap would invite one.
-  it.each(['CFM', 'MBH', 'NPS', 'V', 'A', 'Hz', '%', 'RPM', 'Ø'])(
+  // These are Ontario drawing practice: air in CFM, pipe in NPS, on drawings
+  // that are otherwise metric. Offering a swap would invite one.
+  //
+  // MBH LEFT THIS LIST ON 2026-08-11, and the distinction is worth keeping. It is
+  // still true that MBH is written on both metric and imperial Ontario drawings —
+  // that is a fact about the UNIT, and it was never the reason the list existed.
+  // The reason is "no counterpart the firm's def sets need". The boiler def set
+  // declares `Input Rating (kW)` and `Output Rating (kW)`, and every North
+  // American boiler schedule states them in MBH — Avondale's B-1 reads MAX INPUT
+  // 800 MBH against a field expecting kW. Without the pair the value matched its
+  // field and still could not be written, because putting 800 under a kW label is
+  // the relabelling defect arriving through an import instead of an edit.
+  it.each(['CFM', 'NPS', 'V', 'A', 'Hz', '%', 'RPM', 'Ø'])(
     '%s offers nothing', u => {
       expect(alternatesFor(u)).toEqual([])
     })
+
+  it('MBH now offers kW, because a def set asks for kW', () => {
+    expect(alternatesFor('MBH')).toEqual([
+      { to: 'kW', factor: 0.293071, offset: 0, label: '÷ 3.412' },
+    ])
+    // 800 MBH is 234 kW. A boiler nameplate is the place to get this right.
+    expect(convertValue('800', to('MBH', 'kW'))).toBe('234')
+  })
 
   it('a field with no unit offers nothing', () => {
     expect(alternatesFor(null)).toEqual([])

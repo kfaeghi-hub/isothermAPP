@@ -189,10 +189,29 @@ export interface ProjectPhase {
 // ── Equipment ──────────────────────────────────────────────────────────────
 
 // nameplate_extra stores three-section field values keyed by field_name
+/** The three sections that ARE the register. `from_schedule` is deliberately not
+ *  one of them — it is the source reading, not a place values are recorded. */
+export type NameplateSection = 'spec' | 'shop_drawing' | 'installed'
+
 export interface NameplateExtra {
   spec:         Record<string, string>
   shop_drawing: Record<string, string>
   installed:    Record<string, string>
+  /**
+   * The schedule's OWN column headings and values, verbatim, for a unit that came
+   * from an import.
+   *
+   * It exists because an import can read more than the firm's field set can hold.
+   * Adam's Avondale schedules carried 77 spec values under headings like
+   * `FLOW [GPM]` and `WATER PRESSURE DROP (@20°C dT)`; 25 mapped onto declared
+   * fields and 52 did not. The 52 are not noise — they are what the engineer
+   * wrote down on purpose — so they are kept HERE and shown on the unit rather
+   * than dropped once the mapped ones are extracted.
+   *
+   * The three sections above are the register. This is the source reading it came
+   * from, and it is never overwritten by an edit to a mapped field.
+   */
+  from_schedule?: Record<string, string>
 }
 
 export interface Equipment {

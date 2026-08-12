@@ -11,7 +11,7 @@ import { TypeAssignmentReview } from '../components/equipment/TypeAssignmentRevi
 import { alternatesFor, convertValue, type Conversion } from '../lib/unitConvert'
 import type {
   Equipment, EquipmentTagGlossary, ProjectEquipmentFieldDef,
-  EquipmentAttachment, NameplateExtra,
+  EquipmentAttachment, NameplateExtra, NameplateSection,
 } from '../types/database'
 import { canHardDeleteEquipment } from '../lib/capabilities'
 
@@ -29,7 +29,7 @@ const LEGACY_NAMEPLATE: [string, keyof Equipment][] = [
   ['Amperage (A)', 'amperage'], ['Flow', 'flow'], ['Capacity', 'capacity'],
 ]
 
-const SECTIONS: { key: keyof NameplateExtra; label: string }[] = [
+const SECTIONS: { key: NameplateSection; label: string }[] = [
   { key: 'spec',         label: 'Spec (Design)' },
   { key: 'shop_drawing', label: 'Shop Drawing' },
   { key: 'installed',    label: 'Installed (Nameplate)' },
@@ -1021,6 +1021,62 @@ export function EquipmentPage({ projectId }: Props) {
                 })}
               </div>
             ) : null}
+
+            {/* ── FROM THE SCHEDULE, NOT MAPPED TO A FIELD ──────────────────
+                THE DEFECT THIS ENDS. Adam's Avondale import wrote 77 spec values
+                into the register and displayed ZERO of them. Nothing failed and
+                nothing was lost: the values were stored under the schedule's own
+                headings — `FLOW [GPM]`, `MAX INPUT [MBH]`, `PIPE SIZE (")` —
+                while this table draws its rows from the firm's declared field
+                names. Two vocabularies for the same quantities, no bridge, and no
+                message anywhere. He reported "zero spec fields", which was true on
+                screen and false in the database, and both at once.
+
+                Matching fixed the ones that can be matched. This strip is the
+                promise about the rest: WHAT AN IMPORT READ IS ALWAYS VISIBLE ON
+                THE UNIT, whether or not the firm has a field for it. A column
+                nobody anticipated is still something an engineer wrote down on
+                purpose — the same reason the parser keeps unmapped columns instead
+                of discarding them, carried through to the screen.
+
+                It is deliberately read-only and visually quiet. These are source
+                readings, not register values; promoting one into a field is an act
+                (add the field, then fill it), and the strip's job is to make sure
+                nobody has to know it exists to find it. */}
+            {(() => {
+              const fromSchedule = selected.nameplate_extra?.from_schedule ?? {}
+              const declared = new Set(
+                SECTIONS.flatMap(({ key }) => defsForType(currentType, key)).map(d => d.field_name),
+              )
+              // Only the ones with no home. A heading that DID map is already on
+              // screen under its proper field, and showing it twice would suggest
+              // two readings where there is one.
+              const orphans = Object.entries(fromSchedule).filter(([k]) => !declared.has(k))
+              if (!orphans.length) return null
+              return (
+                <div className="px-6 py-4 border-t border-gray-100" data-testid="unmapped-from-schedule">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
+                    From the schedule · not mapped to a field ({orphans.length})
+                  </p>
+                  <p className="text-[10px] text-gray-400 mb-3">
+                    Read from the uploaded schedule under these column names. No field
+                    in this type's nameplate structure claims them, so they are kept
+                    here rather than dropped. Add a field with a matching name to
+                    bring one into the register.
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                    {orphans.map(([k, v]) => (
+                      <div key={k}>
+                        <label className="block text-[9px] text-gray-400 uppercase tracking-wide font-semibold">
+                          {k}
+                        </label>
+                        <p className="text-xs text-gray-500 font-medium">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* ── LEGACY COLUMN VALUES ──────────────────────────────────────
                 Identity (manufacturer / model / serial) moved to the base def
