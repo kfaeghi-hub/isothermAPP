@@ -86,7 +86,7 @@ await build({
   entryPoints: ['src/lib/intakeExcel.ts'], outfile: 'out/bench-intakeExcel.mjs',
   format: 'esm', bundle: true, platform: 'node', logLevel: 'error', external: ['read-excel-file'],
 })
-const { parseSheet } = await import('./out/bench-intakeExcel.mjs')
+const { parseSheet, readSheetMerges } = await import('./out/bench-intakeExcel.mjs')
 const readXlsxFile = (await import('read-excel-file/node')).default
 
 const svc = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
@@ -103,8 +103,17 @@ const VOCAB = tRes.data.map(t => ({ key: t.key, name: t.name, aliases: byKey.get
 
 // ── run one file ────────────────────────────────────────────────────────────
 async function readFile(path) {
-  const sheets = await readXlsxFile(readFileSync(path), { trim: true })
-  return sheets.map(s => ({ sheet: s.sheet, parsed: parseSheet(s.data, s.sheet, VOCAB) }))
+  const bytes = readFileSync(path)
+  const sheets = await readXlsxFile(bytes, { trim: true })
+  // Merge extents are read from the same bytes — the reader discards them, and a
+  // header fold that cannot see where a group header ends invents quantities that
+  // do not exist (`MOTOR MBH`). The benchmark measures the parser as it SHIPS, so
+  // it must hand it the same input the app does.
+  const merges = await readSheetMerges(bytes)
+  return sheets.map(s => ({
+    sheet: s.sheet,
+    parsed: parseSheet(s.data, s.sheet, VOCAB, { merges: merges[s.sheet] ?? [] }),
+  }))
 }
 
 /** Score a file against hand-written truth. Returns the verdict and its failure classes. */

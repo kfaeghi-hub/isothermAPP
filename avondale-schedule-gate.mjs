@@ -16,7 +16,7 @@
 // reports success on zero files is the failure mode this whole campaign is about.
 //
 // Read-only: no network beyond the vocabulary read, no writes, no project touched.
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { build } from 'esbuild'
 import { createClient } from '@supabase/supabase-js'
 import { assertHarnessFree } from './harness-lock.mjs'
@@ -70,7 +70,7 @@ await build({
   entryPoints: ['src/lib/intakeExcel.ts'], outfile: 'out/intakeExcel.gate.mjs',
   format: 'esm', bundle: true, platform: 'node', logLevel: 'error',
 })
-const { parseSheet } = await import('./out/intakeExcel.gate.mjs')
+const { parseSheet, readSheetMerges } = await import('./out/intakeExcel.gate.mjs')
 
 // The REAL firm vocabulary, loaded the way the app loads it. A gate run against a
 // hand-written vocabulary would prove the parser agrees with my typing, not that
@@ -92,8 +92,10 @@ const readXlsxFile = (await import('read-excel-file/node')).default
 
 for (const exp of EXPECTED) {
   console.log(`── ${exp.file}`)
-  const sheets = await readXlsxFile(`${DIR}/${exp.file}`, { trim: true })
-  const p = parseSheet(sheets[0].data, sheets[0].sheet, vocab)
+  const bytes = readFileSync(`${DIR}/${exp.file}`)
+  const sheets = await readXlsxFile(bytes, { trim: true })
+  const merges = await readSheetMerges(bytes)
+  const p = parseSheet(sheets[0].data, sheets[0].sheet, vocab, { merges: merges[sheets[0].sheet] ?? [] })
 
   check(p.title === exp.title, `title reads "${exp.title}" (got ${JSON.stringify(p.title)})`)
 

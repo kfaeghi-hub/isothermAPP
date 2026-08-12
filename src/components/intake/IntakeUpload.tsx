@@ -318,7 +318,7 @@ export function IntakeUpload({ projectId, onStaged }: {
 
       const workbook = await readWorkbook(f)
       const parsed = workbook.map(w => {
-        const sheet = parseSheet(w.grid, w.name, vocab)
+        const sheet = parseSheet(w.grid, w.name, vocab, { merges: w.merges })
         const seen = new Set<string>()
         let enrich = 0, dupes = 0
         for (const r of sheet.rows) {

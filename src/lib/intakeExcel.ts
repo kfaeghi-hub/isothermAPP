@@ -13,6 +13,15 @@
 
 export type Cell = string | number | boolean | Date | null
 
+// Merge extents are read separately (sheetMerges.ts) because the spreadsheet
+// reader discards them. See the note on `forwardFill` below.
+import { fillWithinMerges, type MergeRange } from './sheetMerges'
+// Re-exported so a harness that bundles the parser gets the merge reader with it —
+// two bundles would be two chances to feed the parser a different input than the
+// app does, which is the whole thing the benchmark exists to rule out.
+export { readSheetMerges } from './sheetMerges'
+export type { MergeRange } from './sheetMerges'
+
 export interface TypeVocab { key: string; name: string; aliases?: string[] }
 
 /** How a type was resolved — the picker shows the alias that hit, so a user can
@@ -148,16 +157,24 @@ const FIELDS: Record<string, string[]> = {
 // electrical, so a tag pattern may locate a column and may never type a unit.
 const TAGGISH = /^[A-Z]{1,6}[- ]?\d{1,4}([-.][A-Z0-9]{1,4})?$/i
 
-/** Merged header cells leave blanks to the right of the value. Carry it across. */
-function forwardFill(row: Cell[]): string[] {
-  const out: string[] = []
-  let last = ''
-  for (const c of row) {
-    const v = txt(c)
-    if (v) last = v
-    out.push(v || last)
-  }
-  return out
+/**
+ * Merged header cells leave blanks to the right of the value. Carry it across —
+ * BUT ONLY AS FAR AS THE MERGE ACTUALLY GOES.
+ *
+ * The original carried the last value across every following blank, which is
+ * right inside a merged span and wrong the moment the span ends. The benchmark's
+ * hostile fixture caught it: `MOTOR` spans G2:I2, `MBH` is column J, and the fold
+ * produced `MOTOR MBH` — a quantity that does not exist.
+ *
+ * The merge extents are not in the grid: `read-excel-file` returns a merged cell
+ * as value-plus-nulls and never reports its width, so no rule over the grid alone
+ * can recover this. `sheetMerges.ts` reads them from the worksheet XML and they
+ * are passed in. Without them this behaves exactly as it always did, because a
+ * workbook whose spans could not be read is still better served by an imperfect
+ * fold than by none.
+ */
+function forwardFill(row: Cell[], rowIndex = 0, merges?: MergeRange[]): string[] {
+  return fillWithinMerges(row, rowIndex, merges, txt)
 }
 
 /**
@@ -174,8 +191,8 @@ function forwardFill(row: Cell[]): string[] {
  * columns can share a key, a nameplate value can be lost without anyone seeing a
  * failure, and that is the exact class of defect this build keeps paying for.
  */
-function composeHeader(grid: Cell[][], r: number): { labels: string[]; dataStart: number } {
-  const base = forwardFill(grid[r] ?? [])
+function composeHeader(grid: Cell[][], r: number, merges?: MergeRange[]): { labels: string[]; dataStart: number } {
+  const base = forwardFill(grid[r] ?? [], r, merges)
   const raw  = (grid[r] ?? []).map(txt)
   const next = (grid[r + 1] ?? []).map(txt)
 
@@ -206,11 +223,11 @@ function composeHeader(grid: Cell[][], r: number): { labels: string[]; dataStart
  * parser silently reads the title as data — it produces rows, so it looks like it
  * worked.
  */
-function findHeader(grid: Cell[][]): { row: number; labels: string[]; score: number; dataStart: number } | null {
+function findHeader(grid: Cell[][], merges?: MergeRange[]): { row: number; labels: string[]; score: number; dataStart: number } | null {
   let best: { row: number; labels: string[]; score: number; dataStart: number } | null = null
 
   for (let r = 0; r < Math.min(grid.length, 25); r++) {
-    const { labels, dataStart } = composeHeader(grid, r)
+    const { labels, dataStart } = composeHeader(grid, r, merges)
     const filled = labels.filter(Boolean)
     if (filled.length < 2) continue
 
@@ -449,8 +466,11 @@ function categoryFromTitle(title: string | null): string | null {
   return c.length >= 3 ? c.toUpperCase() : null
 }
 
-export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]): ParsedSheet {
-  const head = findHeader(grid)
+export function parseSheet(
+  grid: Cell[][], sheetName: string, vocab: TypeVocab[],
+  opts?: { merges?: MergeRange[] },
+): ParsedSheet {
+  const head = findHeader(grid, opts?.merges)
   if (!head) {
     const artifact = detectArtifact(grid, null, 0)
     return {
@@ -627,10 +647,19 @@ export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]
  * v9's default export returns EVERY sheet in one call — a workbook of 33
  * schedules is one read, not 33.
  */
-export async function readWorkbook(file: File | Blob): Promise<{ name: string; grid: Cell[][] }[]> {
+export async function readWorkbook(
+  file: File | Blob,
+): Promise<{ name: string; grid: Cell[][]; merges: MergeRange[] }[]> {
   const readXlsxFile = (await import('read-excel-file/browser')).default
   const sheets = await readXlsxFile(file as File, { trim: true })
-  return sheets.map(s => ({ name: s.sheet, grid: s.data as Cell[][] }))
+  // The reader drops merge extents, so they are read a second time from the same
+  // bytes. Two passes over one file is cheap; a header fold that cannot tell where
+  // a group header ends is not (see forwardFill).
+  const { readSheetMerges } = await import('./sheetMerges')
+  const merges = await readSheetMerges(await file.arrayBuffer())
+  return sheets.map(s => ({
+    name: s.sheet, grid: s.data as Cell[][], merges: merges[s.sheet] ?? [],
+  }))
 }
 
 /** SHA-256 of the file, for B3's "re-upload proposes zero rows" guarantee. */
