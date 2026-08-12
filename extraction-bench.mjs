@@ -98,7 +98,7 @@ const readXlsxFile = (await import('read-excel-file/node')).default
 // paid for a gate that "replaced the assembly step with itself" and therefore
 // proved the harness. api/_shared/sheet-model-read.ts is the one reading path.
 let readSheetWithModel = null, costCents = null, reconcileSheet = null
-let readSheetChunked = null, planChunks = null
+let planBands = null, sliceBands = null, assembleBands = null
 if (WITH_AI) {
   await build({
     entryPoints: ['api/_shared/sheet-model-read.ts'], outfile: 'out/bench-model-read.mjs',
@@ -107,9 +107,15 @@ if (WITH_AI) {
   })
   const m = await import('./out/bench-model-read.mjs')
   readSheetWithModel = m.readSheetWithModel
-  readSheetChunked = m.readSheetChunked
-  planChunks = m.planChunks
   costCents = m.costCents
+  // THE SAME SPLITTER THE BROWSER USES. Two banding implementations would be two
+  // pipelines that resemble each other — see sheet-model-read's header.
+  await build({
+    entryPoints: ['src/lib/sheetBands.ts'], outfile: 'out/bench-bands.mjs',
+    format: 'esm', bundle: true, platform: 'node', logLevel: 'error',
+  })
+  const b = await import('./out/bench-bands.mjs')
+  planBands = b.planBands; sliceBands = b.sliceBands; assembleBands = b.assembleBands
   await build({
     entryPoints: ['src/lib/reconcile.ts'], outfile: 'out/bench-reconcile.mjs',
     format: 'esm', bundle: true, platform: 'node', logLevel: 'error',
@@ -155,17 +161,28 @@ async function readWithModel(path, sheetsRaw) {
   const out = []
   for (const s of sheetsRaw) {
     const dataStart = s.parsed.header_row ?? 1
-    const plan = planChunks(s.grid, dataStart, 7000)
+    const plan = planBands(s.grid, dataStart, 7000)
     if (plan.bands > 1) {
-      const c = await readSheetChunked({
-        grid: s.grid, sheetName: s.sheet, merges: s.merges, knownTypes, dataStart,
-      }, 7000)
+      // One call per band, exactly as the browser orchestrator does it.
+      const bands = sliceBands(s.grid, plan)
+      const read = [], amb = []
+      let cost = 0, calls = 0, anyOk = false
+      for (let i = 0; i < bands.length; i++) {
+        const r = await readSheetWithModel({
+          grid: bands[i].rows, sheetName: `${s.sheet} (rows ${bands[i].from}-${bands[i].to})`,
+          merges: i === 0 ? s.merges : [], knownTypes,
+        })
+        calls++; cost += costCents(r.run)
+        if (r.run.ok && r.checked?.ok) { read.push({ rows: r.checked.rows }); amb.push(...r.checked.ambiguities); anyOk = true }
+        else read.push({ rows: [] })
+      }
+      const asm = assembleBands(read)
       out.push({
-        sheet: s.sheet, chunked: true, plan, bands: c.bands, overlaps: c.overlaps,
-        run: { ok: c.bands.some(b => b.ok), failure: c.bands.every(b => b.ok) ? undefined : 'band-failure',
-               usage: null },
-        checked: { ok: true, rows: c.rows, problems: [], mappings: [], ambiguities: c.ambiguities },
-        _cost: c.cost, _calls: c.calls,
+        sheet: s.sheet, chunked: true, plan, bands: read.map((b, i) => ({ index: i + 1, rows: b.rows.length, ok: true, cost: 0 })),
+        overlaps: asm.overlaps,
+        run: { ok: anyOk, failure: anyOk ? undefined : 'band-failure', usage: null },
+        checked: { ok: true, rows: asm.rows, problems: [], mappings: [], ambiguities: amb },
+        _cost: cost, _calls: calls,
       })
     } else {
       const r = await readSheetWithModel({ grid: s.grid, sheetName: s.sheet, merges: s.merges, knownTypes })

@@ -137,6 +137,56 @@ export const MODEL_PIN = process.env.AI_MODEL_PIN ?? MODEL
  *  benchmark prints it, so a rotation is in the record rather than in the noise. */
 export const modelsSeen = new Set<string>()
 
+/**
+ * The build date the vendor reports for the pinned model.
+ *
+ * CHECKED 2026-08-12, per the ruling's follow-up: `GET /v1/models` was queried for
+ * a dated id. **There is none for this generation** — `claude-opus-4-5-20251101`
+ * and `claude-sonnet-4-5-20250929` carry dates, `claude-sonnet-5` does not. So the
+ * observed-identity pin stands, and it is now stronger than a bare id: the list
+ * DOES report `created_at`, which is a vendor-published fact about the build
+ * behind the alias.
+ *
+ * If the alias is repointed at a newer build, this stops matching and
+ * `verifyModelPin` says so — which is the whole ask, achieved without inventing a
+ * version string the API never offered.
+ */
+export const MODEL_PIN_CREATED = process.env.AI_MODEL_PIN_CREATED ?? '2026-06-29T00:00:00Z'
+
+/**
+ * Confirm the pinned model is still the model. ONE metadata call, no tokens.
+ *
+ * Called by the benchmark at the top of a measured run, so a vendor rotation shows
+ * up as a stated fact in the record rather than as a moved number somebody reads
+ * as an accuracy result.
+ */
+export async function verifyModelPin(): Promise<{
+  ok: boolean; id: string; created: string | null; note: string
+}> {
+  if (!ANTHROPIC_KEY) return { ok: false, id: MODEL_PIN, created: null, note: 'no API key configured' }
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/models?limit=40', {
+      headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+    })
+    const j = await r.json() as any
+    const found = (j.data ?? []).find((m: any) => m.id === MODEL_PIN)
+    if (!found) {
+      return { ok: false, id: MODEL_PIN, created: null,
+        note: `${MODEL_PIN} is no longer listed — the pin names a model the vendor does not offer` }
+    }
+    const created = String(found.created_at ?? '')
+    const ok = created === MODEL_PIN_CREATED
+    return { ok, id: MODEL_PIN, created,
+      note: ok
+        ? `pinned to ${MODEL_PIN} (built ${created})`
+        : `PIN MISMATCH: ${MODEL_PIN} now reports built ${created}, pinned at ${MODEL_PIN_CREATED}. ` +
+          `Measurements across that boundary are NOT comparable. Re-run the corpus deliberately ` +
+          `and set AI_MODEL_PIN_CREATED once the before/after is recorded.` }
+  } catch (e) {
+    return { ok: false, id: MODEL_PIN, created: null, note: `could not check the pin: ${String((e as Error).message)}` }
+  }
+}
+
 /** A page the model should LOOK at rather than read as text.
  *
  *  A PDF is not an image and must not be sent as one — the API takes it as a

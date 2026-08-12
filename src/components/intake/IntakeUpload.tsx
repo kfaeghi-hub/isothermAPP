@@ -1,18 +1,45 @@
-// Intake upload — the deterministic Excel path, B1.
+// Intake upload — the Excel path, orchestrated. [KEEL] Phase 5a.
 //
-// THE PARSE HAPPENS BEFORE ANYTHING IS WRITTEN, AND THE USER SEES IT FIRST.
-// A schedule is parsed in the browser, the column mapping and the counts are
-// shown, and only then does a click stage it. An importer that writes first and
-// reports afterwards asks someone to audit 200 rows they have already committed
-// to; this one asks a single question — "did it read your schedule correctly?" —
-// while the answer is still free.
+// ── PREVIEW-BEFORE-DISPOSITION ────────────────────────────────────────────────
 //
-// NOTHING HERE TOUCHES `equipment`. Rows land in intake_rows for B2's review and
-// B3's approval. Law 2.
+// This header used to read:
+//
+//   > THE PARSE HAPPENS BEFORE ANYTHING IS WRITTEN, AND THE USER SEES IT FIRST.
+//   > A schedule is parsed in the browser, the column mapping and the counts are
+//   > shown, and only then does a click stage it. An importer that writes first
+//   > and reports afterwards asks someone to audit 200 rows they have already
+//   > committed to; this one asks a single question — "did it read your schedule
+//   > correctly?" — while the answer is still free.
+//
+// REINTERPRETED 2026-08-12, not abandoned. The rule's INTENT — nothing becomes
+// record without a human's disposition — is preserved exactly. What moved is where
+// the record boundary was thought to be.
+//
+// Staging is not the record boundary; DISPOSITION is. A staged row is `pending`:
+// nothing consumes it, no equipment exists because of it, and no report can cite
+// it. The thing the old rule protected against — "auditing 200 rows you have
+// already committed to" — happens at approve, and approve still writes only rows a
+// human ruled on. Law 2 is untouched.
+//
+// What forced the change is that the model leg takes 20–105s PER SHEET. Holding a
+// six-sheet workbook in memory until every sheet finished would mean ten minutes
+// of a spinner, one closed tab losing all of it, and a "preview" nobody could see
+// until it was too late to be useful. So sheets stage AS THEY COMPLETE, marked
+// pending, and the preview becomes the REVIEW SURFACE over them — IntakeReview
+// today, 5b's screen next.
+//
+// The honest cost, stated: a partially-read upload now exists as a state. That is
+// why it is first-class here — visible as "4 of 6 sheets read", resumable from
+// staged state by content hash, and discardable as a unit through an explicit act.
+// A half-population nobody can name would have been the real violation.
+//
+// NOTHING HERE TOUCHES `equipment`. Rows land in intake_rows for review and
+// approval. Law 2.
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { authedFetch } from '../../lib/api'
-import { readWorkbook, parseSheet, fileHash, type ParsedSheet, type TypeVocab } from '../../lib/intakeExcel'
+import { readWorkbook, parseSheet, fileHash, type ParsedSheet, type TypeVocab, type Cell, type MergeRange } from '../../lib/intakeExcel'
+import { runIntake, findResumable, discardUpload, type Progress } from '../../lib/intakeOrchestrator'
 import { SchedulePageFinder } from './SchedulePageFinder'
 import { renderPage, detectTableRegions, renderRegion } from '../../lib/schedulePages'
 import { sniffBlobMediaType } from '../../lib/mediaType'
@@ -31,6 +58,11 @@ export function IntakeUpload({ projectId, onStaged }: {
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [matches, setMatches] = useState<Map<string, string>>(new Map())
+  // The grids the orchestrator sends, kept from the preview parse so the file is
+  // read once. `merges` are the extents read-excel-file discards.
+  const [grids, setGrids] = useState<{ name: string; grid: Cell[][]; merges: MergeRange[] }[]>([])
+  const [progress, setProgress] = useState<Progress[]>([])
+  const [resumable, setResumable] = useState<{ id: string; filename: string; staged: string[] } | null>(null)
   // A multi-page PDF goes to the finder first. A single page or an image is
   // already the page someone meant, and asking about it would be ceremony.
   const [findingIn, setFindingIn] = useState<File | null>(null)
@@ -317,6 +349,16 @@ export function IntakeUpload({ projectId, onStaged }: {
       setMatches(byTag)
 
       const workbook = await readWorkbook(f)
+      setGrids(workbook.map(w => ({ name: w.name, grid: w.grid, merges: w.merges })))
+
+      // AN INTERRUPTED RUN IS OFFERED, NOT DUPLICATED. The content hash is the
+      // resume key: the same bytes presented again means somebody is checking
+      // whether the first run finished, and the answer is to show them.
+      const prior = await findResumable(projectId, await fileHash(f))
+      setResumable(prior?.partial
+        ? { id: prior.upload.id, filename: prior.upload.filename, staged: prior.stagedSheets }
+        : null)
+
       const parsed = workbook.map(w => {
         const sheet = parseSheet(w.grid, w.name, vocab, { merges: w.merges })
         const seen = new Set<string>()
@@ -337,97 +379,96 @@ export function IntakeUpload({ projectId, onStaged }: {
     } finally { setBusy(false) }
   }
 
-  async function stage() {
+  /**
+   * THE ORCHESTRATED RUN. One sheet at a time, staged as each completes.
+   *
+   * Every server call carries ONE grid, so no invocation can approach the 300s
+   * function ceiling — see intakeOrchestrator's header for the measurement that
+   * forced this shape.
+   */
+  async function stage(resumeId?: string, skipSheets: string[] = []) {
     if (!file || !sheets) return
-    setBusy(true); setError(null)
+    setBusy(true); setError(null); setProgress([])
     try {
       const hash = await fileHash(file)
+      let uploadId = resumeId ?? null
 
-      // IDEMPOTENCY IS CHECKED HERE, NOT AFTER THE ROWS LAND. Re-uploading the
-      // same bytes to the same project is almost always someone unsure whether
-      // the first one worked — the answer is to show them, not to double it.
-      const { data: prior } = await supabase.from('intake_uploads')
-        .select('id, filename, uploaded_at, status')
-        .eq('project_id', projectId).eq('content_sha256', hash)
-        .order('uploaded_at', { ascending: false }).limit(1)
-      if (prior?.length) {
-        const p = prior[0]
-        setError(`This exact file was already uploaded as "${p.filename}" on ` +
-          `${new Date(p.uploaded_at).toLocaleDateString()} (status: ${p.status}). ` +
-          `Open that upload rather than staging a second copy of the same rows.`)
-        setBusy(false); return
+      if (!uploadId) {
+        // IDEMPOTENCY, unchanged in intent: the same bytes are not run twice. A
+        // PARTIAL run is the one exception, and it is offered as a resume above
+        // rather than refused here.
+        const prior = await findResumable(projectId, hash)
+        if (prior && !prior.partial) {
+          setError(`This exact file was already uploaded as "${prior.upload.filename}" on ` +
+            `${new Date(prior.upload.uploaded_at).toLocaleDateString()} (status: ${prior.upload.status}). ` +
+            `Open that upload rather than staging a second copy of the same rows.`)
+          setBusy(false); return
+        }
+
+        const { data: { user } } = await supabase.auth.getUser()
+        const safe = file.name.replace(/[^A-Za-z0-9._-]+/g, '_')
+        const path = `${projectId}/${Date.now()}_${safe}`
+        const up = await supabase.storage.from('intake-files').upload(path, file)
+        if (up.error) throw new Error(`storage: ${up.error.message}`)
+
+        const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
+          project_id: projectId, filename: file.name, storage_path: path,
+          kind: 'excel', media_type: await sniffBlobMediaType(file),
+          content_sha256: hash, row_count: 0,
+          // `reading` IS A REAL STATE, not a transient. Progressive staging creates
+          // it, so it is named rather than left as a mystery half-population.
+          status: 'reading',
+          parse_note: `reading ${sheets.length} sheet(s)…`,
+          uploaded_by: user?.id ?? null,
+        }).select('id').single()
+        if (uErr) throw new Error(`upload row: ${uErr.message}`)
+        uploadId = upload.id
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
-      // Storage keys reject # and parentheses, and report it as an RLS violation,
-      // which sends you looking in entirely the wrong place. Sanitise up front.
-      const safe = file.name.replace(/[^A-Za-z0-9._-]+/g, '_')
-      const path = `${projectId}/${Date.now()}_${safe}`
+      const result = await runIntake({
+        projectId, uploadId: uploadId!, matches, skipSheets,
+        sheets: sheets.map((p, i) => ({
+          name: p.sheet,
+          grid: grids[i]?.grid ?? [],
+          merges: grids[i]?.merges ?? [],
+          parsed: p,
+        })),
+      }, (p) => setProgress(prev => [...prev.filter(x => x.sheet !== p.sheet), p]))
 
-      const up = await supabase.storage.from('intake-files').upload(path, file)
-      if (up.error) throw new Error(`storage: ${up.error.message}`)
+      // THE FIRST REAL COST OF A USER ACTION, reported rather than absorbed.
+      setNote(`${result.rowsStaged} rows from ${result.sheetsDone}/${result.sheetsTotal} sheet(s) · ` +
+        `${result.costCents.toFixed(1)}c over ${result.calls} model call(s)` +
+        (result.resumed ? ' · resumed' : '') +
+        (result.failures.length ? ` · INCOMPLETE: ${result.failures.map(f => f.sheet).join(', ')}` : ''))
 
-      const total = sheets.reduce((n, s) => n + s.rows.length, 0)
-      const { data: upload, error: uErr } = await supabase.from('intake_uploads').insert({
-        project_id: projectId, filename: file.name, storage_path: path,
-        kind: 'excel', media_type: await sniffBlobMediaType(file),
-        content_sha256: hash, row_count: total,
-        status: total > 0 ? 'parsed' : 'failed',
-        parse_note: sheets.map(s => `[${s.sheet}] ${s.note}`).join(' · '),
-        uploaded_by: user?.id ?? null,
-      }).select('id').single()
-      if (uErr) throw new Error(`upload row: ${uErr.message}`)
-
-      const rows = sheets.flatMap(s => {
-        const seen = new Map<string, number>()
-        return s.rows.map((r, i) => {
-          const key = (r.tag ?? '').toUpperCase()
-          const firstIdx = key ? seen.get(key) : undefined
-          if (key && firstIdx === undefined) seen.set(key, i)
-          return {
-            upload_id: upload.id, project_id: projectId,
-            source_sheet: s.sheet, source_row: r.source_row,
-            tag: r.tag, descriptor: r.descriptor,
-            proposed_category: s.proposed_category,
-            proposed_type: r.proposed_type,
-            observed_type_name: r.observed_type_name,
-            location: r.location, area_served: r.area_served,
-            nameplate: Object.keys(r.nameplate).length ? r.nameplate : null,
-            confidence: r.confidence,
-            match_equipment_id: key ? matches.get(key) ?? null : null,
-            _dupe: key && firstIdx !== undefined,
-          }
-        })
-      })
-
-      // `duplicate_of` needs the inserted ids, so the flag is resolved in a
-      // second pass. Marked, never dropped: a repeated tag inside one workbook is
-      // usually two real units the schedule tagged alike, and deciding that is a
-      // human's job.
-      const payload = rows.map(({ _dupe, ...r }) => r)
-      const { data: inserted, error: rErr } = await supabase.from('intake_rows')
-        .insert(payload).select('id, tag, source_sheet, source_row')
-      if (rErr) throw new Error(`rows: ${rErr.message}`)
-
-      const firstByTag = new Map<string, string>()
-      const dupeUpdates: { id: string; duplicate_of: string }[] = []
-      for (const row of inserted ?? []) {
-        const key = (row.tag ?? '').toUpperCase()
-        if (!key) continue
-        const first = firstByTag.get(key)
-        if (first) dupeUpdates.push({ id: row.id, duplicate_of: first })
-        else firstByTag.set(key, row.id)
+      if (result.failures.length) {
+        setError(`${result.failures.length} sheet(s) did not complete. The upload is kept as ` +
+          `partial — reopen the same file to resume, or discard it.`)
+      } else {
+        onStaged(uploadId!)
       }
-      for (const d of dupeUpdates) {
-        await supabase.from('intake_rows').update({ duplicate_of: d.duplicate_of }).eq('id', d.id)
-      }
-
-      onStaged(upload.id)
-      setFile(null); setSheets(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally { setBusy(false) }
   }
+
+  /** Discard a partial as a UNIT — an explicit act, never a timeout. */
+  async function discardPartial() {
+    if (!resumable) return
+    if (!window.confirm(
+      `Discard the partial run of "${resumable.filename}"?
+
+` +
+      `${resumable.staged.length} sheet(s) were already staged and will be deleted. ` +
+      `Nothing has been approved, so no equipment is affected.`)) return
+    setBusy(true)
+    try {
+      const { rows } = await discardUpload(resumable.id)
+      setResumable(null)
+      setNote(`Partial run discarded — ${rows} staged row(s) removed.`)
+    } finally { setBusy(false) }
+  }
+
 
   const total   = sheets?.reduce((n, s) => n + s.rows.length, 0) ?? 0
   const enrich  = sheets?.reduce((n, s) => n + s.enrich, 0) ?? 0
@@ -490,11 +531,58 @@ export function IntakeUpload({ projectId, onStaged }: {
             {enrich > 0 && <span className="text-teal-800 bg-teal-50 rounded px-1.5 py-0.5">{enrich} match existing equipment</span>}
             {dupes > 0 && <span className="text-amber-800 bg-amber-50 rounded px-1.5 py-0.5">{dupes} repeated tag{dupes === 1 ? '' : 's'}</span>}
             {unknown > 0 && <span className="text-gray-700 bg-gray-100 rounded px-1.5 py-0.5">{unknown} unknown type{unknown === 1 ? '' : 's'}</span>}
-            <button onClick={stage} disabled={busy || total === 0}
+            <button onClick={() => void stage()} disabled={busy || total === 0 || !!resumable}
               className="ml-auto text-[11px] bg-teal-700 text-white rounded px-3 py-1 hover:bg-teal-800 disabled:opacity-40">
-              Stage {total} rows for review
+              Read {sheets.length} sheet{sheets.length === 1 ? '' : 's'} · {total} rows
             </button>
           </div>
+
+          {/* AN INTERRUPTED RUN IS A STATE, AND IT SAYS WHAT IT IS.
+              Progressive staging created this; a half-populated upload nobody can
+              name would be the real violation of the rule this file used to carry. */}
+          {resumable && (
+            <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2" data-testid="resume-partial">
+              <p className="text-[11px] text-amber-900 font-semibold">
+                This file was already being read — {resumable.staged.length} of {sheets.length} sheet
+                {sheets.length === 1 ? '' : 's'} staged.
+              </p>
+              <p className="text-[10px] text-amber-800 mt-0.5">
+                Nothing was approved, so no equipment is affected. Resume reads only what is missing.
+              </p>
+              <div className="flex gap-2 mt-1.5">
+                <button onClick={() => void stage(resumable.id, resumable.staged)} disabled={busy}
+                  className="text-[11px] bg-amber-700 text-white rounded px-2.5 py-1 hover:bg-amber-800 disabled:opacity-40">
+                  Resume — read the remaining {sheets.length - resumable.staged.length}
+                </button>
+                <button onClick={() => void discardPartial()} disabled={busy}
+                  className="text-[11px] text-amber-900 underline hover:text-amber-950 disabled:opacity-40">
+                  Discard the partial run
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* WHAT IT IS DOING, WHILE IT DOES IT. A ten-minute read that shows a
+              spinner is indistinguishable from a hang, and rows appearing as they
+              stage is the honest signal that work is landing. */}
+          {progress.length > 0 && (
+            <div className="mb-3 rounded border border-gray-200 bg-gray-50 px-3 py-2" data-testid="run-progress">
+              {progress.map(p => (
+                <div key={p.sheet} className="flex items-baseline gap-2 text-[11px] py-0.5">
+                  <span className="font-mono text-gray-700">{p.sheet}</span>
+                  <span className={p.phase === 'done' ? 'text-teal-800'
+                    : p.phase === 'failed' ? 'text-red-700' : 'text-gray-500'}>
+                    {p.phase}{p.band ? ` (band ${p.band.n}/${p.band.of})` : ''}
+                  </span>
+                  {p.note && <span className="text-gray-500">{p.note}</span>}
+                </div>
+              ))}
+              <p className="text-[10px] text-gray-500 mt-1">
+                Rows are staged as each sheet finishes and are marked <strong>pending review</strong> —
+                nothing is approved until you rule on it.
+              </p>
+            </div>
+          )}
 
           {/* THE MAPPING IS THE THING TO CHECK, AND IT IS CHECKED ONCE PER SHEET
               RATHER THAN ONCE PER ROW. If the columns are right, 200 rows are
