@@ -1067,7 +1067,16 @@ export function EquipmentPage({ projectId }: Props) {
                   <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                     {orphans.map(([k, v]) => (
                       <div key={k}>
-                        <label className="block text-[9px] text-gray-400 uppercase tracking-wide font-semibold">
+                        {/* NO `uppercase` HERE, and it is not an oversight.
+                            Every other label on this page is a FIELD NAME the firm
+                            chose, so styling it is free. These are the engineer's
+                            own words, and the whole promise of this strip is that
+                            they are shown as written. A sighted leg caught it:
+                            `VFD INPUT [V/Ph/Hz]` rendered as `V/PH/HZ`, and
+                            V/Ph/Hz is notation — Volts, Phase, Hertz — not a word
+                            with a casing preference. Text-transform is a lossy
+                            edit when the text is evidence. */}
+                        <label className="block text-[9px] text-gray-400 tracking-wide font-semibold">
                           {k}
                         </label>
                         <p className="text-xs text-gray-500 font-medium">{v}</p>

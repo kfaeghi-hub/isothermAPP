@@ -112,6 +112,7 @@ const SUITES = [
   // when the files are absent — it never reports a pass on a corpus that is not
   // there. See the calibration FIXTURES.md rule.
   'avondale-schedule-gate',
+  'pw-schedule-coverage',
   // Not a pw- suite, and here on purpose. It regenerates one document per family
   // and asserts no table rule is painted inside the reserved footer band. The
   // footer-bleed bug shipped because every gate looked at document CONTENT and

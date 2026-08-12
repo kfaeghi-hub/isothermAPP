@@ -66,8 +66,15 @@ try {
   await page.waitForTimeout(2000)
 
   // ── 1 · the mapped values are ON SCREEN, not merely in the row ─────────────
+  //
+  // The Spec section is COLLAPSED by default, which the first run of this leg
+  // discovered by failing: 1760 was in the DOM and not on the screen. That is the
+  // distinction this suite is named for, so the leg opens the section the way a
+  // person would rather than asserting against innerHTML.
+  await page.getByText('Spec (Design)', { exact: false }).first().click().catch(() => {})
+  await page.waitForTimeout(1200)
   const body = await page.locator('body').innerText()
-  check(/\b1760\b/.test(body), 'the mapped Speed value 1760 is visible on the unit')
+  check(/\b1760\b/.test(body), 'the mapped Speed value 1760 is visible once Spec is open')
   check(/Speed/i.test(body), 'and its declared field name renders')
 
   // ── 2 · the unmapped strip exists, is findable, and names its readings ─────
