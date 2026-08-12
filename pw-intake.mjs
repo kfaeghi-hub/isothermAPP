@@ -4,11 +4,37 @@
 //
 // ZZ-TEST only, self-cleaning in `finally`, scoped by id.
 //
-// THE NAMED GATE IS "NO MODEL INVOLVED", AND THAT IS ASSERTED RATHER THAN
-// ASSUMED: ai_generations is counted before and after, and the run fails if a
-// single call was logged. Every agent in this system writes that row, so a
-// parser that quietly reached for one cannot hide. Saying "the parser doesn't
-// call the model" in a comment proves nothing; counting does.
+// ── THE NAMED GATE WAS "NO MODEL INVOLVED". IT IS NOT ANY MORE. ──────────────
+//
+// This header used to read:
+//
+//   > THE NAMED GATE IS "NO MODEL INVOLVED", AND THAT IS ASSERTED RATHER THAN
+//   > ASSUMED: ai_generations is counted before and after, and the run fails if a
+//   > single call was logged. Every agent in this system writes that row, so a
+//   > parser that quietly reached for one cannot hide. Saying "the parser doesn't
+//   > call the model" in a comment proves nothing; counting does.
+//
+// REVERSED 2026-08-12 by the extraction arc. The Excel path is now MODEL-FIRST:
+// the model reads each sheet and the deterministic parser is the oracle it must
+// agree with. The measurement that forced it — 69% typed across 33 real schedules,
+// twelve files at 0% — is in docs/EXTRACTION-UPGRADE-PROPOSAL.md. A gate asserting
+// "no model was called" would now fail on correct behaviour.
+//
+// The counting discipline SURVIVES, pointed the other way: the free run still
+// asserts that the PREVIEW spends nothing, because a preview that quietly reached
+// for a model would be a real defect and the same count catches it.
+//
+// ── AND THE PAID HALF LEFT THE BATTERY ───────────────────────────────────────
+//
+// Staging now costs ~6 model calls for this fixture. A battery that bills on every
+// commit gets run less often, which is the same reasoning that keeps
+// pw-extractor's real leg behind a flag. So:
+//
+//   bare        the preview, and that it writes nothing and spends nothing
+//   --real-ai   staging, enrich, duplicates and approve, end to end
+//
+// The end-to-end coverage that moved out of the battery lives in
+// `pw-intake-orchestrator.mjs`, which is the sighted gate for the whole path.
 //
 // The rest drives the REAL UI with the REAL file — setInputFiles on the real
 // input, the app's own parse, the app's own inserts — because the seam between
@@ -17,6 +43,9 @@ import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
 import { loginAs, adminCredentials, BASE_URL, TEST_PROJECT } from './pw-config.mjs'
 
+const REAL = process.argv.includes('--real-ai')
+/** Not a failure — a deliberate stop at the free/paid boundary. */
+class SKIP extends Error { constructor() { super('skip-paid-half') } }
 const fails = []
 let passed = 0
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (ok) passed++; else fails.push(msg) }
@@ -83,8 +112,18 @@ try {
     .select('id', { count: 'exact', head: true }).eq('project_id', zz.id)
   check(stagedEarly === 0, 'NOTHING IS WRITTEN BY THE PREVIEW — 0 rows staged so far')
 
+  // ── THE PAID HALF ─────────────────────────────────────────────────────────
+  // Staging is ~6 model calls for this fixture. The battery runs the free half;
+  // this runs deliberately. See the header.
+  if (!REAL) {
+    console.log('')
+    console.log('  (skipping staging, enrich, duplicates and approve — pass --real-ai)')
+    console.log('  The end-to-end path is gated by pw-intake-orchestrator.mjs.')
+    throw new SKIP()
+  }
+
   // ── stage ─────────────────────────────────────────────────────────────────
-  await page.getByRole('button', { name: /Stage \d+ rows/ }).click()
+  await page.getByRole('button', { name: /Read \d+ sheets?/ }).click()
   await page.waitForTimeout(3000)
 
   const { data: uploads } = await adm.from('intake_uploads')
@@ -257,7 +296,7 @@ try {
   // toggle, and treating it as "open" is how this step failed the first time.
   await page.locator('input[type="file"]').first().setInputFiles('fixtures/intake-sample.xlsx')
   await page.waitForTimeout(2500)
-  await page.getByRole('button', { name: /Stage \d+ rows/ }).click()
+  await page.getByRole('button', { name: /Read \d+ sheets?/ }).click()
   await page.waitForTimeout(2000)
 
   const body2 = await page.locator('body').innerText()
@@ -375,7 +414,7 @@ try {
   await page.waitForTimeout(2500)
   const body3 = await page.locator('body').innerText()
   check(/1 repeated tag/.test(body3), 'preview counts the repeated tag')
-  await page.getByRole('button', { name: /Stage \d+ rows/ }).click()
+  await page.getByRole('button', { name: /Read \d+ sheets?/ }).click()
   await page.waitForTimeout(3000)
 
   const { data: ups2 } = await adm.from('intake_uploads')
@@ -389,7 +428,8 @@ try {
     'the SECOND ZZEF-10 is flagged as a duplicate and the first is not')
 
 } catch (e) {
-  check(false, `run: ${e.message}`)
+  // A deliberate stop at the free/paid boundary is not a failure.
+  if (!(e instanceof SKIP)) check(false, `run: ${e.message}`)
   try { await (await browser.newPage()).screenshot({ path: 'out/pw-intake-fail.png' }) } catch { /* best effort */ }
 } finally {
   // Cleanup in `finally`, always — a failed assertion must not leave fixture
