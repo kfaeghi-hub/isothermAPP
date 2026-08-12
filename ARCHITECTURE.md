@@ -2834,6 +2834,60 @@ source descriptor "Receptacle Panel". Correcting by the source's own descriptor
 applied the ruling consistently — correcting by the named tag list would have
 left 23 identical rows untyped beside 3 typed.
 
+### What a unit SERVES is not what it IS — a served-by value never types a unit
+
+*2026-08-11, Avondale (Adam's schedules). The tag law, one step further out.*
+
+`service` sat in the `descriptor` synonym list, so on a schedule whose only prose
+column was SERVICE the **duty** became the description the type matcher read:
+
+| Tag | SERVICE | Typed |
+|---|---|---|
+| BP-1, BP-2 | `BOILER B-1 PRIMARY LOOP` | **`boiler`** |
+| P-1, P-2 | `SCHOOL FACILITY SECONDARY LOOP` | nothing |
+
+Four pumps, none correctly typed, two of them sitting in a live register as
+boilers. The failure is nastier than a tag prefix, because a duty string usually
+names **the very equipment the unit is attached to** — the wrong answer with the
+strongest possible supporting evidence.
+
+> **`service` is `area_served`. Typing reads the row's description, then the
+> schedule title, and nothing else.** What a thing serves names something else in
+> the building.
+
+Three consequences, each ruled rather than assumed:
+
+- **A title is corroborating evidence, never the load-bearing wall.** The
+  rejected alternative was to keep `service` as the descriptor and prefer the
+  title's type whenever the row's description disagreed. That makes correctness
+  depend on a banner parsing — and would still have typed BP-1 as a boiler on any
+  schedule whose banner did not.
+- **Surviving and being identified are different questions.** Moving `service`
+  meant a schedule with no tag column and no description produced **no rows at
+  all** — a silent regression from a wrong answer to a missing one, which is the
+  worse of the two. The row-survival test is now `!tag && !descriptor &&
+  !area_served`. A row that names what it serves is still a row; it still may not
+  be typed by that value.
+- **A type inferred from the document's frame scores below one read from the
+  row.** Title-typed rows carry −0.15, accepted as honest.
+
+The companion fix: `findTitle`'s fallback demanded **exactly one** non-empty cell
+above the header, and Avondale's banner row carried `PUMPS` **and** a second-tier
+`ELECTRICAL` group header spanning the motor columns. Two cells, so the strongest
+category evidence in the file was discarded — and the rows typed from SERVICE
+instead. The guard was defending a real thing (calling a data row a title) but
+measured the wrong property: **a data row is not distinguished by having more
+than one value, it is distinguished by being FULL.** The test is now sparseness,
+plus the two things a banner always does — start at column A, hold short
+non-numeric text.
+
+**Measured blast radius before shipping**, because the mapping change touches
+every future import: all four Excel uploads the system has ever taken, 61 rows,
+**every one carrying a tag** — so the row-dropping shape had never occurred in
+production, and Central Tech's 54-row CUH import (no SERVICE column, typed from
+its title already) parses identically. The only production rows the change
+touches are Adam's seven, which is what it was written to fix.
+
 ### The schedule-page finder — three costs, cheapest first (1.02)
 
 Dropping a whole drawing set is now allowed, and the pre-pass is arranged so the

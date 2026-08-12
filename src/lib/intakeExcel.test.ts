@@ -128,10 +128,24 @@ describe('merged two-deep headers', () => {
   ]
   const out = parseSheet(grid, 'VAV', VOCAB)
 
+  // THIS ASSERTION CHANGED ON 2026-08-11, AND THE REASON MATTERS.
+  //
+  // It used to read `mapping.descriptor === 'SERVICE'`, because `service` sat in
+  // the descriptor synonym list. In this fixture SERVICE happens to hold "VAV
+  // BOX" — an identity — so that looked right. On a real pump schedule it holds
+  // "BOILER B-1 PRIMARY LOOP", and the same rule typed two pumps as boilers on a
+  // live project.
+  //
+  // The law now is: WHAT A UNIT SERVES IS NOT WHAT IT IS. SERVICE is
+  // `area_served`, and area_served never types anything. The unit is still typed
+  // `vav` — from the schedule's TITLE rather than the column — which the next
+  // test asserts and which is the point: the old assertion was encoding a
+  // behaviour, not a requirement.
   it('picks the row that names the columns, not the sub-header', () => {
     expect(out.header_row).toBe(2)
     expect(out.mapping.tag).toBe('UNIT TAG')
-    expect(out.mapping.descriptor).toBe('SERVICE')
+    expect(out.mapping.area_served).toBe('SERVICE')
+    expect(out.mapping.descriptor).toBeUndefined()
   })
 
   it('still reads the unit', () => {
@@ -328,5 +342,104 @@ describe('equal-specificity matches are a REFUSAL, not a tie to break', () => {
     expect(resolveType('FIRE PUMP', vocab)).toBe('fire_pump')
     expect(resolveType('RADIANT CEILING PANEL', vocab)).toBe('radiant_panel')
     expect(resolveType('RECEPTACLE PANEL', vocab)).toBe('panel')
+  })
+})
+
+/**
+ * WHAT A UNIT SERVES IS NOT WHAT IT IS — from Avondale, 2026-08-11.
+ *
+ * A pump schedule whose only prose column was SERVICE typed BP-1 as a `boiler`,
+ * because SERVICE said "BOILER B-1 PRIMARY LOOP". Two pumps sat in a live
+ * register as boilers. The duty names the equipment it is ATTACHED TO, which is
+ * the wrong answer wearing the face of a very right one.
+ */
+describe('a served-by value never types a unit', () => {
+  const VOCAB2: TypeVocab[] = [
+    { key: 'pump', name: 'Pump' },
+    { key: 'boiler', name: 'Boiler' },
+    { key: 'air_separator', name: 'Air Separator' },
+  ]
+
+  it('SERVICE maps to area_served, not descriptor', () => {
+    const out = parseSheet([
+      ['PUMPS', null, null, null],
+      ['TAG', 'SERVICE', 'LOCATION', 'FLOW [GPM]'],
+      ['BP-1', 'BOILER B-1 PRIMARY LOOP', 'BOILER ROOM', 79],
+    ], 'P', VOCAB2)
+    expect(out.mapping.area_served).toBe('SERVICE')
+    expect(out.mapping.descriptor).toBeUndefined()
+    expect(out.rows[0].area_served).toBe('BOILER B-1 PRIMARY LOOP')
+  })
+
+  it('the duty does NOT become the type — the pump is a pump, not a boiler', () => {
+    const out = parseSheet([
+      ['PUMPS', null, null],
+      ['TAG', 'SERVICE', 'LOCATION'],
+      ['BP-1', 'BOILER B-1 PRIMARY LOOP', 'BOILER ROOM'],
+    ], 'P', VOCAB2)
+    expect(out.rows[0].proposed_type).toBe('pump')      // from the title
+    expect(out.rows[0].proposed_type).not.toBe('boiler')
+  })
+
+  it('with no title to fall back on it refuses rather than reading the duty', () => {
+    const out = parseSheet([
+      ['TAG', 'SERVICE', 'LOCATION'],
+      ['BP-1', 'BOILER B-1 PRIMARY LOOP', 'BOILER ROOM'],
+    ], 'P', VOCAB2)
+    // Quarantine, not a confident wrong answer (R16).
+    expect(out.rows[0].proposed_type).toBeNull()
+  })
+
+  it('a real DESCRIPTION still outranks the title, and the duty stays a duty', () => {
+    const out = parseSheet([
+      ['PUMP SCHEDULE', null, null, null],
+      ['TAG', 'DESCRIPTION', 'SERVICE', 'LOCATION'],
+      ['P-1', 'END SUCTION PUMP', 'BOILER B-1 PRIMARY LOOP', 'BOILER ROOM'],
+    ], 'P', VOCAB2)
+    expect(out.mapping.descriptor).toBe('DESCRIPTION')
+    expect(out.mapping.area_served).toBe('SERVICE')
+    expect(out.rows[0].proposed_type).toBe('pump')
+    expect(out.rows[0].confidence).toBeGreaterThan(0.9)
+  })
+
+  // The regression class the row-survival change exists to kill: before it, a
+  // schedule with no tag column whose only prose was SERVICE produced NO ROWS.
+  it('a row that names only what it serves is still a row', () => {
+    const out = parseSheet([
+      ['EQUIPMENT LIST', null],
+      ['SERVICE', 'LOCATION'],
+      ['HEATING SYSTEM', 'BOILER ROOM'],
+    ], 'E', VOCAB2)
+    expect(out.rows).toHaveLength(1)
+    expect(out.rows[0].area_served).toBe('HEATING SYSTEM')
+    expect(out.rows[0].proposed_type).toBeNull()   // survived, still not typed by it
+  })
+})
+
+/**
+ * The title fallback used to demand EXACTLY ONE non-empty cell, and threw away
+ * "PUMPS" because row 1 also carried an ELECTRICAL group header spanning the
+ * motor columns. With the title gone the rows typed from SERVICE instead.
+ */
+describe('a banner row survives a second-tier group header', () => {
+  const VOCAB3: TypeVocab[] = [{ key: 'pump', name: 'Pump' }]
+
+  it('reads the title past a group header on the same row', () => {
+    const out = parseSheet([
+      ['PUMPS', null, null, null, null, 'ELECTRICAL', null],
+      ['TAG', 'MODEL', 'FLOW', 'HEAD', 'LOCATION', 'V/Ph/Hz', 'HP'],
+      ['P-1', 'KV3006D', 130, 25, 'BOILER ROOM', '208/3/60', 1.5],
+    ], 'P', VOCAB3)
+    expect(out.title).toBe('PUMPS')
+    expect(out.rows[0].proposed_type).toBe('pump')
+  })
+
+  it('still refuses a FULL row above the header — sparseness is the test', () => {
+    const out = parseSheet([
+      ['P-0', 'KV1', 100, 20, 'ROOM A', '208/3/60', 1.0],   // a data row, not a banner
+      ['TAG', 'MODEL', 'FLOW', 'HEAD', 'LOCATION', 'V/Ph/Hz', 'HP'],
+      ['P-1', 'KV3006D', 130, 25, 'BOILER ROOM', '208/3/60', 1.5],
+    ], 'P', VOCAB3)
+    expect(out.title).toBeNull()
   })
 })

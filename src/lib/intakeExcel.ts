@@ -67,13 +67,43 @@ const FIELDS: Record<string, string[]> = {
   tag: ['tag', 'mark', 'unit tag', 'equipment tag', 'unit no', 'unit number',
         'equipment no', 'designation', 'unit id', 'item no', 'unit', 'item', 'id'],
   descriptor: ['description', 'equipment description', 'item description',
-               'service', 'equipment', 'equipment name', 'type', 'equipment type',
+               'equipment', 'equipment name', 'type', 'equipment type',
                'name', 'system'],
   location: ['location', 'room', 'room no', 'mechanical room', 'level', 'floor',
              'located in', 'installed location'],
-  area_served: ['area served', 'serves', 'space served', 'room served', 'zone',
-                'area', 'served'],
+  // SERVICE LIVES HERE, NOT IN `descriptor`. See the law below — it was moved on
+  // 2026-08-11 after a pump schedule typed two pumps as boilers.
+  area_served: ['area served', 'serves', 'service', 'space served', 'room served',
+                'zone', 'area', 'served'],
 }
+
+/*
+ * WHAT A UNIT SERVES IS NOT WHAT IT IS.
+ *
+ * FROM A REAL PROJECT, 2026-08-11 (Avondale). A pump schedule's only prose column
+ * was SERVICE, `service` sat in the `descriptor` list, and so the DUTY became the
+ * description the type matcher read:
+ *
+ *   BP-1  SERVICE "BOILER B-1 PRIMARY LOOP"        → typed `boiler`
+ *   P-1   SERVICE "SCHOOL FACILITY SECONDARY LOOP" → typed nothing
+ *
+ * Four pumps, none correctly typed, two of them sitting in a live register as
+ * boilers. A pump on the boiler's primary loop is not a boiler.
+ *
+ * This is the RP radiant-panel/receptacle-panel law one step further out. There
+ * the tag was not allowed to say what a thing is; here the DUTY is not allowed to
+ * either. What a unit serves names something ELSE in the building — usually the
+ * very equipment it is attached to, which is exactly the wrong answer and reads
+ * like a very right one.
+ *
+ * So `service` is `area_served`, and typing reads `descriptor` then the schedule
+ * TITLE and nothing else. `area_served` never reaches `resolveType` — see
+ * parseSheet, where `observed` is deliberately `descriptor || title`.
+ *
+ * The cost is honest: a schedule whose only prose column is SERVICE now types
+ * from its title, or not at all. Untyped is quarantine, which this build prefers
+ * to a confident wrong answer (R16).
+ */
 
 // A tag looks like PREFIX-NUMBER. This is used ONLY to score whether a column is
 // the tag column — never to decide what a thing IS. Law 8: on one project `RP`
@@ -184,12 +214,39 @@ function findTitle(grid: Cell[][], headerRow: number): string | null {
     const candidate = cells[0]
     if (/schedule|list|register/i.test(candidate)) return candidate
   }
-  // No word "schedule" anywhere — fall back to the first non-empty line above the
-  // header, but only if it is a single cell. Two or more cells is a data-ish row
-  // and calling it a title would be a guess.
+  // No word "schedule" anywhere — fall back to the banner line above the header.
+  //
+  // THIS USED TO REQUIRE EXACTLY ONE NON-EMPTY CELL, and that guard threw away the
+  // strongest category evidence a file had. Avondale's pump schedule opens:
+  //
+  //   row 1 │ PUMPS │ · │ · │ · │ · │ · │ · │ · │ · │ · │ ELECTRICAL │ · │ · │ · │
+  //   row 2 │ TAG   │ MANUFACTURER │ … │ RPM │ MOTOR INPUT │ MOTOR SIZE │ VFD │ …
+  //
+  // Two non-empty cells, so "PUMPS" was refused — and with the title gone, the
+  // rows typed from their SERVICE column instead and two pumps became boilers.
+  // The second cell was never a rival title; it is a SECOND-TIER GROUP HEADER
+  // spanning the electrical columns beneath it.
+  //
+  // The guard was defending against a real thing — calling a DATA row a title —
+  // but it measured the wrong property. A data row is not distinguished by having
+  // more than one value; it is distinguished by being FULL. So the test is now
+  // sparseness, plus the two things a banner always does:
+  //
+  //   · it starts at the left edge (a title is cell A, not something mid-row);
+  //   · it holds short text, never numbers.
+  //
+  // A row above the header that is nearly empty and starts with a short word is a
+  // banner. A row above the header carrying a value in most of its columns is
+  // data that the header search already declined, and it is still refused here.
+  const width = Math.max(...(grid.slice(0, headerRow + 1).map(r => r?.length ?? 0)), 0)
   for (let r = headerRow - 1; r >= 0; r--) {
-    const cells = (grid[r] ?? []).map(txt).filter(Boolean)
-    if (cells.length === 1 && cells[0].length <= 80) return cells[0]
+    const row = (grid[r] ?? []).map(txt)
+    const filled = row.filter(Boolean)
+    if (filled.length === 0) continue
+    if (row[0] !== filled[0]) continue                       // must start at column A
+    if (filled.some(c => c.length > 80 || /^\d+([.,]\d+)?$/.test(c))) continue
+    const sparse = filled.length <= Math.max(1, Math.floor(width * 0.35))
+    if (sparse) return filled[0]
   }
   return null
 }
@@ -367,9 +424,19 @@ export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]
     const tag = colFor.tag !== undefined ? cells[colFor.tag] || null : null
     const descriptor = colFor.descriptor !== undefined ? cells[colFor.descriptor] || null : null
 
-    // A row with neither a tag nor a description is a note, a legend, or a
-    // spacer. Counting it as equipment is how a 200-row schedule becomes 214.
-    if (!tag && !descriptor) { skipped++; continue }
+    // A row with neither a tag, a description, NOR AN AREA SERVED is a note, a
+    // legend, or a spacer. Counting it as equipment is how a 200-row schedule
+    // becomes 214.
+    //
+    // `area_served` joined this test when `service` moved into it (see the
+    // served-vs-is law above). Without it, a schedule with no tag column whose
+    // only prose is SERVICE would have gone from "rows, badly typed" to NO ROWS
+    // AT ALL — a silent regression from a wrong answer to a missing one, which is
+    // the worse of the two. A row that names what it serves is still a row. It
+    // still may not be TYPED by that value; surviving and being identified are
+    // different questions.
+    const areaServed = colFor.area_served !== undefined ? cells[colFor.area_served] || null : null
+    if (!tag && !descriptor && !areaServed) { skipped++; continue }
 
     // PROSE IN THE TAG COLUMN IS STILL PROSE. "NOTES: PROVIDE DUPLEX CONTROLLER"
     // sits in column A under the tag header and has no description beside it.
@@ -409,7 +476,7 @@ export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]
       source_row: r + 1,                                  // 1-based, as Excel shows it
       tag, descriptor,
       location: colFor.location !== undefined ? cells[colFor.location] || null : null,
-      area_served: colFor.area_served !== undefined ? cells[colFor.area_served] || null : null,
+      area_served: areaServed,
       proposed_type,
       observed_type_name: proposed_type ? null : observed,
       nameplate,
