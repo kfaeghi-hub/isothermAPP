@@ -44,6 +44,15 @@
 //   pw-drafter.mjs   same split, same reason: bare proves the contract, the
 //                           refusals, and that a draft writes nothing; `--real-ai`
 //                           spends ~3c on one real draft.
+//   verify-gate.mjs  Phase 4's gate. It is EXCLUDED for the same reason, not for
+//                           a different one: it makes two real calls (~2c) because
+//                           a verifier proven only against a mock is a verifier
+//                           proven against my own idea of a model. Run it
+//                           deliberately when the verification path changes.
+//   extraction-bench.mjs     reports rather than gates, and its --with-ai leg is
+//                           ~$4 a run. The free deterministic leg is a report, not
+//                           a pass/fail, so it has nothing to contribute to an
+//                           all-green run.
 //   pw-applicability-review-render.mjs   asserts, self-checks, and runs bare —
 //                           but reads a CLIENT project (Seneca), because ZZ-TEST
 //                           holds no classifier proposals and rendering there

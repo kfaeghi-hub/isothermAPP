@@ -292,7 +292,55 @@ export const PageSortOutput: Validator<PageSortOutput> = (v): v is PageSortOutpu
     typeof p.is_schedule === 'boolean' && isConf(p.confidence))
 
 // ── the lookup the runtime resolves contract names through ─────────────────
+// ── row-verifier ────────────────────────────────────────────────────────────
+// Rows are not prose, so this is a new pair rather than a widened VerifierInput.
+// A contract that fits two jobs constrains neither.
+
+/** Enumerated. A free-text verdict cannot be counted, thresholded, or trusted. */
+export type ClaimVerdict = 'supported' | 'contradicted' | 'not_found'
+export const CLAIM_VERDICTS: ClaimVerdict[] = ['supported', 'contradicted', 'not_found']
+
+export interface RowVerifierInput {
+  /** The sheet as its addressed grid — the same rendering the extractor saw. */
+  grid: string
+  sheet: string
+  /** The claims to check. Deliberately NOT the extractor's reasoning: a checker
+   *  shown why a claim was made agrees with the reasoning instead of looking. */
+  claims: { tag: string; field: string; value: string }[]
+}
+
+export interface RowVerifierOutput {
+  checks: {
+    tag: string; field: string
+    verdict: ClaimVerdict
+    /** `D7`. A verdict with no cell is an opinion — required for supported and
+     *  contradicted, absent for not_found by definition. */
+    cell?: string | null
+    /** What the sheet actually says there, when it disagrees. */
+    found?: string | null
+  }[]
+  /** How many units the sheet ACTUALLY lists. A read that returned nine rows of
+   *  twelve is wrong in a way no per-claim check can see. */
+  totals: { units_on_sheet: number; note?: string }
+  /** On the sheet and absent from the claims. The only question that finds a
+   *  shortfall — asked separately, because a checker given a list checks the list. */
+  missed: { tag?: string | null; where?: string | null; why: string }[]
+}
+
+export const RowVerifierInput: Validator<RowVerifierInput> = (v): v is RowVerifierInput =>
+  isObj(v) && isStr(v.grid) && (v.grid as string).trim().length > 0 &&
+  isStr(v.sheet) && isArr(v.claims) &&
+  (v.claims as unknown[]).every((c: any) => isObj(c) && isStr(c.tag) && isStr(c.field))
+
+export const RowVerifierOutput: Validator<RowVerifierOutput> = (v): v is RowVerifierOutput =>
+  isObj(v) && isArr(v.checks) && isObj(v.totals) &&
+  isNum((v.totals as any).units_on_sheet) && isArr(v.missed) &&
+  (v.checks as unknown[]).every((c: any) =>
+    isObj(c) && isStr(c.tag) && isStr(c.field) &&
+    CLAIM_VERDICTS.includes(c.verdict))
+
 export const SCHEMAS: Record<string, Validator<any>> = {
+  RowVerifierInput, RowVerifierOutput,
   WriterInput, WriterOutput,
   VerifierInput, VerifierOutput,
   ClassifierInput, ClassifierOutput,

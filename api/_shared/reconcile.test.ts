@@ -90,3 +90,28 @@ describe('spec values union, and one-sidedness is recorded', () => {
     expect(m.disagreements.filter(d => d.kind === 'spec-one-sided').length).toBe(2)
   })
 })
+
+describe('a repeated tag is two rows, not one', () => {
+  it('does not let the second occurrence overwrite the first', () => {
+    const m = reconcileSheet(
+      [
+        { tag: 'C-1', descriptor: 'cooling coil', location: null, area_served: null,
+          proposed_type: 'coil', nameplate: {}, confidence: 0.9 },
+        { tag: 'C-1', descriptor: 'heating coil', location: null, area_served: null,
+          proposed_type: 'coil', nameplate: {}, confidence: 0.9 },
+      ],
+      null,
+    )
+    // Real schedules list the same tag twice — a cooling and a heating coil on one
+    // unit. Keying on the bare tag lost 7 rows across the Seneca corpus.
+    expect(m.rows).toHaveLength(2)
+    expect(m.rows.map(r => r.descriptor)).toEqual(['cooling coil', 'heating coil'])
+  })
+
+  it('matches the nth occurrence on one leg to the nth on the other', () => {
+    const r = (d: string) => ({ tag: 'C-1', descriptor: d, location: null, area_served: null, proposed_type: null, nameplate: {}, confidence: 0.9 })
+    const m = reconcileSheet([r('cooling'), r('heating')], [r('cooling'), r('heating')])
+    expect(m.rows).toHaveLength(2)
+    expect(m.rows.every(x => x.seenBy === 'both')).toBe(true)
+  })
+})
