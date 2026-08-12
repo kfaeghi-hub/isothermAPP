@@ -173,6 +173,10 @@ if (PROMOTED.length) {
   console.log('!'.repeat(70))
 }
 
+// `--settle=3000` for diagnosis only. Never a default, never a fix.
+const SETTLE = Number((process.argv.find(a => a.startsWith('--settle=')) ?? '').slice(9)) || 0
+if (SETTLE) console.log(`(diagnostic: ${SETTLE}ms settle between suites — NOT the default path)`)
+
 const SESSION = sessionId()
 const t0 = Date.now()
 const results = []
@@ -224,11 +228,11 @@ for (const s of SUITES) {
   // ALONE, and the set now includes pw-pfc-verify — a naming assertion with no
   // document generation in it at all. Weather does not select for neighbours.
   //
-  // This is a PROBE, not the fix. If it turns the battery green, the real repair
-  // is per-suite: every write awaited, every self-clean asserted before exit. A
-  // pause that hides an unawaited write is the battery learning to shrug, which is
-  // the thing the transient guard was built to refuse.
-  await new Promise(r2 => setTimeout(r2, 3000))
+  // RULED 2026-08-12: THIS DOES NOT SHIP ON THE DEFAULT PATH. A sleep that makes
+  // the battery pass is the battery learning to shrug. It stays behind a flag
+  // because it is a useful DIAGNOSTIC — it was the probe that separated
+  // pw-pfc-verify (recovered) from pw-meetings (did not) — and for no other reason.
+  if (SETTLE) await new Promise(r2 => setTimeout(r2, SETTLE))
 }
 
 const failed = results.filter(r => !r.pass)
