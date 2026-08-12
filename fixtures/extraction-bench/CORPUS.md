@@ -149,6 +149,42 @@ typed nearly everything the rules could not; on five sheets it read nothing.*
 out of budget on a 64-row sheet, which are two different problems: one is shape,
 one is size. Neither is fixed by trying again.
 
+## Phase 4b — the read-leg repair, 2026-08-12
+
+**Zero zero-read files. 37/37 usable, up from 32/37.**
+
+| leg | typed / 298 | | |
+|---|---|---|---|
+| rules | 209 | 70% | `[MEASUREMENT — deterministic]` |
+| model | **267** | **90%** | `[SAMPLE — one run]` |
+| merged | **269** | **90%** | `[SAMPLE — contains the model leg]` |
+
+**Cost 533.5c — 14.4c per sheet READ and 14.4c per USABLE sheet.** The two numbers
+**converged**, which is what they were built to show: nothing is being paid for
+twice any more. Chunking: 6 sheets in 33 bands (x5.5), 64 calls over 37 sheets,
+**no tag appeared in two bands**.
+
+### Model-leg variance, four runs
+
+| run | typed / 298 | note |
+|---|---|---|
+| 1 | 203 | 68% |
+| 2 | 185 | 62% — failing set changed |
+| 3 | 155 | 52% — both FanCoils truncated |
+| *(void)* | *53* | *not a measurement: 14 files hit an unretried rate limit* |
+| **4** | **267** | **90% — after the fragment rule, chunking and transport retry** |
+
+The rules leg returned **209 to the row on all four**. The variance was dominated
+by read FAILURES, not read quality — which is what Phase 4b was authorised to
+prove, and it proved it.
+
+### One caveat on the denominator
+
+Merged returned **300 rows against a 298 denominator**: the model found two units
+the rules leg never saw. **298 is the RULES leg's count**, made permanent as the
+divisor — it is not the sheet's ground truth, and where the model finds more, the
+merge exceeds it. Worth knowing before 298 is read as "every unit in the corpus".
+
 ## Standing rules
 
 - **Skip loudly.** A corpus directory that is absent prints by name and says it is
