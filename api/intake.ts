@@ -539,9 +539,32 @@ export default async function handler(req: any, res: any) {
 
       const { count } = await service.from('intake_rows')
         .select('id', { count: 'exact', head: true }).eq('upload_id', uploadId)
+
+      // NAMES, NEVER COUNTS — AND MEASURED, NOT SELF-REPORTED.
+      //
+      // The Excel path now says which columns mapped and which were captured, so
+      // the PDF path must too, or the same page read two ways tells the user two
+      // different stories about how much of it survived.
+      //
+      // But it is computed from THE ROWS THAT WERE ACTUALLY WRITTEN, not from the
+      // model's own `page_note`. An extractor describing its own coverage is a
+      // claim; the union of nameplate keys across the rows it produced is a
+      // measurement. Where those two disagree, only one of them is evidence.
+      const produced = (payload ?? []) as { nameplate?: Record<string, string> | null }[]
+      const spec = new Set<string>()
+      for (const r of produced) for (const k of Object.keys(r.nameplate ?? {})) spec.add(k)
+      const fields = ['tag', 'descriptor', 'location', 'area_served', 'proposed_type'] as const
+      const got = fields.filter(f => produced.some(r => (r as Record<string, unknown>)[f]))
+
+      const coverageNote = [
+        out.page_note ?? null,
+        `Read from this page — fields: ${got.join(', ') || 'none'}`,
+        `captured as spec (${spec.size}): ${[...spec].join(', ') || 'nothing'}`,
+      ].filter(Boolean).join(' · ')
+
       await service.from('intake_uploads').update({
         status: 'parsed', row_count: count ?? 0,
-        parse_note: out.page_note ?? null,
+        parse_note: coverageNote,
       }).eq('id', uploadId)
 
       return res.status(200).json({

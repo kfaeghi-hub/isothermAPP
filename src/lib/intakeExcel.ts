@@ -33,6 +33,25 @@ export interface ParsedRow {
   why: string                         // plain language, shown in review
 }
 
+/**
+ * Why a sheet looks like it came out of a PDF converter, if it does.
+ *
+ * A converted schedule is not wrong to upload — it is just the WEAKER path. The
+ * original PDF page still has its ruling lines, its column positions and its
+ * merges intact; a conversion has already thrown those away and guessed. When the
+ * guess is bad the parser can only see the wreckage, never the drawing.
+ *
+ * So this DESCRIBES rather than blocks: it says what it noticed and lets a human
+ * decide. Adam's three files trip none of it — they are clean single-row headers,
+ * and saying "your file is damaged" to someone whose file is fine is its own kind
+ * of wrong answer.
+ */
+export interface ConversionArtifact {
+  suspected: boolean
+  reasons: string[]
+  advice: string | null
+}
+
 export interface ParsedSheet {
   sheet: string
   title: string | null                // "SUMP PUMP SCHEDULE" — strong category evidence
@@ -43,6 +62,24 @@ export interface ParsedSheet {
   rows: ParsedRow[]
   skipped: number
   note: string
+  /**
+   * NAMES, NEVER COUNTS.
+   *
+   * `note` used to read "3 columns mapped · 13 kept as nameplate", and Adam read
+   * that — correctly — as "it only got three things". The thirteen were there, and
+   * a count cannot tell you which thirteen, so a partial read wore a full read's
+   * face. A reader who cannot see WHICH columns were skipped cannot know whether
+   * the important one was among them.
+   *
+   * These are also exactly the strings BACKBURNER 3f harvests: the unmatched
+   * headings of real schedules are the dialect the firm actually receives.
+   */
+  coverage: {
+    mapped: { field: string; header: string }[]
+    captured: string[]                // read and kept as nameplate/spec
+    ignored: string[]                 // header cells with no data beneath them
+  }
+  artifact: ConversionArtifact
 }
 
 // ── normalisation ───────────────────────────────────────────────────────────
@@ -206,6 +243,62 @@ function findHeader(grid: Cell[][]): { row: number; labels: string[]; score: num
   return best && best.score >= 5 ? best : null
 }
 
+/**
+ * The PDF→Excel conversion fingerprint.
+ *
+ * Three things a converter does that an engineer writing a spreadsheet does not:
+ * it leaves a large fraction of cells empty because it preserved geometry rather
+ * than structure; it splits one heading across stacked rows; and it produces rows
+ * far wider than the data they carry. Any one alone is ordinary. Together they
+ * are the shape of a page that was drawn, not tabulated.
+ */
+function detectArtifact(grid: Cell[][], headerRow: number | null, dataStart: number): ConversionArtifact {
+  const reasons: string[] = []
+  const body = grid.slice(dataStart)
+  const width = Math.max(...grid.map(r => r?.length ?? 0), 0)
+
+  if (headerRow === null && grid.length > 3) {
+    reasons.push('no row in the first 25 looks like a header')
+  }
+
+  if (width > 0 && body.length > 0) {
+    const cells = body.reduce((n, r) => n + (r?.length ?? 0), 0)
+    const filled = body.reduce((n, r) => n + (r ?? []).filter(c => txt(c)).length, 0)
+    const density = cells ? filled / cells : 1
+    if (density < 0.35) reasons.push(`only ${Math.round(density * 100)}% of data cells hold a value`)
+  }
+
+  // Stacked fragments: consecutive rows above the data that each carry a couple
+  // of short labels. A converter breaks "MOTOR INPUT [V/Ph/Hz]" into two rows.
+  if (headerRow !== null && headerRow >= 2) {
+    let stacked = 0
+    for (let r = 0; r < headerRow; r++) {
+      const f = (grid[r] ?? []).map(txt).filter(Boolean)
+      if (f.length >= 2 && f.every(c => c.length <= 14)) stacked++
+    }
+    if (stacked >= 2) reasons.push(`${stacked} stacked partial header rows above the data`)
+  }
+
+  // Rows far wider than their content — geometry preserved, structure lost.
+  if (width >= 6 && body.length >= 3) {
+    const ragged = body.filter(r => {
+      const f = (r ?? []).filter(c => txt(c)).length
+      return f > 0 && f <= Math.max(1, Math.floor(width * 0.25))
+    }).length
+    if (ragged / body.length > 0.4) reasons.push(`${ragged} of ${body.length} rows use a quarter or less of the sheet's width`)
+  }
+
+  const suspected = reasons.length >= 2
+  return {
+    suspected, reasons,
+    advice: suspected
+      ? 'This sheet looks like a PDF that was converted to Excel. The conversion has '
+        + 'already thrown away the column positions and merges the original page still '
+        + 'has, so uploading the ORIGINAL PDF pages will usually read better than this file.'
+      : null,
+  }
+}
+
 /** The sheet title — the strongest category evidence a schedule carries. */
 function findTitle(grid: Cell[][], headerRow: number): string | null {
   for (let r = 0; r < headerRow; r++) {
@@ -359,13 +452,17 @@ function categoryFromTitle(title: string | null): string | null {
 export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]): ParsedSheet {
   const head = findHeader(grid)
   if (!head) {
+    const artifact = detectArtifact(grid, null, 0)
     return {
       sheet: sheetName, title: null, proposed_category: null, header_row: null,
       mapping: {}, unmapped: [], rows: [], skipped: grid.length,
+      coverage: { mapped: [], captured: [], ignored: [] },
+      artifact,
       // SAY WHY, not "0 rows". A parser that reports nothing found without saying
       // what it looked for is indistinguishable from a parser that is broken.
       note: 'No header row found. Looked for a row naming a tag/mark column plus ' +
-            'at least one description, location or service column in the first 25 rows.',
+            'at least one description, location or service column in the first 25 rows.' +
+            (artifact.advice ? ` ${artifact.advice}` : ''),
     }
   }
 
@@ -485,12 +582,37 @@ export function parseSheet(grid: Cell[][], sheetName: string, vocab: TypeVocab[]
     })
   }
 
+  // A header cell with nothing beneath it on any row was READ and had nothing to
+  // give. That is a different fact from "captured", and lumping them together
+  // inflates what the import claims to have found.
+  const everHadValue = new Set<string>()
+  for (const r of rows) for (const k of Object.keys(r.nameplate)) everHadValue.add(k)
+  const captured = unmapped.filter(u => everHadValue.has(u))
+  const ignored  = unmapped.filter(u => !everHadValue.has(u))
+
+  const coverage = {
+    mapped: Object.entries(mapping).map(([field, header]) => ({ field, header })),
+    captured, ignored,
+  }
+  const artifact = detectArtifact(grid, head.row, head.dataStart)
+
+  // NAMES, NEVER COUNTS. The old note said "3 columns mapped · 13 kept as
+  // nameplate" and a real user read it, correctly, as "it only got three things".
+  // A count cannot say WHICH, and which is the only part that tells you whether
+  // the column you needed survived.
+  const named = [
+    `header on row ${head.row + 1} (score ${head.score})`,
+    `Mapped: ${coverage.mapped.map(m => `${m.header} → ${m.field}`).join(', ') || 'nothing'}`,
+    `Captured as spec: ${captured.join(', ') || 'nothing'}`,
+    ignored.length ? `Read but empty: ${ignored.join(', ')}` : null,
+    `${rows.length} rows, ${skipped} skipped`,
+    artifact.advice,
+  ].filter(Boolean).join(' · ')
+
   return {
     sheet: sheetName, title, proposed_category: category, header_row: head.row + 1,
-    mapping, unmapped, rows, skipped,
-    note: `header on row ${head.row + 1} (score ${head.score}) · ` +
-          `${Object.keys(mapping).length} columns mapped · ${unmapped.length} kept as nameplate · ` +
-          `${rows.length} rows, ${skipped} skipped`,
+    mapping, unmapped, rows, skipped, coverage, artifact,
+    note: named,
   }
 }
 

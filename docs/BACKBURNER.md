@@ -276,7 +276,20 @@ onboarding batch makes it worth an allow-list entry.**
 **Wakes when:** the next person is hired, or 3b runs.
 
 ### 3f. Extraction-rules harvest — the librarian's next client
-**WAITING — born 2026-08-04, from the extractor calibration campaign**
+**WOKEN 2026-08-11 · PROPOSAL PENDING RULING — `docs/EXTRACTION-HARVEST-PROPOSAL.md`**
+
+*Born 2026-08-04, from the extractor calibration campaign. The wake condition —
+real correction data — fired with the Avondale incident, which produced a worked
+example of all three rule kinds this harvest is meant to learn: a column dialect
+(SERVICE is a duty, not a description), a title convention (a banner beside a
+group header), and a field alias (`MAX INPUT [MBH]` is `Input Rating (kW)`). All
+three were worked out by hand this week; the proposal's Phase 2 gate is that the
+harvest can rediscover the first of them from the recorded corrections alone.*
+
+*Scoped to column-mapping and type-resolution in v1. Value-level learning is
+explicitly excluded until an incident asks for it — every defect this campaign
+produced was structural, and a wrong value rule changes an engineering number
+silently, which is a different kind of blast radius.*
 
 Self-training on the firm's own uploads. Review dispositions from real intake use
 — accept / edit / reject per row, **already ledger-fed** — get clustered by the

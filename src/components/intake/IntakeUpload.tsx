@@ -521,9 +521,30 @@ export function IntakeUpload({ projectId, onStaged }: {
                       </span>
                     ))}
                   </div>
-                  {s.unmapped.length > 0 && (
+                  {/* NAMES, NEVER COUNTS — and the two kinds of leftover are
+                      different facts. "Captured as spec" was READ and is on the
+                      unit; "read but empty" is a heading with nothing beneath it.
+                      Reporting them as one number is how "3 columns mapped · 13
+                      kept as nameplate" got read as "it only got three things"
+                      by the engineer whose thirteen columns were all present. */}
+                  {s.coverage.captured.length > 0 && (
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                      <span className="text-gray-400">captured as spec ({s.coverage.captured.length}):</span>{' '}
+                      {s.coverage.captured.join(', ')}
+                    </p>
+                  )}
+                  {s.coverage.ignored.length > 0 && (
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      kept as nameplate: {s.unmapped.join(', ')}
+                      read but empty ({s.coverage.ignored.length}): {s.coverage.ignored.join(', ')}
+                    </p>
+                  )}
+                  {/* Offer, never block. The file still imports. */}
+                  {s.artifact.suspected && (
+                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1"
+                       data-testid="conversion-advisory">
+                      <span className="font-semibold">This looks like a converted PDF.</span>{' '}
+                      {s.artifact.reasons.join('; ')}. {s.artifact.advice} You can import it
+                      anyway — this is a suggestion, not a refusal.
                     </p>
                   )}
                   {s.rows[0] && (

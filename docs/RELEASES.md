@@ -117,6 +117,62 @@ had been checking one half of the mess it makes. Both guards were proven by
 injecting the exact residue and watching them fire. Banked in ARCHITECTURE as
 *assert the premise*, beside the arrival and departure rules.
 
+### Avondale — a clean import that got almost everything wrong
+
+**For the team.** Adam converted three Avondale schedules to Excel and imported
+them. It reported success. It had typed two pumps as **boilers**, left two pumps
+untyped, and written 77 spec values that nothing on screen could show.
+
+None of it was a broken file — his sheets are clean. Four things were wrong, and
+all four are fixed:
+
+- **What a unit serves is not what it is.** The pump schedule's only prose column
+  was SERVICE, which read *"BOILER B-1 PRIMARY LOOP"* — the loop it pumps, not the
+  thing it is. The importer took that as the description. A duty column now fills
+  **Area Served** and never decides a type.
+- **The title was thrown away.** The banner row said `PUMPS`, and beside it sat an
+  `ELECTRICAL` group header. The importer's rule was "a title row has exactly one
+  cell", so it discarded the strongest clue in the file. It now recognises a
+  banner by being nearly empty rather than by having one cell.
+- **Your spec values had nowhere to appear.** They were stored under the
+  schedule's own headings — `FLOW [GPM]`, `MAX INPUT [MBH]` — while the nameplate
+  table shows the firm's field names. They now map across, converting units where
+  needed and **saying so** (800 MBH → 234 kW). Anything with no matching field is
+  shown on the unit under **"From the schedule · not mapped to a field"**, so
+  nothing an import read can hide again.
+- **The report said numbers where it should have said names.** *"3 columns mapped
+  · 13 kept as nameplate"* reads as *it only got three things*. Every extraction —
+  Excel and PDF — now names them: which columns became which fields, which were
+  captured as spec, which were read and empty.
+
+**Adam's seven Avondale units have been corrected**, recorded as a batch with the
+before and after for each one: BP-1 and BP-2 boiler → pump, P-1 and P-2 now typed,
+25 spec values rendering and the other 52 visible instead of invisible.
+
+And if a sheet looks like a PDF someone converted, the importer now says so and
+suggests uploading the original pages instead — a suggestion, never a refusal.
+
+**For the architect.** The served-vs-is law is in ARCHITECTURE beside the RP
+tag law, with the rejected alternative recorded: preferring the title's type on
+disagreement would make correctness depend on a banner parsing, and a title is
+corroborating evidence, never the load-bearing wall. Blast radius was **measured
+before shipping** — all four Excel uploads in the system's history, 61 rows, every
+one carrying a tag, so the row-dropping shape the change could have introduced has
+never occurred and Central Tech's 54-row import parses identically.
+
+`scheduleFieldMatch.ts` treats **the unit as part of the match**: a value is
+written only where units agree or a known conversion bridges them. Two guards came
+out of the dry run rather than the design — no word-containment (`VFD INPUT`
+claimed the `VFD` field and overwrote "YES" with "208/1/60"), and no two columns
+may claim one field (both refused, the rival named, because a tie-break is a
+guess). A third catch was a silent PostgREST truncation: 1000 of 1526 template
+rows, `air_separator` outside the page, previewing as "this type has no template".
+
+**BACKBURNER 3f is WOKEN** — `docs/EXTRACTION-HARVEST-PROPOSAL.md` awaits a
+ruling. Its Phase 2 gate is that the harvest can rediscover, from recorded
+corrections alone, the SERVICE → area_served rule that was worked out by hand
+this week.
+
 **Closing gates:** battery 39/39 · `pw-equipment-delete` 9 checks and
 `pw-intake-retry` 11 through a real login · `pw-storage-privacy` green with the
 premise guard fired and cleared · 81 unit tests · real build (`tsc -b`) clean ·
