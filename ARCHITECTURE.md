@@ -1705,6 +1705,40 @@ This is the *prove the mechanism* rule pointed at bug reports: a symptom is
 evidence about the surface, and the run log is evidence about the machine. Read
 the second before rewriting the first.
 
+### Client content never reaches a log
+
+*2026-08-12. A privacy incident class, found by reading our own console output.*
+
+`runAgent` printed the model's raw answer on failure: **2,000 characters on every
+retry, and 4,000 more after a failed retry.** On a schedule read that answer **is
+the client's drawing** — manufacturer, model numbers, capacities, room names, the
+whole row. On Vercel `console.warn` and `console.error` go to the deployment's log
+stream, so every flaky extraction was copying a client's mechanical schedule into
+a third-party log retained on someone else's schedule.
+
+It was found the only way it could be: while capturing the five sheets the model
+could not read, a Seneca fan-coil schedule printed **in full** in the terminal.
+No check would have caught it. Nothing was failing.
+
+> **A log line may carry the SHAPE of a payload and never its CONTENT.** Length,
+> type, the first two dozen characters as a format probe, the failure class —
+> yes. The payload — never, at any size, at any log level.
+
+Both call sites now emit `response=13205 chars, starts "```json
+{
+  \"rows\"…"`,
+which is what a debugger actually needs. The content stays available behind an
+explicit `AI_LOG_RAW=1` for someone working a specific failure **on their own
+machine**, off by default and never set in a deployment.
+
+**Both were fixed in the same commit, deliberately.** Fixing one and leaving the
+other is the sibling-guard failure moved into a logger — and this codebase has a
+rule about a guard that answers differently in two states.
+
+The wider rule this sits under: `samples/` is gitignored, ShareSync is read-only,
+and no client content is committed. **Logs are a destination too**, and they were
+the one nobody had audited.
+
 ### A gate that runs through a harness proves the HARNESS
 
 **The gate is the field flow. Harnesses are callers of production modules, never

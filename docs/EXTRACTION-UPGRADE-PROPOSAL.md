@@ -186,6 +186,31 @@ extents too.** Concretely, for Phase 2's grid rendering:
 column as `MBH`, not `MOTOR MBH`. Until then it stands as a known, named defect
 with a reproduction — not a mystery.
 
+### Giant-sheet chunking — a named Phase-appropriate item
+
+*Ruled 2026-08-12.* `FanCoils.xlsx` is **199 rows × 52 columns** and hit
+`16000 / 16000` output tokens — the read was cut off mid-object. That is not a
+shape failure and no retry fixes it: the answer does not fit.
+
+**The precedent already exists on the PDF path.** Clairlea p17 (88 units, four
+tables) failed the same way and was solved by *table-region splitting* —
+segmenting on header rows in reading order and reading each region separately.
+The Excel equivalent is **row chunking**: split a long sheet into row bands that
+share the header, read each, and reassemble.
+
+Two things that campaign learned and this one must not relearn:
+
+- **Chunking multiplies calls, so it carries its own cost line.** p17 cost 59.3¢
+  across four regions. A 199-row sheet in bands is several calls where there was
+  one, and the number goes in the report beside the accuracy.
+- **Assembly is the part that broke last time**, not extraction. The 88/88 gate
+  passed while 87 rows sat in uploads nobody opened. Whatever reassembles the
+  bands is the thing to gate, and the tag-intersection tripwire (no tag may appear
+  in two bands) comes with it.
+
+Not built in Phase 4. It belongs with the four shape failures as their own
+measured step, so a benchmark movement can be attributed.
+
 **Phase 1 is not optional and not reorderable.** Every later phase writes model
 output into an engineering register; without a boundary that fails loudly, a
 malformed read lands as a plausible wrong row, which is the failure this whole

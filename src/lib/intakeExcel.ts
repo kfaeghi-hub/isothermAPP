@@ -435,10 +435,39 @@ export function resolveTypeDetailed(text: string, vocab: TypeVocab[]): TypeMatch
   // Now: equal-specificity matches on DIFFERENT keys mean the words do not
   // decide, so nothing is returned and a human does. One key matching twice is
   // not ambiguity.
+  //
+  // MULTI-WORD ALIASES JOIN THIS TIER; SINGLE-WORD ONES DO NOT. Added 2026-08-12.
+  //
+  // The exact-only alias rule exists for a stated reason: "UH" must never be
+  // treated as a word bag, because two-letter shorthand matching loosely is how a
+  // tag prefix starts claiming units. That reason is about SHORT aliases, and it
+  // is preserved exactly — a one-token alias stays exact-match only.
+  //
+  // It was also blocking a real fix. Seneca's fan-coil schedule is titled "FAN
+  // COIL SCHEDULE - LEVEL 01"; the vocabulary name is "Fan Coil Unit", three
+  // tokens, and the title has no "unit" — so all-words could not reach `fcu` and
+  // fell to `Fan` at one token. **64 fan coil units typed as fans**, which is R16's
+  // founding error arriving through the title instead of the descriptor. An
+  // exact-match alias cannot fix it either: measured, "fan coil" as an exact alias
+  // leaves that title resolving to `fan`, because the title is not that string.
+  //
+  // A two-token alias carries real specificity and beats "Fan" on most-specific-
+  // wins without loosening anything. The candidate list below is therefore each
+  // type's NAME plus its aliases of two tokens or more.
+  const candidates: { key: string; term: string; matched: string }[] = []
+  for (const t of vocab) {
+    candidates.push({ key: t.key, term: t.name.replace(/\(.*?\)/g, ''), matched: t.name })
+    for (const a of t.aliases ?? []) {
+      if (a && norm(a).split(' ').filter(Boolean).length >= 2) {
+        candidates.push({ key: t.key, term: a, matched: a })
+      }
+    }
+  }
+
   let best: { key: string; specificity: number; matched: string } | null = null
   let tiedKeys = new Set<string>()
-  for (const t of vocab) {
-    const core = norm(t.name.replace(/\(.*?\)/g, ''))             // drop the qualifier
+  for (const t of candidates) {
+    const core = norm(t.term)
     if (!core) continue
     const tokens = core.split(' ').filter(Boolean)
     // A SOURCE HEADER IS OFTEN PLURAL. "UNIT HEATERS" is the schedule's title for
@@ -449,7 +478,7 @@ export function resolveTypeDetailed(text: string, vocab: TypeVocab[]): TypeMatch
     const has = (w: string) => words.has(w) || words.has(`${w}s`) || words.has(`${w}es`)
     if (!tokens.length || !tokens.every(has)) continue
     if (!best || tokens.length > best.specificity) {
-      best = { key: t.key, specificity: tokens.length, matched: t.name }
+      best = { key: t.key, specificity: tokens.length, matched: t.matched }
       tiedKeys = new Set([t.key])
     } else if (tokens.length === best.specificity) {
       tiedKeys.add(t.key)
