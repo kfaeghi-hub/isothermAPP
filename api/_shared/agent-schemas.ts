@@ -146,6 +146,16 @@ export interface ExtractorOutput {
           nameplate?: Record<string, unknown> | null
           confidence: number; reasoning?: string }[]
   page_note?: string
+  /** Column headings the source wrote in its own dialect, and what they were
+   *  taken to mean. `DUTY -> area_served`, `PIPE SZ -> Connection Size`. Recorded
+   *  because a mapping the reader made silently is a decision nobody can check —
+   *  and because these are exactly the strings BACKBURNER 3f harvests. */
+  mappings?: { heading: string; meaning: string; why?: string }[]
+  /** QUESTIONS, NOT DEFAULTS. Where the source genuinely does not say — a bare
+   *  `MBH` column on a unit with both an input and an output rating — the value is
+   *  extracted and the question is asked. A guess here would arrive wearing a
+   *  confidence score, which is the one thing worse than a blank. */
+  ambiguities?: { about: string; question: string; where?: string }[]
 }
 
 export const ExtractorInput: Validator<ExtractorInput> = (v): v is ExtractorInput =>

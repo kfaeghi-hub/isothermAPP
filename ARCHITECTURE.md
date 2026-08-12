@@ -1422,6 +1422,24 @@ is only marginally less blind. The RLS section runs as the **employee**.
 > merely that the query returned without error. A mis-scoped policy fails
 > silently, with an empty result and a clean status.
 
+**The same blindness one layer further out: a test that can be written and never
+run.** *2026-08-12, extraction Phase 1.* `vitest.config.ts` declared
+`include: ['src/**/*.test.ts']`. A test written beside a serverless module in
+`api/` was therefore **collected by nothing** — it would sit in the repository,
+pass review, be counted in nobody's total, and report neither pass nor fail. The
+boundary's 29 injection tests were written there first and silently did not exist
+until the include was widened.
+
+This is the census lesson in unit-suite form. The census exists because *an empty
+result and a wrong question are indistinguishable*; here the wrong question was
+"how many tests passed?" when the instrument could not see a whole directory. A
+suite's **denominator is part of its claim** — the same rule the extraction
+benchmark states as *a rate over 4 files must never read as a rate over 37*.
+
+> **Before trusting a suite's total, check what its collector can see.** A green
+> run over a directory the runner never visits is indistinguishable from a green
+> run over one it did.
+
 Found by render-and-look at phone width: the screenshot said one thing, the
 database said another. **Third time that gate has caught what the assertions
 could not**, which is the argument for it being a step rather than a courtesy.

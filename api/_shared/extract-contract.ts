@@ -48,10 +48,17 @@ export interface CheckedRow {
   reasoning?: string
 }
 
+export interface Mapping { heading: string; meaning: string; why?: string }
+export interface Ambiguity { about: string; question: string; where?: string }
+
 export interface ExtractCheck {
   ok: boolean
   rows: CheckedRow[]
   problems: ExtractProblem[]
+  /** What the reader took each source heading to mean. */
+  mappings: Mapping[]
+  /** Questions the source does not answer. Never resolved here — carried. */
+  ambiguities: Ambiguity[]
 }
 
 /** Units the firm's schedules and def sets actually use.
@@ -106,21 +113,41 @@ export function checkExtraction(
   const flag = (where: string, what: unknown, why: string) =>
     problems.push({ severity: 'flag', where, what: trunc(what), why })
 
+  const mappings: Mapping[] = []
+  const ambiguities: Ambiguity[] = []
+
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     fatal('$', value, 'the extraction is not an object')
-    return { ok: false, rows: [], problems }
+    return { ok: false, rows: [], problems, mappings, ambiguities }
   }
   const obj = value as Record<string, unknown>
 
   if (!Array.isArray(obj.rows)) {
     fatal('$.rows', obj.rows, 'the extraction has no `rows` array — nothing was read, or it was not returned in the agreed shape')
-    return { ok: false, rows: [], problems }
+    return { ok: false, rows: [], problems, mappings, ambiguities }
+  }
+
+  // MAPPINGS AND AMBIGUITIES ARE CARRIED, NEVER RESOLVED HERE. A malformed one is
+  // dropped with a flag: losing a question is bad, but inventing one is worse.
+  for (const m of Array.isArray(obj.mappings) ? obj.mappings : []) {
+    const r = m as Record<string, unknown>
+    if (typeof r?.heading === 'string' && typeof r?.meaning === 'string' && r.heading.trim()) {
+      mappings.push({ heading: r.heading.trim(), meaning: r.meaning.trim(),
+        why: typeof r.why === 'string' ? r.why : undefined })
+    } else flag('$.mappings[]', m, 'a mapping was not { heading, meaning } and was dropped')
+  }
+  for (const a of Array.isArray(obj.ambiguities) ? obj.ambiguities : []) {
+    const r = a as Record<string, unknown>
+    if (typeof r?.about === 'string' && typeof r?.question === 'string' && r.question.trim()) {
+      ambiguities.push({ about: r.about.trim(), question: r.question.trim(),
+        where: typeof r.where === 'string' ? r.where : undefined })
+    } else flag('$.ambiguities[]', a, 'an ambiguity was not { about, question } and was dropped')
   }
   if (obj.page_note !== undefined && typeof obj.page_note !== 'string') {
     flag('$.page_note', obj.page_note, 'page_note is present but is not text; it was dropped')
   }
   for (const k of Object.keys(obj)) {
-    if (k !== 'rows' && k !== 'page_note') {
+    if (!['rows', 'page_note', 'mappings', 'ambiguities'].includes(k)) {
       flag(`$.${k}`, obj[k], 'an unexpected top-level key — kept out of the register')
     }
   }
@@ -234,7 +261,7 @@ export function checkExtraction(
   const anyFatal = problems.some(p => p.severity === 'fatal')
   const allLost = (obj.rows as unknown[]).length > 0 && rows.length === 0
 
-  return { ok: !anyFatal && !allLost, rows, problems }
+  return { ok: !anyFatal && !allLost, rows, problems, mappings, ambiguities }
 }
 
 /** One sentence naming what went wrong, for a human who is not reading logs. */

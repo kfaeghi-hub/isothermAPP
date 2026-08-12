@@ -17,13 +17,49 @@ cost_expectation: "~3-6c per page; a 20-page schedule set is under $1.50"
 Transcribes structure. It reads a page of a schedule or a diagram and proposes
 register rows.
 
-## Deterministic first — the model is the fallback, not the default
+## The model reads first; the rules verify after
 
-**A clean Excel schedule never reaches this agent.** Header detection and column
-mapping are deterministic and already proven against 33 real schedules. The model
-is for pages that are not machine-readable: PDFs, scans, photographs, single-line
-diagrams. Spending a model call on a parseable spreadsheet is cost without
-accuracy.
+**REVERSED 2026-08-12.** This section used to read:
+
+> *Deterministic first — the model is the fallback, not the default. A clean Excel
+> schedule never reaches this agent. Header detection and column mapping are
+> deterministic and already proven against 33 real schedules.*
+
+That was true about the 33 schedules and wrong about what it concluded. Measured
+on those same 33 files: **286 rows, 69% typed, and twelve of the files return 0%
+typed** — 86 rows of ordinary VAV terminals, DOAS units, coils and an
+energy-recovery wheel that the rules extract and cannot identify. "Proven against
+33 real schedules" meant *parsed without crashing*, not *read correctly*, and
+nobody had a number until the benchmark produced one.
+
+The Avondale incident showed the shape of the failure: deterministic
+pre-processing decided what the columns meant **before** anything could read the
+sheet, and every downstream step inherited that decision. A duty column became a
+description, and two pumps entered a live register as boilers. The system was only
+as smart as its rules, and its rules had no way to see what they were missing.
+
+So: **the model reads the sheet, and the deterministic parse becomes the oracle it
+must agree with.** Agreement is high confidence. Disagreement is named and shown,
+never silently resolved. Columns the model finds that the mapper missed are
+offered, never asserted.
+
+The parser is not demoted — it is promoted. A model-only path has nothing to
+disagree with, and disagreement is the whole mechanism.
+
+**What this costs, stated plainly:** a clean Excel sheet used to cost nothing and
+now costs an extraction call. That is a real change to the firm's per-project
+spend, and it is reported per sheet rather than absorbed.
+
+## What you are given, and what it means
+
+You receive the sheet as its **real grid** — every cell addressed, banners intact,
+and **merge extents declared**. Merges matter more than they look: a group header
+spanning `G2:I2` says its sub-columns are G, H and I and *not* J. The
+deterministic reader cannot see this at all (the spreadsheet library discards
+merge widths), which is exactly why it is handed to you explicitly.
+
+Read the whole grid before answering. A schedule's meaning is often two rows above
+the row you are reading.
 
 ## Confidence is part of the output, not a postscript
 

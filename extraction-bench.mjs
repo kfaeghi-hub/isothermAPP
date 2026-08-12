@@ -29,7 +29,7 @@
 // CLIENT DOCUMENTS ARE NEVER COMMITTED. The corpus lives in gitignored samples/;
 // the one committed member is the synthetic hostile fixture, so a fresh clone can
 // always measure something. Absent files SKIP LOUDLY BY NAME (FIXTURES.md rule).
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { build } from 'esbuild'
 import { createClient } from '@supabase/supabase-js'
 import { assertHarnessFree } from './harness-lock.mjs'
@@ -37,6 +37,11 @@ assertHarnessFree('extraction-bench')
 
 const JSON_OUT = process.argv.includes('--json')
 const SURVEY   = process.argv.includes('--survey')
+// THE MODEL LEG COSTS MONEY, so it is opt-in and scopeable. `--only=` restricts
+// the run to files whose name matches, because measuring 37 sheets to check one
+// change is spend without information.
+const WITH_AI  = process.argv.includes('--with-ai')
+const ONLY     = (process.argv.find(a => a.startsWith('--only=')) ?? '').slice(7)
 const log = (...a) => { if (!JSON_OUT) console.log(...a) }
 
 // ── the corpus ──────────────────────────────────────────────────────────────
@@ -89,6 +94,21 @@ await build({
 const { parseSheet, readSheetMerges } = await import('./out/bench-intakeExcel.mjs')
 const readXlsxFile = (await import('read-excel-file/node')).default
 
+// THE SAME CODE THE ENDPOINT RUNS. Not a re-implementation: this repo has already
+// paid for a gate that "replaced the assembly step with itself" and therefore
+// proved the harness. api/_shared/sheet-model-read.ts is the one reading path.
+let readSheetWithModel = null, costCents = null
+if (WITH_AI) {
+  await build({
+    entryPoints: ['api/_shared/sheet-model-read.ts'], outfile: 'out/bench-model-read.mjs',
+    format: 'esm', bundle: true, platform: 'node', logLevel: 'error',
+    external: ['read-excel-file', 'jszip'],
+  })
+  const m = await import('./out/bench-model-read.mjs')
+  readSheetWithModel = m.readSheetWithModel
+  costCents = m.costCents
+}
+
 const svc = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 const [tRes, aRes] = await Promise.all([
   svc.from('equipment_types').select('key, name').eq('active', true).order('sort_order'),
@@ -112,12 +132,27 @@ async function readFile(path) {
   const merges = await readSheetMerges(bytes)
   return sheets.map(s => ({
     sheet: s.sheet,
+    grid: s.data,
+    merges: merges[s.sheet] ?? [],
     parsed: parseSheet(s.data, s.sheet, VOCAB, { merges: merges[s.sheet] ?? [] }),
   }))
 }
 
+/** Read every sheet of a file with the MODEL, through the shipped path. */
+async function readWithModel(path, sheetsRaw) {
+  const out = []
+  for (const s of sheetsRaw) {
+    const r = await readSheetWithModel({
+      grid: s.grid, sheetName: s.sheet, merges: s.merges,
+      knownTypes: VOCAB.map(v => `${v.key} (${v.name})`),
+    })
+    out.push({ sheet: s.sheet, ...r })
+  }
+  return out
+}
+
 /** Score a file against hand-written truth. Returns the verdict and its failure classes. */
-function score(name, results, truth) {
+function score(name, results, truth, modelAmbiguities = null) {
   const rows = results.flatMap(r => r.parsed.rows)
   const byTag = new Map(rows.map(r => [String(r.tag ?? ''), r]))
   const fails = []
@@ -162,8 +197,12 @@ function score(name, results, truth) {
   //     ambiguity is an automatic failure with its own class. That is the honest
   //     baseline: the requirement is real and unmet, and naming it is what makes
   //     the next build measurable rather than felt.
+  // WHOEVER READ IT IS WHO MUST HAVE ASKED. With --with-ai the model is the
+  // reader, so its questions are what clause 4 is scored against; without it the
+  // deterministic path is, and it has no way to raise one — which is the honest
+  // baseline that made this clause fail from the start.
   for (const amb of truth.ambiguities ?? []) {
-    const flags = results.flatMap(r => r.parsed.ambiguities ?? [])
+    const flags = modelAmbiguities ?? results.flatMap(r => r.parsed.ambiguities ?? [])
     if (!flags.some(f => String(f.about ?? f).includes(amb))) {
       fails.push({ cls: 'ambiguity-unflagged', detail: `"${amb}" is ambiguous on this sheet and nothing asked about it` })
     }
@@ -189,6 +228,7 @@ function survey(name, results) {
 
 // ── walk the corpus ─────────────────────────────────────────────────────────
 const scored = [], surveyed = [], skipped = [], broke = []
+const modelRuns = []   // --with-ai only
 
 for (const src of CORPUS) {
   if (!existsSync(src.dir)) {
@@ -199,6 +239,7 @@ for (const src of CORPUS) {
   if (!files.length) { skipped.push({ dir: src.dir, label: src.label, why: 'no spreadsheets in it' }); continue }
 
   for (const f of files) {
+    if (ONLY && !f.toLowerCase().includes(ONLY.toLowerCase())) continue
     const path = `${src.dir}/${f}`
     let results
     try {
@@ -208,7 +249,42 @@ for (const src of CORPUS) {
       broke.push({ name: f, label: src.label, error: String(e.message ?? e).split('\n')[0] })
       continue
     }
-    if (EXPECT[f]) scored.push({ ...score(f, results, EXPECT[f]), label: src.label, why: EXPECT[f].why })
+    let modelAmb = null
+
+    if (WITH_AI) {
+      const rulesRows  = results.flatMap(r => r.parsed.rows)
+      const rulesTyped = rulesRows.filter(r => r.proposed_type).length
+      let mRows = [], cost = 0, failures = [], flags = 0, ambiguities = 0
+      const ambList = []
+      try {
+        for (const r of await readWithModel(path, results)) {
+          cost += costCents(r.run)
+          if (!r.run.ok)      { failures.push(`run:${r.run.failure}`); continue }
+          if (!r.checked?.ok) { failures.push(`boundary:${(r.checked?.problems ?? []).filter(p => p.severity === 'fatal').map(p => p.where).join(',') || 'refused'}`); continue }
+          mRows.push(...r.checked.rows)
+          flags += r.checked.problems.filter(p => p.severity === 'flag').length
+          ambiguities += r.checked.ambiguities.length
+          ambList.push(...r.checked.ambiguities)
+        }
+      } catch (e) { failures.push('threw:' + String(e.message ?? e).split(String.fromCharCode(10))[0]) }
+      const mTyped = mRows.filter(r => r.proposed_type).length
+      modelRuns.push({
+        name: f, label: src.label, cost,
+        rulesRows: rulesRows.length, rulesTyped,
+        modelRows: mRows.length, modelTyped: mTyped,
+        flags, ambiguities, failures,
+      })
+      modelAmb = ambList
+      log(`  · ${f.padEnd(22)} rules ${rulesTyped}/${rulesRows.length} typed → ` +
+          `model ${mTyped}/${mRows.length} typed   ${cost.toFixed(1)}c` +
+          `${ambiguities ? `  ${ambiguities} question(s)` : ''}` +
+          `${failures.length ? `  FAILED: ${failures.join('; ')}` : ''}`)
+    }
+
+    // Scored AFTER the model leg, so clause 4 can be judged against whoever
+    // actually did the reading: the model's questions under --with-ai, the
+    // deterministic path's (which has none) otherwise.
+    if (EXPECT[f]) scored.push({ ...score(f, results, EXPECT[f], modelAmb), label: src.label, why: EXPECT[f].why })
     else surveyed.push({ ...survey(f, results), label: src.label })
   }
 }
@@ -258,6 +334,33 @@ if (JSON_OUT) {
     log(`  ${rows} rows across ${surveyed.length} files · ${Math.round((typed / (rows || 1)) * 100)}% typed`)
     if (noHead.length) log(`  ${noHead.length} file(s) have a sheet with NO HEADER FOUND: ${noHead.map(s => s.name).join(', ')}`)
     log('  (--survey for the per-file table)')
+  }
+
+  // THE RUN WRITES ITS OWN RESULTS DOWN. The first full model-leg run cost $3.92
+  // and most of its per-file lines were lost to a `tail` in the invoking command —
+  // a measurement that exists only in a terminal buffer is a measurement you will
+  // pay for twice. `out/` is gitignored; the numbers that matter go to RELEASES.
+  if (WITH_AI && modelRuns.length) {
+    try {
+      writeFileSync('out/extraction-bench-model.json', JSON.stringify(modelRuns, null, 2))
+      log('\n  (per-file model results written to out/extraction-bench-model.json)')
+    } catch { /* reporting must never fail the run */ }
+  }
+
+  if (WITH_AI && modelRuns.length) {
+    const rt = modelRuns.reduce((n, m) => n + m.rulesTyped, 0)
+    const rr = modelRuns.reduce((n, m) => n + m.rulesRows, 0)
+    const mt = modelRuns.reduce((n, m) => n + m.modelTyped, 0)
+    const mr = modelRuns.reduce((n, m) => n + m.modelRows, 0)
+    const c  = modelRuns.reduce((n, m) => n + m.cost, 0)
+    const failed = modelRuns.filter(m => m.failures.length)
+    log(`\n── MODEL LEG (${modelRuns.length} file(s)) ──`)
+    log(`  rules: ${rt}/${rr} typed (${Math.round((rt / (rr || 1)) * 100)}%)`)
+    log(`  model: ${mt}/${mr} typed (${Math.round((mt / (mr || 1)) * 100)}%)`)
+    log(`  questions raised: ${modelRuns.reduce((n, m) => n + m.ambiguities, 0)} · ` +
+        `boundary flags: ${modelRuns.reduce((n, m) => n + m.flags, 0)}`)
+    log(`  COST: ${c.toFixed(1)}c total · ${(c / modelRuns.length).toFixed(1)}c per file`)
+    if (failed.length) log(`  FAILED: ${failed.map(m => `${m.name} (${m.failures.join('; ')})`).join(' · ')}`)
   }
 
   log('\n' + '='.repeat(78))
