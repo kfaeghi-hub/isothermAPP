@@ -28,6 +28,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, AuthError } from './_shared/auth-common.js'
 import { runAgent, logAgentRun, AiError } from './_shared/ai-common.js'
+import { checkExtraction, describeProblems } from './_shared/extract-contract.js'
 import { sniffMediaType, describeBytes } from './_shared/media-type.js'
 import type { ExtractorOutput, FieldSetDraftInput, FieldSetDraftOutput,
   PageSortInput, PageSortOutput } from './_shared/agent-schemas.js'
@@ -498,7 +499,35 @@ export default async function handler(req: any, res: any) {
       const firstByTag = new Map<string, string>()
       for (const r of already ?? []) if (r.tag) firstByTag.set(r.tag.toUpperCase(), r.id)
 
-      const payload = (out.rows ?? []).map(r => {
+      // ── THE BOUNDARY (Phase 1) ────────────────────────────────────────────
+      // Nothing model-produced reaches the register without crossing this. The
+      // shapes that would land as a PLAUSIBLE WRONG ROW — a tag that is a
+      // sentence, a confidence of 4, a spec value that is a structure — are
+      // refused here and NAMED. Flags are recorded rather than dropped: an
+      // unrecognised type still degrades to "unknown" exactly as it did before,
+      // but the degradation is now visible instead of silent.
+      const checked = checkExtraction(out, { knownTypes })
+      if (!checked.ok) {
+        console.error(`[intake] extraction refused at the boundary for ${uploadId}:`,
+          JSON.stringify(checked.problems.slice(0, 8)))
+        await service.from('intake_uploads')
+          .update({ status: 'failed', parse_note: `Refused at the boundary — ${describeProblems(checked.problems)}` })
+          .eq('id', uploadId)
+        return res.status(502).json({
+          error: 'The page was read, but the reading did not hold together well enough to keep. ' +
+                 `Nothing was written. ${describeProblems(checked.problems)}`,
+          failure: 'contract-boundary',
+          problems: checked.problems,
+          retryable: true,
+        })
+      }
+      const boundaryFlags = checked.problems.filter(p => p.severity === 'flag')
+      if (boundaryFlags.length) {
+        console.warn(`[intake] ${boundaryFlags.length} boundary flag(s) on ${uploadId}:`,
+          JSON.stringify(boundaryFlags.slice(0, 8)))
+      }
+
+      const payload = checked.rows.map(r => {
         const key = (r.tag ?? '').toUpperCase()
         return {
           upload_id: uploadId, project_id: proj.id,
@@ -513,12 +542,13 @@ export default async function handler(req: any, res: any) {
           // insert and lose the whole page. Check it here so an unrecognised type
           // degrades to "unknown" — which the review screen already handles — rather
           // than throwing away nineteen good rows alongside the bad one.
-          proposed_type: r.proposed_type && knownTypes.some(k => k.startsWith(`${r.proposed_type} `))
-            ? r.proposed_type : null,
-          observed_type_name: r.proposed_type && !knownTypes.some(k => k.startsWith(`${r.proposed_type} `))
-            ? r.proposed_type : (r.descriptor ?? null),
+          // The boundary already resolved this against the vocabulary and FLAGGED
+          // a miss rather than silently nulling it. `proposed_type` is either a
+          // real key or null; the observed name falls back to the descriptor.
+          proposed_type: r.proposed_type ?? null,
+          observed_type_name: r.proposed_type ? null : (r.descriptor ?? null),
           location: r.location ?? null, area_served: r.area_served ?? null,
-          nameplate: r.nameplate ?? null,
+          nameplate: Object.keys(r.nameplate).length ? r.nameplate : null,
           confidence: r.confidence,
           match_equipment_id: key ? byTag.get(key) ?? null : null,
         }

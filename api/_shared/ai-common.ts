@@ -139,6 +139,10 @@ export interface ModelCall {
    *  expect. Tokens are billed as USED, not as reserved, so headroom is free and
    *  a short ceiling costs a wasted call plus a failed feature. */
   maxTokens?: number
+  /** A backstop against a hung request, not a deadline. Defaults to 240s — under
+   *  intake's maxDuration of 300 and above every call this system has been
+   *  observed to make, so it names a hang rather than causing one. */
+  timeoutMs?: number
 }
 // NO `temperature`. The current models reject it outright:
 //   400 invalid_request_error — "`temperature` is deprecated for this model."
@@ -178,7 +182,24 @@ export class AiError extends Error {
 export async function callModel(c: ModelCall): Promise<ModelResult> {
   if (!ANTHROPIC_KEY) throw new AiError(503, 'AI is not configured on this deployment')
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  // A BACKSTOP, NOT A DEADLINE (2026-08-12, Phase 1).
+  //
+  // There was no timeout of any kind: a bare fetch with no AbortController, so a
+  // hung request blocked until the platform killed the lambda — and a platform
+  // kill has no message, no logged outcome, and no way for a caller to say what
+  // happened. agent-schemas.ts already records a 170s call that returned nothing.
+  //
+  // 240s sits UNDER intake's maxDuration of 300 and ABOVE every call this system
+  // has been observed to make, so it converts a hang into a named failure without
+  // creating a new one. On the 60s functions the platform still wins, unchanged.
+  // Self-verification doubles the number of calls per page, which is why this is
+  // being closed before that lands rather than after.
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), c.timeoutMs ?? 240_000)
+  let res: Response
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+    signal: ac.signal,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -199,7 +220,15 @@ export async function callModel(c: ModelCall): Promise<ModelResult> {
       system: c.system,
       messages: [{ role: 'user', content: c.user }],
     }),
-  })
+    })
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new AiError(504, 'The model did not answer within the time allowed. Nothing was saved.')
+    }
+    throw new AiError(502, 'The drafting service could not be reached. Nothing was saved.')
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -541,9 +570,24 @@ export interface RunAgentOpts {
   task: string
   exemplar?: string
   dbAdditions?: ContextRequest['dbAdditions']
-  /** extraction class only: the ceiling applies per page, so a multi-page caller
-   *  runs one agent per page rather than raising the budget. */
-  budgetOverride?: number
+  // `budgetOverride` WAS HERE AND IS GONE (2026-08-12, Phase 1).
+  //
+  // It read `opts.budgetOverride ?? Math.min(c.maxTokens, classCeiling)` — two
+  // lines under the comment "the number still comes from the registry, not the
+  // caller" — so any call site could set any ceiling and escape its class
+  // entirely. Law 4 was stated in a comment and contradicted by the line beneath
+  // it, which is this codebase's oldest failure shape: a rule that lives only in
+  // prose is not a rule the code follows.
+  //
+  // NO CALL SITE EVER PASSED IT. It was a loaded footgun in dead code, and it is
+  // deleted rather than guarded, on the empty-Vercel-project precedent: a hazard
+  // kept for symmetry is a hazard kept. A future caller that genuinely needs a
+  // different ceiling changes its agent's `max_tokens` in the registry, where the
+  // number is reviewable and belongs.
+  //
+  // The retry's `budget *= 2` is NOT the same thing and is deliberately untouched:
+  // "the ceiling is unchanged at 8,000 with the 16,000 retry" is a ruling the
+  // calibration campaign depends on. See BUDGET_CLASS above.
   /** One retry, matched to the failure. Pass false to disable. */
   retry?: boolean
   /** The FEATURE composing this agent — loads contracts/<feature>.md above the
@@ -609,8 +653,7 @@ export async function runAgent<T>(
   // holds either way — the number still comes from the registry, not the caller.
   const classCeiling = BUDGET_CLASS[c.budgetClass]
   const thinkingPosture = CLASS_THINKING[c.budgetClass]
-  let budget = opts.budgetOverride
-    ?? (c.maxTokens ? Math.min(c.maxTokens, classCeiling) : classCeiling)
+  let budget = c.maxTokens ? Math.min(c.maxTokens, classCeiling) : classCeiling
   const text = `${opts.task}\n\n${JSON.stringify(input)}`
   // Images first, then the instruction. The text is kept separate so a retry can
   // append its JSON reminder without rebuilding the attachments.

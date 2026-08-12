@@ -130,11 +130,37 @@ reported at **every** phase boundary, so accuracy always carries its price tag.
 | # | Ships | Gate |
 |---|---|---|
 | **1** | **Boundary hardening.** Strict structured output for extraction (tool-forced, enumerated equipment types, validated units-of-measure); `ExtractorOutput` validator replaced; `budgetOverride` clamped; retry re-clamped; a timeout on every model call. | A malformed read fails at the boundary with a named reason, proven by injection. Battery green. No behaviour change on the existing PDF path — asserted, not assumed. |
-| **2** | **Contract reversal + the model-read leg for Excel.** `extractor.md` rewritten model-first with the reversal recorded. Grid→model rendering that preserves banners and merges. A Node-side workbook read. Provenance on every row. | Adam's three and CUH read by the model alone, with **zero file-specific code paths**. Cost-per-sheet reported. |
+| **2** | **Contract reversal + the model-read leg for Excel.** `extractor.md` rewritten model-first with the reversal recorded. Grid→model rendering that preserves banners and **carries merge extents** (below). A Node-side workbook read. Provenance on every row. | Adam's three and CUH read by the model alone, with **zero file-specific code paths**. `MOTOR MBH` reads as `MBH`. Cost-per-sheet reported. |
 | **3** | **Reconciliation.** Model read × deterministic read → agreement, named disagreement, model-only-offered. Totals reconciliation, fail-loud on irreconcilable. | The 12 zero-typed Seneca files measured before and after. Corpus rate moves and the number prints. |
 | **4** | **Self-verification + tiebreaker.** New agent key and schema pair for row verification (not a reuse of the prose verifier). Per-claim spot-checks, totals, a hunt for what pass 1 missed. Third targeted read only where pass 1 and the verifier disagree on a value; cost logged. | A seeded wrong value is caught and named. Verification failure **fails closed** — an unverified read is not a verified one. |
 | **5** | **Review surfaces.** Per-row questions and answers, disagreement rendering, per-field provenance and confidence. Migration for the columns none of this has. | Sighted legs. The hostile fixture's `MBH` question reaches a human as a question. **Benchmark ≥ 90%.** |
 | **6** | **Harvest Phases 1–2** (3f, already approved) on top of the capture surface this creates. | Per 3f's own gate: rediscover `SERVICE → area_served` from recorded corrections alone. |
+
+### Phase 2 must carry merge extents — the datum rules cannot recover
+
+*Named here rather than left as an observation, ruled 2026-08-12.*
+
+The hostile fixture labelled `MBH` as **`MOTOR MBH`**. `MBH` is in column J; the
+`MOTOR` group header spans `G2:I2` and stops at I. Forward-fill carries a group
+header across every following blank cell, and **`read-excel-file` returns a merged
+cell as *value plus nulls* and never reports the merge's width.** The extent is
+simply not in the data the deterministic reader is handed — no cleverer rule can
+recover it, because the information was discarded before the rule ran.
+
+So **whichever phase hands the model the rendered grid must hand it the merge
+extents too.** Concretely, for Phase 2's grid rendering:
+
+- read merge ranges from the worksheet XML (`<mergeCells>`), which the reader
+  drops, and pass them alongside the grid;
+- render a group header as **spanning its declared columns**, so a column outside
+  the span is not silently adopted by it;
+- the deterministic parser can then consume the same extents, which fixes
+  `MOTOR MBH` on the rules path as well — the fix is a better *input*, not a
+  better heuristic.
+
+**The gate is the fixture:** after Phase 2, `hostile-schedule.xlsx` reports the
+column as `MBH`, not `MOTOR MBH`. Until then it stands as a known, named defect
+with a reproduction — not a mystery.
 
 **Phase 1 is not optional and not reorderable.** Every later phase writes model
 output into an engineering register; without a boundary that fails loudly, a

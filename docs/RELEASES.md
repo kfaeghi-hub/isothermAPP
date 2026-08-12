@@ -173,6 +173,59 @@ ruling. Its Phase 2 gate is that the harvest can rediscover, from recorded
 corrections alone, the SERVICE → area_served rule that was worked out by hand
 this week.
 
+### Extraction upgrade · Phase 1 — the boundary
+
+**For the architect.** Nothing model-produced now reaches the register without
+crossing `api/_shared/extract-contract.ts`. This is phase one because every later
+phase writes model output into an engineering register, and without a boundary
+that fails loudly a malformed read lands as a **plausible wrong row** — a tag that
+is really a sentence, a confidence of 4, a spec value that came back as a
+structure. A shortfall is visible; a well-formed lie is not.
+
+**Two severities, and the split is the design.** `fatal` means the read does not
+hold together: nothing is written, the upload is marked failed, and the refusal
+**names the field and the reason** (`rows[0].confidence: confidence must be a
+number between 0 and 1`) rather than saying "invalid output". `flag` means usable
+and worth a human's eye — recorded, never silently dropped.
+
+**A prior ruling is preserved deliberately.** A `proposed_type` outside the firm
+vocabulary is **not** fatal: `api/intake.ts` already degrades it to "unknown" so
+one invented type cannot throw away nineteen good rows. What changes is that the
+degradation is now **visible** instead of silent. Unrecognised units are flagged
+the same way and the value is kept **as written** — a boundary that refused
+`[ ' w.c.]` would refuse a perfectly good Avondale boiler schedule.
+
+**29 injection tests.** Every case is damage handed to the checker on purpose,
+because a boundary that has never refused anything is a function that has only
+ever been called with good input. Including the one that matters most: a read
+whose rows are *all* lost is refused rather than reported as "0 rows" — a failure
+wearing an empty result's face is the intake defect this codebase already fixed
+once.
+
+**`budgetOverride` is deleted.** It read `opts.budgetOverride ?? Math.min(…)` two
+lines under the comment *"the number still comes from the registry, not the
+caller"* — Law 4 stated in prose and contradicted by the line beneath it. **No call
+site ever passed it**: a loaded footgun in dead code, removed rather than guarded,
+on the empty-Vercel-project precedent. The retry's `budget *= 2` is **not** the
+same thing and is untouched — *"the ceiling is unchanged at 8,000 with the 16,000
+retry"* is a ruling the calibration campaign depends on.
+
+**Every model call now has a timeout** — 240s, a backstop rather than a deadline,
+under intake's 300s ceiling and above anything this system has been observed to
+do. There was none at all: a bare `fetch`, so a hang ended as a platform kill with
+no message and no logged outcome. Self-verification doubles the calls per page,
+which is why this closed before that lands rather than after.
+
+**`api/` joined the unit suite.** The vitest include was `src`-only, so a test
+written beside a serverless module was silently never run — the same shape as a
+gate reporting a pass on a corpus that was not there. 132 unit tests, up from 103.
+
+**Gate, both halves.** Malformed reads refused by injection ✓. No behaviour change
+on the PDF path — **asserted, not assumed**: one real extraction (~4¢) through the
+new boundary returned 3 rows with both paths agreeing on every tag and every type.
+Benchmark unchanged at 75%, which is the correct result — Phase 1 hardens the
+model path and the benchmark measures the deterministic one.
+
 ### The extraction target now has a number
 
 **For the architect.** Every extraction fix so far was argued from one file. There
