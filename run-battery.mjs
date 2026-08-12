@@ -210,6 +210,25 @@ for (const s of SUITES) {
   const pass = r.status === 0
   results.push({ s, pass, out })
   console.log(pass ? `PASS (${secs}s)` : `FAIL exit=${r.status} (${secs}s)`)
+
+  // ── SETTLE BETWEEN SUITES ──────────────────────────────────────────────────
+  //
+  // THE BATTERY IS SERIAL AND THAT WAS NEVER THE PROBLEM. `spawnSync` blocks;
+  // one suite finishes before the next begins. But a suite's process EXITING is
+  // not the same as its WRITES LANDING: a request already sent commits on the
+  // server whether or not the client waited for the response, so an unawaited
+  // cleanup or a fire-and-forget update settles during the NEXT suite's run.
+  //
+  // The evidence for that, rather than for weather: five different suites failed
+  // across four runs, the failing set moved every time, every one of them passes
+  // ALONE, and the set now includes pw-pfc-verify — a naming assertion with no
+  // document generation in it at all. Weather does not select for neighbours.
+  //
+  // This is a PROBE, not the fix. If it turns the battery green, the real repair
+  // is per-suite: every write awaited, every self-clean asserted before exit. A
+  // pause that hides an unawaited write is the battery learning to shrug, which is
+  // the thing the transient guard was built to refuse.
+  await new Promise(r2 => setTimeout(r2, 3000))
 }
 
 const failed = results.filter(r => !r.pass)
