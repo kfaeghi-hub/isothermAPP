@@ -111,7 +111,7 @@ if (WITH_AI) {
   planChunks = m.planChunks
   costCents = m.costCents
   await build({
-    entryPoints: ['api/_shared/reconcile.ts'], outfile: 'out/bench-reconcile.mjs',
+    entryPoints: ['src/lib/reconcile.ts'], outfile: 'out/bench-reconcile.mjs',
     format: 'esm', bundle: true, platform: 'node', logLevel: 'error',
   })
   reconcileSheet = (await import('./out/bench-reconcile.mjs')).reconcileSheet

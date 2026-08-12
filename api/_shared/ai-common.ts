@@ -107,7 +107,35 @@ export function buildContext(req: ContextRequest): string {
 
 // ── The one model call site ──────────────────────────────────────────────────
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
+
+/**
+ * THE MODEL IS PINNED, AND THE PIN IS AN ASSERTION RATHER THAN A VERSION STRING.
+ *
+ * Ruled 2026-08-12: "the floating alias is retired — a model upgrade is a
+ * deliberate measured step with a before/after corpus run, never a vendor's
+ * rotation moving the number silently."
+ *
+ * The intent is exact and the mechanism had to bend to a fact: **this API surface
+ * does not expose a dated id to pin to.** Asked for `claude-sonnet-5`, the response
+ * comes back `"model": "claude-sonnet-5"` — the alias resolves to itself. There is
+ * no `claude-sonnet-5-20260401` to write down, so writing one would be inventing a
+ * pin rather than setting one.
+ *
+ * What IS available is the identity the API reports on every call. So the pin is:
+ * record what we expect, compare what came back, and say so LOUDLY when they
+ * differ. A silent rotation is exactly what this is for — if the vendor repoints
+ * the alias, the next benchmark run says the model changed instead of reporting a
+ * moved number as an accuracy result.
+ *
+ * `AI_MODEL_PIN` overrides for a deliberate upgrade: set it, run the corpus, and
+ * the before/after is a measured step rather than a discovery.
+ */
 const MODEL = process.env.AI_MODEL ?? 'claude-sonnet-5'
+export const MODEL_PIN = process.env.AI_MODEL_PIN ?? MODEL
+
+/** Every distinct model identity this process has actually been served. A
+ *  benchmark prints it, so a rotation is in the record rather than in the noise. */
+export const modelsSeen = new Set<string>()
 
 /** A page the model should LOOK at rather than read as text.
  *
@@ -256,6 +284,16 @@ async function callModelOnce(c: ModelCall): Promise<ModelResult> {
   }
 
   const j = await res.json() as any
+  // THE PIN, CHECKED ON EVERY CALL. Not fatal — a refusal here would take the
+  // whole feature down over a vendor's naming change — but never silent.
+  if (typeof j.model === 'string') {
+    modelsSeen.add(j.model)
+    if (j.model !== MODEL_PIN) {
+      console.warn(`[ai-common] MODEL PIN MISMATCH: asked for ${MODEL}, pinned to ` +
+        `${MODEL_PIN}, served ${j.model}. Any measurement taken now is NOT comparable ` +
+        `to earlier ones. Set AI_MODEL_PIN and re-run the corpus deliberately.`)
+    }
+  }
   const blocks: any[] = j.content ?? []
   const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('')
   return {

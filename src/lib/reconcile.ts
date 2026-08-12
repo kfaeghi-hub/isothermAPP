@@ -39,7 +39,32 @@
 //   3. PER-ROW LEG ATTRIBUTION IS MANDATORY. "Which reader said this" is
 //      provenance the review UI needs, and it is built once, here.
 
-import type { CheckedRow, Ambiguity } from './extract-contract.js'
+// SELF-CONTAINED BY DESIGN. This module is imported by THREE runtimes — the
+// browser (the orchestrator reconciles client-side), Node (the benchmark), and
+// nothing in api/ at all. So it declares the shapes it consumes rather than
+// importing them across a runtime boundary that has never been proven to work.
+//
+// The recon that preceded Phase 5a found ZERO runtime imports crossing api/ into
+// src/, and the repo's own convention (explicit .js extensions, Vercel ESM)
+// implies per-file transpile — under which src/lib's extensionless imports would
+// die exactly as they did in the pw-extractor incident. Living in src/lib and
+// importing nothing from api/ removes the bet instead of taking it.
+
+/** The row shape this consumes from a model read. Structurally identical to
+ *  `ReadRow` in api/_shared/extract-contract.ts, declared here so neither
+ *  runtime has to reach into the other. */
+export interface ReadRow {
+  tag: string
+  descriptor?: string | null
+  proposed_category?: string | null
+  proposed_type?: string | null
+  location?: string | null
+  area_served?: string | null
+  nameplate: Record<string, string>
+  confidence: number
+  reasoning?: string
+}
+export interface Ambiguity { about: string; question: string; where?: string }
 
 /** Which reader produced a value. */
 export type Leg = 'rules' | 'model' | 'both'
@@ -157,7 +182,7 @@ interface RulesRow {
  */
 export function reconcileSheet(
   rulesRows: RulesRow[],
-  modelRows: CheckedRow[] | null,
+  modelRows: ReadRow[] | null,
   modelAmbiguities: Ambiguity[] = [],
 ): MergeResult {
   const disagreements: Disagreement[] = []
@@ -195,7 +220,7 @@ export function reconcileSheet(
     return m
   }
   const byTagRules = keyed<RulesRow>(rulesRows, 'rules')
-  const byTagModel = keyed<CheckedRow>((modelRows ?? []) as CheckedRow[], 'model')
+  const byTagModel = keyed<ReadRow>((modelRows ?? []) as ReadRow[], 'model')
 
   const tags = [...new Set([...byTagRules.keys(), ...byTagModel.keys()])]
   const rows: MergedRow[] = []

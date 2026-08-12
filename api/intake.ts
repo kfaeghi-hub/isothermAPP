@@ -25,15 +25,19 @@
 //
 // NEITHER ACTION IS AUTONOMOUS. `extract` proposes rows into intake_rows;
 // `approve` writes only rows a human already ruled on. Law 2 holds across both.
+import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, AuthError } from './_shared/auth-common.js'
 import { runAgent, logAgentRun, AiError } from './_shared/ai-common.js'
 import { checkExtraction, describeProblems } from './_shared/extract-contract.js'
+import { readSheetWithModel, costCents } from './_shared/sheet-model-read.js'
+import { verifyExtraction } from './_shared/verify-extraction.js'
 import { sniffMediaType, describeBytes } from './_shared/media-type.js'
 import type { ExtractorOutput, FieldSetDraftInput, FieldSetDraftOutput,
   PageSortInput, PageSortOutput } from './_shared/agent-schemas.js'
 
-const ACTIONS = ['extract', 'approve', 'draft-field-set', 'find-pages']
+const ACTIONS = ['extract', 'approve', 'draft-field-set', 'find-pages',
+                 'read-sheet', 'verify-sheet']
 
 /** One pass sorts at most this many undecided pages. A drawing set is allowed to
  *  be enormous; a single model call is not. Over the ceiling the user is TOLD,
@@ -99,6 +103,97 @@ export default async function handler(req: any, res: any) {
       const { data: p } = await service.from('user_profiles')
         .select('role').eq('id', user.userId).maybeSingle()
       return ['admin', 'developer', 'owner', 'employee'].includes(p?.role ?? '')
+    }
+
+    // == READ SHEET (5a) ======================================================
+    //
+    // ONE SHEET, OR ONE BAND, PER INVOCATION — and that is the whole architecture,
+    // not an optimisation. Measured before this existed: one sheet takes 20-105s,
+    // and a chunked 18-band sheet or a multi-sheet workbook cannot clear this
+    // function's 300s ceiling. Worst case for a single call, with the content
+    // retry and the transport retry both exhausting the 240s backstop, is 1,440s.
+    //
+    // The browser orchestrates instead. It holds the file, parses the rules leg
+    // locally, and calls this once per sheet — so NO INVOCATION EVER CARRIES MORE
+    // THAN ONE SHEET'S RETRY BUDGET. The 1,440s worst case is dissolved rather
+    // than mitigated: it can no longer be reached, because nothing here loops.
+    //
+    // THE GRID ARRIVES AS DATA. This endpoint never opens a workbook — it cannot,
+    // without a runtime import from api/ into src/lib that has never been proven
+    // to work on Vercel and that the pw-extractor incident says would fail. The
+    // caller sends the grid and the merge extents it already has, and the API
+    // holds only what the API key requires.
+    if (action === 'read-sheet') {
+      if (!(await isStaff())) return res.status(403).json({ error: 'Intake is a staff action.' })
+
+      const grid = req.body?.grid
+      const sheet = String(req.body?.sheet ?? '').trim()
+      if (!Array.isArray(grid) || !grid.length) {
+        return res.status(400).json({ error: 'grid is required and must be a non-empty array of rows.' })
+      }
+      if (!sheet) return res.status(400).json({ error: 'sheet is required.' })
+      const merges = Array.isArray(req.body?.merges) ? req.body.merges : []
+
+      const { data: types } = await service.from('equipment_types')
+        .select('key, name').eq('active', true).order('key')
+      const knownTypes = (types ?? []).map(t => `${t.key} (${t.name})`)
+      if (!knownTypes.length) {
+        return res.status(500).json({ error: 'No active equipment types are configured, so no row could resolve a type.' })
+      }
+
+      // THE SAME FUNCTION THE BENCH CALLS. One reading path, two callers — the
+      // request is the same bytes because it is built by the same code.
+      const r = await readSheetWithModel({ grid, sheetName: sheet, merges, knownTypes })
+      await logAgentRun(service, {
+        agentKey: 'extractor', feature: 'intake:read-sheet',
+        projectId: typeof req.body?.project_id === 'string' ? req.body.project_id : undefined,
+        run: r.run, createdBy: user.userId, runId: randomUUID(),
+      })
+
+      if (!r.run.ok) {
+        return res.status(502).json({
+          error: `The sheet could not be read (${r.run.failure}). Nothing was staged.`,
+          failure: r.run.failure, retryable: true, cost: costCents(r.run),
+        })
+      }
+      if (!r.checked?.ok) {
+        return res.status(502).json({
+          error: `The reading did not hold together well enough to keep. ${describeProblems(r.checked?.problems ?? [])}`,
+          failure: 'contract-boundary', problems: r.checked?.problems ?? [],
+          retryable: true, cost: costCents(r.run),
+        })
+      }
+
+      return res.status(200).json({
+        rows: r.checked.rows,
+        mappings: r.checked.mappings,
+        ambiguities: r.checked.ambiguities,
+        problems: r.checked.problems,
+        page_note: r.run.value?.page_note ?? null,
+        rendered: r.rendered,
+        cost: costCents(r.run),
+        model: r.run.usage?.model ?? null,
+      })
+    }
+
+    // == VERIFY SHEET (5a) ====================================================
+    // The second pass, same one-sheet-per-invocation rule. Fails CLOSED: a
+    // verification that could not run comes back `ran: false` with a named
+    // failure, never an empty pass.
+    if (action === 'verify-sheet') {
+      if (!(await isStaff())) return res.status(403).json({ error: 'Intake is a staff action.' })
+
+      const grid = req.body?.grid
+      const sheet = String(req.body?.sheet ?? '').trim()
+      const claims = Array.isArray(req.body?.claims) ? req.body.claims : []
+      if (!Array.isArray(grid) || !grid.length) {
+        return res.status(400).json({ error: 'grid is required.' })
+      }
+      const v = await verifyExtraction({
+        grid, sheetName: sheet, merges: Array.isArray(req.body?.merges) ? req.body.merges : [],
+        claims, claimedUnits: Number(req.body?.claimed_units ?? claims.length),
+      })
+      return res.status(200).json(v)
     }
 
     // == DRAFT FIELD SET ======================================================
