@@ -26,7 +26,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-dashboard.mjs
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { login } from './pw-config.mjs'
+import { waitUntil, login } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 const MARK = 'ZZ-DASH'
@@ -117,8 +117,9 @@ await page.setViewportSize({ width: 1600, height: 1000 })
 
 try {
   await login(page)   // lands on / — the dashboard is home
-  await page.waitForTimeout(2500)
 
+  await waitUntil(async () => await page.locator('[data-testid="chip-active"]').count() === 1,
+    { timeout: 15000, what: 'dashboard is home: stat chips render' })
   check(await page.locator('[data-testid="chip-active"]').count() === 1, 'dashboard is home: stat chips render')
   const overdueCount = parseInt(await page.locator('[data-testid="chip-overdue"] p').first().innerText(), 10)
   check(overdueCount >= 1, `Overdue Action Items chip counts the seeded item (${overdueCount})`)
@@ -140,11 +141,12 @@ try {
 
   // Overview stat header (same-derivation proof surface)
   await page.goto(page.url().split('?')[0])
-  await page.waitForTimeout(2000)
   // The header renders ~3s after a cold navigation (stats fetch behind auth) —
   // auto-wait instead of racing a fixed count() snapshot.
   const header = page.locator('[data-testid="project-stat-header"]')
   await header.waitFor({ timeout: 15000 }).catch(() => {})
+  await waitUntil(async () => await header.count() === 1,
+    { timeout: 15000, what: 'project Overview stat header renders' })
   check(await header.count() === 1, 'project Overview stat header renders')
   // innerText returns RENDERED text — the label is CSS-uppercased.
   check(/open findings/i.test(await header.innerText()), 'stat header shows Open Findings')
@@ -169,7 +171,8 @@ try {
   const groupCells = await groupRow.innerText()
   check(/\b2\b/.test(groupCells), `group unions the meeting item AND the finding (got: ${groupCells.replace(/\s+/g, ' ')})`)
   await groupRow.click()
-  await page.waitForTimeout(400)
+  await waitUntil(async () => (await resp.innerText()).includes('900.1'),
+    { timeout: 15000, what: 'expanded group lists the meeting item' })
   check((await resp.innerText()).includes('900.1'), 'expanded group lists the meeting item')
 
   // My Items (name-matched) + Recent Activity

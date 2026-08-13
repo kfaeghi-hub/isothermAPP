@@ -3,7 +3,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-dates.mjs
 
 import { chromium } from 'playwright'
-import { login, openTestProject, TEST_PROJECT } from './pw-config.mjs'
+import { waitUntil, login, openTestProject, TEST_PROJECT } from './pw-config.mjs'
 
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
@@ -17,9 +17,10 @@ await openTestProject(page)
 
 // Edit → set dates
 await page.getByRole('button', { name: 'Edit Project' }).click()
-await page.waitForTimeout(800)
 const modal = page.locator('.fixed')
 const dateInputs = modal.locator('input[type="date"]')
+await waitUntil(async () => await dateInputs.count() === 2,
+  { timeout: 15000, what: 'edit modal has start + finish date pickers' })
 check(await dateInputs.count() === 2, 'edit modal has start + finish date pickers')
 await dateInputs.first().fill('2026-07-01')
 await dateInputs.nth(1).fill('2027-12-15')
@@ -47,8 +48,9 @@ await page.screenshot({ path: 'ss-dates-1-header.png' })
 
 // Back to list: muted line + sort
 await page.getByRole('button', { name: '← Projects' }).click()
-await page.waitForTimeout(1500)
 const row = page.locator('tr', { hasText: TEST_PROJECT })
+await waitUntil(async () => await row.getByText('Jul 2026 → Dec 2027').count() === 1,
+  { timeout: 15000, what: 'list row shows date range line' })
 check(await row.getByText('Jul 2026 → Dec 2027').count() === 1, 'list row shows date range line')
 
 await page.locator('select', { hasText: 'Sort: Recent' }).selectOption('start_date')

@@ -30,7 +30,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { loginAs, adminCredentials , waitForCount } from './pw-config.mjs'
+import { waitUntil, loginAs, adminCredentials , waitForCount } from './pw-config.mjs'
 
 const RUN = Date.now().toString(36)
 const PROJECT_NAME = `ZZ-TEST-DELETE ${RUN} — Do Not Use`
@@ -104,9 +104,10 @@ check(await page.locator('input[type="password"]').count() === 0, 'logged in as 
 
 // New Project button / project list live on /projects (sign-in lands on Dashboard).
 await page.getByRole('link', { name: 'Projects' }).click()
-await page.waitForTimeout(1500)
 
 const row = page.locator('tr', { hasText: PROJECT_NAME })
+await waitUntil(async () => await row.count() === 1,
+  { timeout: 15000, what: 'fixture project visible in the list' })
 check(await row.count() === 1, 'fixture project visible in the list')
 
 // Row actions are owner-only and revealed on hover; the click auto-hovers.

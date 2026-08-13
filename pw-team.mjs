@@ -7,7 +7,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { login, openTestProject } from './pw-config.mjs'
+import { waitUntil, login, openTestProject } from './pw-config.mjs'
 
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
@@ -51,10 +51,11 @@ await page.locator('button', { hasText: 'Commissioning' }).first()
   .or(page.locator('button', { hasText: /^CxA/ }).first())
 // Click the CxA unassigned card (role name text 'CxA')
 await page.locator('button:has-text("Assign company →")', { hasText: 'CxA' }).first().click()
-await page.waitForTimeout(700)
 const modal = page.locator('.fixed')
 
 const suggestedHdr = modal.getByText(/Suggested — hold the/)
+await waitUntil(async () => await suggestedHdr.count() === 1,
+  { timeout: 15000, what: 'suggested section shown for companies holding the role' })
 check(await suggestedHdr.count() === 1, 'suggested section shown for companies holding the role')
 await page.screenshot({ path: 'ss-team-2-suggest.png' })
 
@@ -94,7 +95,8 @@ await m2.locator('button').filter({ hasText: /\(|Inc|Ltd|Corp|TDSB|Mechanical|En
 await page.waitForTimeout(700)
 await m2.getByText('Company only — no contact').click()
 await m2.getByRole('button', { name: 'Assign', exact: true }).click()
-await page.waitForTimeout(2000)
+await waitUntil(async () => await page.getByText('Company only — no contact assigned').count() === 1,
+  { timeout: 15000, what: 'company-only seat renders' })
 check(await page.getByText('Company only — no contact assigned').count() === 1, 'company-only seat renders')
 
 // ── 4. Hide unassigned ────────────────────────────────────────────────────────
@@ -108,12 +110,14 @@ await page.getByRole('button', { name: '+ Add role' }).click()
 await page.getByPlaceholder('Role name (e.g. Sprinkler Contractor)…').fill('ZZ-Test Role')
 await page.getByPlaceholder('Abbr.').fill('ZZT')
 await page.locator('button:has-text("✓")').first().click()
-await page.waitForTimeout(1200)
+await waitUntil(async () => await page.locator('button', { hasText: 'ZZ-Test Role' }).count() >= 1,
+  { timeout: 15000, what: 'inline-added role appears as a card immediately' })
 check(await page.locator('button', { hasText: 'ZZ-Test Role' }).count() >= 1, 'inline-added role appears as a card immediately')
 
 // ── 6. Overview summary block ─────────────────────────────────────────────────
 await page.getByRole('button', { name: 'Overview', exact: true }).click()
-await page.waitForTimeout(1500)
+await waitUntil(async () => await page.getByText('Project Team').count() >= 1,
+  { timeout: 15000, what: 'overview: Team summary block present' })
 check(await page.getByText('Project Team').count() >= 1, 'overview: Team summary block present')
 check(await page.getByText('View Team →').count() === 1, 'overview: View Team link')
 check(await page.locator('span:has-text("CxA")').count() >= 1, 'overview: CxA chip in summary')

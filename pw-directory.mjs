@@ -9,7 +9,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { login } from './pw-config.mjs'
+import { waitUntil, login } from './pw-config.mjs'
 
 const CO = 'ZZ-TEST Directory Co — Do Not Use'
 const CT = 'ZZ Directory Tester'
@@ -116,8 +116,9 @@ await page.locator('tr', { hasText: CT }).getByRole('button', { name: 'Edit' }).
     await page.locator('tr', { hasText: CT }).hover()
     await page.locator('tr', { hasText: CT }).getByText('Edit').click()
   })
-await page.waitForTimeout(800)
 const em2 = page.locator('.fixed')
+await waitUntil(async () => await em2.getByPlaceholder('Number').count() === 2,
+  { timeout: 15000, what: 'persisted: two phone rows' })
 check(await em2.getByPlaceholder('Number').count() === 2, 'persisted: two phone rows')
 check(await em2.getByPlaceholder('Email').count() === 2, 'persisted: two email rows')
 check((await em2.getByPlaceholder('Ext.').nth(1).inputValue()) === '204', 'persisted: extension 204')
@@ -130,7 +131,8 @@ await page.waitForTimeout(400)
 // ── 5. Company trade filter ──────────────────────────────────────────────────
 const tradeFilter = page.locator('aside select').first()
 await tradeFilter.selectOption({ label: 'Mechanical' })
-await page.waitForTimeout(400)
+await waitUntil(async () => await page.locator('aside').getByText(CO).count() === 1,
+  { timeout: 15000, what: 'trade filter (Mechanical) keeps company' })
 check(await page.locator('aside').getByText(CO).count() === 1, 'trade filter (Mechanical) keeps company')
 await tradeFilter.selectOption({ label: 'Building Envelope' })
 await page.waitForTimeout(400)

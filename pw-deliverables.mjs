@@ -7,7 +7,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-deliverables.mjs
 
 import { chromium } from 'playwright'
-import { loginAs, adminCredentials, credentials, BASE_URL, TEST_PROJECT } from './pw-config.mjs'
+import { waitUntil, loginAs, adminCredentials, credentials, BASE_URL, TEST_PROJECT } from './pw-config.mjs'
 
 const LEED_PROJECT = 'ZZ-TEST-LEED — Do Not Use'
 const ADHOC_NAME = 'ZZ Overdue Ad-hoc Deliverable'
@@ -143,7 +143,8 @@ if (!live) { await browser.close(); process.exit(1) }
   const modal = page.locator('.fixed').last()
   await modal.getByPlaceholder('e.g. Roof Warranty Letter').fill(ADHOC_NAME)
   await modal.getByRole('button', { name: 'Add', exact: true }).click()
-  await page.waitForTimeout(1200)
+  await waitUntil(async () => await page.getByText(ADHOC_NAME).count() > 0,
+    { timeout: 15000, what: 'ad-hoc deliverable added' })
   check(await page.getByText(ADHOC_NAME).count() > 0, 'ad-hoc deliverable added')
   check(await page.getByText('AD-HOC').count() > 0, 'AD-HOC marker rendered')
   const chk = await sql(`select template_id, name from project_deliverables where project_id='${zzId}' and name='${ADHOC_NAME}'`)
@@ -157,7 +158,8 @@ if (!live) { await browser.close(); process.exit(1) }
 // ── B: dev.test sees it in the Attention Queue + My Items ───────────────────
 {
   await newSession(credentials())
-  await page.waitForTimeout(2000)
+  await waitUntil(async () => await page.getByText('DELIVERABLE').count() > 0,
+    { timeout: 15000, what: 'Attention Queue shows a DELIVERABLE row' })
   check(await page.getByText('DELIVERABLE').count() > 0, 'Attention Queue shows a DELIVERABLE row')
   check(await page.getByText(`${ADHOC_NAME} overdue`).count() > 0, 'overdue deliverable named in the queue')
   check(await page.locator('[data-testid="my-deliverables"]').getByText(ADHOC_NAME).count() > 0,

@@ -7,7 +7,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-finding-register.mjs
 import { chromium } from 'playwright'
 import { inflateRawSync } from 'node:zlib'
-import { login, openTestProject, BASE_URL, apiToken, credentials, signedFileUrl } from './pw-config.mjs'
+import { waitUntil, login, openTestProject, BASE_URL, apiToken, credentials, signedFileUrl } from './pw-config.mjs'
 
 const REPORT = '94b1ee0e-325e-4286-b079-45cecd3400f7'  // ZZ-1 fixture report
 const TITLE  = 'ZZ-REGISTER-TEST finding'
@@ -90,9 +90,10 @@ try {
   await page.waitForTimeout(300)
 
   await modal.getByRole('button', { name: 'Create Finding' }).click()
-  await page.waitForTimeout(2500)
 
   // ── Detail render ────────────────────────────────────────────────────────
+  await waitUntil(async () => await page.getByText(DESC).count() > 0,
+    { timeout: 15000, what: 'detail: Issue Description block renders' })
   check(await page.getByText(DESC).count() > 0, 'detail: Issue Description block renders')
   check(await page.getByText(CORR).count() > 0, 'detail: Corrective Action block renders')
   check(await page.getByText(AREA).count() >= 2, 'detail + list suffix: Building/Area renders in both')
