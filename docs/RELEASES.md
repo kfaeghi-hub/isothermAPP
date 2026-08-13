@@ -16,6 +16,42 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.09 — 2026-08-13 (internal: extraction Phase 5a CLOSED)
+
+### For the team
+
+Nothing changes on your screen with this one — it is the foundation under the
+next thing. The import pipeline that reads spreadsheets with AI now runs
+end-to-end in the app: every sheet is read, checked by a second pass, staged
+with its full provenance (which reader saw it, how sure it was, what the two
+readers disagreed on), and an interrupted import resumes where it left off
+instead of starting over. The review screen where you'll rule on what the
+readers found is next (5b).
+
+### Technical record
+
+**Extraction Phase 5a closed on the first fully green battery — 41/41, twice
+consecutively.** The gate clause was the first clean 41/41; the campaign that
+got there is the harness-timing arc: the sleep census (224 sites, 89 guard), the
+reversed mechanical sweep (35/41, reversal on record), per-suite conversion
+under the slack law with anchors landing in the same commit, and the
+instrumented pw-meetings poll whose ledger now holds six [GENERATION] readings.
+
+**The confirmation arm's answer was NO — and that is a finding.** pw-meetings at
+position 2 read 6672ms, INSIDE the 4957–6717ms band from position 21, nowhere
+near the 1676ms suite-alone reading. Generation cost is not positional load
+accumulating through the battery; it is a property of running inside a battery
+at all (cold serverless starts and shared-resource contention are the standing
+suspects, unproven). The load-accumulation hypothesis is retired. All readings
+sit far inside the 90s deadline; there is no product concern.
+
+**5b opens:** the review UI over staged provenance — per-row provenance
+rendering (leg, confidence, disposition), questions surfaced as questions, the
+four standing type-conflicts as the first real review items, disagreement
+rendering per Phase 3's rulings, IntakeReview widened rather than replaced.
+
+---
+
 ## Update 1.08 — 2026-08-10
 
 ### For the team
