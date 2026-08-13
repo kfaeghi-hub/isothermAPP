@@ -7,7 +7,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-pfc-verify.mjs
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { login, openTestProject } from './pw-config.mjs'
+import { waitUntil, login, openTestProject } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 const AHU_TMPL = 'da98cd4a-6132-4017-8763-0aba21303b56'
@@ -35,13 +35,15 @@ try {
 
   const modal = page.locator('div.fixed.inset-0')
   await page.getByRole('button', { name: '+ New Checklist' }).click()
-  await page.waitForTimeout(800)
 
   const tmplRow = modal.getByRole('button').filter({ hasText: TMPL_NAME }).first()
+  await waitUntil(async () => await tmplRow.getByText('PFC', { exact: true }).count() === 1,
+    { timeout: 15000, what: 'template picker: AHU template carries the PFC badge' })
   check(await tmplRow.getByText('PFC', { exact: true }).count() === 1,
     'template picker: AHU template carries the PFC badge')
   await tmplRow.click()
-  await page.waitForTimeout(600)
+  await waitUntil(async () => await modal.getByText(/^New PFC —/).count() === 1,
+    { timeout: 15000, what: 'create modal titled ' })
   check(await modal.getByText(/^New PFC —/).count() === 1, 'create modal titled "New PFC — …"')
 
   await modal.getByRole('button').filter({ hasText: 'TEST-AHU-1' }).first().click()
@@ -49,20 +51,50 @@ try {
   await modal.getByRole('button').filter({ hasText: 'TEST-AHU-2' }).first().click()
   await page.waitForTimeout(400)
   await modal.getByRole('button', { name: 'Create Checklist' }).click()
-  await page.waitForTimeout(3000)
 
-  // Detail header: badge + corrected name in the snapshot
-  check(await page.getByText('PFC', { exact: true }).count() > 0, 'instance detail shows PFC badge')
-  check(await page.getByText(TMPL_NAME).count() > 0, 'instance carries the "Prefunctional Checklist" name')
+  // Detail header: badge + corrected name in the snapshot.
+  //
+  // REBUILT BY HAND after the mechanical conversion produced a VACUOUS poll: its
+  // predicate — getByText('PFC', {exact}) > 0 — was already true before the
+  // click, because the FILTER BAR has a button that says PFC. The suite raced
+  // ahead of the creation, the detail opened late over the filtered list, and
+  // the IVC negative at the bottom read the name out of the open detail. The old
+  // 3000ms was covering creation + navigation; the old checks were counting the
+  // filter bar, which means THE BADGE CHECK COULD NEVER FAIL. Both problems get
+  // the same repair: prove the sequence (modal departs, detail arrives), then
+  // assert INSIDE the detail header, not against the whole page.
+  await waitUntil(async () => await modal.count() === 0,
+    { timeout: 20000, what: 'the create modal departing (creation submitted)' })
+  const detailEdit = page.getByRole('button', { name: 'Edit', exact: true })
+  await waitUntil(async () => await detailEdit.count() >= 1,
+    { timeout: 20000, what: 'the new instance detail arriving' })
+  const detailHeader = detailEdit.locator('xpath=ancestor::div[contains(@class,"border-b")][1]')
+  check(await detailHeader.getByText('PFC', { exact: true }).count() >= 1, 'instance detail shows PFC badge')
+  check(await detailHeader.getByText(TMPL_NAME).count() >= 1, 'instance carries the "Prefunctional Checklist" name')
   await page.locator('button', { hasText: '×' }).first().click()
-  await page.waitForTimeout(1000)
+  // Departure after a PROVEN arrival — this is what the downstream IVC negative
+  // actually depends on: a detail left open carries TMPL_NAME regardless of any
+  // filter. (A departure wait is only sound because arrival was asserted above;
+  // waiting on absence without that premise passes on tick 1.)
+  await waitUntil(async () => await detailEdit.count() === 0,
+    { timeout: 15000, what: 'the instance detail closing' })
 
   // Type filter: PFC shows it, IVC hides it
   await page.getByRole('button', { name: 'PFC', exact: true }).click()
-  await page.waitForTimeout(600)
+  await waitUntil(async () => await page.getByText(TMPL_NAME).count() > 0,
+    { timeout: 15000, what: 'PFC filter lists the new instance' })
   check(await page.getByText(TMPL_NAME).count() > 0, 'PFC filter lists the new instance')
   await page.getByRole('button', { name: 'IVC', exact: true }).click()
-  await page.waitForTimeout(600)
+  // THE NEGATIVE THAT BROKE THE SWEEP (N5, 35/41). "IVC does not list it" cannot
+  // be bound-waited — a poll on absence passes before the filter has done
+  // anything. The POSITIVE anchor is the filter itself having applied: the active
+  // filter button carries font-semibold, and setFilter re-renders the button and
+  // the filtered list in the same React commit, so once the button reads active,
+  // the list beside it IS the filtered list. Then the absence means what it says.
+  await waitUntil(async () => {
+    const active = page.locator('button.font-semibold', { hasText: 'IVC' })
+    return await active.count() === 1
+  }, { timeout: 15000, what: 'the IVC filter button showing active' })
   check(await page.getByText(TMPL_NAME).count() === 0, 'IVC filter does NOT list it')
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
