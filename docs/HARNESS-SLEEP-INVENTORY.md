@@ -2,7 +2,11 @@
 
 *[KEEL] 2026-08-12, under ruling 2. Bounded inventory, not a blind sweep.*
 
-Regenerate with `node out/classify-sleeps.mjs && node out/derivable.mjs`.
+Regenerate with `node harness-convert-sleeps.mjs --census`.
+
+The classification lives IN THE TOOL, not in this file. This document is the
+**ledger**; `harness-convert-sleeps.mjs` is the **mechanism**. A sleep added next
+year is classified and refused by the tool whether or not anyone reads this page.
 
 ## Why this exists
 
