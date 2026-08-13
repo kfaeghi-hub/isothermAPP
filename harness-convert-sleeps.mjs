@@ -64,7 +64,12 @@ const NL = String.fromCharCode(10)
 
 // ── classification, from source, every run ────────────────────────────────────
 const ASSERTS = /\bcheck\s*\(|throw new Error|process\.exit\s*\(\s*1|\bexpect\s*\(/
-const READS = /\.count\s*\(|\.innerText\s*\(|\.textContent\s*\(|\.inputValue\s*\(|isVisible\s*\(|\.allInnerTexts\s*\(|\.allTextContents\s*\(|svc\s*\.from\s*\(|\.evaluate\s*\(/
+// The DB-read arm matches ANY client identifier (`svc.from(`, `sb.from(`,
+// `adm.from(`) — the first version knew only `svc` and a guard sleep in
+// pw-meetings slipped the census as convenience because its client is named
+// `sb`. Instrument-blindness in the classifier itself. Array.from() over-matches
+// here; over-flagging sends a site to dry-run review, which is the safe side.
+const READS = /\.count\s*\(|\.innerText\s*\(|\.textContent\s*\(|\.inputValue\s*\(|isVisible\s*\(|\.allInnerTexts\s*\(|\.allTextContents\s*\(|\b\w+\s*\.from\s*\(|\.evaluate\s*\(/
 const SOLO_SLEEP = /^\s*await\s+[\w$.]+\.waitForTimeout\s*\(\s*[\d_]+\s*\)\s*;?\s*$/
 
 // A predicate is NEGATIVE when becoming-true is the ABSENCE of something.

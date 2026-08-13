@@ -7,7 +7,7 @@
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
 import { inflateRawSync } from 'node:zlib'
-import { login, openTestProject, credentials, signedFileUrl } from './pw-config.mjs'
+import { waitUntil, login, openTestProject, credentials, signedFileUrl } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 
@@ -60,12 +60,14 @@ try {
   await page.getByRole('button', { name: '+ New Meeting' }).first().click()
   await page.waitForTimeout(600)
   await modal.locator('select').first().selectOption({ label: 'Recurring Cx Meeting' })
-  await page.waitForTimeout(300)
+  await waitUntil(async () => await modal.locator('input[type="number"]').inputValue() === '1',
+    { timeout: 15000, what: 'meeting number auto-suggested as 1' })
   check(await modal.locator('input[type="number"]').inputValue() === '1', 'meeting number auto-suggested as 1')
   await modal.getByRole('button', { name: 'Create Meeting' }).click()
-  await page.waitForTimeout(2500)
 
   for (const t of ['Review of Previous Minutes', 'Checklist (PFC) Status', 'Issues Log Review', 'Next Meeting']) {
+    await waitUntil(async () => await page.locator(`input[value="${t}"]`).count() === 1,
+      { timeout: 15000, what: 'topic seeded: ${t}' })
     check(await page.locator(`input[value="${t}"]`).count() === 1, `topic seeded: ${t}`)
   }
   const { data: t1 } = await sb.from('meeting_topics').select('id', { count: 'exact' })
@@ -74,17 +76,24 @@ try {
 
   // ── Attendee from directory: matrix member surfaces first, role auto ─────
   await page.locator('[data-testid="add-attendee"]').click()
-  await page.waitForTimeout(500)
+  await waitUntil(async () => await modal.getByText('Project team').count() === 1,
+    { timeout: 15000, what: 'attendee picker: Project team group first' })
   check(await modal.getByText('Project team').count() === 1, 'attendee picker: Project team group first')
   const rayRow = modal.getByRole('button').filter({ hasText: 'Ray Scheepstra' }).first()
+  // The group HEADER arriving is not every ROW's role chip arriving — the chips
+  // come from the matrix join. Own anchor, per the law.
+  await waitUntil(async () => await rayRow.getByText('BAS', { exact: true }).count() === 1,
+    { timeout: 15000, what: 'the matrix role chip on the picker row' })
   check(await rayRow.getByText('BAS', { exact: true }).count() === 1, 'matrix member shows auto role chip (BAS)')
   await rayRow.click()
-  await page.waitForTimeout(1000)
+  await waitUntil(async () => await page.locator('input[value="BAS"]').count() >= 1,
+    { timeout: 15000, what: 'attendee role auto-attributed from the matrix' })
   check(await page.locator('input[value="BAS"]').count() >= 1, 'attendee role auto-attributed from the matrix')
 
   // ── Items: one matrix-attributed, one free-text, numbers 1.1 / 1.2 ───────
   await page.locator('[data-testid="add-item-0"]').click({ force: true })
-  await page.waitForTimeout(800)
+  await waitUntil(async () => await itemRow('1.1').count() === 1,
+    { timeout: 15000, what: 'first item numbered 1.1' })
   check(await itemRow('1.1').count() === 1, 'first item numbered 1.1')
   await itemRow('1.1').locator('textarea').fill('BAS graphics review outstanding for AHU floors')
   await itemRow('1.1').locator('textarea').press('Tab')
@@ -93,7 +102,8 @@ try {
   await page.waitForTimeout(600)
 
   await page.locator('[data-testid="add-item-1"]').click({ force: true })
-  await page.waitForTimeout(800)
+  await waitUntil(async () => await itemRow('1.2').count() === 1,
+    { timeout: 15000, what: 'second item numbered 1.2' })
   check(await itemRow('1.2').count() === 1, 'second item numbered 1.2')
   await itemRow('1.2').locator('textarea').fill('Revised construction schedule to be circulated')
   await itemRow('1.2').locator('textarea').press('Tab')
@@ -135,6 +145,14 @@ try {
       `(issued_at=${mtg1?.issued_at ?? 'null'}, storage_url=${mtg1?.storage_url ?? 'null'}) ` +
       `— the endpoint did not finish; this is NOT a slow write`)
   }
+  // THE DATABASE ROW UPDATING IS NOT THE BADGE RE-RENDERING. The poll above
+  // proves the WRITE (issued_at + storage_url in the row); the ISSUED badge is
+  // the UI's own refetch, arriving on its own schedule. N7 failed exactly here —
+  // generation DONE in 4975ms, badge not yet painted — the reversed sweep's
+  // mechanism, in the suite that taught it: this check was riding on the old
+  // 25s sleep's surplus, not on the thing the sleep claimed to wait for.
+  await waitUntil(async () => await page.getByText('ISSUED').count() >= 1,
+    { timeout: 15000, what: 'the ISSUED badge rendering after the write' })
   check(await page.getByText('ISSUED').count() >= 1, `meeting flips to ISSUED (generation ${genMs}ms)`)
   check(!!mtg1?.issued_at, 'issued_at stamped')
   // storage_url is a bucket-relative path (storage privacy pass) — sign to fetch.
@@ -155,25 +173,57 @@ try {
   await page.getByRole('button', { name: '+ New Meeting' }).first().click()
   await page.waitForTimeout(600)
   await modal.locator('select').first().selectOption({ label: 'Recurring Cx Meeting' })
-  await page.waitForTimeout(400)
+  await waitUntil(async () => await modal.locator('input[type="number"]').inputValue() === '2',
+    { timeout: 15000, what: 'meeting number auto-suggested as 2' })
   check(await modal.locator('input[type="number"]').inputValue() === '2', 'meeting number auto-suggested as 2')
+  // The number arriving is not the carry-forward computation arriving — own anchor.
+  await waitUntil(async () => await modal.locator('label', { hasText: 'Carry forward' }).count() === 1,
+    { timeout: 15000, what: 'the carry-forward offer in the create modal' })
   const carryText = await modal.locator('label', { hasText: 'Carry forward' }).innerText().catch(() => '')
   check(/Carry forward\s+2\s+open items/.test(carryText), `carry-forward offered with count (got: ${carryText.split('\n')[0]})`)
   await modal.getByRole('button', { name: 'Create Meeting' }).click()
-  await page.waitForTimeout(3000)
 
+  await waitUntil(async () => await itemRow('1.1').count() === 1,
+    { timeout: 15000, what: 'RETENTION: item 1.1 keeps its number in meeting #2' })
   check(await itemRow('1.1').count() === 1, 'RETENTION: item 1.1 keeps its number in meeting #2')
+  await waitUntil(async () => await itemRow('1.2').count() === 1,
+    { timeout: 15000, what: 'RETENTION: item 1.2 in meeting #2' })
   check(await itemRow('1.2').count() === 1, 'RETENTION: item 1.2 keeps its number in meeting #2')
+  // THE ROWS PAINTING IS NOT THE CARRY BEING CONFIRMED. The rows render
+  // optimistically; the ↺ marker arrives with the server's response, and acting
+  // on the view before then hands clicks to mid-reconciliation UI (the 2.1
+  // add-item went nowhere in the first anchored run — force:true clicked
+  // through a view that was still settling; the old 3000ms had been paying for
+  // the round-trip). The marker IS the settled signal, so it anchors both its
+  // own check and every action after it.
+  await waitUntil(async () => (await itemRow('1.1').innerText().catch(() => '')).includes('↺'),
+    { timeout: 15000, what: 'the carried marker (the server-confirmed carry render)' })
   check((await itemRow('1.1').innerText()).includes('↺'), 'carried marker shown')
 
   // New item in #2 numbers from the new meeting: 2.1
   await page.locator('[data-testid="add-item-0"]').click({ force: true })
-  await page.waitForTimeout(800)
+  await waitUntil(async () => await itemRow('2.1').count() === 1,
+    { timeout: 15000, what: 'new item in meeting #2 numbered 2.1' })
   check(await itemRow('2.1').count() === 1, 'new item in meeting #2 numbered 2.1')
 
   // ── Close-carried-item isolation ─────────────────────────────────────────
+  //
+  // AN ISOLATION CHECK IS A NEGATIVE IN DISGUISE: "meeting #1 unchanged" is
+  // already true before the close lands, so a fixed sleep here was betting the
+  // write had arrived — and polling #1 directly would pass on tick 1. (This
+  // site also slipped the converter's census: its DB client is named `sb`, and
+  // the READS pattern only knew `svc.from` — instrument-blindness in the
+  // classifier itself; pattern generalized the same day.) The sound shape is
+  // the house one: anchor the ARRIVAL of the close on MEETING #2's copy, then
+  // assert meeting #1's copy did not move.
   await itemRow('1.1').locator('select').nth(1).selectOption('closed')
-  await page.waitForTimeout(800)
+  const { data: mtg2row } = await sb.from('meetings')
+    .select('id').eq('project_id', ZZ).neq('id', mtg1.id).single()
+  await waitUntil(async () => {
+    const { data } = await sb.from('meeting_items')
+      .select('status').eq('meeting_id', mtg2row.id).eq('item_number', '1.1').single()
+    return data?.status === 'closed'
+  }, { timeout: 15000, what: 'the close landing on meeting #2’s copy of 1.1' })
   const { data: m1items } = await sb.from('meeting_items')
     .select('item_number, status').eq('meeting_id', mtg1.id)
   const orig11 = (m1items ?? []).find(i => i.item_number === '1.1')
