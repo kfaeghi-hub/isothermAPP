@@ -11,7 +11,7 @@
 //
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-copy.mjs
 import { chromium } from 'playwright'
-import { waitUntil, login, openTestProject, BASE_URL } from './pw-config.mjs'
+import { login, openTestProject, BASE_URL } from './pw-config.mjs'
 
 const fails = []
 const check = (ok, msg) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails.push(msg) }
@@ -65,9 +65,8 @@ try {
   check(/Copy\s+1\s+response/.test(confirmText), `confirm states the count before applying (got: ${confirmText.split('\n')[0]})`)
   check(confirmText.includes('TEST-AHU-1') && confirmText.includes('TEST-AHU-2'), 'confirm names source and target units')
   await page.locator('[data-testid="copy-confirm-apply"]').click()
+  await page.waitForTimeout(1500)
 
-  await waitUntil(async () => await row('Supply Fan').locator('select').nth(1).inputValue() === 'y',
-    { timeout: 15000, what: 'column copy: empty AHU-2 cell filled with Y' })
   check(await row('Supply Fan').locator('select').nth(1).inputValue() === 'y',
     'column copy: empty AHU-2 cell filled with Y')
   check(await row('Return Fan').locator('select').nth(1).inputValue() === 'nr',
@@ -80,21 +79,18 @@ try {
   await row('Exhaust/Relief Fan').locator('select').nth(0).selectOption('y')
   await page.waitForTimeout(600)
   await row('Exhaust/Relief Fan').locator('[data-testid^="apply-all-"]').first().click({ force: true })
-  await waitUntil(async () => await row('Exhaust/Relief Fan').locator('select').nth(1).inputValue() === 'y',
-    { timeout: 15000, what: 'row apply-to-all: status copied across the row, no confirm' })
+  await page.waitForTimeout(1200)
   check(await row('Exhaust/Relief Fan').locator('select').nth(1).inputValue() === 'y',
     'row apply-to-all: status copied across the row, no confirm')
 
   // ── C. Copied N opens the finding-modal flow per target ──────────────────
   const nItem = 'Cabinet and general installation'
   await row(nItem).locator('select').nth(0).selectOption('n')
-  await waitUntil(async () => await page.getByText('Create Finding', { exact: true }).count() > 0,
-    { timeout: 15000, what: 'manual N on AHU-1 opens the finding modal (normal flow intact)' })
+  await page.waitForTimeout(1200)
   check(await page.getByText('Create Finding', { exact: true }).count() > 0,
     'manual N on AHU-1 opens the finding modal (normal flow intact)')
   await page.getByRole('button', { name: 'Create Finding' }).click()
-  await waitUntil(async () => await row(nItem).getByText('Finding', { exact: true }).count() === 1,
-    { timeout: 15000, what: 'AHU-1 finding link recorded' })
+  await page.waitForTimeout(1500)
   check(await row(nItem).getByText('Finding', { exact: true }).count() === 1,
     'AHU-1 finding link recorded')
 
@@ -103,13 +99,11 @@ try {
   await page.locator('[data-testid^="copy-from-"]').first().click()
   await page.waitForTimeout(500)
   await page.locator('[data-testid="copy-confirm-apply"]').click()
-  await waitUntil(async () => await page.getByText('Create Finding', { exact: true }).count() > 0,
-    { timeout: 15000, what: 'the condition' })
+  await page.waitForTimeout(1500)
   check(await page.getByText('Create Finding', { exact: true }).count() > 0,
     'COPIED N: finding modal opens for the copied-into target (finding not copied)')
   await page.getByRole('button', { name: 'Create Finding' }).click()
-  await waitUntil(async () => await row(nItem).getByText('Finding', { exact: true }).count() === 2,
-    { timeout: 15000, what: 'one finding per item per target: both units now carry their own link' })
+  await page.waitForTimeout(1500)
   check(await row(nItem).getByText('Finding', { exact: true }).count() === 2,
     'one finding per item per target: both units now carry their own link')
   check(await row(nItem).locator('select').nth(1).inputValue() === 'n',

@@ -21,7 +21,7 @@
 // objects) and a throwaway checklist instance, all removed at the end.
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { waitUntil, login, openTestProject, BASE_URL } from './pw-config.mjs'
+import { login, openTestProject, BASE_URL } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 const PROBE_TITLE = 'ZZ-CAM probe finding'
@@ -155,8 +155,7 @@ try {
   const row = (label) =>
     page.locator('div.group').filter({ has: page.locator('p', { hasText: new RegExp(`^${label}$`) }) })
   await row('Cabinet and general installation').locator('select').nth(0).selectOption('n')
-  await waitUntil(async () => await page.getByText('Create Finding', { exact: true }).count() > 0,
-    { timeout: 15000, what: 'checklist: manual N opens the finding modal' })
+  await page.waitForTimeout(1500)
   check(await page.getByText('Create Finding', { exact: true }).count() > 0,
     'checklist: manual N opens the finding modal')
 
@@ -171,8 +170,7 @@ try {
   await page.locator('input[type="file"][capture="environment"]').setInputFiles(file('zz-modal-camera.jpg'))
   await page.waitForTimeout(600)
   await page.locator('input[type="file"]:not([capture])').setInputFiles(file('zz-modal-gallery.jpg'))
-  await waitUntil(async () => await page.getByText('zz-modal-camera.jpg', { exact: false }).count() === 1,
-    { timeout: 15000, what: 'checklist modal: CAMERA input queues its file' })
+  await page.waitForTimeout(600)
   check(await page.getByText('zz-modal-camera.jpg', { exact: false }).count() === 1,
     'checklist modal: CAMERA input queues its file')
   check(await page.getByText('zz-modal-gallery.jpg', { exact: false }).count() === 1,

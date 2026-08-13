@@ -8,7 +8,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { waitUntil, loginAs, adminCredentials } from './pw-config.mjs'
+import { loginAs, adminCredentials } from './pw-config.mjs'
 // Project creation is owner-only under access control (C1) - this suite drives
 // the New Project modal, so it logs in as dev.admin.
 
@@ -39,8 +39,7 @@ const modal = page.locator('.fixed')
 // â”€â”€ 1. Required-dimension validation fires from the runtime flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 await modal.locator('input').first().fill(PROJECT_NAME)
 await modal.getByRole('button', { name: 'Create Project' }).click()
-await waitUntil(async () => await modal.getByText('is required.').count() >= 3,
-  { timeout: 15000, what: 'the condition' })
+await page.waitForTimeout(600)
 check(await modal.getByText('is required.').count() >= 3,
   'validation: all three required dimensions flagged (Lifecycle, Facility, Phases)')
 check(await page.getByText(PROJECT_NAME).count() <= 1,
@@ -90,8 +89,7 @@ await page.screenshot({ path: 'ss-class-3-list.png' })
 const filterSelects = page.locator('select')
 // First page-level select is the Lifecycle filter ("All â€” Project Lifecycle")
 await filterSelects.first().selectOption({ label: 'New Construction' })
-await waitUntil(async () => await page.locator('tr', { hasText: PROJECT_NAME }).count() === 1,
-  { timeout: 15000, what: 'lifecycle filter keeps the NC project visible' })
+await page.waitForTimeout(400)
 check(await page.locator('tr', { hasText: PROJECT_NAME }).count() === 1,
   'lifecycle filter keeps the NC project visible')
 

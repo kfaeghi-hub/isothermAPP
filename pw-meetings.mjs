@@ -7,7 +7,7 @@
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
 import { inflateRawSync } from 'node:zlib'
-import { waitUntil, login, openTestProject, credentials, signedFileUrl } from './pw-config.mjs'
+import { login, openTestProject, credentials, signedFileUrl } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 
@@ -60,14 +60,12 @@ try {
   await page.getByRole('button', { name: '+ New Meeting' }).first().click()
   await page.waitForTimeout(600)
   await modal.locator('select').first().selectOption({ label: 'Recurring Cx Meeting' })
-  await waitUntil(async () => await modal.locator('input[type="number"]').inputValue() === '1',
-    { timeout: 15000, what: 'meeting number auto-suggested as 1' })
+  await page.waitForTimeout(300)
   check(await modal.locator('input[type="number"]').inputValue() === '1', 'meeting number auto-suggested as 1')
   await modal.getByRole('button', { name: 'Create Meeting' }).click()
+  await page.waitForTimeout(2500)
 
   for (const t of ['Review of Previous Minutes', 'Checklist (PFC) Status', 'Issues Log Review', 'Next Meeting']) {
-    await waitUntil(async () => await page.locator(`input[value="${t}"]`).count() === 1,
-      { timeout: 15000, what: 'topic seeded: ${t}' })
     check(await page.locator(`input[value="${t}"]`).count() === 1, `topic seeded: ${t}`)
   }
   const { data: t1 } = await sb.from('meeting_topics').select('id', { count: 'exact' })
@@ -76,20 +74,17 @@ try {
 
   // ── Attendee from directory: matrix member surfaces first, role auto ─────
   await page.locator('[data-testid="add-attendee"]').click()
-  await waitUntil(async () => await modal.getByText('Project team').count() === 1,
-    { timeout: 15000, what: 'attendee picker: Project team group first' })
+  await page.waitForTimeout(500)
   check(await modal.getByText('Project team').count() === 1, 'attendee picker: Project team group first')
   const rayRow = modal.getByRole('button').filter({ hasText: 'Ray Scheepstra' }).first()
   check(await rayRow.getByText('BAS', { exact: true }).count() === 1, 'matrix member shows auto role chip (BAS)')
   await rayRow.click()
-  await waitUntil(async () => await page.locator('input[value="BAS"]').count() >= 1,
-    { timeout: 15000, what: 'attendee role auto-attributed from the matrix' })
+  await page.waitForTimeout(1000)
   check(await page.locator('input[value="BAS"]').count() >= 1, 'attendee role auto-attributed from the matrix')
 
   // ── Items: one matrix-attributed, one free-text, numbers 1.1 / 1.2 ───────
   await page.locator('[data-testid="add-item-0"]').click({ force: true })
-  await waitUntil(async () => await itemRow('1.1').count() === 1,
-    { timeout: 15000, what: 'first item numbered 1.1' })
+  await page.waitForTimeout(800)
   check(await itemRow('1.1').count() === 1, 'first item numbered 1.1')
   await itemRow('1.1').locator('textarea').fill('BAS graphics review outstanding for AHU floors')
   await itemRow('1.1').locator('textarea').press('Tab')
@@ -98,8 +93,7 @@ try {
   await page.waitForTimeout(600)
 
   await page.locator('[data-testid="add-item-1"]').click({ force: true })
-  await waitUntil(async () => await itemRow('1.2').count() === 1,
-    { timeout: 15000, what: 'second item numbered 1.2' })
+  await page.waitForTimeout(800)
   check(await itemRow('1.2').count() === 1, 'second item numbered 1.2')
   await itemRow('1.2').locator('textarea').fill('Revised construction schedule to be circulated')
   await itemRow('1.2').locator('textarea').press('Tab')
@@ -161,23 +155,20 @@ try {
   await page.getByRole('button', { name: '+ New Meeting' }).first().click()
   await page.waitForTimeout(600)
   await modal.locator('select').first().selectOption({ label: 'Recurring Cx Meeting' })
-  await waitUntil(async () => await modal.locator('input[type="number"]').inputValue() === '2',
-    { timeout: 15000, what: 'meeting number auto-suggested as 2' })
+  await page.waitForTimeout(400)
   check(await modal.locator('input[type="number"]').inputValue() === '2', 'meeting number auto-suggested as 2')
   const carryText = await modal.locator('label', { hasText: 'Carry forward' }).innerText().catch(() => '')
   check(/Carry forward\s+2\s+open items/.test(carryText), `carry-forward offered with count (got: ${carryText.split('\n')[0]})`)
   await modal.getByRole('button', { name: 'Create Meeting' }).click()
+  await page.waitForTimeout(3000)
 
-  await waitUntil(async () => await itemRow('1.1').count() === 1,
-    { timeout: 15000, what: 'RETENTION: item 1.1 keeps its number in meeting #2' })
   check(await itemRow('1.1').count() === 1, 'RETENTION: item 1.1 keeps its number in meeting #2')
   check(await itemRow('1.2').count() === 1, 'RETENTION: item 1.2 keeps its number in meeting #2')
   check((await itemRow('1.1').innerText()).includes('↺'), 'carried marker shown')
 
   // New item in #2 numbers from the new meeting: 2.1
   await page.locator('[data-testid="add-item-0"]').click({ force: true })
-  await waitUntil(async () => await itemRow('2.1').count() === 1,
-    { timeout: 15000, what: 'new item in meeting #2 numbered 2.1' })
+  await page.waitForTimeout(800)
   check(await itemRow('2.1').count() === 1, 'new item in meeting #2 numbered 2.1')
 
   // ── Close-carried-item isolation ─────────────────────────────────────────

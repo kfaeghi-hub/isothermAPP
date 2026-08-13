@@ -7,7 +7,7 @@
 // Run: PW_BASE_URL=https://isotherm-app.vercel.app node --env-file=.env pw-pfc-verify.mjs
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { waitUntil, login, openTestProject } from './pw-config.mjs'
+import { login, openTestProject } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'
 const AHU_TMPL = 'da98cd4a-6132-4017-8763-0aba21303b56'
@@ -35,15 +35,13 @@ try {
 
   const modal = page.locator('div.fixed.inset-0')
   await page.getByRole('button', { name: '+ New Checklist' }).click()
+  await page.waitForTimeout(800)
 
   const tmplRow = modal.getByRole('button').filter({ hasText: TMPL_NAME }).first()
-  await waitUntil(async () => await tmplRow.getByText('PFC', { exact: true }).count() === 1,
-    { timeout: 15000, what: 'template picker: AHU template carries the PFC badge' })
   check(await tmplRow.getByText('PFC', { exact: true }).count() === 1,
     'template picker: AHU template carries the PFC badge')
   await tmplRow.click()
-  await waitUntil(async () => await modal.getByText(/^New PFC —/).count() === 1,
-    { timeout: 15000, what: 'create modal titled ' })
+  await page.waitForTimeout(600)
   check(await modal.getByText(/^New PFC —/).count() === 1, 'create modal titled "New PFC — …"')
 
   await modal.getByRole('button').filter({ hasText: 'TEST-AHU-1' }).first().click()
@@ -51,10 +49,9 @@ try {
   await modal.getByRole('button').filter({ hasText: 'TEST-AHU-2' }).first().click()
   await page.waitForTimeout(400)
   await modal.getByRole('button', { name: 'Create Checklist' }).click()
+  await page.waitForTimeout(3000)
 
   // Detail header: badge + corrected name in the snapshot
-  await waitUntil(async () => await page.getByText('PFC', { exact: true }).count() > 0,
-    { timeout: 15000, what: 'instance detail shows PFC badge' })
   check(await page.getByText('PFC', { exact: true }).count() > 0, 'instance detail shows PFC badge')
   check(await page.getByText(TMPL_NAME).count() > 0, 'instance carries the "Prefunctional Checklist" name')
   await page.locator('button', { hasText: '×' }).first().click()
@@ -62,8 +59,7 @@ try {
 
   // Type filter: PFC shows it, IVC hides it
   await page.getByRole('button', { name: 'PFC', exact: true }).click()
-  await waitUntil(async () => await page.getByText(TMPL_NAME).count() > 0,
-    { timeout: 15000, what: 'PFC filter lists the new instance' })
+  await page.waitForTimeout(600)
   check(await page.getByText(TMPL_NAME).count() > 0, 'PFC filter lists the new instance')
   await page.getByRole('button', { name: 'IVC', exact: true }).click()
   await page.waitForTimeout(600)

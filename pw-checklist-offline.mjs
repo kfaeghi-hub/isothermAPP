@@ -62,9 +62,8 @@ await page.waitForTimeout(800)
 await page.locator('.fixed button').filter({ hasText: /EQ|SYS/ }).first().click()       // pick equipment
 await page.waitForTimeout(400)
 await page.getByRole('button', { name: 'Create Checklist' }).click()
+await page.waitForTimeout(3000)
 await page.screenshot({ path: 'ss-off-1-created.png' })
-await waitUntil(async () => await page.locator('text=Sign-offs').count() > 0,
-  { timeout: 15000, what: 'instance created + fill view rendered' })
 check(await page.locator('text=Sign-offs').count() > 0, 'instance created + fill view rendered')
 
 const selects = page.locator('select')
@@ -73,8 +72,7 @@ const signerInput = page.locator('input[placeholder="Signer name"]')
 
 // ── 1. Baseline while ONLINE ───────────────────────────────────────────────
 await selects.first().selectOption('y')
-await waitUntil(async () => await page.locator('text=All changes saved').count() > 0,
-  { timeout: 15000, what: 'online: chip reads ' })
+await page.waitForTimeout(1200)
 check(await page.locator('text=All changes saved').count() > 0, 'online: chip reads "All changes saved"')
 
 // ── 2. GO OFFLINE ──────────────────────────────────────────────────────────
@@ -115,13 +113,12 @@ if (await signerInput.count() > 0) {
   )
   await signerInput.first().fill('Offline Tester')
   await signerInput.first().blur()
+  await page.waitForTimeout(1200)
   console.log(`  (signoff row targeted: "${signoffLabel}")`)
 }
 
 await page.screenshot({ path: 'ss-off-3-offline-queued.png' })
 
-await waitUntil(async () => await page.locator('text=/Offline/').count() > 0,
-  { timeout: 15000, what: 'offline: chip warns ' })
 check(await page.locator('text=/Offline/').count() > 0,
   'offline: chip warns "Offline - N queued" (never implies saved)')
 
@@ -165,14 +162,13 @@ await page.getByRole('button', { name: 'Checklists', exact: true }).click()
 await page.waitForTimeout(1500)
 // The instance we just made is newest-first at the top of the list.
 await page.locator('button:has-text("Not Started"), button:has-text("In Progress")').first().click()
+await page.waitForTimeout(2500)
 await page.screenshot({ path: 'ss-off-5-after-reload.png' })
 
 const s2 = page.locator('select')
 const g2 = page.locator('table input[type="text"]')
 const sn2 = page.locator('input[placeholder="Signer name"]')
 
-await waitUntil(async () => await s2.first().inputValue() === 'y',
-  { timeout: 15000, what: 'persisted: online response (y)' })
 check(await s2.first().inputValue() === 'y',  'persisted: online response (y)')
 check(await s2.nth(1).inputValue() === 'n',   'persisted: OFFLINE response (n)')
 if (await s2.count() > 2) check(await s2.nth(2).inputValue() === 'nr', 'persisted: OFFLINE response (nr)')
