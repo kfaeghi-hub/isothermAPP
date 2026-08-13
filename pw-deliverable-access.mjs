@@ -14,7 +14,7 @@
 
 import { chromium } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { BASE_URL } from './pw-config.mjs'
+import { waitUntil, BASE_URL } from './pw-config.mjs'
 
 const ZZ = 'e0c427d8-2029-4382-b054-6a84248ad8fe'   // ZZ-TEST — Do Not Use
 const PROBE = `ZZ-TEST-DELIV ${Date.now().toString(36)} Probe`
@@ -129,6 +129,10 @@ try {
     // tied to the condition instead of to the clock.
     await panel.waitFor({ state: 'attached', timeout: 20000 }).catch(() => {})
     check(await panel.count() === 1, '(b) governor sees the Outstanding Deliverables panel')
+    // The panel ATTACHING is not its project headers RENDERING — they arrive from
+    // a second fetch. Anchor the headers themselves before reading them.
+    await waitUntil(async () => await page.locator('[data-testid="outstanding-project"]').count() >= 1,
+      { timeout: 15000, what: '(b) the panel’s project headers' })
     const headers = (await page.locator('[data-testid="outstanding-project"]').allInnerTexts()).map(h => h.trim())
     check(headers.length > 0 && headers.every(h => h.startsWith('ZZ-TEST')),
       `(b) Outstanding panel shows only member projects (${headers.join(' | ') || 'empty'})`)
@@ -137,14 +141,26 @@ try {
   // (a) AccessCard own-row LEAD/MEMBER is a static badge; another member keeps a working toggle
   {
     await page.goto(`${BASE_URL}/projects/${ZZ}`)
-    await page.waitForTimeout(2500)
     const card = page.locator('[data-testid="access-card"]')
+    await waitUntil(async () => await card.count() === 1,
+      { timeout: 15000, what: '(a) owner-member sees the AccessCard' })
     check(await card.count() === 1, '(a) owner-member sees the AccessCard')
+    // THE CARD EXISTING IS NOT ITS MEMBER ROWS EXISTING — they render from a
+    // members fetch after the card mounts. This is the exact line the reversed
+    // sweep broke (N5, 35/41): the poll above returns the moment the card
+    // appears, where the old 2500ms sleep happened to also cover the rows.
+    // Anchor the rows before asserting anything about them — and the OWN-row
+    // NEGATIVE below gets a POSITIVE anchor first (the row itself, rendered),
+    // because a poll on "toggle absent" would pass before the row exists at all.
     const ownRow = card.locator('.group').filter({ hasText: OWN_NAME })
+    await waitUntil(async () => await ownRow.count() === 1,
+      { timeout: 15000, what: '(a) the governor’s own member row' })
     const ownToggle = ownRow.getByRole('button').filter({ hasText: /LEAD|MEMBER/ })
     check(await ownToggle.count() === 0, "(a) own-row LEAD/MEMBER is a static badge — UI can't offer the self-toggle RLS rejects")
     const otherRow = card.locator('.group').filter({ hasText: EMP_NAME })
     const otherToggle = otherRow.getByRole('button').filter({ hasText: /LEAD|MEMBER/ })
+    await waitUntil(async () => await otherToggle.count() >= 1,
+      { timeout: 15000, what: '(a) the other member row’s LEAD/MEMBER toggle' })
     check(await otherToggle.count() >= 1, '(a) another member row keeps a working toggle (governor may set others’ lead)')
   }
   await browser.close()
@@ -162,9 +178,13 @@ try {
     await lp.locator('input[type="email"]').fill(process.env.email)
     await lp.locator('input[type="password"]').fill(process.env.password)
     await lp.getByRole('button', { name: 'Sign In' }).click()
-    await lp.waitForTimeout(3500)
+    await waitUntil(async () => await lp.locator('[data-testid="outstanding-deliverables"]').count() === 1,
+      { timeout: 15000, what: '#2 a LEAD (non-governor) sees the Outstanding Deliverables panel' })
     check(await lp.locator('[data-testid="outstanding-deliverables"]').count() === 1,
       '#2 a LEAD (non-governor) sees the Outstanding Deliverables panel')
+    // Same seam as (b): panel first, headers from a second fetch.
+    await waitUntil(async () => await lp.locator('[data-testid="outstanding-project"]').count() >= 1,
+      { timeout: 15000, what: '#2 the lead panel’s project headers' })
     const leadHeaders = (await lp.locator('[data-testid="outstanding-project"]').allInnerTexts()).map(h => h.trim())
     check(leadHeaders.length > 0 && leadHeaders.every(h => h.startsWith('ZZ-TEST')),
       `#2 lead panel scoped to led project(s) only (${leadHeaders.join(' | ') || 'empty'})`)

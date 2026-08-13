@@ -54,6 +54,12 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
 
 const APPLY = process.argv.includes('--apply')
 const CENSUS = process.argv.includes('--census')
+// Per-suite mode — the tool's role after the reversed sweep (2026-08-13). The
+// sweep measured 35/41 because a sleep's surplus subsidizes every unguarded
+// check downstream; conversion is now one suite at a time, with anchors for the
+// downstream checks landing in the same commit. --suite=pw-x.mjs scopes every
+// mode (census, dry run, apply) to that one file.
+const SUITE = (process.argv.find(a => a.startsWith('--suite=')) ?? '').replace('--suite=', '')
 const NL = String.fromCharCode(10)
 
 // ── classification, from source, every run ────────────────────────────────────
@@ -107,6 +113,7 @@ const diffs = []
 
 for (const file of readdirSync('.').filter(n => n.endsWith('.mjs')).sort()) {
   if (!battery.has(file)) continue
+  if (SUITE && file !== SUITE) continue
   const lines = readFileSync(file, 'utf8').replace(/\r\n/g, NL).split(NL)
 
   const sites = []
