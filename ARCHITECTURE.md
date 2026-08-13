@@ -1634,6 +1634,45 @@ alarm) or *convenience* (pacing, animation, screenshot timing). The guard class
 was 78 sites inside the battery. Flushing them out one red at a time is the
 expensive way to find them.
 
+### REVERSED: the mechanical sleep-conversion sweep (apply-the-44)
+
+*2026-08-13. A ruling reversed on the record, old reasoning quoted in place per
+the house protocol. Earned by 35/41.*
+
+**The old reasoning, quoted:**
+
+> *"The 44: APPLY. … The evidence standard is met: dry-run verified,
+> compound-lines refused to the hand list, and one of the 44 is the live
+> failure's named repair."* — and the plan carried the companion claim that the
+> 33 hand sites were independent debt, workable *"in classified batches on-touch
+> and in gaps"* after the mechanical pass.
+
+**What the battery measured:** 40/41 before the apply, **35/41 after**, five of
+the six failures in converted suites. The reasoning above was not wrong about any
+single conversion — every one replaced a sleep with a poll on the very predicate
+the neighbouring check asserts. It was wrong about what a sleep IS:
+
+> **A fixed wait does not guard one check. Its surplus subsidizes every
+> unguarded check downstream of it.** A bounded poll returns the moment its
+> predicate holds; a fixed sleep returns when it is done sleeping; every later
+> assertion that was riding on the difference now runs too early. So slack is
+> removed **per-suite, never per-site** — and every downstream check gets its own
+> anchor **in the same commit**, or the suite becomes faster than its own
+> assertions.
+
+The clean specimen is pw-pfc-verify: the converted sleep guarded a POSITIVE
+check that passed, and the NEGATIVE check after it — correctly refused by the
+converter, because a poll on a negative returns on the first tick — failed,
+because the 600ms it had been living on belonged to its neighbour. The refusal
+was right; the model of independence was wrong. Debt that a conversion EXPOSES
+is not debt that can be paid later.
+
+The converter survives as a per-suite assistant (`harness-convert-sleeps.mjs`,
+dry-run by default, four refusal classes); its role as a sweep engine is dead.
+Verification for a suite's conversion is the suite alone AND a mini-battery with
+its two run-order neighbours, because the failure class is load-and-sequence
+shaped — suite-alone green was already true of the broken versions.
+
 ### The 1.02 set — seven in one session, and the sentence they share
 
 The batch above found three in one day. The 1.02 trio found **seven**, and they

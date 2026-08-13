@@ -144,7 +144,15 @@ about what "done" looks like at that site. It cannot be derived from the check.
 - `pw-ist-team.mjs:66` (2500ms)
 - `pw-team.mjs:66` (700ms)
 
-## Standing position
+## Standing position — REVISED 2026-08-13 after the failed sweep
+
+The mechanical sweep was applied, measured at 35/41 (from 40/41), and REVERSED —
+see ARCHITECTURE.md, *REVERSED: the mechanical sleep-conversion sweep*. A fixed
+wait's surplus subsidizes every unguarded check downstream, so conversion is
+**per-suite with anchors for every downstream check in the same commit**, never
+per-site. The tool is a per-suite assistant now, not a sweep engine.
+
+## Standing position (superseded, kept for the record)
 
 - **Guard class** — convert. Gated on ruling 2's show-before-converting, since 78
   is large.
