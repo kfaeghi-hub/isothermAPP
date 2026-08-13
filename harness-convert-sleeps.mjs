@@ -102,7 +102,7 @@ function message(line, next) {
 }
 
 const stats = { guard: 0, convenience: 0, converted: 0 }
-const refused = { negative: [], compound: [], noRead: [], noCheck: [] }
+const refused = { negative: [], compound: [], noRead: [], noCheck: [], pacing: [], alreadyGuarded: [] }
 const diffs = []
 
 for (const file of readdirSync('.').filter(n => n.endsWith('.mjs')).sort()) {
@@ -129,11 +129,31 @@ for (const file of readdirSync('.').filter(n => n.endsWith('.mjs')).sort()) {
 
     if (!SOLO_SLEEP.test(lines[sleepIdx])) { refused.compound.push(where); continue }
 
+    // ── REFUSE A SLEEP THAT PACES AN ACTION ─────────────────────────────────
+    // The classification window runs to the NEXT sleep, so converting one sleep
+    // LENGTHENS its neighbour's window. Re-running the tool after an --apply
+    // therefore found 18 more "guards" — sleeps that pace a click or a select and
+    // merely happen to have a check downstream. Converting those would delete the
+    // pacing AND duplicate a poll. A codemod that converts more every time it runs
+    // is one nobody can safely run twice, so both shapes are refused and the tool
+    // is idempotent: a second --apply is now a no-op.
+    const nextLine = lines[sleepIdx + 1] ?? ''
+    if (/\.(click|fill|selectOption|press|goto|setInputFiles|check|uncheck|type)\s*\(/.test(nextLine)) {
+      refused.pacing.push(`${where}  -> ${nextLine.trim().slice(0, 62)}`); continue
+    }
+
     let chkIdx = -1
     for (let i = sleepIdx + 1; i < Math.min(sleepIdx + 8, lines.length); i++) {
       if (lines[i].includes('check(')) { chkIdx = i; break }
     }
     if (chkIdx < 0) { refused.noCheck.push(where); continue }
+
+    // ── REFUSE WHEN A POLL ALREADY GUARDS THIS CHECK ────────────────────────
+    // If a waitUntil already sits between the sleep and the check, the check is
+    // guarded and a second poll on the same predicate adds nothing.
+    if (lines.slice(sleepIdx + 1, chkIdx).some(l => l.includes('waitUntil('))) {
+      refused.alreadyGuarded.push(where); continue
+    }
 
     const chkLine = lines[chkIdx]
     const pred = firstArg(chkLine, chkLine.indexOf('check('))
@@ -174,7 +194,8 @@ console.log(`${APPLY ? 'APPLIED' : 'DRY RUN'} — battery suites only`)
 console.log(`  guard sites found : ${stats.guard}   (convenience skipped: ${stats.convenience})`)
 console.log(`  converted         : ${stats.converted}`)
 console.log(`  REFUSED           : ${refused.negative.length} negative · ${refused.compound.length} compound · ` +
-            `${refused.noRead.length} no-read · ${refused.noCheck.length} no-check`)
+            `${refused.noRead.length} no-read · ${refused.noCheck.length} no-check · ` +
+            `${refused.pacing.length} pacing-an-action · ${refused.alreadyGuarded.length} already-guarded`)
 console.log(`${NL}REFUSED — negative predicates (a poll here returns on tick 1):`)
 for (const r of refused.negative) console.log(`  ${r}`)
 console.log(`${NL}REFUSED — compound lines (deleting would remove real code):`)
