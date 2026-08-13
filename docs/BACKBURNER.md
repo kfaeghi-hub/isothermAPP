@@ -1052,6 +1052,37 @@ count. Fix: a count check at ratify time, matching `apply-ratified.mjs`'s
 moved-target refusal. *Found by the 2026-08-03 audit of every ratification
 surface; recorded, not fixed that night.*
 
+### 3r. saveAliases erases provenance — fix BEFORE harvest Phase 1 builds
+**BANKED 2026-08-13. HARD WAKE CONDITION: this is fixed before harvest Phase 1
+construction starts. Not a suggestion — harvest's own evidence depends on it.**
+
+**The mechanism, found the expensive way.** `ClassificationsPage.saveAliases`
+saves a type's alias list as DELETE-ALL-THEN-REINSERT: every alias row for the
+type is destroyed and recreated on every ordinary edit. `created_by`, `created_at`,
+and `note` — the ruling trail — are wiped for EVERY alias on the type, including
+the ones the edit did not touch. Found when the owner's own DOAS edit
+(2026-08-12, a deliberate, correct vocabulary call) silently destroyed the
+Seneca-precedent ruling note on the way through. The note survived only because
+the seed migration is in git; an alias added through the UI and re-ruled later
+would leave no trace at all.
+
+**Why the wake condition is harvest Phase 1 and not "someday":** harvest mines
+the CORRECTION TRAIL — who moved a mapping, when, away from what, and why. Phase
+2's gate is REDISCOVERING a known mapping from that trail alone. A UI whose every
+save erases authorship, dates, and reasons is destroying the exact evidence
+harvest exists to mine; building harvest on top of it is building on a surface
+that self-wipes.
+
+**Suggested shape for the fix (not built now, not binding):** either a
+diff-based upsert — delete only removed aliases, insert only added ones, leave
+surviving rows untouched — or provenance carried to a history table the UI
+cannot reach, written by trigger. The first is smaller; the second also captures
+the DELETIONS, which are themselves corrections and therefore harvest evidence.
+
+**Until then:** a ruled alias's justification lives in the reversal record
+(ARCHITECTURE.md, aliases section) and is re-attached to the row by hand when a
+save eats it — done once already for DOAS→mau.
+
 **Gray-on-color punch items.** UI instances that render gray text on a tinted
 field, against the standing rule (tinted field + same-hue text, e.g.
 `bg-green-50 text-green-700`, never gray-on-color — ARCHITECTURE §UI). Collected

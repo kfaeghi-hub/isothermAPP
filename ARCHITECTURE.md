@@ -3413,6 +3413,37 @@ vocabulary gap, not a data-entry error.
 constraint you can see in `pg_indexes` and a constraint that fires are different
 claims, and only one of them is worth a test.
 
+### REVERSED: DOAS→ahu (the Seneca packaged-AC precedent)
+
+*2026-08-13. A vocabulary ruling reversed on the record, old text quoted in
+place.*
+
+**The old ruling, quoted from the seed migration:**
+
+> *"('ahu', 'DOAS', 'Ruled with the Seneca mapping — DOAS-1/2 typed ahu under
+> the packaged-AC precedent. Exact-match-only keeps HU-DOAS-* humidifier tags
+> safe.')"*
+
+**What reversed it:** an owner domain call, made by hand in the Classifications
+UI on 2026-08-12 (~20:37 local): a dedicated outdoor-air unit is closer kin to
+**makeup-air** than to a packaged AHU. `DOAS` is an alias of `mau` now. The
+Seneca precedent was a fact about **Seneca's tagging**, not about the type — the
+mapping had generalized a project's naming habit into firm vocabulary, which is
+the [what-a-unit-serves] error one level up: what a project CALLS a unit is not
+what it IS.
+
+Two artifacts of the reversal, both instructive:
+
+- **The suite red that surfaced it was honest.** `pw-type-picker` pinned the old
+  ruling and went red the first battery after the edit — vocabulary DATA moved
+  and a harness assertion caught it within hours. That is the pin doing its job;
+  the pin now reads `DOAS→mau`.
+- **The UI erased the old ruling's provenance on the way through** — the
+  delete-all-reinsert save destroyed the migration note, author, and date. The
+  note above survives only because the migration file is in git. That defect is
+  banked in BACKBURNER (3r) with a hard wake condition, and the surviving row
+  has had its justification re-attached by hand.
+
 ---
 
 ## Import provenance — `import_batches`

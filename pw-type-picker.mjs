@@ -56,8 +56,14 @@ try {
     `vocabulary loaded with aliases (${types?.length ?? 0} types, ${aliasRows?.length ?? 0} aliases)`)
   check((byKey.get('unit_heater') ?? []).includes('UH'),
     'the ruled seed is present — UH is an alias of unit_heater')
-  check((byKey.get('ahu') ?? []).includes('DOAS') && (byKey.get('boiler') ?? []).includes('BLR'),
-    'the two ruled additions are seeded — DOAS→ahu and BLR→boiler')
+  // DOAS moved ahu→mau by owner ruling 2026-08-13 (reversal on record in
+  // ARCHITECTURE.md, aliases section). This pin went red the first battery after
+  // the owner's UI edit — vocabulary data moved and the assertion caught it
+  // within hours, which is the pin WORKING, not flaking. The pin follows the
+  // ruling, never the drift: it updates on a reversal-on-record and at no other
+  // time.
+  check((byKey.get('mau') ?? []).includes('DOAS') && (byKey.get('boiler') ?? []).includes('BLR'),
+    'the two ruled mappings hold — DOAS→mau (reversed 2026-08-13) and BLR→boiler')
   check(!(aliasRows ?? []).some(a => /^(rp|ct|rtu|hrv|vrf)$/i.test(a.alias)),
     'nothing on the never-alias list slipped into the seed')
 
