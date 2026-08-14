@@ -742,7 +742,11 @@ export function CxIndexPage({ projectId }: Props) {
         Swipe sideways — 88 columns · tag column stays pinned →
       </p>
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="border-collapse" style={{ tableLayout: 'fixed' }}>
+        {/* border-separate, NOT collapse: collapsed borders belong to the table,
+            so Chromium drops them from a stuck header the moment it detaches
+            (crbug 702927). Every cell in this matrix draws border-b/border-r
+            only, so separate borders double nothing. */}
+        <table className="border-separate" style={{ tableLayout: 'fixed', borderSpacing: 0 }}>
           <colgroup>
             {/* # */}
             <col style={{ width: '2rem', minWidth: '2rem' }} />
@@ -761,12 +765,15 @@ export function CxIndexPage({ projectId }: Props) {
           <thead>
             {/* ── Row 1: Stage group headers ── */}
             <tr>
+              {/* Corner cells pin on BOTH axes: z-50 so header rows (z-40) slide
+                  under them horizontally and body sticky-left cells (z-20)
+                  slide under them vertically. */}
               <th
-                className="sticky left-0 z-30 bg-white border-b border-r border-gray-200"
+                className="sticky left-0 top-0 z-50 bg-white border-b border-r border-gray-200"
                 rowSpan={2}
               />
               <th
-                className="sticky left-8 z-30 bg-white border-b border-r border-gray-200 text-left px-2 text-[9px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
+                className="sticky left-8 top-0 z-50 bg-white border-b border-r border-gray-200 text-left px-2 text-[9px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
                 rowSpan={2}
               >
                 Tag / Descriptor
@@ -779,8 +786,8 @@ export function CxIndexPage({ projectId }: Props) {
                   <th
                     key={g.id}
                     colSpan={colSpan}
-                    className={`${color} border border-gray-300/60 text-center font-semibold px-1 py-1 cursor-pointer select-none whitespace-nowrap overflow-hidden`}
-                    style={{ fontSize: '9px', maxWidth: isCollapsed ? '2rem' : undefined }}
+                    className={`${color} sticky top-0 z-40 border-b border-r border-gray-300/60 text-center font-semibold px-1 py-1 cursor-pointer select-none whitespace-nowrap overflow-hidden`}
+                    style={{ fontSize: '9px', height: '24px', maxWidth: isCollapsed ? '2rem' : undefined }}
                     title={isCollapsed ? `Click to expand: ${g.name}` : `Click to collapse: ${g.name}`}
                     onClick={() => toggleCollapse(g.id)}
                   >
@@ -792,7 +799,7 @@ export function CxIndexPage({ projectId }: Props) {
                 )
               })}
               <th
-                className="bg-gray-100 border border-gray-200 text-center font-semibold text-gray-400"
+                className="sticky top-0 z-40 bg-gray-100 border-b border-r border-gray-200 text-center font-semibold text-gray-400"
                 style={{ fontSize: '9px' }}
                 rowSpan={2}
               >
@@ -807,8 +814,8 @@ export function CxIndexPage({ projectId }: Props) {
                   return [(
                     <th
                       key={`${g.id}-collapsed-col`}
-                      className="border border-gray-200 bg-gray-50"
-                      style={{ height: '120px' }}
+                      className="sticky z-40 border-b border-r border-gray-200 bg-gray-50"
+                      style={{ height: '120px', top: '24px' }}
                     />
                   )]
                 }
@@ -816,8 +823,8 @@ export function CxIndexPage({ projectId }: Props) {
                 return g.columns.map(col => (
                   <th
                     key={col.id}
-                    className={`${cellBg} border border-gray-200`}
-                    style={{ height: '120px', verticalAlign: 'bottom', padding: '4px 2px' }}
+                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200`}
+                    style={{ height: '120px', top: '24px', verticalAlign: 'bottom', padding: '4px 2px' }}
                     title={col.label}
                   >
                     <div

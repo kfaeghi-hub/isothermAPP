@@ -16,7 +16,34 @@ one written alongside the change is written from the diff.
 
 ---
 
-## Update 1.11 — 2026-08-14 (the PMPs incident: schedule specs now land in the register)
+## Update 1.12 — 2026-08-14 (maintenance batch: the team's first bug list)
+
+Seven reports from real project review, triaged cold and fixed per owner
+rulings. Entries below are added as each fix lands, in the same commit series
+as its work.
+
+### For the team
+
+**The Cx Index header now stays put while you scroll.** Before, one screen of
+scrolling left you over 88 status columns with nothing saying which column was
+which. Now the stage-group bands and the rotated column labels stay pinned at
+the top the whole way down, and the tag column stays pinned on the left —
+scroll anywhere, you always know what you're looking at.
+
+### Technical record
+
+**T7 — sticky Cx Index header.** The matrix's `thead` had sticky-left tag
+columns but no sticky-top: measured y 309 → −891 after one scroll. Fix: row 1
+(group bands) `sticky top-0 z-40` at a pinned 24px height; row 2 (rotated
+labels) `sticky top-24px z-40`; the two rowSpan corner cells pinned on BOTH
+axes at z-50 so header rows slide under them horizontally and body sticky-left
+cells (z-20) slide under them vertically. The table moved `border-collapse` →
+`border-separate` (spacing 0): Chromium drops collapsed borders from stuck
+cells (crbug 702927), and every cell in the matrix draws border-b/border-r
+only, so separate borders double nothing. Gate: `pw-cx-sticky-header`
+(battery #46) — premise (scrollable), arrival (a row demonstrably moved), then
+the header claims; failing-first proven against pre-fix production (3 reds on
+exactly the header legs).
 
 ### For the team
 

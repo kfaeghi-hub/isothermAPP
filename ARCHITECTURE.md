@@ -2534,6 +2534,11 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   use real pdf.js text extraction (upgraded 2026-07-22 from an ASCII flate probe
   that kept two checks permanently yellow — green means green). Canonical
   fixture: the two-unit A/C / Fan Coil / Heat Pump instance on ZZ-TEST.
+- `pw-cx-sticky-header.mjs` — the Cx Index header holds while the matrix scrolls
+  (T7, 2026-08-14): premise (scrollable) → arrival (a row demonstrably moved) →
+  claim (thead at scroller top; label row seamed at +24px; corner pinned both
+  axes under diagonal scroll). Read-only; the table is `border-separate` because
+  Chromium drops collapsed borders from stuck cells (crbug 702927).
 - `pw-copy.mjs` — multi-unit copy: never-overwrite, copied-N-opens-finding-modal
 - `pw-finding-register.mjs` — full ASHRAE register: create → detail → report
   lines → delete → byte-clean restore

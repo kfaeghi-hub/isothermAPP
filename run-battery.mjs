@@ -89,6 +89,7 @@ const SUITES = [
   'pw-contact-modal',
   'pw-copy',
   'pw-cx-plan',
+  'pw-cx-sticky-header',
   'pw-dashboard',
   'pw-dates',
   'pw-deliverables',
