@@ -24,6 +24,15 @@ as its work.
 
 ### For the team
 
+**The repoint ran fleet-wide — and the register is healthier than feared.**
+After Central Tech's pilot, every other real project was measured and swept:
+only four more readings anywhere were stranded (one on Alexander Muir, three
+on SJWS), now visible on their units. Everything else that looked like a
+candidate turned out to be properly hand-entered data, which the repoint is
+built to never touch. Unit Heaters on Central Tech also gained the water-side
+fields so the force-flow heater readings have somewhere to land, and typing
+the full phrase "FAN FORCED HEATER" now resolves directly.
+
 **Central Tech's imported schedule data is visible (the pilot).** Every value
 the old imports stored where nothing could show it — 1,059 readings across 95
 units — is now on the unit: matched fields filled in with conversions shown
@@ -73,6 +82,35 @@ the top the whole way down, and the tag column stays pinned on the left —
 scroll anywhere, you always know what you're looking at.
 
 ### Technical record
+
+**T2b fleet — GO ruled 2026-08-14; executed same day.** The wrapper
+generalized in place (`ct-repoint-pilot.mjs` → `repoint-project.mjs`,
+history preserved): `--project` named per invocation, ZZ-* refused
+structurally, and a fleet guard skipping WHOLE any unit whose spec holds only
+declared-name values (writing `from_schedule:{}` onto hand-entered units
+would brand them imported for zero gain). **Premise corrected by
+measurement:** the ~456-unit estimate was the imported-row count; only 104
+units carried stored spec readings, and 100 of those held declared-name
+values only. Executed: Alexander Muir 1/1 (Supply CFM → strip; 76 skipped
+whole), SJWS 3/3 (Number of Coils ×3 → strip; 27 human values kept; 10
+skipped), West Humber and Clairlea 0 in scope (no write, no batch row),
+Avondale/Seneca/Quinte/Magellan 0 candidates (never invoked). Batch-noted
+per applying project; spot-check screens taken for both writes. No
+deviation-stop fired; no new matcher-lineage findings beyond the two already
+routed to KEEL.
+
+**Fleet rider 2 — Central Tech water trio (explicit act on a sovereign
+copy).** `apply-fleet-riders.mjs`, dry-run first, resolve-and-refuse (metric
+project asserted, firm trio 9/9 resolved, zero collisions with the existing
+45 rows): Flow (L/s) + Entering/Leaving Water Temp (°C) × three sections at
+firm sort 19–21. Copy 45 → 54, arrival asserted, batch-noted with the
+forward-only override named. The FFH readings now have a landing site once
+the matcher's unit-case fix arrives (KEEL's desk).
+
+**Fleet rider 3 — full-phrase alias taken.** `FAN FORCED HEATER` →
+unit_heater through the ratified path: authed (author carried), noted to
+this triage cycle, blocked-list and collision checks asserted in the act,
+exact-match tier per the standing law.
 
 **T2b — the repoint pilot (owner-ruled: pilot then fleet; fleet NOT run).**
 `ct-repoint-pilot.mjs`, an invocation wrapper over the shared

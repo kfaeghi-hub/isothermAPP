@@ -1,8 +1,16 @@
-// ct-repoint-pilot — T2(b) PILOT, Central Tech only. Owner-ruled 2026-08-14:
-// "repoint, piloted then fleet." [RIVET]
+// repoint-project — the T2(b) repoint, one project per invocation. Owner-ruled
+// 2026-08-14: "repoint, piloted then fleet" — the pilot ran as
+// ct-repoint-pilot.mjs against Central Tech (95/95, tallies in RELEASES 1.12);
+// the fleet ruling generalized this same wrapper. [RIVET]
 //
-//   node --env-file=.env ct-repoint-pilot.mjs            (DRY RUN — writes nothing)
-//   node --env-file=.env ct-repoint-pilot.mjs --apply    (the sighted pilot run)
+//   node --env-file=.env repoint-project.mjs --project="Name"            (DRY RUN)
+//   node --env-file=.env repoint-project.mjs --project="Name" --apply
+//
+// Fleet guards over the pilot's shape, both structural: the project is named
+// per invocation and REFUSED if it is a ZZ-* fixture (fixtures never repoint —
+// a rule enforced by memory is enforced by nothing); a unit whose spec holds
+// only declared-name values has nothing to repoint and is SKIPPED whole, so a
+// hand-entered unit never gains an empty from_schedule marker it never earned.
 //
 // THE SEAM THIS CLOSES (measured in triage): 551 of 562 imported units are
 // pre-1.11 — their schedule readings sit in nameplate_extra.spec under the
@@ -35,7 +43,9 @@ import { assertHarnessFree } from './harness-lock.mjs'
 assertHarnessFree('ct-repoint-pilot')
 
 const APPLY = process.argv.includes('--apply')
-const PROJECT = 'Central Tech'
+const PROJECT = (process.argv.find(a => a.startsWith('--project=')) ?? '').slice(10).replace(/^"|"$/g, '')
+if (!PROJECT) { console.error('REFUSING: name the project — --project="…". A repoint with no named target is a sweep.'); process.exit(1) }
+if (/^ZZ[-_ ]/i.test(PROJECT)) { console.error(`REFUSING: "${PROJECT}" is a fixture. Fixtures never repoint.`); process.exit(1) }
 
 await build({
   entryPoints: ['src/lib/scheduleFieldMatch.ts'], outfile: 'out/sfm.mjs',
@@ -69,7 +79,7 @@ const declaredFor = type => (defs ?? [])
 console.log(`\n${APPLY ? 'APPLYING (PILOT)' : 'DRY RUN — nothing will be written'} · ${proj.name} · ${units.length} units read (paginated)\n`)
 
 let inScope = 0, wrote = 0, converted = 0, mismatched = 0, unmatched = 0, totalKeys = 0
-let keptHuman = 0, skippedOccupied = 0, untypedMoved = 0
+let keptHuman = 0, skippedOccupied = 0, untypedMoved = 0, skippedNoRaw = 0
 const skippedByName = []
 const perUnit = []
 
@@ -88,6 +98,10 @@ for (const u of units) {
   // matched, never overwritten. Everything else is a raw schedule heading.
   const human = {}, raw = {}
   for (const k of keys) (declaredNames.has(k) ? human : raw)[k] = spec[k]
+  // Nothing raw → nothing to repoint. Skip WHOLE: writing from_schedule:{}
+  // onto a hand-entered unit would brand it imported and hide it from any
+  // future pass, for zero gain. (Fleet guard; Central Tech had no such units.)
+  if (!Object.keys(raw).length) { inScope--; skippedNoRaw++; continue }
   keptHuman += Object.keys(human).length
   totalKeys += Object.keys(raw).length
 
@@ -131,8 +145,8 @@ if (APPLY) {
   const { error: bErr } = await svc.from('import_batches').insert({
     project_id: proj.id,
     entity_type: 'equipment',
-    source_file: 'Central Tech schedule imports (pre-1.11), repointed in place',
-    source_revision: 'T2(b) pilot — owner-ruled 2026-08-14',
+    source_file: `${PROJECT} schedule imports (pre-1.11), repointed in place`,
+    source_revision: 'T2(b) fleet repoint — owner-ruled 2026-08-14',
     rows_expected: inScope,
     rows_created: applied,
     note:
@@ -159,5 +173,6 @@ console.log(`  ${unmatched} unmatched by name — kept, surfaced in the strip`)
 console.log(`  ${keptHuman} pre-existing declared-field values kept (never matched, never overwritten)`)
 console.log(`  ${skippedOccupied} matcher results skipped — field already held a value:`)
 for (const s of skippedByName) console.log(`      ${s}`)
+if (skippedNoRaw) console.log(`  ${skippedNoRaw} unit(s) skipped whole — spec holds only declared-name values, nothing to repoint`)
 if (untypedMoved) console.log(`  ${untypedMoved} untyped unit(s): readings moved to the strip only — typing them later renders more`)
-console.log(APPLY ? '\nPILOT APPLIED. The fleet does not run until the owner rules on this report.' : '\nDRY RUN — pass --apply for the sighted pilot run.')
+console.log(APPLY ? `\nAPPLIED — ${PROJECT}. Tallies above ride the fleet batch report.` : '\nDRY RUN — pass --apply after reviewing the diff.')
