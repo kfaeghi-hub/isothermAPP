@@ -16,6 +16,47 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.10 — 2026-08-13 (extraction Phase 5b CLOSED; Phase 6 opens)
+
+### For the team
+
+**The import review now shows you what the two readers actually did.** When a
+spreadsheet is read by the AI pipeline, every staged row tells you which reader
+saw it, how confident the merge was, and — where the readers disagreed — both
+readings, in plain language, right on the row. Where they disagreed about what
+a unit IS, you choose: the row's Accept becomes two buttons, each naming a
+reading, and the register records which one you took. Questions the readers
+couldn't answer appear as questions — once for the sheet, or on the row they
+belong to — and answering one is an edit like any other. Rows you've already
+ruled on stay visible below with their record. Old uploads look exactly as
+they always did.
+
+### Technical record
+
+**5b closed on 42/42** — the review UI over staged provenance: per-row leg and
+verification chips, inline disagreement rendering with both readings, type
+conflicts stripped of the generic Accept (an accept on a conflicted row always
+names its reading, recorded through the edited-disposition path), questions at
+both scopes, claims attribution in the edit view, settled rows keeping their
+provenance, and `pw-intake-review` asserting the gates — including that a
+conflicted row exposes no unnamed accept.
+
+**Phase 6 (correction capture) opened the same day.** Opening commit
+normalized sheet-level questions into `intake_sheet_questions` (one row per
+question; staged rows carry only what is theirs) because capture built on N
+staged copies of one question would capture N answers. Then
+`correction_signals`: a SECURITY DEFINER trigger observes the existing
+disposition path and freezes machine proposal + human outcome + context per
+disposition — chosen_leg naming which reading resolved a conflict,
+question_state distinguishing answered-via-edit from accepted-unanswered, no
+insert policy so the trigger is the only author. `pw-correction-capture`
+performs one of each disposition class and reads every signal back; battery
+grows to 43. docs/CORRECTION-SIGNALS.md is the contract harvest Phase 1 builds
+against; BACKBURNER 3r (the alias provenance-erasure fix) stands next in line,
+before harvest builds.
+
+---
+
 ## Update 1.09 — 2026-08-13 (internal: extraction Phase 5a CLOSED)
 
 ### For the team

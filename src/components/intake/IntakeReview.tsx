@@ -74,6 +74,7 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
   uploadId: string; projectId: string; onClose: () => void; onApplied?: () => void
 }) {
   const [rows, setRows]   = useState<Row[]>([])
+  const [sheetQuestions, setSheetQuestions] = useState<Ambiguity[]>([])
   const [upload, setUpload] = useState<{ filename: string; kind: string; parse_note: string | null } | null>(null)
   const [existing, setExisting] = useState<Map<string, Existing>>(new Map())
   const [vocab, setVocab] = useState<{ key: string; name: string }[]>([])
@@ -84,16 +85,23 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
   const [result, setResult] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
-    const [{ data: u }, { data: r }, t] = await Promise.all([
+    const [{ data: u }, { data: r }, { data: q }, t] = await Promise.all([
       supabase.from('intake_uploads').select('filename, kind, parse_note').eq('id', uploadId).maybeSingle(),
       supabase.from('intake_rows').select('*').eq('upload_id', uploadId)
         .order('confidence', { ascending: true }).order('source_row'),
+      // Sheet-level questions are ROWS OF THEIR OWN since the Phase 6
+      // normalization — stored once per (sheet, question), read directly. The
+      // render-side dedupe this replaces existed because the 5a orchestrator
+      // staged the sheet's whole list onto every row.
+      supabase.from('intake_sheet_questions').select('source_sheet, about, question')
+        .eq('upload_id', uploadId).order('source_sheet'),
       // The SAME vocabulary loader the Cx Index and inline editor use, aliases
       // included. Three surfaces reading the vocabulary three ways is how the
       // import path and the typing path drift apart.
       loadTypeVocabulary(),
     ])
     setUpload(u ?? null)
+    setSheetQuestions((q ?? []) as Ambiguity[])
     setVocab(t)
     const list = (r ?? []) as Row[]
     setRows(list)
@@ -146,13 +154,12 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
     } finally { setBusy(false) }
   }
 
-  /** The questions the pipeline attributed to THIS row (`where` names its tag).
-   *  Sheet-level questions — no `where`, or a `where` that is not a row tag —
-   *  are surfaced once, in the panel above the blocks, not repeated per row:
-   *  the orchestrator stages the sheet's whole ambiguity list onto every row of
-   *  the sheet, so rendering the column raw would show one question N times. */
-  const rowQuestions = (r: Row): Ambiguity[] =>
-    (r.questions ?? []).filter(q => q.where && r.tag && q.where.toUpperCase() === r.tag.toUpperCase())
+  /** The questions on THIS row. Since the Phase 6 normalization a row carries
+   *  only what the pipeline attributed to it (`where` names its tag); sheet-
+   *  level questions live in intake_sheet_questions and render once, above.
+   *  Deliberately unfiltered: if an old-shape row ever surfaces, its questions
+   *  render repeated rather than vanish — the safe failure direction. */
+  const rowQuestions = (r: Row): Ambiguity[] => r.questions ?? []
 
   /** True when the readers left something a human has not seen yet: a
    *  disagreement between the legs, or a question attributed to the row. */
@@ -180,16 +187,6 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
   const clean    = pending.filter(r => !r.duplicate_of && !r.match_equipment_id &&
                                        (r.confidence ?? 0) >= CLEAN_AT && !!r.proposed_type && !carriesUnseen(r))
 
-  /** Sheet-level questions, deduped across the rows that all carry them. */
-  const sheetQuestions = (() => {
-    const tags = new Set(rows.map(r => (r.tag ?? '').toUpperCase()).filter(Boolean))
-    const seen = new Map<string, Ambiguity>()
-    for (const r of rows) for (const q of r.questions ?? []) {
-      if (q.where && tags.has(q.where.toUpperCase())) continue // attributed — renders on its row
-      seen.set(`${q.about}|${q.question}`, q)
-    }
-    return [...seen.values()]
-  })()
   const settled  = rows.length - pending.length
   // Only rows that were RULED ON and have not already been written. A row
   // carrying created_equipment_id is done; offering to write it again would be

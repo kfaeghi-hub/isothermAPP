@@ -211,7 +211,16 @@ async function runSheet(
     read_via: r.seenBy,
     claims: r.claims,
     disagreements: r.disagreements.length ? r.disagreements : null,
-    questions: merged.ambiguities.length ? merged.ambiguities : null,
+    // A ROW CARRIES WHAT IS ITS (Phase 6 normalization). Only ambiguities the
+    // pipeline attributed to this row — `where` names its tag — stage here.
+    // Sheet-level questions get one row each in intake_sheet_questions below;
+    // the first shape put the sheet's whole list on every row, and capture
+    // built on N staged copies of one question would capture N answers.
+    questions: (() => {
+      const mine = merged.ambiguities.filter(q =>
+        q.where && r.tag && q.where.toUpperCase() === r.tag.toUpperCase())
+      return mine.length ? mine : null
+    })(),
     verification,
     reasoning: null,
   }))
@@ -221,6 +230,26 @@ async function runSheet(
   const { data: inserted, error } = await supabase.from('intake_rows')
     .insert(payload).select('id, tag')
   if (error) return { rows: 0, cost, calls, failure: error.message }
+
+  // ── sheet-level questions: ONE ROW EACH, not one per staged row ────────────
+  // Everything the pipeline could not attribute to a single tag. Upsert-shaped
+  // because a RESUMED run re-stages its sheet, and the same question arriving
+  // twice is the same question (the unique constraint is the real guard; the
+  // ignore just keeps the resume path quiet). A failure here is REPORTED — a
+  // question that never lands is a question nobody will answer, and Phase 6
+  // treats answers as correction signals.
+  const stagedTags = new Set(payload.map(p => (p.tag ?? '').toUpperCase()).filter(Boolean))
+  const sheetQs = merged.ambiguities.filter(q =>
+    !q.where || !stagedTags.has(q.where.toUpperCase()))
+  if (sheetQs.length) {
+    const { error: qErr } = await supabase.from('intake_sheet_questions').upsert(
+      sheetQs.map(q => ({
+        upload_id: ctx.uploadId, project_id: ctx.projectId, source_sheet: s.name,
+        about: q.about, question: q.question,
+      })),
+      { onConflict: 'upload_id,source_sheet,about,question', ignoreDuplicates: true })
+    if (qErr) return { rows: inserted?.length ?? 0, cost, calls, failure: `sheet questions refused: ${qErr.message}` }
+  }
 
   // DUPLICATE_OF, PER SHEET, keyed tag + occurrence per the merge-key law. It runs
   // against the rows just staged for THIS sheet rather than the whole upload,
