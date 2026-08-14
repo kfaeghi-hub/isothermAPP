@@ -1715,6 +1715,23 @@ verbatim, and REFUSES WHOLE on a part-count mismatch: a dash on a pump with no
 drive is one part against three fields, and writing anything from it would be
 a guess. A new rule kind, ruled rather than stretched into the alias table.
 
+### Calibration: a suite asserts the schema's truth, never a spelling it didn't promise
+
+*Third specimen 2026-08-14; the pattern earns its entry. An assertion's expected
+value is CALIBRATED AGAINST THE REAL ARTIFACT before the run — a hand-written
+expectation encodes the author's guess about a convention, and conventions vary
+where schemas are silent.*
+
+| Specimen | The guessed spelling | The truth |
+|---|---|---|
+| The battery's measurement marker | a regex built from a single-quoted string — backslashes eaten, matched nothing | tested against a real `[GENERATION]` line before the run |
+| The 5b fixture's source column | "MIXED" read as a product token | it was the fixture's own sheet name; renamed SCHED-1 to say what it is |
+| pw-approve-matcher's spec keys | `'Flow (L/s)'` — the unit-suffixed spelling from test fixtures | live defs store `Flow` with the unit in its own column; keys now DERIVE from the database at run time |
+
+The general form: where a schema permits two spellings, an assertion hardcoding
+either one tests the author's memory, not the system. Derive from the source of
+truth, or measure once and quote the measurement.
+
 ### Harness wait patterns — recorded, not promoted
 
 *2026-08-13, from the pw-meetings per-suite conversion. Three shapes worth
@@ -2590,6 +2607,24 @@ commit.
 
 Questionnaire + deterministic assembly + AI narrative -> issued Cx Plans. Record:
 `docs/CX-PLAN-COMPOSER-PROPOSAL.md` (rulings D1a-D7). Gate: `pw-cx-plan.mjs`.
+
+### Where a shared module lives: the side with the stricter constraints
+
+*Ratified 2026-08-14, from the matcher re-homing (the PMPs incident). Sibling of
+the one-reading-path rule (RELEASES 1.09) — one source of truth, callers reach
+it, never copies of it.*
+
+When a shared module has consumers on both sides of an unproven boundary, **it
+lives on the side with the stricter constraints; the rest reach it through
+shims.** `scheduleFieldMatch` + `unitConvert` had a browser consumer (Vite
+compiles anything) and a serverless consumer (api/ → src/lib runtime imports
+were recorded as unproven on Vercel) — so they moved to `api/_shared`, and
+`src/lib` keeps one-line re-export shims. The client tolerates reaching across;
+the API should not have to.
+
+The boundary stopped being unproven the day the gate exercised the deployed
+function — **proven in the safe direction**: the strict side never took on the
+risk, and the proof came from a battery member, not an assumption.
 
 ### The three-engine boundary, enforced structurally
 
