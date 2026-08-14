@@ -289,6 +289,24 @@ unchanged.
 
 ---
 
+## 7d. Standing fact — hardened lessons cannot be re-taught through capture
+
+*Ruled 2026-08-14, earned free during the Phase 1 replay, before it cost a
+confused gate.*
+
+**A lesson hardened into the deterministic layer can no longer be re-taught
+through capture.** Once a correction ships as parser code, the machine stops
+making the mistake, the human stops making the correction, and no signal ever
+records the pair — the capture net catches FUTURE lessons only. Gate corpora
+for PAST lessons therefore require replaying the machine that erred: built from
+git at the named commit, its output adapted in shape only, its identity carried
+into every artifact its signals produce (this corpus: `93d2fe9`). Measured
+before it was ruled: today's parser reads the Avondale files correctly on every
+axis the incident's hand-fixes addressed, so a same-machine replay would have
+yielded a corpus of clean accepts and an unpassable gate.
+
+---
+
 ## 8. The question this proposal cannot answer
 
 Whether the firm's upload volume will ever make this pay. Four Excel uploads and

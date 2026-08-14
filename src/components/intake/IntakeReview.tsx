@@ -386,6 +386,14 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
     return null // verified-clean earns silence, not a badge on every row
   }
 
+  // RENDER HELPERS, CALLED AS FUNCTIONS — NEVER AS <Components>. Defined inside
+  // the component they close over state; used as JSX components their function
+  // identity changes EVERY RENDER, so React sees a new element type and
+  // REMOUNTS the subtree — which drops focus from whatever input the user is
+  // typing in and resets the type-picker's open state, one keystroke at a
+  // time. Found by the harvest replay: the sighted disposition typed "Pump"
+  // and the field kept exactly "P". Function-call usage keeps the tree's
+  // element types stable (div/input/Combobox), so nothing remounts.
   const Line = ({ r, showDiff }: { r: Row; showDiff?: boolean }) => {
     const diff = showDiff ? diffFor(r) : []
     const isEditing = editing === r.id
@@ -465,8 +473,8 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                 )}
                 {r.location && <span className="text-[10px] text-gray-400 ml-1.5">{r.location}</span>}
                 <span className="ml-1.5 inline-flex gap-1 align-middle">
-                  <LegChip r={r} />
-                  <VerifyChip r={r} />
+                  {LegChip({ r })}
+                  {VerifyChip({ r })}
                 </span>
               </div>
             )}
@@ -615,7 +623,7 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
         <p className={`text-[11px] mt-0.5 ${tone === 'warn' ? 'text-amber-800' : 'text-gray-400'}`}>{hint}</p>
       </div>
       <div className={tone === 'warn' ? 'px-3' : ''}>
-        {list.map(r => <Line key={r.id} r={r} showDiff={showDiff} />)}
+        {list.map(r => <div key={r.id}>{Line({ r, showDiff })}</div>)}
       </div>
     </div>
   )
@@ -683,26 +691,26 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
         </p>
       ) : (
         <>
-          <Block tone="warn" title="⧉ REPEATED TAG" list={dupes}
-            hint="Another row in this same upload claims this tag. Usually two real units the
-                  schedule tagged alike — which one is which is a judgement, so neither is
-                  dropped and neither is bulk-accepted." />
+          {Block({ tone: 'warn', title: '⧉ REPEATED TAG', list: dupes,
+            hint: 'Another row in this same upload claims this tag. Usually two real units the ' +
+                  'schedule tagged alike — which one is which is a judgement, so neither is ' +
+                  'dropped and neither is bulk-accepted.' })}
 
-          <Block tone="warn" title="✎ CHANGES EXISTING EQUIPMENT" list={enrich} showDiff
-            hint="This tag is already on the project. Only fields that would CHANGE are shown,
-                  and a blank proposal never clears a value someone entered. Filling an EMPTY field
-                  is ticked for you; REPLACING something already entered is not — taking that
-                  is an act, and it is yours." />
+          {Block({ tone: 'warn', title: '✎ CHANGES EXISTING EQUIPMENT', list: enrich, showDiff: true,
+            hint: 'This tag is already on the project. Only fields that would CHANGE are shown, ' +
+                  'and a blank proposal never clears a value someone entered. Filling an EMPTY field ' +
+                  'is ticked for you; REPLACING something already entered is not — taking that ' +
+                  'is an act, and it is yours.' })}
 
-          <Block title="Needs a look" list={looks}
-            hint={`Confidence below ${CLEAN_AT}, a type outside the firm vocabulary, or the ` +
+          {Block({ title: 'Needs a look', list: looks,
+            hint: `Confidence below ${CLEAN_AT}, a type outside the firm vocabulary, or the ` +
                   `two readers disagreed / asked a question about the row. Lowest confidence ` +
                   `first. Accepting an unknown type queues the name for ratification — it ` +
-                  `never mints one.`} />
+                  `never mints one.` })}
 
-          <Block title="Clean" list={clean}
-            hint="New units, known type, high confidence. This is where the volume is and where
-                  the review should end quickly." />
+          {Block({ title: 'Clean', list: clean,
+            hint: 'New units, known type, high confidence. This is where the volume is and where ' +
+                  'the review should end quickly.' })}
         </>
       )}
 
@@ -728,8 +736,8 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                 </span>
               )}
               <span className="ml-auto inline-flex gap-1">
-                <LegChip r={r} />
-                <VerifyChip r={r} />
+                {LegChip({ r })}
+                {VerifyChip({ r })}
               </span>
             </div>
           ))}

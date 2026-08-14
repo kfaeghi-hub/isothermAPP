@@ -1,0 +1,75 @@
+{
+  "generated": "2026-08-14",
+  "generator": "harvest-librarian.mjs (Phase 1 — read-only)",
+  "threshold": {
+    "occurrences": 3,
+    "contradictions": 0
+  },
+  "erring_machine": "93d2fe9 (replay corpus — parse state immediately before the Avondale fixes at e19d1a3)",
+  "signal_count": 7,
+  "rediscoveries": [
+    {
+      "kind": "column_map",
+      "rule": "SERVICE → area_served",
+      "column_attribution": [
+        "SERVICE: 7/7"
+      ],
+      "occurrences": 7,
+      "contradictions": 0,
+      "evidence_signals": [
+        "65e65395-8696-4944-9c70-ecd41cca2136",
+        "b8ce5f80-5986-4456-b882-5dceb0326925",
+        "9e49174d-e93d-46ec-82bb-4d4e04411eda",
+        "8953bbe0-a0b6-4c3a-b00a-147f659a6300",
+        "d9eec373-3330-4819-a5e4-656dac602c59",
+        "4b7d9b4c-bf3d-4904-bcbc-6278a3fab83f",
+        "900a4eda-facf-4e03-93f9-e1c63b3b877b"
+      ],
+      "evidence_sheets": [
+        "Sheet1"
+      ],
+      "erring_machine": "93d2fe9",
+      "status": "ALREADY HELD by the deterministic layer (measured: today's parser lands a SERVICE column in area_served) — REDISCOVERY, not proposed"
+    }
+  ],
+  "proposals": [],
+  "below_threshold": [
+    {
+      "kind": "type_correction",
+      "rule": "boiler→pump",
+      "occurrences": 2,
+      "contradictions": 0,
+      "evidence_signals": [
+        "8953bbe0-a0b6-4c3a-b00a-147f659a6300",
+        "d9eec373-3330-4819-a5e4-656dac602c59"
+      ],
+      "erring_machine": "93d2fe9",
+      "status": "below threshold (2 < 3)"
+    },
+    {
+      "kind": "type_correction",
+      "rule": "NULL→pump",
+      "occurrences": 2,
+      "contradictions": 0,
+      "evidence_signals": [
+        "4b7d9b4c-bf3d-4904-bcbc-6278a3fab83f",
+        "900a4eda-facf-4e03-93f9-e1c63b3b877b"
+      ],
+      "erring_machine": "93d2fe9",
+      "status": "below threshold (2 < 3)"
+    }
+  ],
+  "contradicted": [],
+  "leg_reliability": {
+    "rules·edited": 7
+  },
+  "question_quality": {},
+  "title_typed_confirmation": "not computable on this corpus: the erring machine predates typeFrom staging, and the live orchestrator does not stage typeFrom either — NAMED GAP; the rate becomes computable when typeFrom stages (flagged, not built)",
+  "alias_history_summary": {
+    "added": 1,
+    "removed": 1
+  },
+  "capture_scope_findings": [
+    "nameplate/field-alias corrections have NO disposition path: the review surface has no nameplate editor, so a MAX INPUT-class lesson is invisible to capture today. Found by replay, reported before it cost a confused gate."
+  ]
+}
