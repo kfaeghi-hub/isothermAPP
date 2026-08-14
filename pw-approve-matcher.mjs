@@ -96,23 +96,34 @@ try {
   const specA = eqA?.nameplate_extra?.spec ?? {}
   const fromA = eqA?.nameplate_extra?.from_schedule ?? {}
 
+  // Spec keys are the DECLARED field names AS THE DATABASE SPELLS THEM. The
+  // firm's live defs store 'Flow' with unit 'L/s' in its own column; the unit
+  // tests' fixtures embed units in the name ('Flow (L/s)') and both are legal —
+  // the first run of this suite hardcoded the fixture spelling and read
+  // undefined against production. Derive the keys from the live defs instead
+  // of asserting a spelling the schema does not promise.
+  const { data: defs } = await svc.from('equipment_type_field_defs')
+    .select('field_name').eq('equipment_type', 'pump').eq('section', 'spec')
+  const K = (term) => (defs ?? []).map(d => d.field_name)
+    .find(n => n.replace(/\s*[[(][^\])]*[\])]\s*$/, '').trim().toLowerCase() === term.toLowerCase()) ?? term
+
   // ── THE STRUCTURAL TELL ───────────────────────────────────────────────────
   check(Object.keys(fromA).length === Object.keys(NAMEPLATE_A).length &&
         Object.entries(NAMEPLATE_A).every(([k, v]) => fromA[k] === v),
     'approval populates from_schedule with the COMPLETE verbatim read — the matcher ran (the never-unwire tell)')
 
   // ── matched under declared names, converted with arithmetic ───────────────
-  check(specA['Flow (L/s)'] === '6.31', `FLOW [GPM] 100 → Flow (L/s) 6.31 (got ${JSON.stringify(specA['Flow (L/s)'])})`)
-  check(specA['Head (kPa)'] === '89.7', `HEAD [ft] 30 → Head (kPa) 89.7 (got ${JSON.stringify(specA['Head (kPa)'])})`)
-  check(specA['Speed (RPM)'] === '1750', 'RPM → Speed (RPM), verbatim (units agree)')
-  check(specA['Motor kW (kW)'] === '1.49', `MOTOR SIZE [HP] 2 → Motor kW 1.49 (got ${JSON.stringify(specA['Motor kW (kW)'])})`)
+  check(specA[K('Flow')] === '6.31', `FLOW [GPM] 100 → Flow (L/s) 6.31 (got ${JSON.stringify(specA[K('Flow')])})`)
+  check(specA[K('Head')] === '89.7', `HEAD [ft] 30 → Head (kPa) 89.7 (got ${JSON.stringify(specA[K('Head')])})`)
+  check(specA[K('Speed')] === '1750', 'RPM → Speed (RPM), verbatim (units agree)')
+  check(specA[K('Motor kW')] === '1.49', `MOTOR SIZE [HP] 2 → Motor kW 1.49 (got ${JSON.stringify(specA[K('Motor kW')])})`)
   check(specA['VFD'] === 'YES', 'VFD lands')
 
   // ── the compound ──────────────────────────────────────────────────────────
-  check(specA['Voltage (V)'] === '208' && specA['Phase (Ø)'] === '3' && specA['Hz (Hz)'] === '60',
+  check(specA[K('Voltage')] === '208' && specA[K('Phase')] === '3' && specA[K('Hz')] === '60',
     'MOTOR INPUT [V/Ph/Hz] 208/3/60 → Voltage/Phase/Hz, verbatim parts')
   const specB = eqB?.nameplate_extra?.spec ?? {}
-  check(!('Voltage (V)' in specB) && !('Phase (Ø)' in specB) && !('Hz (Hz)' in specB),
+  check(!(K('Voltage') in specB) && !(K('Phase') in specB) && !(K('Hz') in specB),
     'the dash REFUSES WHOLE — 1 part vs 3 fields, no electrical field written on pump B')
   check((eqB?.nameplate_extra?.from_schedule ?? {})['MOTOR INPUT [V/Ph/Hz]'] === '-',
     'and the dash itself is preserved verbatim in from_schedule')
