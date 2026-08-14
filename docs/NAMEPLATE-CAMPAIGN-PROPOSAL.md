@@ -325,3 +325,30 @@ CFM, MBH and NPS (see the units proposal).
 **Project field-structures untouched.** These are firm defs; a project's copy is
 seeded on first use and stays sovereign thereafter. No in-flight nameplate was
 rewritten.
+
+---
+
+# ADDENDUM — unit_heater water-side trio (T4, owner-ruled 2026-08-14)
+
+**A new §3-class surgical addition, found by the first team bug list** (RIVET
+triage T4: "Unit Heater: missing GPM"). Measured before ruling: the live set
+covered the gas-fired and electric variants (Heating Medium discriminator, Gas
+fields, Heating Element Rating) and carried **no water-side field at all** — a
+hydronic unit heater had nowhere to record its duty. The §2.4 table ruled in
+this document never had them either; nothing was mis-applied.
+
+| Field | Unit | Imperial | spec | shop | installed |
+|---|---|---|---|---|---|
+| Flow | L/s | GPM | ✓ | ✓ | ✓ |
+| Entering Water Temp | °C | °F | ✓ | ✓ | ✓ |
+| Leaving Water Temp | °C | °F | ✓ | ✓ | ✓ |
+
+The fan+MBH precedent: present where hydronic, blank elsewhere — Heating
+Medium already says which. Appended at the end of the sort order (additive; a
+project reorders in its own editor). Applied 2026-08-14: 9 rows, re-run adds
+zero; project copies untouched per the seeding rules (Central Tech's sovereign
+45-row copy verified unchanged). Migration:
+`migrations/unit-heater-hydronic-trio-migration.sql`. Interplay recorded:
+the T6 ruling mapped FAN FORCED HEATER → unit_heater the same day, so
+Central Tech's four FFH units render the unit_heater set — its pre-T4 copy
+lacks this trio until the owner adds it in that project's field editor.

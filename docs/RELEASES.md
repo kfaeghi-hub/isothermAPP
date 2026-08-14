@@ -24,6 +24,19 @@ as its work.
 
 ### For the team
 
+**Force-flow heaters are in the library now.** The four FFH units on Central
+Tech that showed nothing in their spec table are typed as Unit Heaters (that's
+what a force-flow heater is, verification-wise — same ruling that put
+Clairlea's FFH units there), and typing `FFH` in the equipment type box now
+finds Unit Heater directly. Their schedule data becomes visible with the
+import repoint that's piloting next.
+
+**Unit Heaters can record their water side.** Flow (L/s · GPM), Entering and
+Leaving Water Temp joined the Unit Heater nameplate — the hydronic variant
+finally has somewhere to put its duty. New fields apply to projects going
+forward; a project already using Unit Heaters keeps its own structure and can
+add the three fields in its field editor when wanted.
+
 **Duplicated nameplate fields are fixed — and can't come back.** On a few
 projects (Central Tech's fan coils were the reported case) every nameplate
 field showed twice, and typing in one copy filled the other. The doubled rows
@@ -44,6 +57,28 @@ the top the whole way down, and the tag column stays pinned on the left —
 scroll anywhere, you always know what you're looking at.
 
 ### Technical record
+
+**T6 — FAN FORCED HEATER → unit_heater (owner-ruled 2026-08-14).** Executed by
+`apply-ffh-ruling.mjs` (dry-run first, resolve-and-refuse on every target):
+the queue row → `mapped`/`resolved_type=unit_heater`/`ratified_at` (the
+approve path's own write, verbatim); the 4 waiting Central Tech units typed
+with `observed_type_name` cleared (the TypePicker's write shape), arrival
+asserted 4/4; alias `FFH` → unit_heater inserted AUTHED with the ruling note
+(3r history trigger records it; blocked-list and collision checked before the
+write). Sovereignty proven after: Central Tech's 45-row unit_heater copy
+unchanged — the seeding trigger correctly declined to re-seed. Open edge,
+recorded: the full phrase "FAN FORCED HEATER" is not an alias, so a future
+import saying it re-queues for one more ruling — offered, not taken.
+
+**T4 — unit_heater water-side trio (owner-ruled 2026-08-14).** Flow (L/s ·
+GPM), Entering/Leaving Water Temp (°C · °F), spec/shop/installed, appended at
+sort 19–21 (additive — no layout reshuffles). A NEW §3-class gap: the
+campaign's ruled §2.4 table never carried water fields, so nothing was
+mis-applied. 9 rows, NOT-EXISTS-guarded (re-run adds zero — verified);
+project copies untouched per the campaign's seeding rules. Record:
+`migrations/unit-heater-hydronic-trio-migration.sql` + campaign doc addendum,
+including the T6 interplay (Central Tech's pre-T4 copy lacks the trio until
+its owner adds it per-project).
 
 **T5 — doubled project field-defs: the class fix.** Measured: 11 (project,
 type) pairs across 5 projects, every field exactly ×2; ten pairs were two
