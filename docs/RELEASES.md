@@ -24,6 +24,15 @@ as its work.
 
 ### For the team
 
+**Central Tech's imported schedule data is visible (the pilot).** Every value
+the old imports stored where nothing could show it — 1,059 readings across 95
+units — is now on the unit: matched fields filled in with conversions shown
+(P-13 reads Flow 2.3 L/s, Head 238 kPa, 575 V), and everything else under
+"From the schedule" on each unit, in the schedule's own words. Nothing was
+overwritten: values you typed yourself were kept, and the two places the
+schedule disagreed with an entered value are named in the record. Other
+projects follow after Tony reviews this pilot.
+
 **You can now see which unit system a project is on.** Edit Project shows
 "Units: metric — set at creation", with a pointer to where per-field unit
 changes actually live (the Equipment tab's field structure, where changing a
@@ -64,6 +73,24 @@ the top the whole way down, and the tag column stays pinned on the left —
 scroll anywhere, you always know what you're looking at.
 
 ### Technical record
+
+**T2b — the repoint pilot (owner-ruled: pilot then fleet; fleet NOT run).**
+`ct-repoint-pilot.mjs`, an invocation wrapper over the shared
+`scheduleFieldMatch` (the matcher untouched — KEEL's lineage). Dry-run diff
+first, then the sighted apply: 95/95 units, 1,059 raw readings — 2 written
+as-is, 15 after recorded conversions, 30 refused on unbridgeable units, 1,010
+moved verbatim to `from_schedule` (now visible in the strip); 161 pre-existing
+declared-field values kept and 2 matcher results skipped BY NAME because the
+field already held a value (the ruled additive constraint, demonstrably
+firing: P-13/P-14 Voltage). Batch-tagged in `import_batches` with tallies and
+arithmetic. Two findings for the fleet ruling: (1) the matcher's unit
+vocabulary is case-sensitive — `L/S` ≠ `L/s`, so the FFH flow readings refuse
+loudly (probe on record; matcher change = stop-and-show, not taken); (2)
+Central Tech's CUH sheet speaks a condition-prefixed dialect (`82°C EWT @
+11°C ΔT FLOW (Lit/S)`) the matcher rightly leaves whole; both cap the
+declared-field land rate until ruled otherwise. Battery ledger: first
+48-suite battery, 48/48 in 12.8 min; GENERATION 5588ms (12th reading, in
+band).
 
 **T2c — unit system display (owner-ruled: display-only).** `projects.
 unit_system` was writable in the creation modal and visible NOWHERE after —
