@@ -2544,6 +2544,13 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   claim (thead at scroller top; label row seamed at +24px; corner pinned both
   axes under diagonal scroll). Read-only; the table is `border-separate` because
   Chromium drops collapsed borders from stuck cells (crbug 702927).
+- `pw-def-seeding.mjs` — one field-def seed per (project, type), refused by the
+  database (T5, 2026-08-14): premise (two vocabulary-derived, ZZ-absent fixture
+  types) → INSERT route seeds the full firm set as the employee → a second unit
+  re-seeds nothing → the UPDATE route (type change) seeds too → a duplicate def
+  insert is refused with 23505, by error code → the rendered nameplate shows
+  each label exactly its section count. Self-cleaning both directions, resting
+  state asserted.
 - `pw-copy.mjs` — multi-unit copy: never-overwrite, copied-N-opens-finding-modal
 - `pw-finding-register.mjs` — full ASHRAE register: create → detail → report
   lines → delete → byte-clean restore

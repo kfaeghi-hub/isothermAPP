@@ -92,6 +92,7 @@ const SUITES = [
   'pw-cx-sticky-header',
   'pw-dashboard',
   'pw-dates',
+  'pw-def-seeding',
   'pw-deliverables',
   'pw-deliverable-access',
   'pw-directory',

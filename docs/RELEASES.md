@@ -24,6 +24,13 @@ as its work.
 
 ### For the team
 
+**Duplicated nameplate fields are fixed — and can't come back.** On a few
+projects (Central Tech's fan coils were the reported case) every nameplate
+field showed twice, and typing in one copy filled the other. The doubled rows
+are removed — no values were lost, because both copies always pointed at the
+same stored value — and the database itself now refuses a duplicate field, so
+this class of bug is closed, not just cleaned up.
+
 **The "Add Project" button no longer disappears on smaller windows.** On any
 window narrower than full screen, the Projects page's filter row used to push
 the "+ New Project" button off the right edge with no scrollbar — it looked
@@ -37,6 +44,29 @@ the top the whole way down, and the tag column stays pinned on the left —
 scroll anywhere, you always know what you're looking at.
 
 ### Technical record
+
+**T5 — doubled project field-defs: the class fix.** Measured: 11 (project,
+type) pairs across 5 projects, every field exactly ×2; ten pairs were two
+complete seeds 0.25–0.43s apart, one a manual field-add collision. Mechanism:
+`seed_project_field_defs()` guarded with NOT EXISTS — a check-then-insert with
+no constraint behind it — while the client-side `ensureFieldDefs` (the
+trigger's predecessor, built 2026-08-04 and never retired) re-seeded from
+stale React state right after the trigger had. Fix in three parts, separate
+commits per protocol: (1) data repair — 308 duplicate rows deleted keeping the
+earliest copy, loss-free because values key on field NAME
+(`field-defs-dedupe-repair-migration.sql`, tallies in place); (2) `UNIQUE
+(project_id, equipment_type, section, field_name) NULLS NOT DISTINCT` — the
+refusal as a database fact — plus `ON CONFLICT DO NOTHING` in the trigger,
+whose NOT EXISTS stays for SOVEREIGNTY (a project that deleted firm fields
+must not get them re-seeded; ON CONFLICT alone would re-add them); (3) the
+second writer retired: `ensureFieldDefs` → `ensureBaseDefs`, narrowed to the
+`__base` pseudo-type (which the trigger can never seed — no equipment row
+carries it), hardened to upsert-ignore-duplicates over the new index; both
+type-seeding call sites removed after the ruled route proof. Mirror drift
+fixed: `EquipmentTypeFieldDef.unit_imperial` had lagged the 1.01 column. Gate:
+`pw-def-seeding` (battery #48) — INSERT route, UPDATE route, one-seed,
+refusal by error code 23505, one-input-per-field on the real screen;
+failing-first proven (refusal leg red before the index existed).
 
 **T1 — Projects toolbar overflow.** The toolbar was `flex-wrap` below lg and
 `lg:flex-nowrap lg:h-11` above it, inside a page root that is

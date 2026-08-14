@@ -260,6 +260,11 @@ export interface EquipmentTypeFieldDef {
   section: 'spec' | 'shop_drawing' | 'installed'
   field_name: string
   unit: string | null
+  /** Imperial counterpart chosen at seeding when projects.unit_system =
+   *  'imperial'. NULL for units both systems share (CFM, MBH, NPS, V, A, Hz —
+   *  ruled Ontario practice, units proposal 2026-08-02). Column existed since
+   *  1.01; this mirror line lagged it (caught by the T5 triage, 2026-08-14). */
+  unit_imperial: string | null
   sort_order: number
   created_at: string
 }

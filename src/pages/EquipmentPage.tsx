@@ -196,7 +196,7 @@ export function EquipmentPage({ projectId }: Props) {
   useEffect(() => {
     if (loading) return
     if (fieldDefs.some(f => f.equipment_type === BASE_KEY)) return
-    void ensureFieldDefs(BASE_KEY)
+    void ensureBaseDefs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, fieldDefs])
 
@@ -252,10 +252,11 @@ export function EquipmentPage({ projectId }: Props) {
     // On failure keep the modal open so the user can retry; re-enable the button.
     if (reportError(error, 'add the equipment')) { setSavingAdd(false); return }
 
-    // Initialize field defs for this type if not yet done
-    if (newEquip?.equipment_type) {
-      await ensureFieldDefs(newEquip.equipment_type)
-    }
+    // A typed unit's field defs are seeded by the equipment_seed_defs trigger
+    // INSIDE the insert above — no client seeding. This call site was the
+    // trigger's unretired predecessor: it re-seeded from stale state ~0.3s
+    // after the trigger already had (T5, 2026-08-14). The Promise.all below
+    // refetches fieldDefs, which is all the client owes.
     if (newEquip?.observed_type_name) {
       const r = await proposeType(newEquip.observed_type_name, projectId)
       if (r.error) reportError({ message: r.error } as any, 'queue the type proposal')
@@ -277,17 +278,30 @@ export function EquipmentPage({ projectId }: Props) {
 
   useEffect(() => { void fetchTypeVocabulary() }, [fetchTypeVocabulary])
 
-  /** Seed a project's copy of a firm def set. `type` may be BASE_KEY. */
-  async function ensureFieldDefs(type: string) {
-    const existing = fieldDefs.filter(f => f.equipment_type === type)
+  /** Seed the project's __base identity set, once per project.
+   *
+   * CONCRETE TYPES ARE NEVER SEEDED HERE. The equipment_seed_defs trigger has
+   * owned that path since 2026-08-04 — this function was its predecessor, and
+   * its two type-seeding call sites were the unretired half of that change:
+   * they re-seeded from stale React state ~0.3s after the trigger already
+   * had, which produced the doubled def sets the 2026-08-14 repair removed
+   * (T5). __base stays client-side only because the trigger can never fire
+   * for it: no equipment row carries the pseudo-type.
+   *
+   * Upsert ignoring duplicates over the one-per-field unique index: even a
+   * stale-state double call writes nothing twice. The refusal is a database
+   * fact, not this function's memory of what it last fetched.
+   */
+  async function ensureBaseDefs() {
+    const existing = fieldDefs.filter(f => f.equipment_type === BASE_KEY)
     if (existing.length > 0) return
     const { data: firmDefs } = await supabase
       .from('equipment_type_field_defs')
       .select('*')
-      .eq('equipment_type', type)
+      .eq('equipment_type', BASE_KEY)
       .order('sort_order')
     if (!firmDefs || firmDefs.length === 0) return
-    const { error } = await supabase.from('project_equipment_field_defs').insert(
+    const { error } = await supabase.from('project_equipment_field_defs').upsert(
       firmDefs.map((d: any) => ({
         project_id:     projectId,
         equipment_type: d.equipment_type,
@@ -299,7 +313,8 @@ export function EquipmentPage({ projectId }: Props) {
         // writes. Only five quantities actually swap.
         unit:           unitSystem === 'imperial' ? (d.unit_imperial ?? d.unit) : d.unit,
         sort_order:     d.sort_order,
-      }))
+      })),
+      { onConflict: 'project_id,equipment_type,section,field_name', ignoreDuplicates: true }
     )
     if (reportError(error, 'set up the field template')) return
     await fetchFieldDefs()
@@ -497,9 +512,11 @@ export function EquipmentPage({ projectId }: Props) {
     // On failure stay in edit mode so the user keeps their changes; re-enable Save.
     if (reportError(error, 'save changes')) { setSavingEdit(false); return }
 
-    // If equipment_type changed, ensure field defs exist for the new type
+    // A type change seeds its defs via the equipment_seed_defs trigger inside
+    // the UPDATE above (old ≠ new fires it) — the client only re-reads. The
+    // ensureFieldDefs call that used to sit here was T5's second writer.
     if (editValues.equipment_type && editValues.equipment_type !== eq.equipment_type) {
-      await ensureFieldDefs(editValues.equipment_type)
+      await fetchFieldDefs()
     }
     // A newly proposed name goes to the queue. The unit is already saved above —
     // the proposal never gates the write.
