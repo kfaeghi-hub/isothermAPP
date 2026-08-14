@@ -97,7 +97,15 @@ skipped), West Humber and Clairlea 0 in scope (no write, no batch row),
 Avondale/Seneca/Quinte/Magellan 0 candidates (never invoked). Batch-noted
 per applying project; spot-check screens taken for both writes. No
 deviation-stop fired; no new matcher-lineage findings beyond the two already
-routed to KEEL.
+routed to KEEL. Both fleet guards **ratified as standing** (owner, same day);
+recorded beside the additive law in ARCHITECTURE §The repoint.
+**Ledger correction (owner, 2026-08-14):** the landing path for strip
+readings the matcher refused (FFH/CUH flow, the unit-case seam) is NOT a
+`repoint-project.mjs` re-run — post-repoint units are excluded by their
+`from_schedule` marker, so a re-run is a no-op by design. They land through
+KEEL's strip re-match (its ruling 3), ruled as its own explicit act when the
+design note arrives. Recorded here so the next cycle does not run a no-op
+and call it a fix.
 
 **Fleet rider 2 — Central Tech water trio (explicit act on a sovereign
 copy).** `apply-fleet-riders.mjs`, dry-run first, resolve-and-refuse (metric

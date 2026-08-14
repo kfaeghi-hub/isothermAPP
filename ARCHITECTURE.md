@@ -3588,6 +3588,38 @@ existing values all describe construction-phase observation; design-review
 comments are none of them, and forcing them into `site_visit` would misreport
 their origin for the life of the project.
 
+### The repoint and its additive law (T2b, owner-ruled and executed 2026-08-14)
+
+`repoint-project.mjs` (grown from the Central Tech pilot, history in git) moves
+a pre-1.11 unit's raw schedule headings out of `nameplate_extra.spec` — matched
+values under declared names via the shared matcher, everything else verbatim
+into `from_schedule` where the strip renders it.
+
+> **The additive law: a repoint fills only what is empty and moves only what is
+> raw.** A declared-name spec value is human/render-space content — kept
+> verbatim, excluded from the match input, and a matcher result landing on an
+> occupied field is SKIPPED AND REPORTED BY NAME.
+
+Two structural guards, **ratified as standing 2026-08-14** with the fleet:
+
+- **ZZ-refusal in code.** The wrapper refuses any `ZZ-*` project by pattern
+  before resolving it. Fixtures never repoint; a rule enforced by memory is
+  enforced by nothing.
+- **The empty-`from_schedule` guard — the mechanism form of "additive".** A
+  unit whose spec holds only declared-name values has nothing raw to move and
+  is skipped WHOLE: writing `from_schedule: {}` would brand a hand-entered
+  unit as imported and hide it from every future pass, for zero gain. On the
+  fleet this guard did most of the work (93 of 104 candidates).
+
+**The landing path for strip readings is NOT a repoint re-run.** Post-repoint
+units carry `from_schedule` and the exclusion guard skips them by that marker
+— a re-run is a no-op by design, and was nearly claimed as the fix once
+(ledger-corrected by the owner, 2026-08-14). Readings sitting in the strip
+whose fields exist but whose units the matcher refused (the `L/S` ≠ `L/s`
+case, the condition-prefixed CUH dialect) land through the **strip re-match
+KEEL is designing under its ruling 3**, ruled as its own explicit act when
+the design note arrives.
+
 ---
 
 ## Standing rules (permanent — apply to every session)
