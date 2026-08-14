@@ -346,8 +346,15 @@ export function ProjectsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden rise">
 
-      {/* ── Toolbar — wraps on phones; filters fold into a disclosure (RC3) ── */}
-      <div className="border-b border-gray-200 bg-white px-3 lg:px-5 flex flex-wrap lg:flex-nowrap items-stretch lg:h-11 flex-shrink-0 gap-y-1 py-1 lg:py-0">
+      {/* ── Toolbar — wraps on phones; filters fold into a disclosure (RC3).
+          On desktop the row must never overflow: the page root is
+          overflow-hidden, so anything past the right edge is simply GONE — the
+          "+ New Project" button was invisible at every width from 1024 to
+          1600px (T1, 2026-08-14). Tabs + search + button hold row one; the
+          filter group is a shrinkable flex child that wraps internally, so
+          the button cannot be pushed off the row. min-h (not h) lets the bar
+          grow when the filters take a second line. ── */}
+      <div className="border-b border-gray-200 bg-white px-3 lg:px-5 flex flex-wrap items-stretch lg:min-h-11 flex-shrink-0 gap-y-1 py-1 lg:py-0">
 
         {/* Section tabs — full-height underline style */}
         <div className="flex items-stretch mr-4">
@@ -402,10 +409,12 @@ export function ProjectsPage() {
           Filters{hasFilters ? ' •' : ''}
         </button>
 
-        {/* lg:contents dissolves this wrapper on desktop so the selects stay
-            direct toolbar children (layout byte-identical); on phones it is a
-            collapsible wrap row. */}
-        <div className={`${mobileFilters ? 'flex' : 'hidden'} basis-full flex-wrap items-center gap-y-1.5 py-1 lg:py-0 lg:contents`}>
+        {/* On phones: a collapsible wrap row (unchanged). On desktop: a REAL
+            flex child — flex-1 min-w-0 basis-0 — so the selects wrap inside it
+            instead of widening the row. This used to be lg:contents, which
+            dissolved the wrapper and let the selects push the toolbar past the
+            viewport with no wrap and no scrollbar (T1). */}
+        <div className={`${mobileFilters ? 'flex' : 'hidden'} basis-full flex-wrap items-center gap-y-1.5 py-1 lg:py-0 lg:flex lg:basis-0 lg:flex-1 lg:min-w-0`}>
 
         {/* Classification filters — one dropdown per surfaced dimension */}
         {FILTER_DIMENSIONS.map(dimName => {

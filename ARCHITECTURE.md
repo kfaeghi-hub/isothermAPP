@@ -2534,6 +2534,11 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   use real pdf.js text extraction (upgraded 2026-07-22 from an ASCII flate probe
   that kept two checks permanently yellow — green means green). Canonical
   fixture: the two-unit A/C / Fan Coil / Heat Pump instance on ZZ-TEST.
+- `pw-projects-toolbar.mjs` — "+ New Project" reachable at desktop-narrow widths
+  (T1, 2026-08-14): at 1280px and 1024px (the ruled legs) the button's box sits
+  fully inside the viewport and the toolbar's scrollWidth fits its client box.
+  Pre-fix the toolbar overflowed ~420/676px with the button clipped and no
+  scrollbar. Read-only, admin (the button is owner-gated).
 - `pw-cx-sticky-header.mjs` — the Cx Index header holds while the matrix scrolls
   (T7, 2026-08-14): premise (scrollable) → arrival (a row demonstrably moved) →
   claim (thead at scroller top; label row seamed at +24px; corner pinned both

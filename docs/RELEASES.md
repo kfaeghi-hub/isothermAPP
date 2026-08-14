@@ -24,6 +24,12 @@ as its work.
 
 ### For the team
 
+**The "Add Project" button no longer disappears on smaller windows.** On any
+window narrower than full screen, the Projects page's filter row used to push
+the "+ New Project" button off the right edge with no scrollbar — it looked
+like the button didn't exist. Now the filters wrap onto a second line when
+space runs out, and the button always stays on the first row, top right.
+
 **The Cx Index header now stays put while you scroll.** Before, one screen of
 scrolling left you over 88 status columns with nothing saying which column was
 which. Now the stage-group bands and the rotated column labels stay pinned at
@@ -31,6 +37,22 @@ the top the whole way down, and the tag column stays pinned on the left —
 scroll anywhere, you always know what you're looking at.
 
 ### Technical record
+
+**T1 — Projects toolbar overflow.** The toolbar was `flex-wrap` below lg and
+`lg:flex-nowrap lg:h-11` above it, inside a page root that is
+`overflow-hidden`: with the firm's three surfaced classification filters the
+row's natural width was ~1700px, so the owner-gated "+ New Project" button
+(last child, `ml-auto`) was clipped at every viewport width from 1024 to
+1600px — no wrap, no scrollbar. Fix per ruling: the filter group's wrapper
+(previously `lg:contents`) became a real flex child — `lg:flex lg:basis-0
+lg:flex-1 lg:min-w-0 flex-wrap` — so filters wrap internally while tabs,
+search and the button hold row one; the bar is `lg:min-h-11` so it may grow.
+Phone behaviour (RC3 disclosure) untouched. Class sibling checked per the
+class law: ChecklistsPage's `lg:flex-nowrap` header does NOT reproduce — its
+content is bounded (≤4 unit chips + a flexible spacer) — left alone. Gate:
+`pw-projects-toolbar` (battery #47), ruled legs at 1280px and 1024px;
+failing-first proven (4 reds pre-fix: overflow 419px / 675px, button never in
+viewport).
 
 **T7 — sticky Cx Index header.** The matrix's `thead` had sticky-left tag
 columns but no sticky-top: measured y 309 → −891 after one scroll. Fix: row 1
