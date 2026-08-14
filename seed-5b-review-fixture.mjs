@@ -44,7 +44,7 @@ await clean()
 const { data: up, error: upErr } = await svc.from('intake_uploads').insert({
   project_id: proj.id, filename: FILE, storage_path: `${proj.id}/${FILE}`,
   kind: 'excel', content_sha256: 'zz-5b-fixture', status: 'parsed',
-  row_count: 8, parse_note: '8 rows · synthetic 5b fixture · 0.0c over 0 model calls',
+  row_count: 11, parse_note: '11 rows · synthetic 5b fixture · 0.0c over 0 model calls',
 }).select('id').single()
 if (upErr) { console.error('upload insert refused:', upErr.message); process.exit(1) }
 
@@ -100,8 +100,32 @@ const rows = [
     location: 'Parkade P1', area_served: null,
     claims: { descriptor: claim('Unit heater, gas', 'Unit heater, gas'), location: claim('Parkade P1', 'Parkade P1'), area_served: claim(null, null) },
     disagreements: null,
-    questions: [{ about: 'sheet legend', question: 'The legend note “all heaters interlocked with CO sensors” could not be attributed to specific rows — does it belong on the register?' }],
+    questions: null,
     verification: { ran: false, failure: 'http-429' } },
+
+  // ── Phase 6 gate-class rows ───────────────────────────────────────────────
+  // A second attributed-question row, so the capture gate can show BOTH
+  // question outcomes: B-1 accepted-unanswered, F-3 answered-via-edit.
+  { tag: 'ZZ5B-F-3', descriptor: 'Supply fan, interior', proposed_type: 'fan', confidence: 0.86, read_via: 'both',
+    location: 'L3 mech', area_served: null,
+    claims: { descriptor: claim('Supply fan, interior', 'Supply fan, interior'), location: claim('L3 mech', 'L3 mech'), area_served: claim(null, null) },
+    disagreements: null,
+    questions: [{ about: 'drive', question: 'The DRIVE column is merged across F-3 and F-4 — does “VFD” belong to both rows or one?', where: 'ZZ5B-F-3' }],
+    verification: { ran: true, ok: true, flags: [] } },
+
+  // A second type conflict, so the capture gate can name EACH leg once:
+  // HP-2 resolves to the rules' reading, CU-2 to the model's.
+  { tag: 'ZZ5B-CU-2', descriptor: 'Ceiling-mounted conditioning unit', proposed_type: 'heat_pump', confidence: 0.8, read_via: 'both',
+    location: 'L2 corridor', area_served: null,
+    claims: { descriptor: claim('Ceiling-mounted conditioning unit', 'Ceiling cassette unit'), location: claim('L2 corridor', 'L2 corridor'), area_served: claim(null, null) },
+    disagreements: [{ tag: 'ZZ5B-CU-2', kind: 'type-conflict', field: 'proposed_type', rules: 'heat_pump', model: 'fcu', note: 'The readers disagree on what this unit IS. Confidence is capped at 0.8 until a human rules; the more specific candidate is offered, never assumed.' }],
+    questions: null, verification: { ran: true, ok: true, flags: [] } },
+
+  // A NULL-PROVENANCE row, staged the pre-pipeline way. The capture trigger
+  // must NOT fire for it — Phase 6 captures dispositions on provenance rows.
+  { tag: 'ZZ5B-LEG-0', descriptor: 'Legacy-shape row', proposed_type: 'pump', confidence: 0.7, read_via: null,
+    location: null, area_served: null,
+    claims: null, disagreements: null, questions: null, verification: null },
 ]
 
 const payload = rows.map(r => ({
@@ -116,5 +140,13 @@ const payload = rows.map(r => ({
 }))
 const { error } = await svc.from('intake_rows').insert(payload)
 if (error) { console.error('rows insert refused:', error.message); await clean(); process.exit(1) }
+
+// The sheet-level question, ONCE, in its own table (Phase 6 normalization).
+const { error: qErr } = await svc.from('intake_sheet_questions').insert({
+  upload_id: up.id, project_id: proj.id, source_sheet: 'SCHED-1',
+  about: 'sheet legend',
+  question: 'The legend note “all heaters interlocked with CO sensors” could not be attributed to specific rows — does it belong on the register?',
+})
+if (qErr) { console.error('sheet question refused:', qErr.message); await clean(); process.exit(1) }
 console.log(`seeded: ${FILE} (upload ${up.id}) — ${payload.length} rows, every provenance shape`)
 console.log('clean up with: node --env-file=.env seed-5b-review-fixture.mjs --clean')

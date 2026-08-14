@@ -113,7 +113,10 @@ try {
   await waitUntil(async () => await page.getByText(/Settled — 1/).count() === 1,
     { timeout: 15000, what: 'the settled block appearing' })
   const settledSection = page.locator('h4', { hasText: 'Settled —' }).locator('..')
-  check(await page.getByText('as Heat Pump').count() === 1,
+  // Scoped to the settled section: the fixture's SECOND conflict row (CU-2,
+  // added for the Phase 6 gate) has an offer button whose label contains the
+  // same "as Heat Pump" substring, so a page-wide count reads 2.
+  check(await settledSection.getByText('as Heat Pump').count() === 1,
     'settled row names the reading it was accepted as')
   check(await settledSection.getByText('both readers').count() >= 1,
     'settled row keeps its leg chip')
