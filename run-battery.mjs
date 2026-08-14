@@ -97,6 +97,7 @@ const SUITES = [
   'pw-finding-register',
   'pw-generate-auth',
   'pw-intake',
+  'pw-intake-review',
   'pw-extractor',
   'pw-meetings',
   'pw-pfc-verify',

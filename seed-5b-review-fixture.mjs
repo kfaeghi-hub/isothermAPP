@@ -105,7 +105,7 @@ const rows = [
 ]
 
 const payload = rows.map(r => ({
-  upload_id: up.id, project_id: proj.id, source_sheet: 'MIXED',
+  upload_id: up.id, project_id: proj.id, source_sheet: 'SCHED-1',
   tag: r.tag, descriptor: r.descriptor, proposed_category: 'mechanical',
   proposed_type: r.proposed_type, observed_type_name: null,
   location: r.location, area_served: r.area_served,

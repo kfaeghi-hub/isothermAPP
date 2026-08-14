@@ -159,6 +159,14 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
   const carriesUnseen = (r: Row) =>
     (r.disagreements?.length ?? 0) > 0 || rowQuestions(r).length > 0
 
+  /** A row the readers disagree about at the TYPE level. Ruled 2026-08-13: such
+   *  a row has no unnamed accept — accepting it always names which reading was
+   *  taken, through the offer buttons' edited-disposition path. A generic
+   *  Accept here could record a resolution without naming a reading, which is
+   *  the swallow the clean gate exists to prevent, one level down. */
+  const hasTypeConflict = (r: Row) =>
+    (r.disagreements ?? []).some(d => d.kind === 'type-conflict')
+
   const pending  = rows.filter(r => r.disposition === 'pending')
   const dupes    = pending.filter(r => r.duplicate_of)
   const enrich   = pending.filter(r => !r.duplicate_of && r.match_equipment_id)
@@ -189,11 +197,20 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
   const approvable = rows.filter(r =>
     ['accepted', 'edited'].includes(r.disposition) && !r.created_equipment_id).length
 
+  /** Clean rows whose verification pass did not run. Unverified is NOT unsound
+   *  (ruled 2026-08-13) — they stay bulk-acceptable — but the count is SAID on
+   *  the button and in the confirm, so taking them unverified is a sighted act. */
+  const cleanUnverified = clean.filter(r => r.verification && !r.verification.ran).length
+
   async function acceptClean() {
     if (!clean.length) return
     if (!window.confirm(
       `Accept all ${clean.length} clean rows?\n\n` +
-      `These are new units with a known type and confidence at or above ${CLEAN_AT}.\n\n` +
+      `These are new units with a known type and confidence at or above ${CLEAN_AT}.` +
+      (cleanUnverified
+        ? `\n${cleanUnverified} of them ${cleanUnverified === 1 ? 'is' : 'are'} UNVERIFIED — the second-pass ` +
+          `check did not run (an outage, not a data problem). Accepting takes ${cleanUnverified === 1 ? 'it' : 'them'} as read once.`
+        : '') + `\n\n` +
       `NOT included: ${enrich.length} that change existing equipment, ` +
       `${dupes.length} repeated tag${dupes.length === 1 ? '' : 's'}, and ` +
       `${looks.length} needing a look — those are ruled one at a time.`)) return
@@ -410,6 +427,30 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                   wrapperClassName="w-40"
                   className="w-full text-[11px] border border-gray-200 rounded px-1.5 py-0.5"
                   ariaLabel="Row type" />
+
+                {/* ── What each reader actually wrote, while the editor decides.
+                       Only fields where a reader produced something; agreed
+                       fields say so once instead of repeating the value. ── */}
+                {r.claims && (
+                  <div className="w-full mt-1 text-[10px] text-gray-500 space-y-0.5">
+                    {Object.entries(r.claims)
+                      .filter(([, c]) => c.rules != null || c.model != null)
+                      .map(([field, c]) => (
+                        <p key={field}>
+                          <span className="text-gray-400">{field.replace('_', ' ')} —</span>{' '}
+                          {c.agreed ? (
+                            <>both readers: <span className="font-mono text-gray-600">{c.rules}</span></>
+                          ) : (
+                            <>
+                              rules: <span className="font-mono text-gray-600">{c.rules ?? '—'}</span>
+                              <span className="mx-1 text-gray-300">·</span>
+                              model: <span className="font-mono text-gray-600">{c.model ?? '—'}</span>
+                            </>
+                          )}
+                        </p>
+                      ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-xs text-gray-800">
@@ -539,10 +580,21 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
               </>
             ) : (
               <>
-                <button onClick={() => void (showDiff ? acceptEnrich(r) : dispose(r, 'accepted'))} disabled={busy}
-                  className="text-[11px] bg-teal-700 text-white rounded px-2 py-0.5 hover:bg-teal-800 disabled:opacity-50">
-                  {showDiff ? 'Apply selected' : 'Accept'}
-                </button>
+                {hasTypeConflict(r) ? (
+                  // No unnamed accept on a conflicted row (ruled 2026-08-13).
+                  // The named accepts are the offer buttons in the disagreement
+                  // block; Edit also names, because saving the edit form names
+                  // a type explicitly.
+                  <span className="text-[10px] text-sky-800 self-center"
+                        title="The readers disagree on this unit's type. Accepting must name which reading is taken — use the offers, or Edit.">
+                    choose a reading to accept
+                  </span>
+                ) : (
+                  <button onClick={() => void (showDiff ? acceptEnrich(r) : dispose(r, 'accepted'))} disabled={busy}
+                    className="text-[11px] bg-teal-700 text-white rounded px-2 py-0.5 hover:bg-teal-800 disabled:opacity-50">
+                    {showDiff ? 'Apply selected' : 'Accept'}
+                  </button>
+                )}
                 <button onClick={() => startEdit(r)} disabled={busy}
                   className="text-[11px] text-gray-500 hover:text-teal-700 disabled:opacity-50">Edit</button>
                 <button onClick={() => void dispose(r, 'rejected')} disabled={busy}
@@ -584,7 +636,7 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
         {clean.length > 0 && (
           <button onClick={acceptClean} disabled={busy}
             className="text-[11px] border border-teal-700 text-teal-700 rounded px-2 py-0.5 hover:bg-teal-50 disabled:opacity-50">
-            Accept all {clean.length} clean
+            Accept all {clean.length} clean{cleanUnverified > 0 && ` (${cleanUnverified} unverified)`}
           </button>
         )}
         {approvable > 0 && (
@@ -655,6 +707,36 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
             hint="New units, known type, high confidence. This is where the volume is and where
                   the review should end quickly." />
         </>
+      )}
+
+      {/* ── Settled rows keep their provenance on screen. A ruling made five
+             minutes ago is still a ruling about two readers' work — the chips
+             and the disposition stay visible so the review's record reads back
+             without a database query. Muted: settled is done, not urgent. ── */}
+      {settled > 0 && (
+        <div className="mt-4 border-t border-gray-100 pt-2">
+          <h4 className="text-[11px] font-semibold text-gray-400 mb-1">Settled — {settled}</h4>
+          {rows.filter(r => r.disposition !== 'pending').map(r => (
+            <div key={r.id} className="flex items-center gap-2 border-b border-gray-50 py-1 text-[11px]">
+              <span className={`shrink-0 w-14 text-[9px] uppercase tracking-wide ${
+                r.disposition === 'rejected' ? 'text-red-400' : 'text-teal-600'}`}>
+                {r.disposition}
+              </span>
+              <span className="font-mono text-gray-500">{r.tag ?? '—'}</span>
+              {r.descriptor && <span className="text-gray-400 truncate">{r.descriptor}</span>}
+              {r.edited?.proposed_type && (
+                <span className="text-[10px] text-sky-700 bg-sky-50 rounded px-1 py-0.5"
+                      title="The type this row was accepted as — a named reading, not the merge's default.">
+                  as {typeName(r.edited.proposed_type)}
+                </span>
+              )}
+              <span className="ml-auto inline-flex gap-1">
+                <LegChip r={r} />
+                <VerifyChip r={r} />
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {upload?.parse_note && (
