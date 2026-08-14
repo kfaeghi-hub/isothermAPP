@@ -88,5 +88,20 @@
       }
     ],
     "note": "CONFIRMATION ARM: pw-meetings at position 2 (reorder reverted after this one run). Reading 6672ms — INSIDE the mid-battery band, not near the 1676ms suite-alone reading. Position is not the driver."
+  },
+  {
+    "run": "03323e2:2026-08-14",
+    "at": "2026-08-14T02:58:19.244Z",
+    "passed": 42,
+    "of": 42,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-5010ms",
+        "passed": true,
+        "seconds": "20"
+      }
+    ]
   }
 ]
