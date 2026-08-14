@@ -144,6 +144,15 @@ about what "done" looks like at that site. It cannot be derived from the check.
 - `pw-ist-team.mjs:66` (2500ms)
 - `pw-team.mjs:66` (700ms)
 
+## Campaign list — post-generalization (2026-08-13)
+
+The READS pattern generalized to any-identifier `.from(` after a guard site
+slipped the census under a client named `sb`. The wider net sees **28 candidate
+sites** across the unconverted battery suites. They convert per-suite on the
+campaign schedule — dry-run standing, anchors in the same commit, alone +
+neighbours verification. No urgency attached (owner ruling, 2026-08-13); the
+failing-first tranche is done and the battery is green.
+
 ## Standing position — REVISED 2026-08-13 after the failed sweep
 
 The mechanical sweep was applied, measured at 35/41 (from 40/41), and REVERSED —

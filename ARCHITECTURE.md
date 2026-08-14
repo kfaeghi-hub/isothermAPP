@@ -1673,6 +1673,18 @@ Verification for a suite's conversion is the suite alone AND a mini-battery with
 its two run-order neighbours, because the failure class is load-and-sequence
 shaped — suite-alone green was already true of the broken versions.
 
+### Harness wait patterns — recorded, not promoted
+
+*2026-08-13, from the pw-meetings per-suite conversion. Three shapes worth
+naming so the next conversion recognizes them on sight. Patterns, not laws —
+the promotion bar stays where exit-is-not-settlement set it.*
+
+| Pattern | The shape | The repair |
+|---|---|---|
+| **Isolation is a negative in disguise** | "X unchanged after acting on Y" is already true before the action lands — polling it passes on tick 1, and a fixed sleep is a bet on the write's arrival. | Anchor the ARRIVAL on Y (the thing that must change), then assert X's non-movement. Same family as assert-the-departure, one hop out. |
+| **Optimistic paint vs settled marker** | The UI renders rows before the server confirms; a poll on "row exists" returns during reconciliation, and actions fired then land on UI that is still settling (`force: true` makes this worse, not better). | Find the artifact that only the SERVER's response renders — pw-meetings' ↺ carry marker — and anchor on it. The marker then covers its own check AND every action after it. |
+| **Instrument vocabulary** | A census tool's READS pattern knew `svc.from` and a guard site whose client is named `sb` slipped the census as convenience — instrument-blindness inside the instrument. | Match the OPERATION, not the caller's name (`\w+.from(`). Over-matching errs toward dry-run review, the safe side. A classifier is itself a guard and gets the same audits. |
+
 ### The 1.02 set — seven in one session, and the sentence they share
 
 The batch above found three in one day. The 1.02 trio found **seven**, and they
