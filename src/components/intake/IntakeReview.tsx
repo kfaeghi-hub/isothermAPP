@@ -22,6 +22,20 @@ import { TypePicker } from '../equipment/TypePicker'
 import { loadTypeVocabulary } from '../../lib/typeVocabulary'
 import { authedFetch } from '../../lib/api'
 
+// ── Provenance shapes, as the 5a pipeline stages them (reconcile.ts) ─────────
+// Legacy rows (pre-pipeline uploads) carry NULL in all five columns and render
+// exactly as they always did — the provenance surface only exists where
+// provenance does. Widened, not replaced (5b).
+interface FieldClaim { rules: string | null; model: string | null; from: 'rules' | 'model' | 'both'; agreed: boolean }
+interface Disagreement { tag: string; kind: string; field: string; rules: string | null; model: string | null; note: string }
+interface Ambiguity { about: string; question: string; where?: string }
+interface Verification {
+  ran: boolean
+  ok?: boolean
+  failure?: string
+  flags?: { row?: string; field?: string; note: string }[]
+}
+
 interface Row {
   id: string
   source_sheet: string | null
@@ -41,6 +55,12 @@ interface Row {
   disposition: string
   edited: Record<string, string | null> | null
   created_equipment_id: string | null
+  // 5b — the provenance columns. All null on legacy uploads.
+  read_via: 'rules' | 'model' | 'both' | null
+  claims: Record<string, FieldClaim> | null
+  disagreements: Disagreement[] | null
+  questions: Ambiguity[] | null
+  verification: Verification | null
 }
 
 interface Existing {
@@ -126,13 +146,42 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
     } finally { setBusy(false) }
   }
 
+  /** The questions the pipeline attributed to THIS row (`where` names its tag).
+   *  Sheet-level questions — no `where`, or a `where` that is not a row tag —
+   *  are surfaced once, in the panel above the blocks, not repeated per row:
+   *  the orchestrator stages the sheet's whole ambiguity list onto every row of
+   *  the sheet, so rendering the column raw would show one question N times. */
+  const rowQuestions = (r: Row): Ambiguity[] =>
+    (r.questions ?? []).filter(q => q.where && r.tag && q.where.toUpperCase() === r.tag.toUpperCase())
+
+  /** True when the readers left something a human has not seen yet: a
+   *  disagreement between the legs, or a question attributed to the row. */
+  const carriesUnseen = (r: Row) =>
+    (r.disagreements?.length ?? 0) > 0 || rowQuestions(r).length > 0
+
   const pending  = rows.filter(r => r.disposition === 'pending')
   const dupes    = pending.filter(r => r.duplicate_of)
   const enrich   = pending.filter(r => !r.duplicate_of && r.match_equipment_id)
+  // CONSERVATIVE GATING (5b, flagged as a product call): a row the readers
+  // disagreed on, or asked about, is NOT clean regardless of its confidence —
+  // one-click Accept would swallow the disagreement or the question unread.
+  // Type-conflicts already sit below CLEAN_AT via the 0.8 cap; this extends the
+  // same instinct to value disagreements and attributed questions.
   const looks    = pending.filter(r => !r.duplicate_of && !r.match_equipment_id &&
-                                       ((r.confidence ?? 0) < CLEAN_AT || !r.proposed_type))
+                                       ((r.confidence ?? 0) < CLEAN_AT || !r.proposed_type || carriesUnseen(r)))
   const clean    = pending.filter(r => !r.duplicate_of && !r.match_equipment_id &&
-                                       (r.confidence ?? 0) >= CLEAN_AT && !!r.proposed_type)
+                                       (r.confidence ?? 0) >= CLEAN_AT && !!r.proposed_type && !carriesUnseen(r))
+
+  /** Sheet-level questions, deduped across the rows that all carry them. */
+  const sheetQuestions = (() => {
+    const tags = new Set(rows.map(r => (r.tag ?? '').toUpperCase()).filter(Boolean))
+    const seen = new Map<string, Ambiguity>()
+    for (const r of rows) for (const q of r.questions ?? []) {
+      if (q.where && tags.has(q.where.toUpperCase())) continue // attributed — renders on its row
+      seen.set(`${q.about}|${q.question}`, q)
+    }
+    return [...seen.values()]
+  })()
   const settled  = rows.length - pending.length
   // Only rows that were RULED ON and have not already been written. A row
   // carrying created_equipment_id is done; offering to write it again would be
@@ -284,6 +333,45 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
     await dispose(r, Object.keys(edited).length === diff.length ? 'accepted' : 'edited', edited)
   }
 
+  /** The leg that read this row, as a compact chip. Null read_via = a legacy
+   *  upload from before the two-reader pipeline; no chip, nothing implied. */
+  const LegChip = ({ r }: { r: Row }) => {
+    if (!r.read_via) return null
+    const leg = r.read_via
+    const label = leg === 'both' ? 'both readers' : leg === 'rules' ? 'rules only' : 'model only'
+    const title = leg === 'both'
+      ? 'The deterministic parser and the model both read this row.'
+      : leg === 'rules'
+        ? 'Only the deterministic parser returned this row — the model did not.'
+        : 'Only the model returned this row — the deterministic parser did not.'
+    return (
+      <span title={title}
+        className={`text-[9px] rounded px-1 py-0.5 shrink-0 ${
+          leg === 'both' ? 'bg-teal-50 text-teal-700' : 'bg-sky-50 text-sky-700'}`}>
+        {label}
+      </span>
+    )
+  }
+
+  /** Verification state, only where verification exists (5a uploads). A run
+   *  that DID NOT RUN is shown as exactly that — never as a quiet pass. */
+  const VerifyChip = ({ r }: { r: Row }) => {
+    const v = r.verification
+    if (!v) return null
+    if (!v.ran) return (
+      <span title={`The verification pass did not run (${v.failure ?? 'unknown'}). The row is unverified, not unsound.`}
+        className="text-[9px] rounded px-1 py-0.5 bg-gray-100 text-gray-500 shrink-0">unverified</span>
+    )
+    const rowFlags = (v.flags ?? []).filter(f => !f.row || (r.tag && f.row.toUpperCase() === r.tag.toUpperCase()))
+    if (rowFlags.length) return (
+      <span title={rowFlags.map(f => `${f.field ? f.field + ': ' : ''}${f.note}`).join('\n')}
+        className="text-[9px] rounded px-1 py-0.5 bg-amber-100 text-amber-900 shrink-0">
+        ⚑ {rowFlags.length} flag{rowFlags.length === 1 ? '' : 's'}
+      </span>
+    )
+    return null // verified-clean earns silence, not a badge on every row
+  }
+
   const Line = ({ r, showDiff }: { r: Row; showDiff?: boolean }) => {
     const diff = showDiff ? diffFor(r) : []
     const isEditing = editing === r.id
@@ -338,8 +426,59 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                   </span>
                 )}
                 {r.location && <span className="text-[10px] text-gray-400 ml-1.5">{r.location}</span>}
+                <span className="ml-1.5 inline-flex gap-1 align-middle">
+                  <LegChip r={r} />
+                  <VerifyChip r={r} />
+                </span>
               </div>
             )}
+
+            {/* ── What the readers disagreed on, per Phase 3: offered, never asserted.
+                   Rendered inline, not behind a toggle — a disagreement a click can
+                   hide is a disagreement that goes unread. ── */}
+            {!isEditing && (r.disagreements?.length ?? 0) > 0 && (
+              <div className="mt-1 space-y-1">
+                {(r.disagreements ?? []).map((d, i) => (
+                  <div key={i} className="text-[11px] bg-sky-50 border border-sky-200 rounded px-2 py-1">
+                    <p className="text-sky-900">{d.note}</p>
+                    {d.kind !== 'row-one-sided' && (
+                      <p className="mt-0.5 text-sky-800">
+                        <span className="text-sky-600">rules:</span>{' '}
+                        <span className="font-mono">{d.field === 'proposed_type' ? (typeName(d.rules) ?? '—') : (d.rules ?? '—')}</span>
+                        <span className="mx-1.5 text-sky-400">·</span>
+                        <span className="text-sky-600">model:</span>{' '}
+                        <span className="font-mono">{d.field === 'proposed_type' ? (typeName(d.model) ?? '—') : (d.model ?? '—')}</span>
+                      </p>
+                    )}
+                    {/* A TYPE CONFLICT gets its offers as one-click acts: choosing a
+                        candidate is an EDIT disposition through the existing path —
+                        the same ledger, the same approval flow, no second door. */}
+                    {d.kind === 'type-conflict' && d.rules && d.model && (
+                      <div className="mt-1 flex gap-1.5">
+                        {([['rules', d.rules], ['model', d.model]] as const).map(([leg, key]) => (
+                          <button key={leg} disabled={busy}
+                            onClick={() => void dispose(r, 'edited', { proposed_type: key })}
+                            className="text-[10px] border border-sky-700 text-sky-800 rounded px-1.5 py-0.5 hover:bg-sky-100 disabled:opacity-50">
+                            Accept as {typeName(key)} — the {leg} leg's reading
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Questions the pipeline attributed to THIS row ── */}
+            {!isEditing && rowQuestions(r).map((q, i) => (
+              <div key={i} className="mt-1 text-[11px] bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                <span className="text-[9px] uppercase tracking-wide text-amber-700 mr-1.5">question · {q.about}</span>
+                <span className="text-amber-900">{q.question}</span>
+                <span className="block mt-0.5 text-[10px] text-amber-700">
+                  Answer it by editing the row — accepting as-is records the value unanswered.
+                </span>
+              </div>
+            ))}
 
             {diff.length > 0 && (
               <div className="mt-0.5 text-[11px] space-y-0.5">
@@ -463,6 +602,31 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
         </p>
       )}
 
+      {/* ── Questions the readers could not attribute to a single row — asked
+             ONCE for the upload, not repeated down the list. They inform the
+             review; they do not block it. ── */}
+      {sheetQuestions.length > 0 && (
+        <div className="mb-4 border border-amber-300 rounded">
+          <div className="bg-amber-50 px-3 py-1.5 border-b border-amber-200">
+            <h4 className="text-xs font-bold text-amber-900">
+              ? THE READERS ASKED — {sheetQuestions.length}
+            </h4>
+            <p className="text-[11px] mt-0.5 text-amber-800">
+              Things the sheet did not disambiguate. A default here would be a confident
+              wrong answer, so they are questions — read them before ruling on the rows below.
+            </p>
+          </div>
+          <div className="px-3 py-1.5 space-y-1">
+            {sheetQuestions.map((q, i) => (
+              <p key={i} className="text-[11px] text-gray-700">
+                <span className="text-[9px] uppercase tracking-wide text-amber-700 mr-1.5">{q.about}</span>
+                {q.question}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
       {pending.length === 0 ? (
         <p className="text-xs text-gray-400 italic">
           Every row has been ruled on. {settled} decision{settled === 1 ? '' : 's'} recorded.
@@ -482,9 +646,10 @@ export function IntakeReview({ uploadId, projectId, onClose, onApplied }: {
                   is an act, and it is yours." />
 
           <Block title="Needs a look" list={looks}
-            hint={`Confidence below ${CLEAN_AT}, or a type outside the firm vocabulary. ` +
-                  `Lowest confidence first. Accepting an unknown type queues the name for ` +
-                  `ratification — it never mints one.`} />
+            hint={`Confidence below ${CLEAN_AT}, a type outside the firm vocabulary, or the ` +
+                  `two readers disagreed / asked a question about the row. Lowest confidence ` +
+                  `first. Accepting an unknown type queues the name for ratification — it ` +
+                  `never mints one.`} />
 
           <Block title="Clean" list={clean}
             hint="New units, known type, high confidence. This is where the volume is and where
