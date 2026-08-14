@@ -122,3 +122,64 @@ describe('every heading comes back, always', () => {
     expect(out.filter(m => m.kind === 'unmatched').map(m => m.header)).toEqual(['QTY', 'TYPE'])
   })
 })
+
+// ── compound columns: one heading, several fields (ruled 2026-08-14) ─────────
+//
+// MOTOR INPUT [V/Ph/Hz] holding 208/3/60 is three quantities in one cell. The
+// PMPs incident's dialect; BP-1/BP-2 carry "-" (no VFD drive), which is the
+// refusal case: one part against three fields, nothing writes.
+describe('compound columns', () => {
+  const PUMP_ELEC: DeclaredField[] = [
+    { field_name: 'Voltage (V)', unit: 'V' },
+    { field_name: 'Phase (Ø)', unit: 'Ø' },
+    { field_name: 'Hz (Hz)', unit: 'Hz' },
+    { field_name: 'VFD', unit: null },
+  ]
+
+  it('splits 208/3/60 into Voltage/Phase/Hz, verbatim', () => {
+    const out = matchScheduleSpec({ 'MOTOR INPUT [V/Ph/Hz]': '208/3/60' }, PUMP_ELEC)
+    const parts = out.filter(m => m.kind === 'compound')
+    expect(parts).toHaveLength(3)
+    expect(parts.map(m => [m.field, m.value])).toEqual([
+      ['Voltage (V)', '208'], ['Phase (Ø)', '3'], ['Hz (Hz)', '60'],
+    ])
+    // the raw cell rides on every part — the document's own string, kept
+    for (const m of parts) expect(m.raw).toBe('208/3/60')
+  })
+
+  it('REFUSES WHOLE on a part-count mismatch — the dash on a pump with no drive', () => {
+    const out = matchScheduleSpec({ 'MOTOR INPUT [V/Ph/Hz]': '-' }, PUMP_ELEC)
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('unmatched')
+    expect(out[0].value).toBeNull()
+    expect(out[0].note).toMatch(/1 part\(s\) against 3 fields/)
+  })
+
+  it('refuses whole on two parts as well — never guesses which field misses out', () => {
+    const out = matchScheduleSpec({ 'MOTOR INPUT [V/Ph/Hz]': '208/60' }, PUMP_ELEC)
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('unmatched')
+  })
+
+  it('stays unmatched when the type does not declare the target fields', () => {
+    const noElec: DeclaredField[] = [{ field_name: 'Flow (L/s)', unit: 'L/s' }]
+    const out = matchScheduleSpec({ 'MOTOR INPUT [V/Ph/Hz]': '208/3/60' }, noElec)
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('unmatched')
+  })
+
+  it('VFD INPUT is NOT compound-aliased — it stays named-unmatched (ruled)', () => {
+    const out = matchScheduleSpec({ 'VFD INPUT [V/Ph/Hz]': '208/1/60' }, PUMP_ELEC)
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('unmatched')
+  })
+
+  it('a compound part joins the collision guard like any other claim', () => {
+    const out = matchScheduleSpec(
+      { 'MOTOR INPUT [V/Ph/Hz]': '208/3/60', 'VOLTS': '600' }, PUMP_ELEC)
+    // VOLTS aliases Voltage; the compound also claims Voltage — both must refuse
+    const voltage = out.filter(m => m.field === 'Voltage (V)')
+    expect(voltage.length).toBeGreaterThanOrEqual(2)
+    for (const m of voltage) expect(m.kind).toBe('unmatched')
+  })
+})

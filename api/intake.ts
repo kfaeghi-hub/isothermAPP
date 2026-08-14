@@ -28,6 +28,7 @@
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors, requireUser, AuthError } from './_shared/auth-common.js'
+import { matchScheduleSpec, type DeclaredField } from './_shared/schedule-field-match.js'
 import { runAgent, logAgentRun, AiError } from './_shared/ai-common.js'
 import { checkExtraction, describeProblems } from './_shared/extract-contract.js'
 import { readSheetWithModel, costCents } from './_shared/sheet-model-read.js'
@@ -432,7 +433,7 @@ export default async function handler(req: any, res: any) {
     // RESOLVE AND REFUSE. The project comes from the upload row, never from the
     // request body: a caller cannot name a different project to write into.
     const { data: proj } = await service.from('projects')
-      .select('id, name, com_number').eq('id', up.project_id).maybeSingle()
+      .select('id, name, com_number, unit_system').eq('id', up.project_id).maybeSingle()
     if (!proj) return res.status(409).json({ error: 'The upload names a project that no longer exists.' })
 
     const { data: profile } = await service.from('user_profiles')
@@ -774,10 +775,81 @@ export default async function handler(req: any, res: any) {
       .order('sort_order', { ascending: false }).limit(1).maybeSingle()
     let sort = (maxRow?.sort_order ?? 0)
 
+    // ── THE MATCHER RUNS HERE, ON THE LIVE PATH (ruled 2026-08-14) ───────────
+    //
+    // From June to August, matchScheduleSpec existed and ran nowhere but its own
+    // test and a one-off repair script — approval wrote raw schedule headings
+    // straight into nameplate_extra.spec, so the register held 77 values and
+    // displayed the ones whose headings happened to equal a declared field name
+    // (on the pump set: exactly VFD). A capability is only as real as the live
+    // path that invokes it.
+    //
+    // The repoint-script shape, ratified: matched values land under DECLARED
+    // field names; the WHOLE original read is preserved verbatim in
+    // from_schedule — every heading, every string, exactly as the document
+    // spoke. Conversions are loud (arithmetic in the batch note); refusals write
+    // nothing. Forward-only: existing equipment is untouched.
+    //
+    // Declared fields come from the project's own defs when they exist; the
+    // firm's type defs otherwise (the seed trigger fires AFTER equipment
+    // insert, so a project's first unit of a type has no project defs yet —
+    // the fallback mirrors what the trigger is about to seed).
+    // proj is non-null here (refused with 409 above); TS cannot see it through
+    // the closure, so it is pinned once.
+    const projId = proj.id
+    const projImperial = proj.unit_system === 'imperial'
+    const declaredCache = new Map<string, DeclaredField[]>()
+    async function declaredFor(type: string): Promise<DeclaredField[]> {
+      if (declaredCache.has(type)) return declaredCache.get(type)!
+      let defs: DeclaredField[] = []
+      const { data: projDefs } = await service.from('project_equipment_field_defs')
+        .select('field_name, unit').eq('project_id', projId)
+        .eq('equipment_type', type).eq('section', 'spec')
+      if (projDefs?.length) defs = projDefs
+      else {
+        const { data: firmDefs } = await service.from('equipment_type_field_defs')
+          .select('field_name, unit, unit_imperial').eq('equipment_type', type).eq('section', 'spec')
+        const imperial = projImperial
+        defs = (firmDefs ?? []).map(d => ({
+          field_name: d.field_name,
+          unit: imperial ? (d.unit_imperial ?? d.unit) : d.unit,
+        }))
+      }
+      declaredCache.set(type, defs)
+      return defs
+    }
+    const matcherTally = { wrote: 0, converted: 0, compound: 0, refused: 0, unmatched: 0 }
+    const conversionNotes: string[] = []
+
     const created: { rowId: string; equipmentId: string }[] = []
     for (const r of creates) {
       const e = r.edited ?? {}
       const type = finalType(r)
+
+      // Build nameplate_extra through the matcher. from_schedule ALWAYS carries
+      // the verbatim read when a nameplate exists — populated from_schedule is
+      // the tell that the matcher ran, and the gate asserts it.
+      let nameplateExtra: Record<string, unknown> | null = null
+      if (r.nameplate) {
+        let specOut: Record<string, string> = {}
+        if (type) {
+          const verdicts = matchScheduleSpec(r.nameplate as Record<string, string>, await declaredFor(type))
+          for (const m of verdicts) {
+            if ((m.kind === 'exact' || m.kind === 'converted' || m.kind === 'compound') && m.field && m.value != null) {
+              specOut[m.field] = m.value
+              if (m.kind === 'exact') matcherTally.wrote++
+              else if (m.kind === 'compound') matcherTally.compound++
+              else { matcherTally.converted++; conversionNotes.push(`${r.tag ?? '?'}: ${m.note}`) }
+            } else if (m.kind === 'unit-mismatch') matcherTally.refused++
+            else matcherTally.unmatched++
+          }
+        } else {
+          // untyped unit: no declared fields to match — everything stays in the
+          // verbatim read, visible in the unmapped strip, nothing invisible.
+          matcherTally.unmatched += Object.keys(r.nameplate).length
+        }
+        nameplateExtra = { spec: specOut, shop_drawing: {}, installed: {}, from_schedule: r.nameplate }
+      }
       const { data: made, error } = await service.from('equipment').insert({
         project_id: proj.id,
         // NOT NULL, constrained to equipment|system. Intake creates equipment;
@@ -799,8 +871,10 @@ export default async function handler(req: any, res: any) {
         // A schedule states DESIGN intent, so its columns land in `spec` — not in
         // `installed`, which is what somebody read off the nameplate on site.
         // Filing design values as installed would make the register claim a
-        // verification nobody performed.
-        nameplate_extra: r.nameplate ? { spec: r.nameplate, shop_drawing: {}, installed: {} } : null,
+        // verification nobody performed. Spec keys are DECLARED field names via
+        // the matcher above; the document's own headings and strings live whole
+        // in from_schedule.
+        nameplate_extra: nameplateExtra,
         sort_order: ++sort,
         import_batch_id: batch.id,
       }).select('id').single()
@@ -851,8 +925,18 @@ export default async function handler(req: any, res: any) {
       rulesApplied = count ?? 0
     }
 
+    // The batch note carries the matcher's arithmetic — conversions are LOUD.
+    const matcherNote = created.length
+      ? ` · spec matching: ${matcherTally.wrote} as-is, ${matcherTally.compound} from compound columns, ` +
+        `${matcherTally.converted} converted (${conversionNotes.slice(0, 12).join('; ') || 'none'})` +
+        `${matcherTally.refused ? `, ${matcherTally.refused} refused on unbridgeable units` : ''}` +
+        `, ${matcherTally.unmatched} left named in from_schedule`
+      : ''
     await service.from('import_batches')
-      .update({ rows_created: created.length + enriched }).eq('id', batch.id)
+      .update({
+        rows_created: created.length + enriched,
+        note: `Intake approval — ${creates.length} new, ${enriches.length} enrich${matcherNote}`,
+      }).eq('id', batch.id)
 
     // The upload is APPROVED only when nothing is left pending. A partially ruled
     // upload stays open, because closing it would hide the rows nobody decided.

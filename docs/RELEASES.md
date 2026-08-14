@@ -16,6 +16,37 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.11 — 2026-08-14 (the PMPs incident: schedule specs now land in the register)
+
+### For the team
+
+**Importing a schedule now fills the spec table properly.** Before this, an
+imported schedule's numbers were stored but mostly didn't show — the fix means
+Flow, Head, Speed, Motor kW, Voltage/Phase/Hz and VFD land under the firm's
+field names, with units converted loudly (the original number and the
+arithmetic are always kept and shown). Everything the schedule said that
+doesn't map to a firm field appears by name in the "From the schedule" strip —
+nothing is invisible anymore. Columns like `MOTOR INPUT [V/Ph/Hz]` split into
+their three fields automatically, and a dash stays a dash — the system never
+guesses. The upload sidebar now tells the truth about cost: Excel reading uses
+the AI pipeline and reports what it cost.
+
+### Technical record
+
+The matcher (`matchScheduleSpec`, June) was never wired into approval —
+`api/intake.ts` wrote raw headings into `nameplate_extra.spec`; only
+render-time name coincidence filled anything (pump set: VFD alone). Now wired
+per the repoint-script shape: matched values under declared names,
+`from_schedule` carries the complete verbatim read, conversions recorded in
+the import-batch note, forward-only. Moved matcher+unitConvert to api/_shared
+(shims at the old src/lib paths). New: `COMPOUND_ALIASES` (one column → several
+fields, refuse-whole on count mismatch) with vitest coverage. New law in
+ARCHITECTURE with both incident reversals quoted. Gate: `pw-approve-matcher`
+(battery #45) asserts the path via the from_schedule tell. Stale "no AI, no
+cost" sidebar copy rewritten.
+
+---
+
 ## Update 1.10 — 2026-08-13 (extraction Phase 5b CLOSED; Phase 6 opens)
 
 ### For the team

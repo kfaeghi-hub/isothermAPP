@@ -1673,6 +1673,48 @@ Verification for a suite's conversion is the suite alone AND a mini-battery with
 its two run-order neighbours, because the failure class is load-and-sequence
 shaped — suite-alone green was already true of the broken versions.
 
+### A capability is only as real as the live path that invokes it
+
+*2026-08-14, the PMPs incident. Law: wiring is part of the build, and gates
+assert the path, not the function.*
+
+`matchScheduleSpec` — the schedule-heading → declared-field matcher, with its
+curated aliases, unit bridging, and collision refusals — existed from June to
+August running nowhere but its own test and a one-off repair script. The live
+approve path wrote raw schedule headings straight into `nameplate_extra.spec`
+the whole time. When the owner imported the original Avondale pump schedule,
+the register stored every value and displayed the ones whose headings happened
+to equal a declared field name: on the pump set, exactly `VFD`. Twenty-one
+green tests on the matcher; zero production invocations.
+
+> **A function with a green test and no caller is inventory, not capability.
+> The build that ships a mechanism ships its wiring, and the gate asserts the
+> PATH — an observable side effect only the wiring produces — never just the
+> function.** Here the tell is `from_schedule`: approval populates it only via
+> the matcher, so `pw-approve-matcher` asserts it on every battery run and the
+> path can never silently unwire again.
+
+**Two reversals on the record, quoted per the house protocol:**
+
+- *"The pump-sheet dialect was never aliased — only VFD matched (exact
+  name)."* — the owner's incident diagnosis, reversed by measurement: FLOW,
+  HEAD, RPM, and MOTOR SIZE all matched the June matcher already (tier-1 terms
+  and existing aliases); "only VFD matched" was a render-time coincidence of a
+  raw heading equalling a declared name. The defect was the unwired path, not
+  the vocabulary.
+- *"No value anywhere differs from the document's own string/number."* — the
+  owner's first unit standard, refined by ruling to what (a) delivers: **no
+  value differs from the document without the document's own value preserved
+  beside it and the arithmetic named.** The register speaks the firm's units;
+  the document's exact strings live whole in `from_schedule`; every conversion
+  is recorded in the import batch note (79 GPM → 4.98 L/s, factor stated).
+
+**The compound rule** (`COMPOUND_ALIASES`): one column, several fields —
+`MOTOR INPUT [V/Ph/Hz]` holding `208/3/60` lands as Voltage/Phase/Hz, parts
+verbatim, and REFUSES WHOLE on a part-count mismatch: a dash on a pump with no
+drive is one part against three fields, and writing anything from it would be
+a guess. A new rule kind, ruled rather than stretched into the alias table.
+
 ### Harness wait patterns — recorded, not promoted
 
 *2026-08-13, from the pw-meetings per-suite conversion. Three shapes worth

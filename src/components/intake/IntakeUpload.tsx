@@ -511,9 +511,17 @@ export function IntakeUpload({ projectId, onStaged }: {
         </div>
       )}
 
+      {/* This paragraph said ".xlsx is read directly — no AI, no cost" for two
+          months after 5a made the opposite true, while the component's own
+          result line printed the cost in cents. Stale copy about a cost is a
+          small lie with a bill attached. Rewritten 2026-08-14 (the PMPs
+          incident); if the pipeline changes again, this paragraph changes in
+          the same commit. */}
       <p className="text-[11px] text-gray-400 mt-1.5">
-        <span className="font-mono">.xlsx</span> is read directly — no AI, no cost, and the
-        same file always reads the same way, so you check the column mapping once.
+        <span className="font-mono">.xlsx</span> preview is instant and free. Reading is
+        two passes — the deterministic column mapping and the AI extractor — reconciled
+        so their disagreements surface in the review instead of resolving silently.
+        Cost and call count are reported when the run finishes.
         {' '}<span className="font-mono">.png .jpg .webp</span> pages are read by the
         extractor, one call each, and every row is checked in the review.
       </p>
