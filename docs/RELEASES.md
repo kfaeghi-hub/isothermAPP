@@ -24,6 +24,13 @@ as its work.
 
 ### For the team
 
+**You can now see which unit system a project is on.** Edit Project shows
+"Units: metric — set at creation", with a pointer to where per-field unit
+changes actually live (the Equipment tab's field structure, where changing a
+unit counts the values it touches and converts them with the arithmetic
+shown). The setting itself stays creation-only, deliberately — relabelling
+without converting is how a GPM number becomes a wrong L/s number.
+
 **Force-flow heaters are in the library now.** The four FFH units on Central
 Tech that showed nothing in their spec table are typed as Unit Heaters (that's
 what a force-flow heater is, verification-wise — same ruling that put
@@ -57,6 +64,15 @@ the top the whole way down, and the tag column stays pinned on the left —
 scroll anywhere, you always know what you're looking at.
 
 ### Technical record
+
+**T2c — unit system display (owner-ruled: display-only).** `projects.
+unit_system` was writable in the creation modal and visible NOWHERE after —
+no post-creation surface even displayed it (measured: all 12 projects metric,
+the toggle never used). Edit Project now carries a read-only Units line
+stating the non-retroactive semantics, linking to the approach-A per-field
+converter. Editable-post-creation declined per ruling. Second mirror drift
+fixed on the way: `Project.unit_system` had lagged the 1.01 column, same as
+`unit_imperial`.
 
 **T6 — FAN FORCED HEATER → unit_heater (owner-ruled 2026-08-14).** Executed by
 `apply-ffh-ruling.mjs` (dry-run first, resolve-and-refuse on every target):

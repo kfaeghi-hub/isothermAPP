@@ -169,6 +169,11 @@ export interface Project {
   com_number: string | null
   client_company_id: string | null
   address: string | null
+  /** Chosen once in the creation modal (approach C, ruled 2026-08-02): decides
+   *  the unit string field defs are SEEDED with, never retroactive. Column
+   *  shipped 1.01; this mirror line lagged it (caught by the T2 triage,
+   *  2026-08-14). */
+  unit_system: 'metric' | 'imperial'
   start_date: string | null
   finish_date: string | null
   status: 'active' | 'completed'

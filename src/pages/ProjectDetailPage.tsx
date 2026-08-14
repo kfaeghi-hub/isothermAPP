@@ -893,6 +893,31 @@ export function ProjectDetailPage({ projectId, companies, onBack }: Props) {
             </div>
           </div>
 
+          {/* Units — DISPLAY ONLY, ruled 2026-08-14 (T2c). The setting decides
+              seeding-time labels and is deliberately not editable after
+              creation: relabelling without converting is how "225 GPM" becomes
+              "225 L/s". Before this line existed the setting was invisible
+              outside the creation modal — a reviewer could not even tell which
+              system a project was on. */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Units</label>
+            <p className="text-sm text-gray-700 capitalize">
+              {project?.unit_system ?? 'metric'}
+              <span className="normal-case text-xs text-gray-400"> — set at creation; decides the units new nameplate fields are seeded with.</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Fields already in use keep their units. Changing one is a per-field decision with a
+              conversion, in the{' '}
+              <button
+                type="button"
+                className="text-teal-600 hover:text-teal-800 underline"
+                onClick={() => { setEditOpen(false); setSearchParams({ tab: 'equipment' }, { replace: true }) }}
+              >
+                Equipment tab's field structure
+              </button>.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
