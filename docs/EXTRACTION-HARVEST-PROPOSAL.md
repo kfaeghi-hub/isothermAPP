@@ -236,6 +236,59 @@ then, on data.
 Stated here so it is a question the harvest is expected to answer, not a threshold
 somebody eventually wonders about.
 
+## 7c. Phase 1 mining scope — [KEEL] 2026-08-14, brought with the 3r close
+
+Sections 3 and 7 above were written before the extraction arc's Phase 6
+existed. Phase 6 BUILT the capture this proposal asked for — as
+`correction_signals` (docs/CORRECTION-SIGNALS.md, the normative contract),
+passive-triggered, no second door — and 3r preserved the vocabulary trail
+(`equipment_type_alias_history`). So harvest Phase 1 is no longer "build a
+table": it is the READ-ONLY librarian pass over evidence that now exists.
+
+**The three sources, all preserved, none consumed yet:**
+
+| Source | What it holds | Status |
+|---|---|---|
+| `correction_signals` | row dispositions: machine proposal, human outcome, chosen_leg, question_state | live since Phase 6 |
+| `equipment_type_alias_history` | vocabulary corrections with displaced provenance carried | live since 3r; ruled harvest's call — INCLUDED here as a read-only source |
+| `intake_sheet_questions` + `questions_attributed`/`question_state` | what the readers asked, and what humans did about it | live |
+
+**The four mining dimensions, each with its evidence shape:**
+
+1. **Type corrections** — `proposed_type` vs `edited->>'proposed_type'`, split
+   three ways by `chosen_leg`: the rules leg was right, the model leg was
+   right, both were wrong. Alias-history rows are the same lesson arriving at
+   firm level (DOAS→mau is specimen #1).
+2. **Field-placement corrections** — the SERVICE→area_served shape. A value the
+   machine placed under field X that the human recorded under field Y. The
+   signal's `edited` holds the human's side; the machine's side (per-field
+   claims, original values) is JOINED from `intake_rows` via `row_id` — rows
+   persist post-approval, so the join is total today. **Named gap:** the signal
+   does not freeze pre-edit field values; if upload retention ever changes,
+   freezing a `before` jsonb into the signal is the fix. Flagged, not built.
+3. **Leg reliability** — `read_via` × disposition, per sheet-shape, per
+   consultant. The denominator is dispositions captured, never rows staged.
+4. **Question quality** — answered-via-edit vs accepted-unanswered rates per
+   `about`-class. A question repeatedly accepted unanswered is noise the reader
+   should stop raising; one repeatedly answered is a column the parser should
+   learn.
+
+**Phase 2's ratified gate, restated against the built capture:** rediscover
+SERVICE→area_served from corrections alone. One honesty item: Avondale's
+hand-corrections PREDATE capture — they were made before Phase 6 existed, so
+no signal rows hold them. The gate's evidence base must be corrections captured
+through the live path, which means Phase 2's gate corpus is **Avondale replayed
+through the 5a pipeline and re-dispositioned through the review surface**
+(sighted, bounded, ~$3 by the 5a cost lines) — or the next real schedule that
+arrives, whichever comes first. The gate does not weaken; the corpus is named.
+
+**What Phase 1 ships:** the librarian pass, read-only, producing proposal
+artifacts (rule candidates with occurrences and evidence pointers) — no writes
+to vocabulary, no parser changes, no ratification UI. Those are Phases 3–4,
+unchanged.
+
+---
+
 ## 8. The question this proposal cannot answer
 
 Whether the firm's upload volume will ever make this pay. Four Excel uploads and
