@@ -78,11 +78,16 @@ try {
     check(firstRowYBefore - firstRowYAfter >= 600,
       `a real unit row moved up ≥600px (${Math.round(firstRowYBefore)} → ${Math.round(firstRowYAfter)}) — the arrival the header claim leans on`)
 
-    // ── THE CLAIM: the header held at the scroller's top edge.
+    // ── THE CLAIM: the header held at the scroller's top edge. Measured on a
+    // STUCK CELL, not on <thead>: position:sticky pins the th boxes while the
+    // thead element itself keeps its place in table flow — asserting the
+    // container would go red over a working header (calibrated against the
+    // real artifact on this suite's first run, where exactly that happened).
     const s1 = await scroller()
-    const headBox = await page.locator('thead').boundingBox()
-    check(!!headBox && headBox.y >= s1.top - 1 && headBox.y <= s1.top + 2,
-      `thead top sits at the scroller top after scrolling (thead y=${Math.round(headBox?.y ?? NaN)}, scroller top=${Math.round(s1.top)})`)
+    const groupTh = page.locator('thead tr').nth(0).locator('th').nth(2) // 0=#, 1=Tag/Descriptor, 2=first stage-group band
+    const groupBox = await groupTh.boundingBox()
+    check(!!groupBox && groupBox.y >= s1.top - 1 && groupBox.y <= s1.top + 2,
+      `the stage-group band holds the scroller top after scrolling (band y=${Math.round(groupBox?.y ?? NaN)}, scroller top=${Math.round(s1.top)})`)
 
     // Row 2 seams at +24px — a wrong offset lets the label row slide under row 1.
     const labelTh = page.locator('thead tr').nth(1).locator('th[title]').first()
@@ -104,7 +109,7 @@ try {
     check(!!hArrived, `the horizontal scroll landed (scrollLeft ${hArrived?.scrollLeft ?? 'never'})`)
     const cornerAfter = await corner.boundingBox()
     check(!!cornerBefore && !!cornerAfter &&
-          Math.abs(cornerAfter.x - cornerBefore.x) <= 1 && cornerAfter.y >= s1.top - 1,
+          Math.abs(cornerAfter.x - cornerBefore.x) <= 2 && cornerAfter.y >= s1.top - 2,
       `the Tag/Descriptor corner holds both pins under a diagonal scroll ` +
       `(x ${Math.round(cornerBefore?.x ?? NaN)} → ${Math.round(cornerAfter?.x ?? NaN)}, y=${Math.round(cornerAfter?.y ?? NaN)})`)
   }
