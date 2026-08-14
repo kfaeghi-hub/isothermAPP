@@ -99,6 +99,7 @@ const SUITES = [
   'pw-intake',
   'pw-intake-review',
   'pw-correction-capture',
+  'pw-alias-provenance',
   'pw-extractor',
   'pw-meetings',
   'pw-pfc-verify',

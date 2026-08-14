@@ -361,18 +361,38 @@ export function ClassificationsPage() {
    *  The never-alias list is enforced by a database trigger, not by this
    *  function: a guard that only exists in the UI is a guard the next caller
    *  skips. Its message carries the reason, so a refusal teaches. */
+  /** THE SAVE IS A DIFF, NOT A PURGE (3r, ruled 2026-08-14). The first version
+   *  deleted every alias on the type and re-inserted the list, which wiped
+   *  created_by, created_at, and the ruling note for EVERY alias on every
+   *  ordinary edit — the DOAS move destroyed the Seneca-precedent note that
+   *  way. Now only aliases actually ADDED or REMOVED are touched; an untouched
+   *  alias's provenance is byte-identical after an unrelated edit, and the
+   *  history trigger records what did change with the displaced provenance
+   *  carried into equipment_type_alias_history.
+   *
+   *  Comparison is case-insensitive to match the unique(lower(btrim())) index:
+   *  a case-only re-spelling is a no-op, not a remove+add that would launder
+   *  the row's provenance through the trail. */
   async function saveAliases(typeKey: string, raw: string) {
     const wanted = [...new Set(raw.split(',').map(v => v.trim()).filter(Boolean))]
     const current = aliases[typeKey] ?? []
-    if (wanted.length === current.length && wanted.every(a => current.includes(a))) return
+    const norm = (a: string) => a.trim().toLowerCase()
+    const toAdd = wanted.filter(a => !current.some(c => norm(c) === norm(a)))
+    const toRemove = current.filter(c => !wanted.some(a => norm(a) === norm(c)))
+    if (toAdd.length === 0 && toRemove.length === 0) return
 
-    const { error: delErr } = await supabase.from('equipment_type_aliases')
-      .delete().eq('type_key', typeKey)
-    if (delErr) { alert(delErr.message); await fetchAll(); return }
-
-    if (wanted.length) {
+    if (toRemove.length) {
+      const { error: delErr } = await supabase.from('equipment_type_aliases')
+        .delete().eq('type_key', typeKey).in('alias', toRemove)
+      if (delErr) { alert(delErr.message); await fetchAll(); return }
+    }
+    if (toAdd.length) {
+      // The row itself carries its author now. Every pre-3r alias has
+      // created_by NULL — which is exactly why the DOAS edit took timestamp
+      // forensics to attribute instead of a select.
+      const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from('equipment_type_aliases')
-        .insert(wanted.map(alias => ({ type_key: typeKey, alias })))
+        .insert(toAdd.map(alias => ({ type_key: typeKey, alias, created_by: user?.id ?? null })))
       if (error) alert(error.message)
     }
     await fetchAll()

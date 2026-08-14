@@ -1052,9 +1052,15 @@ count. Fix: a count check at ratify time, matching `apply-ratified.mjs`'s
 moved-target refusal. *Found by the 2026-08-03 audit of every ratification
 surface; recorded, not fixed that night.*
 
-### 3r. saveAliases erases provenance — fix BEFORE harvest Phase 1 builds
-**BANKED 2026-08-13. HARD WAKE CONDITION: this is fixed before harvest Phase 1
-construction starts. Not a suggestion — harvest's own evidence depends on it.**
+### 3r. saveAliases erases provenance — CLOSED 2026-08-14
+**FIXED at its ruled wake, before harvest Phase 1. The save is a diff (only
+aliases actually added/removed are touched; an untouched alias's provenance is
+byte-identical, asserted by read-back). Deliberate changes leave a trail:
+equipment_type_alias_history, trigger-authored, no client write path in any
+direction, displaced provenance carried not destroyed. New alias rows carry
+created_by. Gate: pw-alias-provenance (battery #44) — including the DOAS-note
+survival regression and the refused forge. The original entry follows for the
+record.**
 
 **The mechanism, found the expensive way.** `ClassificationsPage.saveAliases`
 saves a type's alias list as DELETE-ALL-THEN-REINSERT: every alias row for the

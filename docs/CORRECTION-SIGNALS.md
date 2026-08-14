@@ -54,6 +54,16 @@ sheet question has no disposition path today. When one gets an answer surface,
 its capture lands in this table with the row-less context columns null and
 `source_surface` naming the surface that answered it.
 
+## Lifetime
+
+Signal retention rides upload retention: a signal cascades away with its
+upload and at no other time. Real uploads are never deleted post-approval, so
+their signals persist indefinitely; ZZ-TEST fixtures clean themselves and take
+their signals along. **Harvest's evidence inherits this lifetime** — what
+harvest can mine is exactly what upload retention has kept, and any future
+retention policy on uploads is therefore also a policy on harvest's corpus and
+gets weighed as one.
+
 ## The gate
 
 `pw-correction-capture` (battery member): performs one of each disposition

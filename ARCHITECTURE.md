@@ -3452,9 +3452,13 @@ Two artifacts of the reversal, both instructive:
   the pin now reads `DOAS→mau`.
 - **The UI erased the old ruling's provenance on the way through** — the
   delete-all-reinsert save destroyed the migration note, author, and date. The
-  note above survives only because the migration file is in git. That defect is
-  banked in BACKBURNER (3r) with a hard wake condition, and the surviving row
-  has had its justification re-attached by hand.
+  note above survives only because the migration file is in git. **Fixed
+  2026-08-14 (3r):** the save is a diff — only aliases actually added or
+  removed are touched — and every deliberate change writes
+  `equipment_type_alias_history` (trigger-authored, no client write path,
+  displaced provenance carried whole). The gate replays this exact incident:
+  pw-alias-provenance asserts the DOAS note survives an unrelated edit on the
+  same type.
 
 ---
 
