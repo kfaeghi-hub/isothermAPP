@@ -16,6 +16,56 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.13 — 2026-08-16 (maintenance cycle 2: the checklist documents)
+
+### For the team
+
+**The Word copy of a checklist now looks like the PDF.** Before, opening the
+.docx in Word squeezed the first column until field names broke mid-word
+("MANUFACT URER") and the whole document re-flowed. The tables now carry
+explicit column widths that Word obeys — same proportions as the PDF.
+
+**The column headers stopped breaking mid-word.** "Specif ied / Shop Drawi ng
+/ Install ed" are now **Spec / Shop Dwg / Installed**, one line each on the
+PDF even at four units across.
+
+**The grey cells have a legend.** Under the nameplate table: "Shaded = not
+applicable to this column." The shading itself was already right — grey means
+the firm doesn't record that field from that source (e.g. Manufacturer is
+never a *specified* value; Serial Number exists only on the installed
+nameplate).
+
+### Technical record
+
+**D1 — docx table mechanism (generator-wide, measured in both families).**
+html-to-docx declared NO `w:tblLayout` on any table (Word therefore
+autofits), emitted an EMPTY `w:tblGrid` for the colspan-headed nameplate
+matrix plus a SECOND mid-table grid with FRACTIONAL widths (invalid value,
+invalid position), and equal-width grids elsewhere. Fix: the docx HTML
+builder now returns each table's intended proportions (the PDF colgroup
+numbers) in emission order, and `fixDocxTables()` strips every emitted grid,
+writes ONE integer grid per table summing exactly to its `tblW`, and pins
+`w:tblLayout fixed` — REFUSING WHOLE on a table-count mismatch rather than
+splicing widths into the wrong table. `check_table` docx (attempted-but-
+optional by gate verdict, no colspan'd first row) deliberately keeps
+library grids. At ≥4 units the nameplate label column yields 28% → 22%:
+"Installed" has no clean break-point, the labels wrap at spaces. Known
+residual, stated: Word's own cell margins still wrap the sub-headers at
+FOUR units ("Sho p Dwg") — bounded by the fixed grid now, one-line at the
+common 2–3-unit counts; the PDF is clean at all counts. Word-rendered
+before/after (Word COM export) beside the fix.
+
+**D2 — ruled abbreviations** shipped in both builders, one pass. **D4 —
+shading measured cell-by-cell against the def matrix in both families:
+faithful** (identity spec-blocked per `__base`, Serial installed-only,
+spec-only performance fields blocked right) → by-design, ruled legend
+shipped, conditional on shaded cells existing. Gate: `pw-checklist-docx-
+tables` (battery #49) — layout/grid/abbreviation/legend legs against the
+REAL endpoint on the ZZ AHU fixture; failing-first proven (6 reds on
+pre-fix production).
+
+---
+
 ## Update 1.12 — 2026-08-14 (maintenance batch: the team's first bug list)
 
 Seven reports from real project review, triaged cold and fixed per owner

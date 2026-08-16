@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import HTMLtoDOCX from 'html-to-docx'
+import JSZip from 'jszip'
 // Auth is the ONE shared import this endpoint takes — its render pipeline stays
 // deliberately independent of doc-common (landscape + per-mode footers).
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
@@ -256,12 +257,16 @@ const CSS = `
   .hdr-line { border-bottom: 1px solid ${DOC.BORDER}; display: inline-block; min-width: 55%; height: 11px; }
 
   .th-unit { background: ${DOC.BAND_UNIT} !important; font-size: 8pt; }
-  .th-sub  { background: ${DOC.BAND_SUB} !important; font-size: 7pt; }
+  /* 6pt (the check-table's ct-sub precedent): at 4 units the sub-cells are
+     ~0.39in usable and "Installed" must hold ONE line — it has no clean break. */
+  .th-sub  { background: ${DOC.BAND_SUB} !important; font-size: 6pt; }
   .np-label { text-align: left !important; font-size: 7.5pt; }
   .np-val  { text-align: center; font-size: 8pt; }
   /* Not-applicable cell (field not defined for this section): shaded, NO text —
      on the blank hand-out the contractor instantly sees which cells to skip. */
   .np-blocked { background: #E5E5E5 !important; }
+  /* D4 legend — smallest type on the page, monochrome (the ruling's words). */
+  .np-legend { font-size: 6.5pt; color: #666666; margin: 2px 0 0 2px; }
   .empty-dash { color: #999999; }
   /* Blank mode: fillable cells must be CLEAN WHITE for handwriting — zebra striping
      would read as almost the same grey as the not-applicable shade on paper. */
@@ -631,18 +636,27 @@ function buildChecklistHtml(d: DocData): string {
 
   // ── Nameplate ───────────────────────────────────────────────────────────────
   const { rows: npRows } = buildNameplate(responseTargets, snapshot, mode, fieldDefs)
+  // D4 ruling (2026-08-16): the shading follows the def matrix faithfully, so it
+  // gets a legend, not a change. Rendered only when a shaded cell exists.
+  const npHasBlocked = npRows.some(r => r.cells.some(c => c.blocked))
   const npUnitThs = responseTargets.map(t => `<th class="th-unit" colspan="3">${unitTag(t)}</th>`).join('')
+  // Abbreviated per the D2 ruling (2026-08-16): the full words wrap mid-word at
+  // 3-4 units ("Specif ied"); these hold one line even at 12 sub-columns.
   const npSubThs  = responseTargets.map(() =>
-    `<th class="th-sub">Specified</th><th class="th-sub">Shop Drawing</th><th class="th-sub">Installed</th>`).join('')
+    `<th class="th-sub">Spec</th><th class="th-sub">Shop Dwg</th><th class="th-sub">Installed</th>`).join('')
   // class="np-row" is the counting marker for the no-dropped-rows guard.
   const npBodyRows = npRows.map(row =>
     `<tr class="np-row"><td class="np-label">${esc(row.label)}</td>${row.cells.map(c =>
       c.blocked ? `<td class="np-blocked"></td>` : `<td class="np-val">${dashOr(mode, c.value)}</td>`
     ).join('')}</tr>`
   ).join('\n')
-  // Field 28%, then an equal third of the remaining 72% per unit's Spec/Shop/Installed.
-  const npCellW = 72 / (nUnits * 3)
-  const npWidths = [28, ...Array(nUnits * 3).fill(npCellW)]
+  // Field label column, then an equal third of the remainder per unit's
+  // Spec/Shop Dwg/Installed. At ≥4 units the label column yields 28% → 22%:
+  // "Installed" cannot wrap cleanly (mid-word is the only break it has) while
+  // the field labels wrap at their spaces — the unbreakable word gets the width.
+  const npLabelW = nUnits >= 4 ? 22 : 28
+  const npCellW = (100 - npLabelW) / (nUnits * 3)
+  const npWidths = [npLabelW, ...Array(nUnits * 3).fill(npCellW)]
 
   // ── Checks + grids ──────────────────────────────────────────────────────────
   // Item 50% / unit response columns equal share / Comments 25%.
@@ -836,7 +850,8 @@ function buildChecklistHtml(d: DocData): string {
       <tr>${npSubThs}</tr>
     </thead>
     <tbody>${npBodyRows}</tbody>
-  </table>`}
+  </table>${npHasBlocked ? `
+  <p class="np-legend">Shaded = not applicable to this column.</p>` : ''}`}
 
   ${checksBody.trim() ? `
   <h2 class="sec">Installation Checks</h2>
@@ -869,8 +884,16 @@ function buildChecklistHtml(d: DocData): string {
 // ── DOCX HTML builder ──────────────────────────────────────────────────────────
 // Inline styles only. NEVER width: on th/td (html-to-docx crashes). No <colgroup> —
 // the library does not understand it; width:100% on <table> is what it honours.
+//
+// COLUMN WIDTHS TRAVEL BESIDE THE HTML (D1, 2026-08-16). html-to-docx emits
+// equal-width grids for every table and an EMPTY grid for the colspan-headed
+// nameplate matrix, and never declares a table layout — so Word autofits,
+// squeezes the label column, and the docx re-flows into a different document
+// than the PDF. The builder is the only place that knows each table's intended
+// proportions (they mirror the PDF colgroups), so it returns them per table in
+// EMISSION ORDER and fixDocxTables() rewrites the real grids after conversion.
 
-function buildChecklistDocxHtml(d: DocData): string {
+function buildChecklistDocxHtml(d: DocData): { html: string; tableGrids: number[][] } {
   const { instance, project, responseTargets, sections, items, grids, signoffs, fieldDefs,
           responseMap, gridRespMap, findingMap, mode, audience } = d
   const snapshot = instance.nameplate_snapshot ?? null
@@ -880,7 +903,7 @@ function buildChecklistDocxHtml(d: DocData): string {
   const TH   = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid ${DOC.INK};font-size:8pt;"`
   const THL  = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;text-align:left;padding:5px 6px;border:1px solid ${DOC.INK};font-size:8pt;"`
   const THUN = `style="background-color:${DOC.BAND_UNIT};color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid ${DOC.BAND_UNIT};font-size:8pt;"`
-  const THSB = `style="background-color:${DOC.BAND_SUB};color:#ffffff;font-weight:bold;text-align:center;padding:5px 6px;border:1px solid ${DOC.BAND_SUB};font-size:7pt;"`
+  const THSB = `style="background-color:${DOC.BAND_SUB};color:#ffffff;font-weight:bold;text-align:center;padding:5px 3px;border:1px solid ${DOC.BAND_SUB};font-size:6.5pt;"`
   // Blank mode drops zebra striping: fillable cells must be clean white so the
   // only grey on the page is the not-applicable shade.
   const zebra = mode === 'completed'
@@ -902,9 +925,13 @@ function buildChecklistDocxHtml(d: DocData): string {
 
   // Nameplate
   const { rows: npRows } = buildNameplate(responseTargets, snapshot, mode, fieldDefs)
+  // D4 ruling (2026-08-16): shading follows the def matrix — legend, not change.
+  const npHasBlocked = npRows.some(r => r.cells.some(c => c.blocked))
   const npUnitThs = responseTargets.map(t => `<th ${THUN} colspan="3">${unitTag(t)}</th>`).join('')
+  // Abbreviated per the D2 ruling (2026-08-16): the full words wrap mid-word at
+  // 3-4 units ("Specif ied"); these hold one line even at 12 sub-columns.
   const npSubThs  = responseTargets.map(() =>
-    `<th ${THSB}>Specified</th><th ${THSB}>Shop Drawing</th><th ${THSB}>Installed</th>`).join('')
+    `<th ${THSB}>Spec</th><th ${THSB}>Shop Dwg</th><th ${THSB}>Installed</th>`).join('')
   const npBodyRows = npRows.map((row, ri) =>
     `<tr class="np-row">
       <td ${td(ri, 'font-size:7.5pt;')}>${esc(row.label)}</td>
@@ -919,6 +946,9 @@ function buildChecklistDocxHtml(d: DocData): string {
   let checksBody = ''
   let gridsHtml  = ''
   let rowIdx = 0
+  // Grid tables' width arrays, pushed in the same order their HTML is appended,
+  // so the final tableGrids assembly stays aligned with DOM order (D1).
+  const gridTableGrids: number[][] = []
 
   for (const section of sections) {
     const sItems = items.filter(i => i.section_id === section.id)
@@ -957,6 +987,7 @@ function buildChecklistDocxHtml(d: DocData): string {
       const stacked = nUnits > 1 && nc >= 5
 
       const renderGrid = (targets: any[], titleSuffix: string) => {
+        gridTableGrids.push([22, ...Array(targets.length * nc).fill(78 / (targets.length * nc))])
         const gUnitThs = targets.map(t => `<th ${THUN} colspan="${nc}">${unitTag(t)}</th>`).join('')
         const gColThs  = targets.map(() =>
           cols.map(c => `<th ${THSB}>${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')).join('')
@@ -1044,7 +1075,7 @@ function buildChecklistDocxHtml(d: DocData): string {
   const modeSubtitle = mode === 'blank' ? (audience === 'field' ? 'FIELD COPY' : 'BLANK FORM — FOR CONTRACTOR USE') :
     `COMPLETED${instance.completed_at ? ' · ' + isoShort(instance.completed_at) : ''}`
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
   body { font-family: Arial, sans-serif; font-size: 9.5pt; color: #222; }
@@ -1088,7 +1119,8 @@ ${targetsAreSystems(responseTargets) ? '' : `
     <tr>${npSubThs}</tr>
   </thead>
   <tbody>${npBodyRows}</tbody>
-</table>`}
+</table>${npHasBlocked ? `
+<p style="font-size:6.5pt;color:#666666;margin:2px 0 0 2px;">Shaded = not applicable to this column.</p>` : ''}`}
 
 ${checksBody.trim() ? `
 <h2>Installation Checks</h2>
@@ -1111,6 +1143,21 @@ ${signoffs.length > 0 ? `
 </table>` : ''}
 
 </body></html>`
+
+  // FINAL DOM ORDER, conditionals mirrored exactly — fixDocxTables refuses on a
+  // count mismatch, so a table added to the template MUST add its row here.
+  const tableGrids: number[][] = [
+    [50, 50],                                                                   // header info
+    [28, ...Array(nUnits).fill(72 / nUnits)],                                   // unit identity
+    ...(!targetsAreSystems(responseTargets)
+      ? [(() => { const lw = nUnits >= 4 ? 22 : 28                              // nameplate —
+           return [lw, ...Array(nUnits * 3).fill((100 - lw) / (nUnits * 3))] })()] : []), // mirrors the PDF's npWidths
+    ...(checksBody.trim() ? [[50, ...Array(nUnits).fill(25 / nUnits), 25]] : []), // checks
+    ...gridTableGrids,                                                          // template grids
+    ...(findingsHtml ? [[12, 88]] : []),                                        // linked findings
+    ...(signoffs.length > 0 ? [[28, 34, 22, 16]] : []),                         // sign-offs
+  ]
+  return { html, tableGrids }
 }
 
 // ── PDF via Puppeteer + @sparticuz/chromium-min ────────────────────────────────
@@ -1148,7 +1195,7 @@ async function toPdf(html: string, landscape = false): Promise<Buffer> {
 
 // ── DOCX via html-to-docx ──────────────────────────────────────────────────────
 
-async function toDocx(html: string): Promise<Buffer> {
+async function toDocx(html: string, tableGrids: number[][] | null = null): Promise<Buffer> {
   // width: on th/td crashes html-to-docx's buildTableCellWidth. Strip it defensively —
   // the builder above already avoids it, but this guard is cheap and the crash is fatal.
   const safeHtml = html.replace(/(<t[hd][^>]*?) style="([^"]*)"/gi, (_: string, tag: string, styles: string) => {
@@ -1165,7 +1212,70 @@ async function toDocx(html: string): Promise<Buffer> {
     footer:  false,
     header:  false,
   })
-  return Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
+  const buffer = Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
+  return tableGrids ? await fixDocxTables(buffer, tableGrids) : buffer
+}
+
+// ── D1 (2026-08-16): the docx must hold its columns the way the PDF does ───────
+//
+// MEASURED MECHANISM, both families: html-to-docx declares NO w:tblLayout on any
+// table (Word therefore autofits), emits EQUAL-width w:tblGrid columns for every
+// table, and for the colspan-headed nameplate matrix emits an EMPTY grid — so
+// Word re-measures from content, squeezes the label column ("MANUFACT URER"),
+// and the docx re-flows into a different document than the PDF.
+//
+// The repair rewrites each table's grid to the builder's declared proportions
+// (the same numbers the PDF colgroups use) and pins w:tblLayout fixed. It
+// REFUSES WHOLE on a table-count mismatch: splicing widths into the wrong table
+// is worse than leaving autofit, and a refusal names the drift the day a table
+// is added to the template without its grids row (the splice-anchor law).
+async function fixDocxTables(docx: Buffer, tableGrids: number[][]): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(docx)
+  const path = 'word/document.xml'
+  const xml = await zip.file(path)!.async('string')
+
+  // Our tables never nest (the builders emit flat tables only), so the lazy
+  // match is exact; a nested table would break the count and hit the refusal.
+  const tables = xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/g) ?? []
+  if (tables.length !== tableGrids.length) {
+    throw new Error(
+      `fixDocxTables: ${tables.length} tables in the docx vs ${tableGrids.length} declared grids — ` +
+      'refusing to splice widths into the wrong table. A table was added without its tableGrids row.',
+    )
+  }
+
+  let i = 0
+  const patched = xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, (tbl: string) => {
+    const pcts = tableGrids[i++]
+    // The table's own width (dxa); html-to-docx emits 10080 for letter + these margins.
+    const tblW = Number(/<w:tblW[^>]*w:w="(\d+)"/.exec(tbl)?.[1] ?? 10080)
+    // Integer widths that sum EXACTLY to tblW — the remainder rides the last column.
+    const widths = pcts.map(p => Math.floor((tblW * p) / 100))
+    widths[widths.length - 1] += tblW - widths.reduce((a, b) => a + b, 0)
+    const grid = `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`
+
+    // html-to-docx emits up to TWO grids per table: an empty-or-equal one after
+    // tblPr and a second one MID-TABLE after the header rows with FRACTIONAL
+    // widths ("775.3846…") — invalid values in an invalid position. Strip every
+    // grid, then place exactly one correct grid straight after tblPr.
+    if (!/<\/w:tblPr>/.test(tbl)) {
+      throw new Error('fixDocxTables: a table carries no tblPr — refusing to guess where its grid belongs.')
+    }
+    let out = tbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/g, '')
+    out = out.replace(/<\/w:tblPr>/, `</w:tblPr>${grid}`)
+
+    if (!/<w:tblLayout/.test(out)) {
+      // Schema position: tblLayout directly precedes tblCellMar; fall back to
+      // the end of tblPr when a table carries no cell margins.
+      out = /<w:tblCellMar>/.test(out)
+        ? out.replace(/<w:tblCellMar>/, '<w:tblLayout w:type="fixed"/><w:tblCellMar>')
+        : out.replace(/<\/w:tblPr>/, '<w:tblLayout w:type="fixed"/></w:tblPr>')
+    }
+    return out
+  })
+
+  zip.file(path, patched)
+  return await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
 }
 
 // ── Check-table DOCX (attempted-but-optional per the gate verdict) ─────────────
@@ -1342,8 +1452,19 @@ export default async function handler(req: any, res: any) {
       responseTargets, instance.nameplate_snapshot ?? null, mode as any, fieldDefs,
     )
     const isCheckTable = renderMode === 'check_table'
-    const pdfHtml  = isCheckTable ? buildCheckTableHtml(docData)     : buildChecklistHtml(docData)
-    const docxHtml = isCheckTable ? buildCheckTableDocxHtml(docData) : buildChecklistDocxHtml(docData)
+    const pdfHtml  = isCheckTable ? buildCheckTableHtml(docData) : buildChecklistHtml(docData)
+    // check_table's docx is attempted-but-optional by ruled gate verdict and its
+    // tables have no colspan'd first row, so it keeps html-to-docx's own grids;
+    // the standard families carry declared grids for fixDocxTables (D1).
+    let docxHtml: string
+    let docxTableGrids: number[][] | null = null
+    if (isCheckTable) {
+      docxHtml = buildCheckTableDocxHtml(docData)
+    } else {
+      const built = buildChecklistDocxHtml(docData)
+      docxHtml = built.html
+      docxTableGrids = built.tableGrids
+    }
 
     // Count the np-row markers actually emitted — the bug this guards against is the
     // nameplate silently collapsing to a bare header row. Check-table mode has no
@@ -1375,7 +1496,7 @@ export default async function handler(req: any, res: any) {
     const pdfBuffer = await toPdf(pdfHtml, isCheckTable)
     let docxBuffer: Buffer | null = null
     try {
-      docxBuffer = await toDocx(docxHtml)
+      docxBuffer = await toDocx(docxHtml, docxTableGrids)
     } catch (docxErr: any) {
       if (!isCheckTable) throw docxErr
       console.warn(`[checklist] check_table DOCX failed (shipping PDF-only): ${docxErr.message}`)
