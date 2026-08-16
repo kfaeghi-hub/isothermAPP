@@ -83,6 +83,7 @@ const SUITES = [
   'pw-applicability',
   'pw-applicability-rules',
   'pw-base-fields',
+  'pw-checklist-docx-tables',
   'pw-checklist-offline',
   'pw-classification',
   'pw-contact-channels',

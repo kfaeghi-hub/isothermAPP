@@ -2530,6 +2530,13 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   reset**; and it will **not catch a colour error for you**. Nothing automated
   will. Style changes are proven by looking at one of each document type, PDF and
   DOCX. Manual, argument-taking, deliberately outside the battery.
+- `pw-checklist-docx-tables.mjs` — the generated docx HOLDS its columns,
+  asserted at the mechanism (D1/D2/D4, 2026-08-16): every table declares
+  `w:tblLayout fixed`, exactly one integer grid per table summing to its
+  width (html-to-docx emitted none-declared + empty/mid-table fractional
+  grids, so Word autofit squeezed the label column); the D2 ruled header
+  abbreviations; the D4 ruled legend with its blocked-cells premise proven
+  first. Real endpoint, ZZ-TEST AHU fixture, admin.
 - `pw-checklist-docs.mjs` — four-deliverable checklist content audit. PDF checks
   use real pdf.js text extraction (upgraded 2026-07-22 from an ASCII flate probe
   that kept two checks permanently yellow — green means green). Canonical
