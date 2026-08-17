@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { classifyCell, columnStat, rollup } from '../lib/cxCounting'
 import type { ColumnStat } from '../lib/cxCounting'
+import { authedFetch } from '../lib/api'
+import { cxIndexXlsxBlob } from '../lib/cxIndexXlsx'
 import { Combobox } from '../components/ui/Combobox'
 import { ApplicabilityReview } from '../components/cxindex/ApplicabilityReview'
 import type { Equipment } from '../types/database'
@@ -113,6 +115,7 @@ export function CxIndexPage({ projectId }: Props) {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingColId, setEditingColId]     = useState<string | null>(null)
   const [bulkCol, setBulkCol]               = useState<CxColumn | null>(null)
+  const [exporting, setExporting]           = useState<'pdf' | 'xlsx' | null>(null)
   const [editName, setEditName]             = useState('')
   const [addingColForGroup, setAddingColForGroup] = useState<string | null>(null)
   const [newColLabel, setNewColLabel]       = useState('')
@@ -582,6 +585,51 @@ export function CxIndexPage({ projectId }: Props) {
     setNewColLabel('')
   }
 
+  // ── Export (Phase 2) ────────────────────────────────────────────────────────
+
+  /** PDF: server-side through generate-report's allow-list (ephemeral, Q2 —
+   *  a 10-minute signed URL, nothing persisted on any row). */
+  async function exportPdf() {
+    setExporting('pdf')
+    try {
+      const res = await authedFetch('/api/generate-report', { document: 'index', project_id: projectId })
+      const j = await res.json()
+      if (!res.ok) { window.alert(j.error ?? 'The PDF export failed.'); return }
+      window.open(j.pdf_url, '_blank')
+    } catch (e: any) {
+      window.alert(`The PDF export failed: ${e.message}`)
+    } finally { setExporting(null) }
+  }
+
+  /** Excel: built HERE, in the browser, from the same state the matrix renders
+   *  (Q3 — the data never crosses the wire; JSZip is the only machinery). */
+  async function exportXlsx() {
+    setExporting('xlsx')
+    try {
+      const { data: proj } = await supabase.from('projects').select('name').eq('id', projectId).single()
+      const stamp = `Generated ${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })} — reflects register at generation`
+      const blob = await cxIndexXlsxBlob({
+        projectName: proj?.name ?? 'Cx Index',
+        groups: groups.map(g => ({
+          name: g.name,
+          columns: g.columns.map(c => ({ id: c.id, label: c.label, scope: c.scope })),
+        })),
+        equipment,
+        cells,
+        na: new Set(naMap.keys()),
+        generatedStamp: stamp,
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Cx-Index — ${(proj?.name ?? 'project').replace(/[\\/:*?"<>|]/g, '-')}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      window.alert(`The Excel export failed: ${e.message}`)
+    } finally { setExporting(null) }
+  }
+
   // ── Group collapse ──────────────────────────────────────────────────────────
 
   function toggleCollapse(id: string) {
@@ -736,6 +784,22 @@ export function CxIndexPage({ projectId }: Props) {
           className="text-[11px] border border-gray-200 rounded px-3 py-1.5 text-gray-600 hover:border-teal-400 hover:text-teal-700 disabled:opacity-50"
         >
           {applyingRules ? 'Applying…' : 'Apply firm rules'}
+        </button>
+        <button
+          onClick={() => void exportPdf()}
+          disabled={exporting !== null || equipment.length === 0}
+          title="Client-grade landscape PDF — monochrome glyphs, section chapters, the register's percentages, generation stamp on every page. 10-minute link; nothing is filed."
+          className="text-[11px] border border-gray-200 rounded px-3 py-1.5 text-gray-600 hover:border-teal-400 hover:text-teal-700 disabled:opacity-50"
+        >
+          {exporting === 'pdf' ? 'Rendering…' : 'Export PDF'}
+        </button>
+        <button
+          onClick={() => void exportXlsx()}
+          disabled={exporting !== null || equipment.length === 0}
+          title="Real Excel workbook — filterable status values, frozen panes, rotated headers, computed percentages. Built in your browser; the register never leaves it."
+          className="text-[11px] border border-gray-200 rounded px-3 py-1.5 text-gray-600 hover:border-teal-400 hover:text-teal-700 disabled:opacity-50"
+        >
+          {exporting === 'xlsx' ? 'Building…' : 'Export Excel'}
         </button>
         <button
           onClick={() => setStructureOpen(true)}

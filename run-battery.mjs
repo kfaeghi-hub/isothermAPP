@@ -93,6 +93,7 @@ const SUITES = [
   'pw-cx-sticky-header',
   'pw-cx-counting',
   'pw-cx-bulk',
+  'pw-cx-export',
   'pw-dashboard',
   'pw-dates',
   'pw-def-seeding',

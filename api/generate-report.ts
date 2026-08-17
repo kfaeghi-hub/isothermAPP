@@ -28,6 +28,15 @@ import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shar
 import { gridsFromHtmlTables } from './_shared/docx-tables.js'
 import { buildIstHtml, IST_FOOTER, type IstMode } from './_shared/ist-document.js'
 import { assembleIstDoc } from './_shared/ist-assemble.js'
+import { buildCxIndexHtml } from './_shared/cx-index-document.js'
+import { generationStamp } from './_shared/doc-common.js'
+
+// D5: the stamp rides every page of every copy. A FUNCTION, not a module
+// constant — a warm lambda spanning midnight would otherwise stamp yesterday.
+const cxIndexFooter = () => footerBand(
+  `Isotherm Engineering Ltd. &nbsp;&bull;&nbsp; Commissioning Index ` +
+  `&nbsp;&bull;&nbsp; Page <span class="pageNumber"></span> of <span class="totalPages"></span> ` +
+  `&nbsp;&bull;&nbsp; ${generationStamp()}`)
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -436,12 +445,69 @@ export default async function handler(req: any, res: any) {
     // THE ALLOW-LIST. Explicit, and unknown values are refused rather than
     // defaulted — a default here means generating a site report for a caller
     // that asked for something else.
-    const DOCUMENTS = ['site', 'ist'] as const
+    const DOCUMENTS = ['site', 'ist', 'index'] as const
     const kind: string = document ?? 'site'
     if (!DOCUMENTS.includes(kind as typeof DOCUMENTS[number]))
       return res.status(400).json({ error: `unknown document '${kind}'; expected one of ${DOCUMENTS.join(', ')}` })
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+
+    if (kind === 'index') {
+      // CX INDEX EXPORT (Phase 2, CX-INDEX-EXPORT-PROPOSAL.md). Ephemeral by
+      // ruling Q2 — the checklists pole: nothing persisted on any row, the
+      // response carries a 10-minute signed URL. PDF only; Excel is built
+      // client-side and never crosses the wire. Landscape via the shared toPdf.
+      const project_id = req.body?.project_id
+      if (!project_id) return res.status(400).json({ error: 'project_id required for document=index' })
+      const { userId: idxUser } = await requireUser(req, supabase)
+      await requireProjectAccess(supabase, idxUser, project_id)
+
+      const [projRes, groupRes, equipRes, cellRes, naRes] = await Promise.all([
+        supabase.from('projects').select('name, com_number, client_name').eq('id', project_id).single(),
+        supabase.from('project_cx_stage_groups')
+          .select('id, name, sort_order, project_cx_columns(id, label, sort_order, scope)')
+          .eq('project_id', project_id).order('sort_order'),
+        supabase.from('equipment')
+          .select('id, tag, descriptor, category, equipment_type, sort_order')
+          .eq('project_id', project_id).order('category').order('sort_order'),
+        supabase.from('cx_cell_values').select('equipment_id, column_id, status').eq('project_id', project_id),
+        supabase.from('cx_cell_applicability').select('equipment_id, column_id').eq('project_id', project_id),
+      ])
+      if (projRes.error || !projRes.data) return res.status(404).json({ error: projRes.error?.message ?? 'not found' })
+      const idxGroups = (groupRes.data ?? []).map((g: any) => ({
+        name: g.name,
+        columns: [...(g.project_cx_columns ?? [])]
+          .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          .map((c: any) => ({ id: c.id, label: c.label, scope: c.scope === 'type' ? 'type' as const : 'unit' as const })),
+      }))
+      if (idxGroups.length === 0)
+        return res.status(400).json({ error: 'This project has no Cx Index structure to export.' })
+      const cellMap = new Map<string, string>()
+      ;(cellRes.data ?? []).forEach((r: any) => cellMap.set(`${r.equipment_id}:${r.column_id}`, r.status))
+      const naSet = new Set<string>()
+      ;(naRes.data ?? []).forEach((r: any) => naSet.add(`${r.equipment_id}:${r.column_id}`))
+
+      const { html, stats } = buildCxIndexHtml({
+        projectName: projRes.data.name,
+        comNumber: projRes.data.com_number,
+        clientName: projRes.data.client_name,
+        groups: idxGroups,
+        equipment: (equipRes.data ?? []) as any,
+        cells: cellMap,
+        na: naSet,
+      })
+      const pdf = await toPdf(html, cxIndexFooter(), true)
+
+      const store = supabase.storage.from('cx-index')
+      const path = `${project_id}/cx-index.pdf`
+      const up = await store.upload(path, pdf, { contentType: 'application/pdf', upsert: true })
+      if (up.error) return res.status(500).json({ error: up.error.message })
+      const { data: sig, error: sErr } = await store.createSignedUrl(path, 600)
+      if (sErr) return res.status(500).json({ error: sErr.message })
+      console.log(`[cx-index] project=${project_id} units=${(equipRes.data ?? []).length} ` +
+        `groups=${idxGroups.length} projectPct=${stats.projectPct ?? '—'}`)
+      return res.status(200).json({ pdf_url: sig.signedUrl, stats })
+    }
 
     if (kind === 'ist') {
       if (!plan_id) return res.status(400).json({ error: 'plan_id required for document=ist' })
