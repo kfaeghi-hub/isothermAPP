@@ -1,7 +1,10 @@
 # Cx Index → client-facing — export, per-column percentages, portal view
 
-**Status: PROPOSAL PENDING RULING.** Audit + proposal only; nothing here was
-built.
+**Status: RULED 2026-08-17 — all ten recommendations adopted; BUILD ACTIVE,
+three phases (§9).** Rulings are appended to each question in §7 per the 3o
+precedent; four carry owner-confirmation notes. The build is sequenced
+percentages → export → portal, gated per §9, with a **hard pause in Phase 1**
+for the owner's red pen on the scope mapping before anything is seeded.
 
 *Written by session `ATLAS` (parallel to the extraction arc; nothing in this
 document touches intake, the extractor, or any file that arc owns). Three team
@@ -459,7 +462,12 @@ portal surfaces get their own gates — 3b's rule, applied by analogy).
 
 ---
 
-## 7. Open questions for ruling
+## 7. The ten questions — recommendations, and the rulings
+
+**All ten ruled 2026-08-17, every recommendation adopted.** Original text kept;
+rulings appended. Four rulings carry owner-confirmation notes that shape the
+build (Q1's future-amendment clause, Q3's dual-application gate, Q4's dry-run
+pause, Q8's amendment-first ordering).
 
 **Q1 · Status rendering on paper: monochrome glyphs or a colour exception?**
 → **Monochrome glyphs** (✓ / ◐ / · / struck-✓ / blank, legend on every strip).
@@ -473,6 +481,10 @@ teal/amber echoing the screen — would make the export prettier and would be th
 first colour re-admitted since the amendment; if wanted, it is an amendment to
 a ruling, not a style choice.
 
+> **RULED — monochrome glyphs, legend on every strip.** The owner may amend to
+> colour later; if so it is **recorded as an amendment to the monochrome
+> ruling**, never as a style choice slipped into a commit.
+
 **Q2 · Is the export ephemeral or issued (rule 4 pole)?**
 → **Ephemeral in v1** — the checklists precedent exactly: nothing persisted,
 10-minute signed URLs in the response. It is a regenerable lens over live
@@ -481,6 +493,10 @@ to a client** (portal document list, or a formal transmittal), it must flip to
 the issued pole — persisted path, frozen, rule 4. That flip is deliberately out
 of v1 and would be its own small build; the internal button does not create
 frozen records the firm then has to manage.
+
+> **RULED — ephemeral v1, checklists pole.** The issued-flip is **its own
+> future build**, and the boundary stands in this document: the moment an
+> export is delivered to a client, it becomes an issued frozen record.
 
 **Q3 · The xlsx writer: hand-rolled OOXML on JSZip, or a library?**
 → **Hand-rolled minimal OOXML on JSZip, client-side.** *Reason:* the dependency
@@ -493,6 +509,10 @@ stated:* styles.xml and sharedStrings are fiddly; the gate is opening the
 artifact in real Excel and LibreOffice, plus a structural assertion
 (unzip-and-grep, the docx-tables idiom) in the battery.
 
+> **RULED — hand-rolled OOXML on JSZip, client-side.** The gate is dual and
+> both halves are mandatory: the artifact **opens clean in real Excel AND
+> LibreOffice**, plus the structural unzip-and-grep assertion in the battery.
+
 **Q4 · Where does `scope` live?**
 → **On the column defs** (`cx_default_columns` + `project_cx_columns`),
 two-value CHECK, admin/project-editable like every column property. *Reason:*
@@ -501,12 +521,20 @@ document model exists in the register, and §1.6 cleared the pool dependency);
 per-project editability follows §4.3. The firm-default assignment (which of the
 88 go `type`) is seeded once and is itself the owner's call to confirm.
 
+> **RULED — scope on the column defs, two-value CHECK, per-project editable.
+> The firm-default assignment ships as a DRY-RUN MAPPING TABLE** — all 88
+> columns, proposed scope each — **and the build PAUSES for the owner's red pen
+> before seeding.** The mapping: [CX-INDEX-SCOPE-MAPPING.md](CX-INDEX-SCOPE-MAPPING.md).
+
 **Q5 · Should type-scoped columns share stored status across the type's rows?**
 → **No on storage, yes on gesture.** Per-unit rows stay; the header gains
 "mark all ⟨type⟩ — N units" as one confirmed act. *Reason:* the measurement —
 the firm's own records mark the TFCU family and not the FCU-L fleet, a state a
 type-level stored status cannot hold; and per-unit exceptions are real.
 The one-act gesture removes the 117-click pain the team is actually reporting.
+
+> **RULED — no shared storage; the bulk gesture, with the count named in the
+> confirmation.** Attributable writes, offer-never-assert.
 
 **Q6 · When is a type "complete" for a type-scoped %?**
 → **All applicable units done** (partial families count in the denominator
@@ -516,12 +544,19 @@ nothing — a false 100% manufactured from the exact case the team cited. The
 strict definition makes the bulk gesture (Q5) the natural way to record a
 type-wide approval, and the % moves when the recording is honest.
 
+> **RULED — type-complete = all applicable units done; partial families count
+> in the denominator only. And the UI shows "K of N types"** so the strictness
+> reads as honesty, not failure — the label carries the definition.
+
 **Q7 · The collapsed-group % defect — fix in phase 1, or separately first?**
 → **In phase 1, as its first commit, with its own battery leg.** *Reason:* it
 changes on-screen numbers, so it must not ride silently inside a feature — its
 own commit names the change and the reason — but shipping the export while the
 page shows two disagreeing percentages for the same group would print a number
 the screen contradicts. Sequenced: defect fix → scope model → export.
+
+> **RULED — Phase 1's FIRST commit, its own battery leg.** All three counting
+> sites under one rule before anything prints.
 
 **Q8 · The portal amendment — aggregates-only clause 05, or unit-level matrix?**
 → **Aggregates only** (§5's shape), placed after Progress. *Reason:* it
@@ -532,6 +567,11 @@ exclusions at once and put working state in front of clients — recommended
 against even as an option. The amendment to PORTAL-PROPOSAL §8 gets its dated
 entry either way, share-links style.
 
+> **RULED — aggregates-only clause 05. The dated amendment to PORTAL-PROPOSAL
+> §8 is written share-links-style — the default stands, the scope and cost are
+> stated, §6B's promise cited as the case — and the amendment entry is part of
+> Phase 3's FIRST commit, not an afterthought.**
+
 **Q9 · What does client grade exclude — and how does struck-✓ read to a
 client?**
 → Client mode drops N/A provenance and everything note-shaped; renders
@@ -541,10 +581,15 @@ from a client document — the same fact the screen refuses to hide; the legend
 is exactly the tool paper has for it. The alternative (client sees plain ·) is
 simpler and defensible; the owner picks the firm's posture here.
 
+> **RULED — struck-✓ with its legend line, in client mode too.** Recorded work
+> is not erased from a client document.
+
 **Q10 · Sequencing.**
 → **Percentages → export → portal; independent of the extraction arc; portal
 gated on the Q8 amendment.** §6's reasons. The one coupling to respect: the
 `doc-common` shared-file changes land first, alone, battery-green.
+
+> **RULED — as proposed.**
 
 ---
 
@@ -563,3 +608,17 @@ gated on the Q8 amendment.** §6's reasons. The one coupling to respect: the
 - **It will not touch the extraction arc's files, and it will not wait on 3o.**
 - **It will not silently change a number.** The collapsed-% fix and the scope
   model each land in named commits with battery legs before anything prints.
+
+---
+
+## 9. The build — phases and gates (ruled 2026-08-17)
+
+Standing rules throughout: battery green before anything lands; RELEASES entry
+per phase; reversals quoted; **stop-and-show on anything that smells like a
+second collision with a shipped ruling.**
+
+| # | Ships, in order | Gate |
+|---|---|---|
+| **1 · Counting** | Defect fix (own commit, own battery leg) → `scope` column + the dry-run mapping table → **PAUSE for the owner's red pen** → seed → formulas (column / section / project-wide, claims-weighted) → bulk gesture (offer-never-assert, count named in the confirmation, attributable writes). | The three counting sites agree under one N/A discipline (battery leg); the project-wide % exists (Build Spec §4.1's promise finally kept); the bulk gesture writes N rows in one confirmed act on ZZ-TEST; Seneca's Shop Dwgs column reads its honest "K of N types" on screen and in the formula tests. |
+| **2 · Export** | `doc-common` changes first, **alone** (landscape param + `generationStamp` hoist), full doc-generation battery green, own commit → `document:'index'` PDF (group-chapter strips, repeated identity columns, glyphs + legend, cover block with the Phase 1 percentages, D5 stamp every page) → client-side xlsx (real cells, computed values not formulas, frozen panes, rotation, stamp). | Both artifacts open clean in their real applications (Excel **and** LibreOffice for the xlsx); the battery's structural assertions pass; the PDF's numbers match the screen's for the same register state. |
+| **3 · Portal clause** | The dated §8 amendment entry (first commit) → `portal_internal.cx_index_stats` (aggregates computed inline; **one definition — the same Phase 1 formulas, asserted identical between page and portal by the battery, not by discipline**) → gated wrapper → bundle → both shells, one shared component → `pw-portal` anti-drift + three-walls legs extended. | Field-by-field parity between modes; zero row-shaped data crossing; link-mode export refusal still asserted. |
