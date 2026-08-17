@@ -69,9 +69,9 @@ const CSS = `
   .sub { text-align: center; color: #555; font-size: 8pt; margin: 2px 0 10px; }
   table.idx { border-collapse: collapse; width: auto; margin-top: 4px; }
   table.idx th, table.idx td { border: 0.5pt solid #bbb; padding: 1px 2px; }
-  th.rot { height: 1.35in; vertical-align: bottom; background: ${DOC.BAND_TINT}; }
+  th.rot { height: 1.6in; vertical-align: bottom; background: ${DOC.BAND_TINT}; }
   th.rot div { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 6.5pt; font-weight: 600;
-               max-height: 1.28in; overflow: hidden; white-space: nowrap; margin: 0 auto; }
+               max-height: 1.52in; overflow: hidden; white-space: nowrap; margin: 0 auto; }
   th.idcol { background: ${DOC.BAND_TINT}; font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; }
   td.cell { width: 0.22in; min-width: 0.22in; text-align: center; font-size: 7.5pt; height: 0.16in; }
   td.num { width: 0.3in; text-align: right; font-family: monospace; font-size: 6.5pt; color: #666; }
@@ -80,11 +80,16 @@ const CSS = `
   tr.cat td { background: #e8e8e8; font-weight: 700; font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; }
   tr.zebra td { background: ${DOC.ZEBRA}; }
   tr.stats td { border-top: 1.5pt solid ${DOC.INK}; font-weight: 700; font-size: 6.5pt; text-align: center; background: #fff; }
-  .g-done { font-weight: 700; }
-  .g-half { display: inline-block; width: 6px; height: 6px; border: 0.75pt solid ${DOC.INK};
-            background: linear-gradient(90deg, ${DOC.INK} 50%, #fff 50%); vertical-align: middle; }
-  .g-na { color: #999; }
-  .g-struck { color: #777; text-decoration: line-through; }
+  /* EVERY MARK IS DRAWN, NOT TYPED. The first render proved the serverless
+     Chromium font stack silently drops U+2713 — every done cell printed BLANK,
+     which is a wrong register wearing a clean layout. No status may depend on
+     a glyph the font may not carry. */
+  .m { display: inline-block; width: 7px; height: 7px; vertical-align: middle; }
+  .m-done { background: ${DOC.INK}; }
+  .m-half { border: 0.75pt solid ${DOC.INK}; background: linear-gradient(90deg, ${DOC.INK} 50%, #fff 50%); }
+  .m-na { width: 3px; height: 3px; border-radius: 50%; background: #999; }
+  .m-dna { background: #8a8a8a;
+           background-image: linear-gradient(45deg, transparent 40%, #fff 40%, #fff 60%, transparent 60%); }
   .legend { font-size: 6.5pt; color: #555; margin: 3px 0 0; }
   .cover-stats { border-collapse: collapse; margin: 8px auto 0; }
   .cover-stats th, .cover-stats td { border: 0.5pt solid #bbb; padding: 2px 8px; font-size: 8pt; }
@@ -95,21 +100,21 @@ const CSS = `
 `
 
 const LEGEND =
-  `<p class="legend"><span class="g-done">✓</span> done &nbsp;·&nbsp; ` +
-  `<span class="g-half"></span> in progress &nbsp;·&nbsp; ` +
-  `<span class="g-na">·</span> not applicable &nbsp;·&nbsp; ` +
-  `<span class="g-struck">✓</span> completed, later ruled not applicable &nbsp;·&nbsp; ` +
+  `<p class="legend"><span class="m m-done"></span> done &nbsp;·&nbsp; ` +
+  `<span class="m m-half"></span> in progress &nbsp;·&nbsp; ` +
+  `<span class="m m-na"></span> not applicable &nbsp;·&nbsp; ` +
+  `<span class="m m-dna"></span> completed, later ruled not applicable &nbsp;·&nbsp; ` +
   `blank = outstanding &nbsp;·&nbsp; ` +
   `by-type columns read K/N: types complete of types in scope (complete = every applicable unit done)</p>`
 
 function glyph(count: CellCount, status: string | undefined): string {
   if (count === 'na') {
     return status === 'done'
-      ? '<span class="g-struck">✓</span>'
-      : '<span class="g-na">·</span>'
+      ? '<span class="m m-dna"></span>'
+      : '<span class="m m-na"></span>'
   }
-  if (status === 'done') return '<span class="g-done">✓</span>'
-  if (status === 'in_progress') return '<span class="g-half"></span>'
+  if (status === 'done') return '<span class="m m-done"></span>'
+  if (status === 'in_progress') return '<span class="m m-half"></span>'
   return ''
 }
 
