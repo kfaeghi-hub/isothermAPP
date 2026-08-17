@@ -25,6 +25,7 @@ import {
   DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
+import { gridsFromHtmlTables } from './_shared/docx-tables.js'
 import { buildIstHtml, IST_FOOTER, type IstMode } from './_shared/ist-document.js'
 import { assembleIstDoc } from './_shared/ist-assemble.js'
 
@@ -453,7 +454,10 @@ export default async function handler(req: any, res: any) {
 
       const doc = await assembleIstDoc(supabase, istPlan)
       const html = buildIstHtml(doc, istMode)
-      const [pdf, docx] = await Promise.all([toPdf(html, IST_FOOTER), toDocx(html)])
+      // IST joined the D1 treatment (owner-ruled 2026-08-17): grids DERIVED
+      // from the same html the PDF renders — its widths are inline per table,
+      // and its table count is loop-variable, so a hand list would drift.
+      const [pdf, docx] = await Promise.all([toPdf(html, IST_FOOTER), toDocx(html, gridsFromHtmlTables(html))])
       const base = `${istPlan.project_id}/IST-${istPlan.revision_label}-${istMode}`
       const up = await uploadDocPair(supabase.storage.from('site-reports'), base, docx, pdf)
       if ('error' in up) return res.status(500).json(up)

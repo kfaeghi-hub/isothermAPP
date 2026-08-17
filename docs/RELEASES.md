@@ -20,6 +20,10 @@ one written alongside the change is written from the diff.
 
 ### For the team
 
+**The IST document holds its columns in Word too — all four generator
+families now match their PDFs.** The CAN/ULC-S1001 document's layout was the
+last on library autofit; its content is untouched.
+
 **Site reports and meeting minutes hold their columns in Word too.** The same
 table fix that repaired the checklist Word copies now covers both — open any
 generated .docx in Word and the columns match the PDF's proportions instead
@@ -71,6 +75,22 @@ residual, stated: Word's own cell margins still wrap the sub-headers at
 FOUR units ("Sho p Dwg") — bounded by the fixed grid now, one-line at the
 common 2–3-unit counts; the PDF is clean at all counts. Word-rendered
 before/after (Word COM export) beside the fix.
+
+**IST series (owner-ruled 2026-08-17: same treatment; layout only, S1001
+content untouchable).** The fourth family's grids are DERIVED, not declared:
+`gridsFromHtmlTables()` (in the shared module) walks the SAME html the PDF
+renders — every IST table carries inline `width:N%` on a representative row,
+its table count is loop-variable (14 top-level tables from even a minimal
+plan), and a hand list would restate what the html already says and drift the
+first time a loop grows. Representative row = the row with the maximum
+expanded cell count, so a colspan'd banner can't define a grid; unstyled
+cells share the remainder; the count-mismatch refusal still guards the
+derived count. Content bytes untouched — the change is `toDocx(html,
+gridsFromHtmlTables(html))` at the one call site. Gate: the IST leg of
+`pw-doc-docx-tables` (seeded minimal plan, real endpoint, self-cleaning);
+failing-first proven (3 reds on pre-fix production). Word render of the
+repaired document beside the fix; `ist-regen-gate`'s structure assertions
+unaffected (the html is byte-identical).
 
 **doc-common series (owner-ruled: same treatment, same standard).** The
 patcher extracted to `api/_shared/docx-tables.ts` — ONE implementation, now
