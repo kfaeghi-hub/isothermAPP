@@ -1089,6 +1089,22 @@ the DELETIONS, which are themselves corrections and therefore harvest evidence.
 (ARCHITECTURE.md, aliases section) and is re-attached to the row by hand when a
 save eats it — done once already for DOAS→mau.
 
+### 3s. Condition-prefixed compound columns — a capability candidate, not a fix
+**BANKED 2026-08-17, ruled stays-whole. Wake condition: an owner ask, or a
+second consultant writing the same dialect.**
+
+**The specimen** (Central Tech CUH sheet, drawing-practice heading):
+`82°C EWT @ 11°C ΔT FLOW (Lit/S)` — a RATING CONDITION prefixed to a value
+column. The matcher rightly leaves it whole in from_schedule: the heading names
+not just a quantity (flow, Lit/S→L/s) but the operating condition the number
+was rated AT, and a register field that stored the number without its
+condition would claim more than the schedule said.
+
+**Why it is a capability, not an alias:** landing these needs CONDITION-AWARE
+FIELDS — a value plus the condition it was rated at, stored and rendered
+together — which is schema and product surface, not a matcher entry. Ruled:
+verbatim in the strip until then.
+
 **Gray-on-color punch items.** UI instances that render gray text on a tinted
 field, against the standing rule (tinted field + same-hue text, e.g.
 `bg-green-50 text-green-700`, never gray-on-color — ARCHITECTURE §UI). Collected

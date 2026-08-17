@@ -183,3 +183,55 @@ describe('compound columns', () => {
     for (const m of voltage) expect(m.kind).toBe('unmatched')
   })
 })
+
+// ── unit normalization: drawing-practice variants, whitelist posture ─────────
+//
+// Ruled 2026-08-17 after RIVET's fleet repoint: 30 of Central Tech's 1,059
+// readings refused as unbridgeable SOLELY on unit-string case (L/S ≠ L/s — the
+// FFH flows). NEVER blanket case-folding: mW vs MW — folding invents
+// megawatts. Each entry is a vocabulary fact from the fleet survey (counts in
+// the whitelist's doc), and each gets its own test.
+describe('unit normalization whitelist', () => {
+  const FLOW: DeclaredField[] = [{ field_name: 'Flow (L/s)', unit: 'L/s' }]
+
+  it('L/S → L/s: units agree after normalization, value verbatim', () => {
+    const m = matchScheduleField('FLOW [L/S]', '5.2', FLOW)
+    expect(m.kind).toBe('exact')
+    expect(m.value).toBe('5.2')
+  })
+
+  it('Lit/S → L/s: the CUH sheet spelling', () => {
+    const m = matchScheduleField('FLOW (Lit/S)', '0.6', FLOW)
+    expect(m.kind).toBe('exact')
+    expect(m.value).toBe('0.6')
+  })
+
+  it('KW → kW: drawing-caps power', () => {
+    const m = matchScheduleField('MOTOR SIZE [KW]', '1.5',
+      [{ field_name: 'Motor kW (kW)', unit: 'kW' }])
+    expect(m.kind).toBe('exact')
+    expect(m.value).toBe('1.5')
+  })
+
+  it('MM → mm: the fleet survey’s most common variant (132 readings)', () => {
+    const m = matchScheduleField('IMPELLER SIZE [MM]', '160',
+      [{ field_name: 'Impeller Size (mm)', unit: 'mm' }])
+    expect(m.kind).toBe('exact')
+    expect(m.value).toBe('160')
+  })
+
+  it('Kg and KG → kg', () => {
+    const D: DeclaredField[] = [{ field_name: 'Dry Weight (kg)', unit: 'kg' }]
+    expect(matchScheduleField('DRY WEIGHT (Kg)', '45', D).kind).toBe('exact')
+    expect(matchScheduleField('DRY WEIGHT (KG)', '45', D).kind).toBe('exact')
+  })
+
+  it('the SI-prefix hazard stays refused: mW is not MW', () => {
+    // No whitelist entry may ever fold watt prefixes. A made-up mW heading
+    // against a MW field must stay unit-mismatched, value unwritten.
+    const m = matchScheduleField('OUTPUT [mW]', '3',
+      [{ field_name: 'Output (MW)', unit: 'MW' }])
+    expect(m.kind).toBe('unit-mismatch')
+    expect(m.value).toBeNull()
+  })
+})

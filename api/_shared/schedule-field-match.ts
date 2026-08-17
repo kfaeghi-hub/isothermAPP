@@ -111,7 +111,36 @@ export function splitUnit(label: string): { term: string; unit: string | null } 
   return { term: m[1].trim(), unit: unit || null }
 }
 
-/** Two unit strings that mean the same thing written differently. */
+/**
+ * Drawing-practice unit variants → canonical, WHITELIST POSTURE (ruled
+ * 2026-08-17). Matched EXACTLY, case-sensitively — never blanket case-folding,
+ * and the reason is the SI prefix hazard: mW and MW differ by nine orders of
+ * magnitude, and a case-fold that "tidies" one invents megawatts out of a
+ * standby-power column. A pinned test keeps that refusal refusing.
+ *
+ * Each entry is a VOCABULARY FACT with its own test, grounded in the fleet
+ * survey of from_schedule readings (2026-08-17: 110 units): L/S ×31 and
+ * Lit/S ×58 — the Central Tech refusals, 30 readings unbridgeable solely on
+ * case; KW ×89; MM ×132; Kg ×55 / KG ×3. Variants with no declared-field
+ * target to normalize INTO (BTU/HR, FT.W.G) are deliberately absent — a
+ * normalization that lands nowhere is a mapping nobody can verify.
+ */
+const UNIT_NORMALIZATION: Record<string, string> = {
+  'L/S': 'L/s',
+  'Lit/S': 'L/s',
+  'KW': 'kW',
+  'MM': 'mm',
+  'Kg': 'kg',
+  'KG': 'kg',
+}
+
+/** Two unit strings that mean the same thing written differently.
+ *
+ *  LEGACY MECHANISM, grandfathered: the lookup lowercases its input, which is
+ *  exactly the blanket case-folding the whitelist above forbids — safe only
+ *  because none of these entries has a case-sensitive sibling (no watts, no
+ *  prefixed SI units). NEW variants go in UNIT_NORMALIZATION, exact-keyed,
+ *  never here. */
 const UNIT_SYNONYMS: Record<string, string> = {
   '"': 'in', 'inch': 'in', 'inches': 'in', 'nps': 'in',
   'lbs': 'lb', 'pounds': 'lb',
@@ -123,6 +152,9 @@ const UNIT_SYNONYMS: Record<string, string> = {
 const canonUnit = (u: string | null): string | null => {
   if (!u) return null
   const k = u.trim()
+  // whitelist first — an exact drawing-practice variant beats every other rule
+  const norm = UNIT_NORMALIZATION[k]
+  if (norm) return norm
   return UNIT_SYNONYMS[k.toLowerCase()] ?? k
 }
 

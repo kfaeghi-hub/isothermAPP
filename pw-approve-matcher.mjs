@@ -52,8 +52,10 @@ const NAMEPLATE_A = {  // the full dialect, compound fillable
   'MOTOR INPUT [V/Ph/Hz]': '208/3/60', 'VFD': 'YES', 'VFD INPUT [V/Ph/Hz]': '208/1/60',
   'LIQUID': 'WATER', 'LIQUID TEMP [°F]': '180', 'MANUFACTURER': 'ZZ-MFR', 'MODEL': 'ZZ-MODEL', 'QTY': '1',
 }
-const NAMEPLATE_B = {  // the dash: compound must REFUSE WHOLE
-  'FLOW [GPM]': '50', 'MOTOR INPUT [V/Ph/Hz]': '-', 'VFD': 'NO',
+const NAMEPLATE_B = {  // the dash: compound must REFUSE WHOLE — and the
+  // drawing-caps unit: L/S normalizes to L/s (whitelist, ruled 2026-08-17;
+  // the Central Tech refusal class), so the value lands VERBATIM, no bridge.
+  'FLOW [L/S]': '5.2', 'MOTOR INPUT [V/Ph/Hz]': '-', 'VFD': 'NO',
 }
 
 const { data: up, error: upErr } = await svc.from('intake_uploads').insert({
@@ -127,6 +129,8 @@ try {
     'the dash REFUSES WHOLE — 1 part vs 3 fields, no electrical field written on pump B')
   check((eqB?.nameplate_extra?.from_schedule ?? {})['MOTOR INPUT [V/Ph/Hz]'] === '-',
     'and the dash itself is preserved verbatim in from_schedule')
+  check(specB[K('Flow')] === '5.2',
+    `FLOW [L/S] normalizes to L/s and lands VERBATIM — the Central Tech refusal class ends (got ${JSON.stringify(specB[K('Flow')])})`)
 
   // ── unmatched-by-name is exactly the ruled leftover list ──────────────────
   const declaredNames = new Set(Object.keys(specA))
