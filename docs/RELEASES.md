@@ -29,6 +29,18 @@ explicit column widths that Word obeys — same proportions as the PDF.
 / Install ed" are now **Spec / Shop Dwg / Installed**, one line each on the
 PDF even at four units across.
 
+**Every checklist document now says when it was generated.** Footer of every
+page, every copy, every mode: "Generated 2026-08-16 — reflects register at
+generation." A checklist printed for site reflects the register as of the day
+it was printed — now the page says so, so a stale copy can't pass as current
+(that exact confusion cost a triage cycle this week).
+
+**The two nameplate-style tables now say what they're for.** The register
+matrix carries "Register record — Specified and Shop Drawing values shown
+from the project register; record Installed on site"; the write-in tables
+from the original checklist masters carry "Site record — complete during
+test."
+
 **The grey cells have a legend.** Under the nameplate table: "Shaded = not
 applicable to this column." The shading itself was already right — grey means
 the firm doesn't record that field from that source (e.g. Manufacturer is
@@ -54,6 +66,26 @@ residual, stated: Word's own cell margins still wrap the sub-headers at
 FOUR units ("Sho p Dwg") — bounded by the fixed grid now, one-line at the
 common 2–3-unit counts; the PDF is clean at all counts. Word-rendered
 before/after (Word COM export) beside the fix.
+
+**D5 stamp (ruled: every copy, every mode).** `generationStamp()` renders the
+FIRM'S calendar date (`en-CA` @ America/Toronto — UTC rolls to tomorrow at
+20:00 local, and a document "generated tomorrow" reads as an error): PDF via
+the shared footerBand on every page and mode (check_table included — one
+toPdf); DOCX as a REAL per-page Word footer (html-to-docx 4th arg), not a
+trailing paragraph. Gates: `pdf-boundary-gate` now walks all three checklist
+modes and asserts the stamp legible in each PDF's extracted text on EVERY
+page (band assertions unchanged — the longer footer line proven to clear the
+reserve); `pw-checklist-docx-tables` asserts the stamp in the docx footer
+part. Failing-first: 4 reds on pre-fix production (docx gate).
+
+**D3 captions (ruled: option a, exact wording).** Both surfaces, both
+builders, smallest type, monochrome, placed under each table's own heading so
+a break cannot orphan them. Grid content untouched per the branding rule
+(imperial units are the master's own words). Mode nuance stated rather than
+carved out: the captions render in completed mode too, where "record
+Installed on site" describes a step already taken — applied as ruled, flagged
+for wording review if it grates. The deeper Field-Copy identity-dedup
+question is banked as a campaign-class item per the ruling.
 
 **D2 — ruled abbreviations** shipped in both builders, one pass. **D4 —
 shading measured cell-by-cell against the def matrix in both families:

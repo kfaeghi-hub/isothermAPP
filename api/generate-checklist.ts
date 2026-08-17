@@ -267,6 +267,9 @@ const CSS = `
   .np-blocked { background: #E5E5E5 !important; }
   /* D4 legend — smallest type on the page, monochrome (the ruling's words). */
   .np-legend { font-size: 6.5pt; color: #666666; margin: 2px 0 0 2px; }
+  /* D3 captions (ruled 2026-08-16) — bound to the table's own heading block so
+     a page break cannot orphan them from their subject. */
+  .tbl-cap { font-size: 6.5pt; color: #666666; margin: 0 0 3px 2px; page-break-after: avoid; }
   .empty-dash { color: #999999; }
   /* Blank mode: fillable cells must be CLEAN WHITE for handwriting — zebra striping
      would read as almost the same grey as the not-applicable shade on paper. */
@@ -728,6 +731,7 @@ function buildChecklistHtml(d: DocData): string {
         const gWidths = [22, ...Array(targets.length * nc).fill(gW)]
         return `
       <h2 class="sec">${esc(grid.title)}${titleSuffix}</h2>
+      <p class="tbl-cap">Site record — complete during test.</p>
       <table>
         ${colgroup(gWidths)}
         <thead>
@@ -843,6 +847,7 @@ function buildChecklistHtml(d: DocData): string {
 
   ${targetsAreSystems(responseTargets) ? '' : `
   <h2 class="sec">Equipment Nameplate Data</h2>
+  <p class="tbl-cap">Register record — Specified and Shop Drawing values shown from the project register; record Installed on site.</p>
   <table>
     ${colgroup(npWidths)}
     <thead>
@@ -1006,6 +1011,7 @@ function buildChecklistDocxHtml(d: DocData): { html: string; tableGrids: number[
 
         return `
       <h2>${esc(grid.title)}${titleSuffix}</h2>
+      <p style="font-size:6.5pt;color:#666666;margin:0 0 3px 2px;">Site record — complete during test.</p>
       <table ${T}>
         <thead>
           <tr><th ${THL} rowspan="2"></th>${gUnitThs}</tr>
@@ -1113,6 +1119,7 @@ ${mode === 'blank' && audience === 'contractor' ? `<p style="background-color:#F
 
 ${targetsAreSystems(responseTargets) ? '' : `
 <h2>Equipment Nameplate Data</h2>
+<p style="font-size:6.5pt;color:#666666;margin:0 0 3px 2px;">Register record — Specified and Shop Drawing values shown from the project register; record Installed on site.</p>
 <table ${T}>
   <thead>
     <tr><th ${THL} rowspan="2"></th>${npUnitThs}</tr>
@@ -1160,6 +1167,19 @@ ${signoffs.length > 0 ? `
   return { html, tableGrids }
 }
 
+// ── The generation stamp (D5 ruling, 2026-08-16) ───────────────────────────────
+// Every copy, every mode: a stale artifact cost a triage cycle because nothing
+// on the page said WHEN it was true (the boiler-rows specimen — generated while
+// BP-1/BP-2 were mistyped, read as current weeks later). Blank copies travel to
+// site and outlive their register state, so the page itself carries the date.
+function generationStamp(): string {
+  // The FIRM'S calendar date, not UTC: toISOString rolls to tomorrow at 20:00
+  // Toronto time, and a document "generated tomorrow" reads as an error.
+  // en-CA formats as YYYY-MM-DD.
+  const d = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
+  return `Generated ${d} — reflects register at generation`
+}
+
 // ── PDF via Puppeteer + @sparticuz/chromium-min ────────────────────────────────
 // Footer via displayHeaderFooter (NOT position:fixed, which clips rows at page breaks).
 // top: 0.5in gives continuation pages their margin.
@@ -1185,7 +1205,7 @@ async function toPdf(html: string, landscape = false): Promise<Buffer> {
       margin: { top: '0.5in', right: '0', bottom: PDF_BOTTOM_RESERVE, left: '0' },
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
-      footerTemplate: footerBand(`${FIRM_NAME} &nbsp;|&nbsp; ${FIRM_ADDR} &nbsp;|&nbsp; ${FIRM_PHONE} &nbsp;|&nbsp; ${FIRM_EMAIL} &nbsp;&bull;&nbsp; Page <span class="pageNumber"></span> of <span class="totalPages"></span>`),
+      footerTemplate: footerBand(`${FIRM_NAME} &nbsp;|&nbsp; ${FIRM_ADDR} &nbsp;|&nbsp; ${FIRM_PHONE} &nbsp;|&nbsp; ${FIRM_EMAIL} &nbsp;&bull;&nbsp; Page <span class="pageNumber"></span> of <span class="totalPages"></span> &nbsp;&bull;&nbsp; ${generationStamp()}`),
     })
     return Buffer.from(pdf)
   } finally {
@@ -1204,14 +1224,17 @@ async function toDocx(html: string, tableGrids: number[][] | null = null): Promi
       .join('; ')
     return filtered ? `${tag} style="${filtered}"` : tag
   })
+  // The D5 stamp rides a REAL per-page Word footer (4th arg), not a trailing
+  // paragraph — a paragraph scrolls away with the content; a footer is on every
+  // page the way the ruling reads ("every copy, every mode").
   const result = await HTMLtoDOCX(safeHtml, null, {
     table:   { row: { cantSplit: true } },
     margins: { top: 720, right: 1080, bottom: 900, left: 1080, header: 708, footer: 708, gutter: 0 },
     font:    'Arial',
     fontSize: 20,
-    footer:  false,
+    footer:  true,
     header:  false,
-  })
+  }, `<p style="font-size:6.5pt;color:#666666;text-align:center;">${generationStamp()}</p>`)
   const buffer = Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
   return tableGrids ? await fixDocxTables(buffer, tableGrids) : buffer
 }
