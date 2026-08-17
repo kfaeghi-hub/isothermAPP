@@ -81,7 +81,7 @@ function assertDocx(name, xml, opts = {}) {
   }
 }
 
-const CLEAN = { meetingId: null, slugBase: null }
+const CLEAN = { meetingId: null, slugBase: null, istPlanId: null, istBase: null }
 try {
   // ── site report: the standing ZZ fixture, regenerated in place ────────────
   const { data: reports } = await svc.from('site_reports').select('id, report_number')
@@ -120,9 +120,57 @@ try {
       assertDocx('minutes', xml)
     }
   }
+  // ── IST: seeded minimal plan, generated through the real endpoint ─────────
+  // (owner-ruled 2026-08-17: the fourth family joins the treatment; grids are
+  // DERIVED from the html's own inline widths, so the leg asserts the same
+  // mechanism the other families pin.)
+  const IST_LABEL = 'ZZ-DOCX-GATE'
+  {
+    const { data: stale } = await svc.from('ist_plans').select('id').eq('project_id', ZZ).eq('revision_label', IST_LABEL)
+    for (const p of stale ?? []) await svc.from('ist_plans').delete().eq('id', p.id)
+  }
+  const { data: istPlan, error: istErr } = await svc.from('ist_plans').insert({
+    project_id: ZZ, revision_label: IST_LABEL, revision_date: '2026-08-17',
+    description: 'docx-tables gate fixture',
+  }).select('id').single()
+  check(!istErr && !!istPlan, `a fixture IST plan seeds (${istErr?.message ?? 'ok'})`)
+  if (istPlan) {
+    CLEAN.istPlanId = istPlan.id
+    CLEAN.istBase = `${ZZ}/IST-${IST_LABEL}-report`
+    const { data: sysA } = await svc.from('ist_systems').insert({
+      plan_id: istPlan.id, label: 'Fire Alarm', sort_order: 0 }).select('id').single()
+    const { data: sysB } = await svc.from('ist_systems').insert({
+      plan_id: istPlan.id, label: 'Sprinkler System', sort_order: 1 }).select('id').single()
+    await svc.from('ist_integrations').insert({
+      plan_id: istPlan.id, system_a_id: sysA.id, system_b_id: sysB.id,
+      integration_type: 'Alarm Condition', attachment_label: 'A-1', sort_order: 0,
+      normal_mode_behavior: 'No off-normal condition.', offnormal_mode_behavior: 'Signal transmitted and received.',
+    })
+    const gen = await api('/api/generate-report', { document: 'ist', plan_id: istPlan.id, mode: 'report' })
+    check(gen.status === 200, `generate-report document=ist returns 200 (got ${gen.status}${gen.body?.error ? ` — ${gen.body.error}` : ''})`)
+    // The IST response carries bucket-relative paths; sign via the service
+    // client — this gate asserts the docx TABLE mechanism, not the signing wall
+    // (pw-ist-evidence owns that surface).
+    const { data: istSig } = await svc.storage.from('site-reports').createSignedUrl(gen.body?.storage_url ?? '', 300)
+    check(!!istSig?.signedUrl, 'the IST docx path signs via storage')
+    if (istSig?.signedUrl) {
+      const buf = Buffer.from(await (await fetch(istSig.signedUrl)).arrayBuffer())
+      const xml = await (await JSZip.loadAsync(buf)).file('word/document.xml').async('string')
+      assertDocx('ist', xml)
+    }
+  }
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
 } finally {
+  if (CLEAN.istPlanId) {
+    await svc.from('ist_plans').delete().eq('id', CLEAN.istPlanId)
+    if (CLEAN.istBase) {
+      await svc.storage.from('site-reports').remove([`${CLEAN.istBase}.pdf`, `${CLEAN.istBase}.docx`]).catch(() => {})
+    }
+    const { count: istLeft } = await svc.from('ist_plans').select('id', { count: 'exact', head: true }).eq('id', CLEAN.istPlanId)
+    console.log(`cleanup: fixture IST plan rows left ${istLeft} (must be 0) · storage objects removed best-effort`)
+    if (istLeft !== 0) fails.push('cleanup left the fixture IST plan on ZZ-TEST')
+  }
   if (CLEAN.meetingId) {
     await svc.from('meetings').delete().eq('id', CLEAN.meetingId)
     if (CLEAN.slugBase) {
