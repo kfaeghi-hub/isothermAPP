@@ -27,6 +27,15 @@
         "value": "arial",
         "createdAt": "2026-08-17T00:24:07.624Z",
         "reason": "Owner-ruled 2026-08-16: Arial is the standing generated-document identity; a typeface change is a document-identity ruling of the navy-to-purple class and arrives as an owner decision, not a lint suggestion."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/pages/CxIndexPage.tsx"
+        ],
+        "createdAt": "2026-08-17T22:41:23.604Z",
+        "reason": "Owner-confirmed false positives 2026-08-17: flagged lines are ternary/variant class strings where gray text and tinted backgrounds are mutually exclusive states (gray renders only on white; tints carry same-hue text). See RELEASES 1.15 / CX-INDEX-EXPORT-PROPOSAL."
       }
     ]
   }
