@@ -221,7 +221,25 @@ export function footerBand(inner: string): string {
   return `<div style="width:100%;box-sizing:border-box;padding:${6 + FOOTER_SINK_PX}px 46px 12px;text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;color:#888888;border-top:1px solid #e5e5e5;line-height:1.3;">${inner}</div>`
 }
 
-export async function toPdf(html: string, footerTemplate: string): Promise<Buffer> {
+// ── The generation stamp (D5 ruling, 2026-08-16; hoisted here 2026-08-17) ─────
+// Every copy, every mode: a stale artifact cost a triage cycle because nothing
+// on the page said WHEN it was true (the boiler-rows specimen — generated while
+// BP-1/BP-2 were mistyped, read as current weeks later). Blank copies travel to
+// site and outlive their register state, so the page itself carries the date.
+//
+// HOISTED from generate-checklist.ts for the Cx Index export (Phase 2 of
+// CX-INDEX-EXPORT-PROPOSAL.md): D5 says every copy of every mode, and a stamp
+// private to one generator makes that a per-family re-implementation. Function
+// body unchanged; the checklist imports it now.
+export function generationStamp(): string {
+  // The FIRM'S calendar date, not UTC: toISOString rolls to tomorrow at 20:00
+  // Toronto time, and a document "generated tomorrow" reads as an error.
+  // en-CA formats as YYYY-MM-DD.
+  const d = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
+  return `Generated ${d} — reflects register at generation`
+}
+
+export async function toPdf(html: string, footerTemplate: string, landscape = false): Promise<Buffer> {
   const execPath = await chromium.executablePath(CHROMIUM_PACK_URL)
 
   const browser = await puppeteer.launch({
@@ -237,6 +255,11 @@ export async function toPdf(html: string, footerTemplate: string): Promise<Buffe
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
     const pdf = await page.pdf({
       format: 'letter',
+      // Landscape added for the Cx Index export (Phase 2). Default false —
+      // every existing caller renders portrait exactly as before; the
+      // checklist's own toPdf keeps its independent copy per its recorded
+      // reason and is not affected by this parameter.
+      landscape,
       printBackground: true,
       // top/bottom margins managed here so Puppeteer owns the footer zone;
       // position:fixed footer removed from HTML to prevent overlay clipping rows.

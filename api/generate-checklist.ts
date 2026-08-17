@@ -13,7 +13,7 @@ import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shar
 // different and merging them would risk pagination. Only the VALUES are shared
 // (identity ruling, 2026-07-26): 25 of the old 104 hex literals lived in this
 // file's private copies, which is why "change doc-common and you're done" was false.
-import { DOC, DOC_SEMANTIC, PDF_BOTTOM_RESERVE, footerBand } from './_shared/doc-common.js'
+import { DOC, DOC_SEMANTIC, PDF_BOTTOM_RESERVE, footerBand, generationStamp } from './_shared/doc-common.js'
 
 const CHROMIUM_PACK_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar'
@@ -1167,18 +1167,10 @@ ${signoffs.length > 0 ? `
   return { html, tableGrids }
 }
 
-// ── The generation stamp (D5 ruling, 2026-08-16) ───────────────────────────────
-// Every copy, every mode: a stale artifact cost a triage cycle because nothing
-// on the page said WHEN it was true (the boiler-rows specimen — generated while
-// BP-1/BP-2 were mistyped, read as current weeks later). Blank copies travel to
-// site and outlive their register state, so the page itself carries the date.
-function generationStamp(): string {
-  // The FIRM'S calendar date, not UTC: toISOString rolls to tomorrow at 20:00
-  // Toronto time, and a document "generated tomorrow" reads as an error.
-  // en-CA formats as YYYY-MM-DD.
-  const d = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
-  return `Generated ${d} — reflects register at generation`
-}
+// ── The generation stamp (D5 ruling) ──────────────────────────────────────────
+// HOISTED to doc-common 2026-08-17 (Cx Index export Phase 2): D5 says every
+// copy of every mode, and a stamp private to one generator made that a
+// per-family re-implementation. Imported above; body unchanged there.
 
 // ── PDF via Puppeteer + @sparticuz/chromium-min ────────────────────────────────
 // Footer via displayHeaderFooter (NOT position:fixed, which clips rows at page breaks).
