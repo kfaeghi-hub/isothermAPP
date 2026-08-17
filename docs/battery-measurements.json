@@ -193,5 +193,20 @@
         "seconds": "22"
       }
     ]
+  },
+  {
+    "run": "ab4be5f:2026-08-16",
+    "at": "2026-08-16T23:59:50.439Z",
+    "passed": 49,
+    "of": 49,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-5007ms",
+        "passed": true,
+        "seconds": "21"
+      }
+    ]
   }
 ]
