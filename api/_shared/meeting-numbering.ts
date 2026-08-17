@@ -1,5 +1,5 @@
 // meeting-numbering — item numbers DERIVE from structure; they are not stored.
-// [KEEL] 2026-08-14, the section-numbering incident.
+// [KEEL] 2026-08-17, the section-numbering incident.
 //
 // WHAT THIS REPLACES. Numbers were stamped once at creation from a
 // meeting-global counter prefixed with the meeting number ("stamped once,

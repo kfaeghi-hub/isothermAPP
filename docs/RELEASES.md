@@ -16,6 +16,39 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.14 — 2026-08-17 (meeting item numbers follow their sections)
+
+### For the team
+
+**Meeting items now number by section.** An item under section 3 is 3.1; the
+next one there is 3.2 — no matter what order things were typed in. Delete an
+item and the ones after it close the gap; move an item to another section and
+both sections renumber themselves. The numbers in the app, the PDF, and the
+Word minutes are always the same. An item carried forward from an earlier
+meeting keeps the number it had there, shown as ↺ #2 · 3.1 — the ↺ means
+"carried", and the #2 says which meeting it came from. Existing meetings pick
+up the new numbering automatically; nothing needs re-entering.
+
+### Technical record
+
+Numbers were stored text stamped at creation from a meeting-global counter
+prefixed with the meeting number ("stamped once, never renumbered") — an item
+created under section 3 displayed 2.1; deletes left gaps forever. Ruled:
+fully-derived section-scoped numbering. One derivation
+(api/_shared/meeting-numbering.ts, shimmed for the client) feeds the meetings
+UI, both document formats in generate-minutes, and the dashboard's item lines.
+No schema change, no data migration, zero writes to live tables — topic_id and
+both sort_orders already existed; item_number persists only as the carried-item
+frozen display ('' sentinel on native rows). Carried items freeze
+origin-qualified ("#2 · 3.1") at carry time — derived numbers are unique only
+within their meeting — and are excluded from the native count; legacy carried
+numbers already encode origin and render as-is. The retention gate reversed
+with the convention, old text quoted in pw-meetings; new legs: three sections
+→ 3.1/4.1/5.1, delete closes the gap, cross-section move re-derives both
+sections, the #2 document carries derived and frozen-carried forms.
+
+---
+
 ## Update 1.13 — 2026-08-16 (maintenance cycle 2: the checklist documents)
 
 ### For the team

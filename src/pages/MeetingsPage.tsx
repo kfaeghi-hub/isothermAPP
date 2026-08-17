@@ -241,7 +241,7 @@ export function MeetingsPage({ projectId }: Props) {
     // matched to topics by title; unmatched → Old Business. The carried number is
     // FROZEN HERE, origin-qualified ("#2 · 3.1") — under derived numbering a
     // number is only unique within its meeting, so the frozen form names the
-    // meeting it came from (ruled 2026-08-14). ALL prior items are fetched, not
+    // meeting it came from (ruled 2026-08-17). ALL prior items are fetched, not
     // just open ones: the origin display of an open item depends on where it
     // sits among its section's closed siblings too.
     if (createForm.carryForward && carryInfo && carryInfo.count > 0) {

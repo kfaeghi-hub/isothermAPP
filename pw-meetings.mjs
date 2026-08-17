@@ -50,7 +50,7 @@ const modal = page.locator('div.fixed.inset-0')
 const itemRow = (num) =>
   page.locator('tr').filter({ has: page.locator('td', { hasText: new RegExp(`^${num.replace('.', '\\.')}$`) }) })
 // A carried item renders its FROZEN origin-qualified number, one form
-// everywhere: "↺ #1 · 1.1" (ruled 2026-08-14).
+// everywhere: "↺ #1 · 1.1" (ruled 2026-08-17).
 const carriedRow = (origin, num) =>
   page.locator('tr').filter({ has: page.locator('td', { hasText: new RegExp(`^↺ #${origin} · ${num.replace('.', '\\.')}$`) }) })
 
@@ -187,7 +187,7 @@ try {
   check(/Carry forward\s+2\s+open items/.test(carryText), `carry-forward offered with count (got: ${carryText.split('\n')[0]})`)
   await modal.getByRole('button', { name: 'Create Meeting' }).click()
 
-  // ── REVERSED 2026-08-14 (old text quoted per the house protocol). This leg
+  // ── REVERSED 2026-08-17 (old text quoted per the house protocol). This leg
   // asserted: "RETENTION: item 1.1 keeps its number in meeting #2" — the
   // construction convention that a carried item's number NEVER CHANGES, stamped
   // verbatim on carry. The convention reversed with section-scoped derived
@@ -213,7 +213,7 @@ try {
   await waitUntil(async () => await carriedRow(1, '1.1').count() === 1,
     { timeout: 15000, what: 'the carried render settling (server-confirmed)' })
 
-  // ── REVERSED 2026-08-14 (old text quoted): this leg asserted "new item in
+  // ── REVERSED 2026-08-17 (old text quoted): this leg asserted "new item in
   // meeting #2 numbered 2.1" — the meeting-number-prefixed global counter.
   // Now sections scope numbering: a native item under section N derives N.k,
   // counting NATIVE items only — carried items do not consume native positions.
