@@ -97,6 +97,7 @@ const SUITES = [
   'pw-deliverables',
   'pw-deliverable-access',
   'pw-directory',
+  'pw-doc-docx-tables',
   'pw-finding-register',
   'pw-generate-auth',
   'pw-intake',

@@ -2537,6 +2537,13 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   grids, so Word autofit squeezed the label column); the D2 ruled header
   abbreviations; the D4 ruled legend with its blocked-cells premise proven
   first. Real endpoint, ZZ-TEST AHU fixture, admin.
+- `pw-doc-docx-tables.mjs` — site reports and minutes hold their docx columns
+  (the doc-common half of the D1 ruling, 2026-08-16): every TOP-LEVEL table
+  declares fixed layout with exactly one integer grid summing to its width,
+  counted by the patcher's own depth walker (bundled from
+  `api/_shared/docx-tables.ts` — one instrument); the report's nested photo
+  tables stay as emitted. Standing ZZ report regenerated in place; a fixture
+  meeting seeded and removed in `finally`, resting state printed.
 - `pw-checklist-docs.mjs` — four-deliverable checklist content audit. PDF checks
   use real pdf.js text extraction (upgraded 2026-07-22 from an ASCII flate probe
   that kept two checks permanently yellow — green means green). Canonical
