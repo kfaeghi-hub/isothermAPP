@@ -170,7 +170,12 @@ try {
   check(/\b2\b/.test(groupCells), `group unions the meeting item AND the finding (got: ${groupCells.replace(/\s+/g, ' ')})`)
   await groupRow.click()
   await page.waitForTimeout(400)
-  check((await resp.innerText()).includes('900.1'), 'expanded group lists the meeting item')
+  // REVERSED 2026-08-17 (old text: asserted the STAMPED '900.1' — a synthetic
+  // stored number). Numbers derive from structure now, one derivation feeding
+  // the meeting view AND the dashboard: the seeded item sits alone under the
+  // only topic → section 1, position 1 → the dashboard must say 1.1. Asserting
+  // the stamp here would assert the drift the derivation exists to end.
+  check((await resp.innerText()).includes(`1.1 — ${MARK}`), 'expanded group lists the meeting item under its DERIVED number (1.1)')
 
   // My Items (name-matched) + Recent Activity
   check((await page.locator('[data-testid="my-items"]').innerText()).includes(`${MARK} aged finding`),
