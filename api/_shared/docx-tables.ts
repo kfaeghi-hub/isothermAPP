@@ -74,7 +74,14 @@ function patchOneTable(tbl: string, pcts: number[]): string {
   if (!/<\/w:tblPr>/.test(body)) {
     throw new Error('docx-tables: a top-level table carries no tblPr — refusing to guess where its grid belongs.')
   }
-  const tblW = Number(/<w:tblW[^>]*w:w="(\d+)"/.exec(body)?.[1] ?? 10080)
+  const declaredW = /<w:tblW[^>]*w:w="(\d+)"/.exec(body)?.[1]
+  const tblW = Number(declaredW ?? 10080)
+  // A table with NO tblW at all (some IST single-cell note blocks) gets the
+  // width its grid was computed against — fixed layout anchors on tblW + grid,
+  // and a grid summing to a width the table never declares is half a claim.
+  if (!declaredW) {
+    body = body.replace(/<w:tblPr>/, `<w:tblPr><w:tblW w:w="${tblW}" w:type="dxa"/>`)
+  }
   const widths = pcts.map(p => Math.floor((tblW * p) / 100))
   widths[widths.length - 1] += tblW - widths.reduce((a, b) => a + b, 0)
   const grid = `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`
