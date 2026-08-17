@@ -94,17 +94,23 @@ try {
   const statCell = page.locator(`td[data-col-stat="${col.id}"]`)
   await waitUntil(async () => await statCell.count() === 1 ? true : null,
     { timeout: 10000, what: 'the footer stat cell to render for the flipped column' })
-  check(/\d+\/\d+/.test(await statCell.innerText()),
-    `the stat reads K/N (found "${(await statCell.innerText()).trim()}")`)
+  const statBefore = (await statCell.innerText()).trim()
+  check(/\d+\/\d+/.test(statBefore), `the stat reads K/N (found "${statBefore}")`)
   await statCell.click()
 
   // ── Pick the first actionable type from the popover ───────────────────────
-  const markBtn = page.locator('button', { hasText: /^mark \d+ done$/ }).first()
-  await waitUntil(async () => await markBtn.count() > 0 ? true : null,
+  // Resolve the ROW first and hold it by its stable key: a locator derived
+  // from the button's text re-resolves after the re-render — when this
+  // button flips to 'complete', a text-matched locator would silently drift
+  // to a DIFFERENT type's row (the first pw run failed exactly there).
+  const anyMark = page.locator('button', { hasText: /^mark \d+ done$/ }).first()
+  await waitUntil(async () => await anyMark.count() > 0 ? true : null,
     { timeout: 8000, what: 'a type row with units to mark' })
+  const typeKey = await anyMark.evaluate(b => b.closest('[data-bulk-row]')?.getAttribute('data-bulk-row'))
+  const typeRow = page.locator(`[data-bulk-row="${typeKey}"]`)
+  const markBtn = typeRow.locator('button')
   const promised = parseInt((await markBtn.innerText()).match(/mark (\d+) done/)[1], 10)
-  const typeRow = markBtn.locator('..')
-  const typeName = (await typeRow.locator('span').first().innerText()).trim()
+  const typeName = typeKey.toUpperCase()
   console.log(`  acting on type "${typeName}" — the offer promises ${promised} units`)
 
   // ── The confirm must NAME the count; accept it ────────────────────────────
@@ -141,11 +147,19 @@ try {
     }
   })
 
-  // ── The display moves: the popover row completes ──────────────────────────
+  // ── The display moves: the row completes AND the footer K/N increments ────
   const completed = await waitUntil(async () =>
-    (await typeRow.locator('button').innerText()).trim() === 'complete' ? true : null,
+    (await markBtn.innerText()).trim() === 'complete' ? true : null,
     { timeout: 8000, what: "the type row's button to read 'complete'" })
   check(!!completed, `the popover row for "${typeName}" reads complete after the act`)
+  await page.mouse.click(200, 450)          // close the popover via its backdrop
+  const statAfter = await waitUntil(async () => {
+    const t = (await statCell.innerText()).trim()
+    return t !== statBefore ? t : null
+  }, { timeout: 8000, what: 'the footer K/N to move' })
+  const bump = (s) => s && `${parseInt(s, 10) + 1}${s.slice(String(parseInt(s, 10)).length)}`
+  check(statAfter === bump(statBefore),
+    `the footer stat moved ${statBefore} → ${statAfter} (one more type complete)`)
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
 } finally {

@@ -1573,7 +1573,7 @@ export function CxIndexPage({ projectId }: Props) {
                 const applicable = fleet.length - na
                 if (applicable === 0) return null
                 return (
-                  <div key={t} className="flex items-center gap-2 px-4 py-1.5">
+                  <div key={t} data-bulk-row={t} className="flex items-center gap-2 px-4 py-1.5">
                     <span className="flex-1 text-[11px] font-mono text-gray-700 uppercase">{t}</span>
                     <span
                       className={`text-[10px] font-mono ${done === applicable ? 'text-teal-700 font-semibold' : 'text-gray-400'}`}
