@@ -16,6 +16,62 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.16 — 2026-08-17 (the Cx Index leaves the app: PDF and Excel)
+
+### For the team
+
+**The Cx Index now exports — two buttons in the matrix's top bar.**
+
+**Export PDF** renders the whole register as a client-grade landscape
+document: one chapter per stage group, the tag and descriptor columns
+repeated on every page, statuses as print-safe marks (solid square done,
+half square in progress, dot N/A, struck square completed-then-ruled-N/A)
+with the legend on every chapter, the project and per-group percentages on
+the cover, and the generation date stamped on every page. It's a 10-minute
+download link and nothing gets filed — regenerate whenever the register
+moves. Seneca's full register runs about 157 pages.
+
+**Export Excel** builds a real workbook in your browser — the register never
+leaves your machine. Statuses are filterable text values, the header rows
+and tag columns are frozen like the screen, column headers are rotated, and
+the percentages are written as fixed values so the workbook always agrees
+with the PDF and the screen for the same register state.
+
+### Technical record
+
+Phase 2 of CX-INDEX-EXPORT-PROPOSAL.md. Commits: `83eac55` (doc-common
+alone: toPdf landscape param + generationStamp hoist, all seven
+doc-generation suites green before anything stacked on it), `4f62203` (the
+export), `480e205` / `57b34f2` / `7685038` / `5c22623` (first-live-run
+fixes, each named below).
+
+- **PDF**: `document:'index'` on generate-report's allow-list (zero slots,
+  the IST precedent). `api/_shared/cx-index-document.ts` builds the HTML;
+  percentages come from `api/_shared/cx-counting.ts` — the Phase 1 module
+  MOVED to api/_shared with a src/lib shim (meeting-numbering convention),
+  so screen, PDF and workbook share literally one rule. Ephemeral per Q2:
+  private `cx-index` bucket, unique path per mint, 10-min signed URL.
+- **Excel**: hand-rolled OOXML on JSZip, client-side (Q3). Frozen panes
+  xSplit=3/ySplit=2, native textRotation=90, inline strings, computed
+  values never formulas, D5 stamp in the sheet and the print footer.
+- **Four defects caught by running against the deployment, recorded**:
+  (1) `projects` has no `client_name` — the client is
+  `client_company_id → companies(name)`; (2) the leg's top-bar locator
+  matched an unrelated font-mono span; (3) pdf.js splits text runs at
+  ligatures — "reflects" arrives as "re|fl|ects", so the stamp assertion
+  collapses whitespace; (4) **the serverless Chromium font stack silently
+  drops U+2713** — every done cell printed blank; all four status marks are
+  now CSS-drawn, no glyph depends on a font. Plus the storage lesson: an
+  upserted object path serves CDN-stale bytes (Supabase's own guidance);
+  ephemeral mints take unique paths with a best-effort sweep.
+- **Gates**: vitest 210/210 (8 structural xlsx cases) · `pw-cx-export`
+  13/13 (D5 stamp 157/157 pages, the cover prints the screen's project %,
+  unknown document kinds refused by name, xlsx unzip-and-grep) · both
+  workbooks opened clean in **real Excel** (COM, frozen panes verified) ·
+  **LibreOffice: SKIPPED LOUDLY — not installed on this machine**; the
+  artifact awaits a LibreOffice open wherever one exists · full battery at
+  the gate (see the gate report).
+
 ## Update 1.15 — 2026-08-17 (Cx Index counts the way the work arrives)
 
 ### For the team
