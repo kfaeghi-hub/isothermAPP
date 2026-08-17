@@ -16,6 +16,74 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.15 — 2026-08-17 (Cx Index counts the way the work arrives)
+
+### For the team
+
+**Document columns now count submittals, not machines.** Shop Dwgs on a
+117-FCU project used to read 24% because 89 of 367 *rows* were ticked — a
+number nobody could say out loud. Columns like Shop Dwgs, Equipment
+Submittals, SOO and O&Ms now read **"K of N types"**: how many equipment
+types have their submittal fully closed out, of the types the project has.
+Partial fleets count toward N, not K — 0/14 today on Seneca is the honest
+number, and the near-complete types (pumps at 28/30) are one bulk-mark or
+one N/A ruling away from counting. Field and testing columns still count
+per machine, as they should.
+
+**Marking a whole type is now one action.** Click a by-type column's stat at
+the bottom of the matrix → pick the type → confirm. The confirmation tells
+you exactly how many units it will write ("Mark Shop Dwgs done for 114 FCU
+units?"), skips not-applicable units, leaves already-done ones alone, and
+records who did it. No more 117 clicks.
+
+**New numbers, all from one rule:** every stage-group band shows its section
+percentage, the top bar shows the whole project's, and each column shows its
+own at the bottom of the matrix. A collapsed group's percentage now always
+agrees with the row percentage beside it — it previously ignored
+not-applicable rulings and could disagree.
+
+**Which columns count which way is a project setting** — Edit Structure now
+has a unit/type toggle per column. The firm default covers the 12 document
+columns; Seneca's custom "SDR" column kept its old counting because it has a
+custom name — flip it in Edit Structure if you want it counted by type.
+
+### Technical record
+
+Phase 1 of CX-INDEX-EXPORT-PROPOSAL.md (ruled 2026-08-17, all ten questions
+adopted). Commits: `2f677ae` (defect fix), `00b6737` (scope column +
+mapping dry-run), `52dcf53` (seed/backfill + formulas + gesture), `8a4306f`
+(leg hardening).
+
+- **One counting rule** — `src/lib/cxCounting.ts` (`classifyCell`): overlay-N/A
+  and legacy `na` leave both sides; blank counts against; done-under-overlay
+  counts nowhere (renders struck). rowProgress, stageState and the
+  collapsed-group summary all classify through it. The collapsed summary's
+  private copy ignored `cx_cell_applicability` — the §1.2 defect, fixed first
+  per ruling Q7, on-screen numbers changed where it showed.
+- **Scope** (Q4/Q6): `scope text check in ('unit','type')` on
+  `cx_default_columns` + `project_cx_columns` (migration `cx_column_scope`);
+  12 of 88 defaults seeded `type` after the owner's red pen (Panel Schedules
+  reverted to `unit`); backfilled to 6 live projects × 12 columns as its own
+  reviewed write, ZZ-% excluded, batch record with dry-run numbers in
+  `migrations/cx-scope-seed-and-backfill.sql`. Initializer copies scope.
+- **Formulas**: `columnStat` (both grains; untyped units surfaced beside
+  by-type stats, never counted in them) + claims-weighted `rollup`
+  (Σnum/Σden, never a mean). Section % in the bands, project-wide % in the
+  top bar (Build Spec §4.1's promise), per-column stats in a sticky-bottom
+  tfoot. 17 vitest cases including the measured Seneca Shop Dwgs fixture
+  (unit 24% ↔ type 0/14).
+- **Bulk gesture** (Q5): by-type stat cell → per-type standing → one
+  confirmed act; confirmation names the count; N/A skipped; done untouched;
+  `cx_cell_values.updated_by` added (migration `cx_cell_values_updated_by`)
+  and stamped by both the single toggle and the bulk write.
+- **Gates**: vitest 202/202 · `pw-cx-counting` 9/9 (sibling-rule leg: 0% vs
+  the old rule's 14%) · `pw-cx-bulk` 10/10 (count named, exactly-N REST
+  diff, all attributed, footer K/N moves, ZZ-TEST restored to snapshot) ·
+  **full battery 52/52 in 14.2 min**. T7 sticky-header gate unaffected by
+  the tfoot.
+- The project-scope observation (Groups 10/12 milestones) is banked as
+  proposal §4.5 with a named wake condition, per the red pen.
+
 ## Update 1.14 — 2026-08-17 (meeting item numbers follow their sections)
 
 ### For the team
