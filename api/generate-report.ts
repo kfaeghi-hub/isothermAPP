@@ -500,8 +500,17 @@ export default async function handler(req: any, res: any) {
       const pdf = await toPdf(html, cxIndexFooter(), true)
 
       const store = supabase.storage.from('cx-index')
-      const path = `${project_id}/cx-index.pdf`
-      const up = await store.upload(path, pdf, { contentType: 'application/pdf', upsert: true })
+      // UNIQUE PATH PER MINT, never upsert-in-place: Supabase's CDN serves a
+      // re-uploaded path stale until propagation — the first regeneration of a
+      // register came back byte-identical to the previous render. Ephemeral
+      // artifacts get fresh paths; prior mints are swept best-effort.
+      const path = `${project_id}/cx-index-${Date.now()}.pdf`
+      const { data: old } = await store.list(project_id)
+      if (old?.length) {
+        void store.remove(old.map(o => `${project_id}/${o.name}`)).then(
+          r => { if (r.error) console.warn(`[cx-index] sweep failed (non-fatal): ${r.error.message}`) })
+      }
+      const up = await store.upload(path, pdf, { contentType: 'application/pdf' })
       if (up.error) return res.status(500).json({ error: up.error.message })
       const { data: sig, error: sErr } = await store.createSignedUrl(path, 600)
       if (sErr) return res.status(500).json({ error: sErr.message })
