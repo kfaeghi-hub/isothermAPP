@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
+import { classifyCell } from '../lib/cxCounting'
 import { Combobox } from '../components/ui/Combobox'
 import { ApplicabilityReview } from '../components/cxindex/ApplicabilityReview'
 import type { Equipment } from '../types/database'
@@ -338,16 +339,23 @@ export function CxIndexPage({ projectId }: Props) {
    * The done-on-later-N/A'd cell still RENDERS (struck through). It is the one
    * state the UI shows that the arithmetic ignores, and hiding it would quietly
    * discard a record of work someone actually did.
+   *
+   * The rule itself lives in src/lib/cxCounting.ts and every counting site on
+   * this page classifies through it — the collapsed-group summary disagreed
+   * with this % for months because it carried its own copy of the rule
+   * (CX-INDEX-EXPORT-PROPOSAL §1.2, fixed first by ruling Q7).
    */
+  const countCell = (equipId: string, colId: string) =>
+    classifyCell(isNa(equipId, colId), cells.get(`${equipId}:${colId}`))
+
   function rowProgress(equipId: string) {
     let done = 0, total = 0
     groups.forEach(g =>
       g.columns.forEach(col => {
-        if (isNa(equipId, col.id)) return
-        const s = cells.get(`${equipId}:${col.id}`)
-        if (s === 'na') return          // deprecated status, still honoured on read
+        const c = countCell(equipId, col.id)
+        if (c === 'na') return
         total++
-        if (s === 'done') done++
+        if (c === 'done') done++
       })
     )
     return { done, total }
@@ -552,9 +560,9 @@ export function CxIndexPage({ projectId }: Props) {
   const stageState = (equipId: string, g: CxStageGroup) => {
     let outstanding = 0, done = 0, na = 0
     g.columns.forEach(c => {
-      const st = cells.get(`${equipId}:${c.id}`)
-      if (isNa(equipId, c.id) || st === 'na') na++
-      else if (st === 'done') done++
+      const cls = countCell(equipId, c.id)
+      if (cls === 'na') na++
+      else if (cls === 'done') done++
       else outstanding++
     })
     return { outstanding, done, na }
@@ -909,10 +917,16 @@ export function CxIndexPage({ projectId }: Props) {
                       {/* Cells */}
                       {groups.flatMap((g, gi) => {
                         if (collapsed.has(g.id)) {
-                          // Summary cell — group progress for this row
-                          const gNa   = g.columns.filter(c => cells.get(`${equip.id}:${c.id}`) === 'na').length
-                          const gDone = g.columns.filter(c => cells.get(`${equip.id}:${c.id}`) === 'done').length
-                          const gTotal = g.columns.length - gNa
+                          // Summary cell — group progress for this row, under
+                          // THE SAME RULE as the row % (stageState → the shared
+                          // classifier). This cell used to carry its own copy
+                          // that ignored the applicability overlay, so it
+                          // disagreed with the % at the end of the same row for
+                          // any unit with overlay rows. One policy, one place.
+                          // An all-N/A group renders 100% — nothing applicable
+                          // is nothing outstanding (kept convention).
+                          const { done: gDone, outstanding: gOut } = stageState(equip.id, g)
+                          const gTotal = gDone + gOut
                           const gPct = gTotal === 0 ? 100 : Math.round((gDone / gTotal) * 100)
                           const hdr = GROUP_HDR[gi % GROUP_HDR.length].split(' ')[0] // just bg class
                           return [(
