@@ -1,10 +1,23 @@
-# Cx Index scope mapping — DRY RUN, awaiting the owner's red pen
+# Cx Index scope mapping — RULED AND SEEDED 2026-08-17
 
-**Status: PAUSED FOR RULING (Q4's confirmation note, 2026-08-17). Nothing is
-seeded.** The `scope` column exists on both column tables and every one of the
-88 defaults (and 592 project copies) reads `unit` — today's behaviour exactly.
-This table is the proposed firm-default assignment. **Mark it up; the seed
-commit executes the marked-up version, not this one.**
+**Status: the red pen came back same-day; seeded and backfilled.** Confirmed
+as proposed with **one change: Group 1 #7 (Elec. Panel Schedules / Single
+Line) stays `unit`** — a panel schedule is a per-panel artifact reviewed per
+panel; applicability keeps the column off non-electrical rows. **Final: 12 of
+88 go `type`** (the table below shows the proposal; #7's row is overridden by
+this ruling). All flags confirmed as proposed, including the loop-report
+columns staying `unit` and the Group 10/12 deferral — the project-scope
+question is banked as a named future ruling in
+[CX-INDEX-EXPORT-PROPOSAL.md §4.5](CX-INDEX-EXPORT-PROPOSAL.md).
+
+**The backfill was ruled at the pause and executed as its own reviewed
+write**: confirmed scopes flowed to all live projects' `project_cx_columns`
+(6 projects × 12 columns; ZZ-% excluded; batch record with dry-run numbers:
+[migrations/cx-scope-seed-and-backfill.sql](../migrations/cx-scope-seed-and-backfill.sql)).
+Scope changes denominators, never storage — zero facts moved; on-screen
+percentages on live projects shift where document columns now count types,
+which is the point. Any project may re-edit its own scopes afterward; §4.3
+stays true.
 
 The semantics being assigned (proposal §4, ruled Q4/Q6):
 

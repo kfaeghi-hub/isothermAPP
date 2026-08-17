@@ -352,6 +352,29 @@ unit-scoped by nature. Consistency between the row numbers and the new column
 numbers is maintained by both obeying the same N/A discipline, not by forcing
 one scope onto both axes.
 
+### 4.5 The project-scope question — banked, named, waiting on evidence
+
+*Recorded at the owner's instruction with the 2026-08-17 red pen; a question
+for a future ruling, not a threshold someone wonders about.*
+
+The scope mapping surfaced a third shape the two-value vocabulary deliberately
+does not cover: **project milestones**. Groups 10 and 12 (IST Plan Prepared,
+C&E Matrix, AHJ Acceptance, Cx Report Draft/Final, Seasonal tests, Closeout
+Report) and four Turnover columns (Permanent Power ON, Training, As-Builts,
+Master Issue Log Sign-off, Substantial Performance) are neither per-machine
+nor per-submittal — they happen once per project, and both existing scopes
+misdescribe them (`unit` makes "IST Report Issued 12%" mean nothing; `type`
+would just be a smaller nothing).
+
+They stay `unit` — today's behaviour — until there is evidence the number
+misleads someone real. **The wake condition:** a team member or client reads a
+milestone column's percentage and asks what it means, or the export ships one
+to a client. Then a `project` scope (one claim per project, complete/not) is
+its own small ruling: a one-value addition to the CHECK, a formula case that
+is trivially `0/1 or 1/1`, and a mapping pass over ~16 columns. It was not
+folded into the seed because widening a just-ruled vocabulary in its own seed
+commit is exactly the drift the ruling process exists to prevent.
+
 ### 4.3 Against the team's blanket type-average — with their own example
 
 "30 FCUs, one shop drawing" is right about the *denominator* and the proposal

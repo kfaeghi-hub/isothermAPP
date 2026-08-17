@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
-import { classifyCell } from '../lib/cxCounting'
+import { classifyCell, columnStat, rollup } from '../lib/cxCounting'
+import type { ColumnStat } from '../lib/cxCounting'
 import { Combobox } from '../components/ui/Combobox'
 import { ApplicabilityReview } from '../components/cxindex/ApplicabilityReview'
 import type { Equipment } from '../types/database'
@@ -13,6 +14,10 @@ interface CxColumn {
   stage_group_id: string
   label: string
   sort_order: number
+  /** How the column counts (Q4): 'unit' = per machine; 'type' = per submittal
+   *  claim — types complete / types in scope, complete = all applicable units
+   *  done (Q6). Editable per project like every column property (§4.3). */
+  scope: 'unit' | 'type'
 }
 
 interface CxStageGroup {
@@ -107,6 +112,7 @@ export function CxIndexPage({ projectId }: Props) {
   const [structureOpen, setStructureOpen]   = useState(false)
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingColId, setEditingColId]     = useState<string | null>(null)
+  const [bulkCol, setBulkCol]               = useState<CxColumn | null>(null)
   const [editName, setEditName]             = useState('')
   const [addingColForGroup, setAddingColForGroup] = useState<string | null>(null)
   const [newColLabel, setNewColLabel]       = useState('')
@@ -155,7 +161,7 @@ export function CxIndexPage({ projectId }: Props) {
     const [gRes, eRes, cRes, aRes] = await Promise.all([
       supabase
         .from('project_cx_stage_groups')
-        .select('id, project_id, name, sort_order, project_cx_columns(id, stage_group_id, label, sort_order)')
+        .select('id, project_id, name, sort_order, project_cx_columns(id, stage_group_id, label, sort_order, scope)')
         .eq('project_id', projectId)
         .order('sort_order'),
       supabase
@@ -232,6 +238,7 @@ export function CxIndexPage({ projectId }: Props) {
           stage_group_id: newGroup.id,
           label: dc.label,
           sort_order: dc.sort_order,
+          scope: dc.scope ?? 'unit',
         }))
       if (cols.length > 0) {
         const { error: cErr } = await supabase.from('project_cx_columns').insert(cols)
@@ -293,6 +300,7 @@ export function CxIndexPage({ projectId }: Props) {
       return m
     })
 
+    const { data: auth } = await supabase.auth.getUser()
     const { error } = next === null
       ? await supabase
           .from('cx_cell_values')
@@ -306,6 +314,7 @@ export function CxIndexPage({ projectId }: Props) {
             column_id: colId,
             status: next,
             updated_at: new Date().toISOString(),
+            updated_by: auth?.user?.id ?? null,
           },
           { onConflict: 'equipment_id,column_id' }
         )
@@ -359,6 +368,48 @@ export function CxIndexPage({ projectId }: Props) {
       })
     )
     return { done, total }
+  }
+
+  // ── The bulk gesture (ruled Q5) ─────────────────────────────────────────────
+
+  /** One confirmed act writes a type's whole fleet on a type-scoped column.
+   *  Offer-never-assert: the confirmation names the exact count; N/A units are
+   *  skipped; already-done units are left alone; every row carries updated_by
+   *  (attributable writes — a 117-row act with no author is anonymous
+   *  evidence). Storage stays per-unit: this is a gesture, not a shared status. */
+  async function bulkMarkType(col: CxColumn, typeKey: string) {
+    const fleet = equipment.filter(e => e.equipment_type === typeKey)
+    const targets = fleet.filter(e =>
+      countCell(e.id, col.id) !== 'na' &&
+      cells.get(`${e.id}:${col.id}`) !== 'done')
+    const skippedNa = fleet.filter(e => countCell(e.id, col.id) === 'na').length
+    const already = fleet.length - targets.length - skippedNa
+    if (targets.length === 0) return
+    const parts = [`Mark "${col.label}" done for ${targets.length} ${typeKey.toUpperCase()} unit${targets.length !== 1 ? 's' : ''}?`]
+    if (already > 0) parts.push(`${already} already done — untouched.`)
+    if (skippedNa > 0) parts.push(`${skippedNa} not-applicable — skipped.`)
+    if (!confirm(parts.join(' '))) return
+
+    const { data: auth } = await supabase.auth.getUser()
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('cx_cell_values').upsert(
+      targets.map(e => ({
+        project_id: projectId,
+        equipment_id: e.id,
+        column_id: col.id,
+        status: 'done',
+        updated_at: now,
+        updated_by: auth?.user?.id ?? null,
+      })),
+      { onConflict: 'equipment_id,column_id' }
+    )
+    // A half-landed bulk write is worse than a failed one — refetch the truth.
+    if (reportError(error, `mark ${col.label} done for ${typeKey}`)) { await fetchAll(); return }
+    setCells(prev => {
+      const m = new Map(prev)
+      targets.forEach(e => m.set(`${e.id}:${col.id}`, 'done'))
+      return m
+    })
   }
 
   // ── Equipment ───────────────────────────────────────────────────────────────
@@ -458,6 +509,23 @@ export function CxIndexPage({ projectId }: Props) {
     setEditingColId(null)
   }
 
+  /** Flip how a column counts (§4.3: scope is a column property like its
+   *  label). Changes denominators, never storage — no cell fact moves. */
+  async function toggleColScope(id: string, groupId: string) {
+    const g = groups.find(x => x.id === groupId)
+    const col = g?.columns.find(c => c.id === id)
+    if (!col) return
+    const next = col.scope === 'type' ? 'unit' : 'type'
+    const { error } = await supabase.from('project_cx_columns').update({ scope: next }).eq('id', id)
+    if (reportError(error, 'change how the column counts')) return
+    setGroups(prev => prev.map(x =>
+      x.id !== groupId ? x : {
+        ...x,
+        columns: x.columns.map(c => c.id === id ? { ...c, scope: next } : c),
+      }
+    ))
+  }
+
   async function moveColumn(id: string, groupId: string, dir: 'up' | 'down') {
     const g = groups.find(x => x.id === groupId)
     if (!g) return
@@ -501,7 +569,7 @@ export function CxIndexPage({ projectId }: Props) {
     const { data, error } = await supabase
       .from('project_cx_columns')
       .insert({ stage_group_id: groupId, label, sort_order: maxSort + 1 })
-      .select('id, stage_group_id, label, sort_order')
+      .select('id, stage_group_id, label, sort_order, scope')
       .single()
     // Keep the inline add row open with the typed label on failure.
     if (reportError(error, 'add the column')) return
@@ -589,6 +657,25 @@ export function CxIndexPage({ projectId }: Props) {
   const catOptions  = [...new Set(equipment.map(e => e.category).filter(Boolean))].sort() as string[]
   const filtersOn = !!(fType || fCat || fState)
 
+  // ── Phase 1 formulas: column / section / project-wide, claims-weighted ──────
+  // Computed over ALL equipment, never the filtered view — these are the
+  // register's numbers, and a filter must not quietly move them. Each column
+  // contributes claims in its own scope (unit: done/applicable units; type:
+  // types complete / types in scope); sections and the project total are
+  // Σ numerators / Σ denominators, never a mean of percentages.
+  const colStats = new Map<string, ColumnStat>()
+  groups.forEach(g => g.columns.forEach(col => {
+    colStats.set(col.id, columnStat(
+      equipment.map(e => ({ typeKey: e.equipment_type, count: countCell(e.id, col.id) })),
+      col.scope === 'type' ? 'type' : 'unit'
+    ))
+  }))
+  const groupPct = new Map<string, number | null>()
+  groups.forEach(g => {
+    groupPct.set(g.id, rollup(g.columns.map(c => colStats.get(c.id)!)).pct)
+  })
+  const projectPct = rollup([...colStats.values()]).pct
+
   /** Jump to the first match. The matrix is wider than any screen, so scrolling a
    *  row into view has to bring the STICKY TAG COLUMN with it — centring on the
    *  row and leaving the horizontal scroll where it was would land the user on
@@ -624,6 +711,12 @@ export function CxIndexPage({ projectId }: Props) {
           {filtersOn
             ? `${visible.length} of ${equipment.length} items`
             : `${equipment.length} items`} · {totalCols} columns · {totalEntries} entries
+          {projectPct !== null && (
+            <span
+              className="text-gray-600 font-semibold"
+              title="Project-wide completion — claims-weighted across every column: each column contributes its own scope's claims (units done for by-unit columns, types complete for by-type columns). Filters never change this number."
+            > · {projectPct}% complete</span>
+          )}
         </span>
         <button
           onClick={() => setReviewOpen(o => !o)}
@@ -801,7 +894,7 @@ export function CxIndexPage({ projectId }: Props) {
                   >
                     {isCollapsed
                       ? <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'inline-block', fontSize: '8px' }}>▶</span>
-                      : `▼ ${g.name}`
+                      : `▼ ${g.name}${groupPct.get(g.id) !== null ? ` · ${groupPct.get(g.id)}%` : ''}`
                     }
                   </th>
                 )
@@ -833,7 +926,9 @@ export function CxIndexPage({ projectId }: Props) {
                     key={col.id}
                     className={`${cellBg} sticky z-40 border-b border-r border-gray-200`}
                     style={{ height: '120px', top: '24px', verticalAlign: 'bottom', padding: '4px 2px' }}
-                    title={col.label}
+                    title={col.scope === 'type'
+                      ? `${col.label} — counts by type (types complete / types in scope)`
+                      : col.label}
                   >
                     <div
                       style={{
@@ -1025,6 +1120,60 @@ export function CxIndexPage({ projectId }: Props) {
               </tr>
             )}
           </tbody>
+
+          {/* ── Per-column stats (Phase 1) — sticky-bottom analogue of the
+                sticky header. By-unit columns read "NN%"; by-type columns read
+                the ruled "K/N" so the strictness reads as honesty, with the
+                full sentence (and any untyped units, surfaced never counted)
+                in the tooltip. Clicking a by-type stat opens the bulk gesture. */}
+          {equipment.length > 0 && (
+            <tfoot>
+              <tr>
+                <td className="sticky left-0 bottom-0 z-40 bg-white border-t border-r border-gray-200" />
+                <td
+                  className="sticky left-8 bottom-0 z-40 bg-white border-t border-r border-gray-200 px-2 text-[8px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
+                >
+                  % by column
+                </td>
+                {groups.flatMap(g => {
+                  if (collapsed.has(g.id)) {
+                    return [(
+                      <td key={`${g.id}-foot`} className="sticky bottom-0 z-30 bg-gray-50 border-t border-r border-gray-200" />
+                    )]
+                  }
+                  return g.columns.map(col => {
+                    const s = colStats.get(col.id)!
+                    const byType = col.scope === 'type'
+                    const text = byType
+                      ? (s.typesInScope === 0 && s.untypedApplicable === 0 ? '—' : `${s.typesComplete}/${s.typesInScope}`)
+                      : (s.unitTotal === 0 ? '—' : `${Math.round((s.unitDone / s.unitTotal) * 100)}%`)
+                    const title = byType
+                      ? `${col.label} — by type: ${s.typesComplete} of ${s.typesInScope} types complete` +
+                        ` (complete = every applicable unit done)` +
+                        (s.untypedApplicable > 0
+                          ? ` · ${s.untypedDone}/${s.untypedApplicable} untyped units not counted — type them to score them`
+                          : '') +
+                        ` · click to mark a whole type`
+                      : `${col.label} — by unit: ${s.unitDone} of ${s.unitTotal} applicable units done`
+                    return (
+                      <td
+                        key={`${col.id}-foot`}
+                        onClick={byType ? () => setBulkCol(col) : undefined}
+                        title={title}
+                        data-col-stat={col.id}
+                        className={`sticky bottom-0 z-30 border-t border-r border-gray-200 text-center whitespace-nowrap ${
+                          byType ? 'bg-teal-50/80 text-teal-800 cursor-pointer hover:bg-teal-100' : 'bg-white text-gray-500'}`}
+                        style={{ fontSize: '7px', fontWeight: 600, height: '18px' }}
+                      >
+                        {text}
+                      </td>
+                    )
+                  })
+                })}
+                <td className="sticky bottom-0 z-30 bg-white border-t border-gray-200" />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
@@ -1130,6 +1279,16 @@ export function CxIndexPage({ projectId }: Props) {
                             {col.label}
                           </span>
                         )}
+                        <button
+                          onClick={() => toggleColScope(col.id, g.id)}
+                          title={col.scope === 'type'
+                            ? 'Counts BY TYPE: types complete / types in scope (complete = every applicable unit done). Click to count by unit.'
+                            : 'Counts BY UNIT: done units / applicable units. Click to count by type (per-submittal work).'}
+                          className={`text-[8px] font-mono rounded px-1 py-0.5 shrink-0 border ${
+                            col.scope === 'type'
+                              ? 'border-teal-300 text-teal-700 bg-teal-50'
+                              : 'border-gray-200 text-gray-400 hover:text-gray-600'}`}
+                        >{col.scope === 'type' ? 'type' : 'unit'}</button>
                         <button
                           onClick={() => moveColumn(col.id, g.id, 'up')}
                           disabled={ci === 0}
@@ -1373,6 +1532,79 @@ export function CxIndexPage({ projectId }: Props) {
                 </>
               )
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk-by-type (ruled Q5): the gesture, offered from a by-type
+            column's stat cell. Lists each type's standing so the offer shows
+            its arithmetic before anyone confirms; the confirm names the count. */}
+      {bulkCol && (
+        <div
+          className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center"
+          onClick={() => setBulkCol(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl border border-gray-200 w-96 max-h-[70vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h4 className="text-[12px] font-semibold text-gray-800">
+                  {bulkCol.label} — mark by type
+                </h4>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  One confirmed act writes the whole type. Facts stay per-unit:
+                  N/A units are skipped, done units untouched.
+                </p>
+              </div>
+              <button
+                onClick={() => setBulkCol(null)}
+                className="text-gray-300 hover:text-gray-600 text-sm px-1"
+              >×</button>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {typeOptions.map(t => {
+                const fleet = equipment.filter(e => e.equipment_type === t)
+                const counts = fleet.map(e => countCell(e.id, bulkCol.id))
+                const na = counts.filter(c => c === 'na').length
+                const done = counts.filter(c => c === 'done').length
+                const remaining = fleet.length - na - done
+                const applicable = fleet.length - na
+                if (applicable === 0) return null
+                return (
+                  <div key={t} className="flex items-center gap-2 px-4 py-1.5">
+                    <span className="flex-1 text-[11px] font-mono text-gray-700 uppercase">{t}</span>
+                    <span
+                      className={`text-[10px] font-mono ${done === applicable ? 'text-teal-700 font-semibold' : 'text-gray-400'}`}
+                      title={`${done} of ${applicable} applicable units done${na ? ` · ${na} N/A` : ''}`}
+                    >
+                      {done}/{applicable}
+                    </span>
+                    <button
+                      onClick={() => void bulkMarkType(bulkCol, t)}
+                      disabled={remaining === 0}
+                      className="text-[10px] border border-teal-600 text-teal-700 rounded px-2 py-0.5 hover:bg-teal-50 disabled:opacity-30 disabled:border-gray-200 disabled:text-gray-400"
+                    >
+                      {remaining === 0 ? 'complete' : `mark ${remaining} done`}
+                    </button>
+                  </div>
+                )
+              })}
+              {(() => {
+                const untyped = equipment.filter(e => !e.equipment_type)
+                const counts = untyped.map(e => countCell(e.id, bulkCol.id))
+                const applicable = counts.filter(c => c !== 'na').length
+                if (applicable === 0) return null
+                return (
+                  <p className="px-4 py-2 text-[10px] text-amber-800 bg-amber-50">
+                    {applicable} untyped unit{applicable !== 1 ? 's' : ''} can't join a
+                    type claim and aren't counted in this column's K/N — type them
+                    on the Equipment tab to score them.
+                  </p>
+                )
+              })()}
+            </div>
           </div>
         </div>
       )}
