@@ -75,7 +75,13 @@ try {
     const tc = await (await doc.getPage(p)).getTextContent()
     pages.push(tc.items.map(i => i.str).join(' '))
   }
-  const stamped = pages.filter(t => /reflects register at generation/.test(t)).length
+  // pdf.js splits text runs at ligatures — page 1's footer arrives as
+  // "…— re" + "fl" + "ects register…", and a space-join turns "reflects" into
+  // "re fl ects" (first run failed exactly here, on all 193 pages at once —
+  // the PDF was right and the join was wrong). The stamp test collapses
+  // whitespace away; the readability join stays for the other assertions.
+  const flat = (t) => t.replace(/\s+/g, '')
+  const stamped = pages.filter(t => /reflectsregisteratgeneration/.test(flat(t))).length
   check(stamped === doc.numPages, `the D5 stamp is legible on every page (${stamped}/${doc.numPages})`)
   check(/COMMISSIONING INDEX/.test(pages[0]), 'the cover carries the title')
   check(/types complete of types in scope/.test(pages.join(' ')), 'the legend rides the document')
