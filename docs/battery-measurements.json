@@ -253,5 +253,35 @@
         "seconds": "23"
       }
     ]
+  },
+  {
+    "run": "99087af:2026-08-17",
+    "at": "2026-08-17T17:53:02.860Z",
+    "passed": 49,
+    "of": 50,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-1760ms",
+        "passed": true,
+        "seconds": "24"
+      }
+    ]
+  },
+  {
+    "run": "99087af:2026-08-17",
+    "at": "2026-08-17T18:08:44.440Z",
+    "passed": 50,
+    "of": 50,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-1692ms",
+        "passed": true,
+        "seconds": "23"
+      }
+    ]
   }
 ]
