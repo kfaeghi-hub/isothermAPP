@@ -50,7 +50,9 @@ try {
     { timeout: 20000, what: 'the matrix to paint' })
 
   // ── PREMISE: the screen states a project % ────────────────────────────────
-  const topBar = await page.locator('span.font-mono').first().innerText()
+  // Locate the counts line by its own words — the page has many font-mono
+  // spans and .first() resolved to an unrelated one on the first run.
+  const topBar = await page.locator('span', { hasText: /columns · \d+ entries/ }).first().innerText()
   const m = topBar.match(/(\d+)% complete/)
   check(!!m, `the top bar states the project % (found "${topBar.trim()}")`)
   const screenPct = m ? m[1] : null
