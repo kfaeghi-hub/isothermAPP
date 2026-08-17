@@ -81,6 +81,21 @@ try {
   check(!xml.includes('>Specified<') && !xml.includes('>Shop Drawing<'),
     'the full header words are gone (they wrapped mid-word at 3-4 units)')
 
+  // ── the D5 ruled stamp: a real per-page Word footer, every copy ────────────
+  const footerParts = Object.keys(zip.files).filter(n => /^word\/footer\d*\.xml$/.test(n))
+  let stampInFooter = false
+  for (const p of footerParts) {
+    if (/reflects register at generation/.test(await zip.file(p).async('string'))) { stampInFooter = true; break }
+  }
+  check(footerParts.length > 0, `the docx carries footer part(s) (${footerParts.length}) — the stamp rides a real footer, not a trailing paragraph`)
+  check(stampInFooter, 'the generation stamp is in the docx footer ("reflects register at generation")')
+
+  // ── the D3 ruled captions, exact wording, both surfaces ───────────────────
+  check(xml.includes('Register record — Specified and Shop Drawing values shown from the project register; record Installed on site.'),
+    'the provenance matrix carries its ruled caption')
+  check(xml.includes('Site record — complete during test.'),
+    'the CSA-derived Recorded grids carry their ruled caption')
+
   // ── the D4 ruled legend, premise proven first ─────────────────────────────
   // Blocked cells must EXIST for the legend claim to mean anything: the AHU
   // defs carry identity fields absent from spec, so shaded cells are present.

@@ -72,12 +72,20 @@ const { data: minutes } = await svc.from('meetings').select('id').eq('project_id
 const { data: plans }   = await svc.from('cx_plans').select('id').eq('project_id', ZZ).neq('status','draft').limit(1)
 const { data: insts }   = await svc.from('checklist_instances').select('id').eq('project_id', ZZ).limit(1)
 
+// The checklist family runs ALL THREE MODES (D5 stamp ruling, 2026-08-16):
+// "every copy, every mode" is the claim, so the gate walks every mode and
+// asserts the generation stamp is legible in each PDF's text — a stale blank
+// copy on site is exactly the artifact the stamp exists to date.
 const JOBS = [
   reports?.length && { family: 'report',   handler: 'generate-report',    body: { report_id: reports.at(-1).id }, table: 'site_reports',        id: reports.at(-1).id },
   minutes?.length && { family: 'minutes',  handler: 'generate-minutes',   body: { meeting_id: minutes[0].id },    table: 'meetings',            id: minutes[0].id },
   plans?.length   && { family: 'cx-plan',  handler: 'cx-plan-generate',   body: { plan_id: plans[0].id },         bucket: 'cx-plans' },
-  insts?.length   && { family: 'checklist',handler: 'generate-checklist', body: { instance_id: insts[0].id, mode: 'completed' } },
+  insts?.length   && { family: 'checklist',           handler: 'generate-checklist', body: { instance_id: insts[0].id, mode: 'completed' },                        assertStamp: true },
+  insts?.length   && { family: 'checklist-blank-fld', handler: 'generate-checklist', body: { instance_id: insts[0].id, mode: 'blank', audience: 'field' },        assertStamp: true },
+  insts?.length   && { family: 'checklist-blank-con', handler: 'generate-checklist', body: { instance_id: insts[0].id, mode: 'blank', audience: 'contractor' },   assertStamp: true },
 ].filter(Boolean)
+
+const STAMP_RE = /reflects register at generation/
 
 const H = {}
 for (const j of JOBS) H[j.handler] = await loadHandler(j.handler)
@@ -126,6 +134,16 @@ for (const j of JOBS) {
   const pages = (out.match(/^page /gm) ?? []).length
   if (hits.length) { console.log(`   ✗ ${pages} pages — ${hits.length} page(s) paint a table rule INSIDE the footer band: ${hits.join(' | ')}`); bad++ }
   else console.log(`   ✓ ${pages} pages — no table rule inside the reserved footer band`)
+
+  // ── the D5 stamp, asserted in the PDF's own text on every page ────────────
+  if (j.assertStamp) {
+    const { pdfRows } = await import('./dump-pdf.mjs')
+    const rows = await pdfRows(file)
+    const stamped = new Set(rows.filter(r => r.cells.some(c => STAMP_RE.test(c))).map(r => r.page))
+    const total = Math.max(...rows.map(r => r.page), 0)
+    if (stamped.size === total && total > 0) console.log(`   ✓ generation stamp legible on all ${total} page(s)`)
+    else { console.log(`   ✗ generation stamp on ${stamped.size}/${total} page(s) — every copy, every mode, every page`); bad++ }
+  }
 }
 
 console.log(bad ? `\nGATE FAIL — ${bad} family/families` : `\nGATE PASS — every family clears the footer band`)
