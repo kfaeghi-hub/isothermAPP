@@ -48,7 +48,11 @@ await page.setViewportSize({ width: 1600, height: 1000 })
 const modal = page.locator('div.fixed.inset-0')
 
 const itemRow = (num) =>
-  page.locator('tr').filter({ has: page.locator('td', { hasText: new RegExp(`^${num.replace('.', '\\.')}\\s*↺?$`) }) })
+  page.locator('tr').filter({ has: page.locator('td', { hasText: new RegExp(`^${num.replace('.', '\\.')}$`) }) })
+// A carried item renders its FROZEN origin-qualified number, one form
+// everywhere: "↺ #1 · 1.1" (ruled 2026-08-14).
+const carriedRow = (origin, num) =>
+  page.locator('tr').filter({ has: page.locator('td', { hasText: new RegExp(`^↺ #${origin} · ${num.replace('.', '\\.')}$`) }) })
 
 try {
   await login(page)
@@ -183,12 +187,22 @@ try {
   check(/Carry forward\s+2\s+open items/.test(carryText), `carry-forward offered with count (got: ${carryText.split('\n')[0]})`)
   await modal.getByRole('button', { name: 'Create Meeting' }).click()
 
-  await waitUntil(async () => await itemRow('1.1').count() === 1,
-    { timeout: 15000, what: 'RETENTION: item 1.1 keeps its number in meeting #2' })
-  check(await itemRow('1.1').count() === 1, 'RETENTION: item 1.1 keeps its number in meeting #2')
-  await waitUntil(async () => await itemRow('1.2').count() === 1,
-    { timeout: 15000, what: 'RETENTION: item 1.2 in meeting #2' })
-  check(await itemRow('1.2').count() === 1, 'RETENTION: item 1.2 keeps its number in meeting #2')
+  // ── REVERSED 2026-08-14 (old text quoted per the house protocol). This leg
+  // asserted: "RETENTION: item 1.1 keeps its number in meeting #2" — the
+  // construction convention that a carried item's number NEVER CHANGES, stamped
+  // verbatim on carry. The convention reversed with section-scoped derived
+  // numbering: a carried item's number is now FROZEN AND ORIGIN-QUALIFIED
+  // ("#1 · 1.1"), because derived numbers are only unique within their meeting
+  // — "1.1" exists in every meeting with a first section, so a frozen number
+  // must name the meeting it came from to keep the cross-meeting traceability
+  // the convention existed for. A NATIVE item's number derives and may shift
+  // when structure shifts; a carried item's frozen number never changes.
+  await waitUntil(async () => await carriedRow(1, '1.1').count() === 1,
+    { timeout: 15000, what: 'carried item renders frozen origin-qualified: ↺ #1 · 1.1' })
+  check(await carriedRow(1, '1.1').count() === 1, 'carried item renders ↺ #1 · 1.1 — frozen, origin named')
+  await waitUntil(async () => await carriedRow(1, '1.2').count() === 1,
+    { timeout: 15000, what: 'second carried item: ↺ #1 · 1.2' })
+  check(await carriedRow(1, '1.2').count() === 1, 'second carried item renders ↺ #1 · 1.2')
   // THE ROWS PAINTING IS NOT THE CARRY BEING CONFIRMED. The rows render
   // optimistically; the ↺ marker arrives with the server's response, and acting
   // on the view before then hands clicks to mid-reconciliation UI (the 2.1
@@ -196,15 +210,67 @@ try {
   // through a view that was still settling; the old 3000ms had been paying for
   // the round-trip). The marker IS the settled signal, so it anchors both its
   // own check and every action after it.
-  await waitUntil(async () => (await itemRow('1.1').innerText().catch(() => '')).includes('↺'),
-    { timeout: 15000, what: 'the carried marker (the server-confirmed carry render)' })
-  check((await itemRow('1.1').innerText()).includes('↺'), 'carried marker shown')
+  await waitUntil(async () => await carriedRow(1, '1.1').count() === 1,
+    { timeout: 15000, what: 'the carried render settling (server-confirmed)' })
 
-  // New item in #2 numbers from the new meeting: 2.1
+  // ── REVERSED 2026-08-14 (old text quoted): this leg asserted "new item in
+  // meeting #2 numbered 2.1" — the meeting-number-prefixed global counter.
+  // Now sections scope numbering: a native item under section N derives N.k,
+  // counting NATIVE items only — carried items do not consume native positions.
   await page.locator('[data-testid="add-item-0"]').click({ force: true })
-  await waitUntil(async () => await itemRow('2.1').count() === 1,
-    { timeout: 15000, what: 'new item in meeting #2 numbered 2.1' })
-  check(await itemRow('2.1').count() === 1, 'new item in meeting #2 numbered 2.1')
+  await waitUntil(async () => await itemRow('1.1').count() === 1,
+    { timeout: 15000, what: 'native item under section 1 deriving 1.1' })
+  check(await itemRow('1.1').count() === 1, 'native item in #2 section 1 derives 1.1 — carried items excluded from the count')
+
+  // ── the ruled derivation legs (failing-first against the old scheme) ──────
+  // three sections → 3.1 / 4.1 / 5.1
+  for (const [ti, num] of [[2, '3.1'], [3, '4.1'], [4, '5.1']]) {
+    await page.locator(`[data-testid="add-item-${ti}"]`).click({ force: true })
+    await waitUntil(async () => await itemRow(num).count() === 1,
+      { timeout: 15000, what: `item under section ${ti + 1} deriving ${num}` })
+    check(await itemRow(num).count() === 1, `item under section ${ti + 1} derives ${num}`)
+  }
+  await itemRow('3.1').locator('textarea').first().fill('First item under PFC status')
+  await itemRow('3.1').locator('textarea').first().press('Tab')
+
+  // delete → the successor closes the gap
+  await page.locator('[data-testid="add-item-2"]').click({ force: true })
+  await waitUntil(async () => await itemRow('3.2').count() === 1,
+    { timeout: 15000, what: 'second item under section 3 deriving 3.2' })
+  await itemRow('3.2').locator('textarea').first().fill('Successor item - should become 3.1')
+  await itemRow('3.2').locator('textarea').first().press('Tab')
+  await itemRow('3.1').hover()
+  await itemRow('3.1').locator('button', { hasText: '×' }).click()
+  await waitUntil(async () => {
+    const t = await itemRow('3.1').innerText().catch(() => '')
+    return t.includes('Successor item')
+  }, { timeout: 15000, what: 'the successor closing the gap to 3.1' })
+  check((await itemRow('3.1').innerText()).includes('Successor item'),
+    'delete: the successor closes the gap — the surviving item now derives 3.1')
+
+  // cross-section move → BOTH sections re-derive. The UI has no move control;
+  // a move is a structural write (topic_id), and derivation must follow
+  // structure regardless of which surface moved it.
+  {
+    const { data: mtg2 } = await sb.from('meetings')
+      .select('id').eq('project_id', ZZ).order('meeting_number', { ascending: false }).limit(1).single()
+    const { data: t2topics } = await sb.from('meeting_topics')
+      .select('id, sort_order').eq('meeting_id', mtg2.id).order('sort_order')
+    const { data: t2items } = await sb.from('meeting_items')
+      .select('id, topic_id').eq('meeting_id', mtg2.id).order('sort_order')
+    const sec4 = t2topics.find(t => t.sort_order === 3)   // displays as section 4
+    const sec6 = t2topics.find(t => t.sort_order === 5)   // displays as section 6
+    const item41 = t2items.find(i => i.topic_id === sec4?.id)
+    await sb.from('meeting_items').update({ topic_id: sec6.id }).eq('id', item41.id)
+    // reload drops selectedId — re-open meeting #2 from the list before reading
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByRole('button', { name: 'Meetings', exact: true }).click()
+    await page.locator('button', { hasText: '#2' }).first().click()
+    await waitUntil(async () => await itemRow('6.1').count() === 1,
+      { timeout: 15000, what: 'the moved item re-deriving as 6.1' })
+    check(await itemRow('6.1').count() === 1, 'cross-section move: the item re-derives in its new section (6.1)')
+    check(await itemRow('4.1').count() === 0, 'and the old section re-derives too — 4.1 is gone, not orphaned')
+  }
 
   // ── Close-carried-item isolation ─────────────────────────────────────────
   //
@@ -216,18 +282,41 @@ try {
   // classifier itself; pattern generalized the same day.) The sound shape is
   // the house one: anchor the ARRIVAL of the close on MEETING #2's copy, then
   // assert meeting #1's copy did not move.
-  await itemRow('1.1').locator('select').nth(1).selectOption('closed')
+  // (native items store item_number '' now — the carried copy is found by its
+  //  FROZEN stored number; the #1 original by its discussion)
+  await carriedRow(1, '1.1').locator('select').nth(1).selectOption('closed')
   const { data: mtg2row } = await sb.from('meetings')
     .select('id').eq('project_id', ZZ).neq('id', mtg1.id).single()
   await waitUntil(async () => {
     const { data } = await sb.from('meeting_items')
-      .select('status').eq('meeting_id', mtg2row.id).eq('item_number', '1.1').single()
+      .select('status').eq('meeting_id', mtg2row.id).eq('item_number', '#1 · 1.1').single()
     return data?.status === 'closed'
-  }, { timeout: 15000, what: 'the close landing on meeting #2’s copy of 1.1' })
+  }, { timeout: 15000, what: 'the close landing on meeting #2’s carried copy' })
   const { data: m1items } = await sb.from('meeting_items')
-    .select('item_number, status').eq('meeting_id', mtg1.id)
-  const orig11 = (m1items ?? []).find(i => i.item_number === '1.1')
-  check(orig11?.status === 'open', 'ISOLATION: closing carried 1.1 in #2 leaves #1 frozen (still open)')
+    .select('discussion, status').eq('meeting_id', mtg1.id)
+  const orig11 = (m1items ?? []).find(i => (i.discussion ?? '').includes('BAS graphics review'))
+  check(orig11?.status === 'open', 'ISOLATION: closing the carried copy in #2 leaves #1 frozen (still open)')
+
+  // ── Meeting #2 document: both formats derive from the same source, so the
+  //    docx text is the assertion surface — derived native numbers AND the
+  //    frozen origin-qualified carried form must both appear.
+  await page.locator('[data-testid="generate-minutes"]').click()
+  const gen2T0 = Date.now()
+  let mtg2gen = null
+  while (Date.now() - gen2T0 < 90_000) {
+    const { data } = await sb.from('meetings').select('id, storage_url, issued_at')
+      .eq('id', mtg2row.id).single()
+    if (data?.storage_url && data?.issued_at) { mtg2gen = data; break }
+    await new Promise(r => setTimeout(r, 500))
+  }
+  check(!!mtg2gen, 'meeting #2 generated')
+  if (mtg2gen) {
+    const url2 = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'docx' })
+    const txt2 = docxXml(Buffer.from(await (await fetch(url2)).arrayBuffer())).replace(/<[^>]+>/g, ' ')
+    check(txt2.includes('#1 · 1.1'), 'doc: carried item renders its frozen origin-qualified number (#1 · 1.1)')
+    check(txt2.includes('Successor item'), 'doc: the gap-closing item is present')
+    check(/3\.1/.test(txt2), 'doc: derived section numbers render (3.1)')
+  }
 
   // ── Self-clean via ADMIN (issued meeting #1 is a frozen record for employees —
   // its delete correctly requires owner rights under access control) ─────────

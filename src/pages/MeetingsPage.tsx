@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { authedFetch, apiErrorMessage } from '../lib/api'
@@ -10,6 +10,7 @@ import { FindingPicker, type PickerFinding } from '../components/FindingPicker'
 import { useAuth } from '../contexts/AuthContext'
 import type { Meeting, MeetingType, MeetingTopic, MeetingAttendee, MeetingItem } from '../types/database'
 import { canDeleteMeeting } from '../lib/capabilities'
+import { deriveItemNumbers, frozenCarryNumber } from '../lib/meetingNumbering'
 
 // ── Local types ────────────────────────────────────────────────────────────
 
@@ -237,15 +238,23 @@ export function MeetingsPage({ projectId }: Props) {
     }
 
     // Carry-forward: open items from the most recent prior meeting of this type,
-    // ORIGINAL numbers retained, matched to topics by title; unmatched → Old Business.
+    // matched to topics by title; unmatched → Old Business. The carried number is
+    // FROZEN HERE, origin-qualified ("#2 · 3.1") — under derived numbering a
+    // number is only unique within its meeting, so the frozen form names the
+    // meeting it came from (ruled 2026-08-14). ALL prior items are fetched, not
+    // just open ones: the origin display of an open item depends on where it
+    // sits among its section's closed siblings too.
     if (createForm.carryForward && carryInfo && carryInfo.count > 0) {
       const priorId = carryInfo.prior.id
       const [piRes, ptRes] = await Promise.all([
-        supabase.from('meeting_items').select('*').eq('meeting_id', priorId).eq('status', 'open').order('sort_order'),
-        supabase.from('meeting_topics').select('id, title').eq('meeting_id', priorId),
+        supabase.from('meeting_items').select('*').eq('meeting_id', priorId).order('sort_order'),
+        supabase.from('meeting_topics').select('id, title, sort_order').eq('meeting_id', priorId),
       ])
-      const priorItems  = (piRes.data ?? []) as MeetingItem[]
-      const priorTopics = new Map(((ptRes.data ?? []) as MeetingTopic[]).map(t => [t.id, t.title]))
+      const priorAll    = (piRes.data ?? []) as MeetingItem[]
+      const priorItems  = priorAll.filter(i => i.status === 'open')
+      const priorTopicRows = (ptRes.data ?? []) as MeetingTopic[]
+      const priorTopics = new Map(priorTopicRows.map(t => [t.id, t.title]))
+      const originDisplay = deriveItemNumbers(priorTopicRows, priorAll)
       const topicByTitle = new Map(newTopics.map(t => [t.title.trim().toLowerCase(), t.id]))
 
       let oldBusinessId: string | null = null
@@ -267,7 +276,7 @@ export function MeetingsPage({ projectId }: Props) {
         const { error: itemErr } = await supabase.from('meeting_items').insert({
           meeting_id: mtg.id,
           topic_id: targetTopic,
-          item_number: it.item_number,          // construction convention: number never changes
+          item_number: frozenCarryNumber(carryInfo.prior.meeting_number, it, originDisplay),
           carried_from_item_id: it.id,
           discussion: it.discussion,
           responsible_assignment_id: it.responsible_assignment_id,
@@ -414,23 +423,21 @@ export function MeetingsPage({ projectId }: Props) {
 
   // ── Items ───────────────────────────────────────────────────────────────
 
-  function nextItemNumber(): string {
-    if (!meeting) return '0.1'
-    const prefix = `${meeting.meeting_number}.`
-    const seqs = items
-      .filter(i => i.item_number.startsWith(prefix))
-      .map(i => parseInt(i.item_number.slice(prefix.length), 10))
-      .filter(n => !isNaN(n))
-    const next = seqs.length ? Math.max(...seqs) + 1 : 1
-    return `${meeting.meeting_number}.${next}`
-  }
+  // NUMBERS ARE DERIVED, NOT STAMPED (reversed 2026-08-14; the old code said
+  // `item_number: nextItemNumber(), // stamped once, never renumbered` and
+  // counted meeting-globally with the meeting number as prefix — which is how
+  // an item created under section 3 displayed 2.1). item_number persists as ''
+  // on native items (the column is NOT NULL; the sentinel is never displayed)
+  // and carries the frozen origin-qualified number on carried items only.
+  const displayNumbers = useMemo(
+    () => deriveItemNumbers(topics, items), [topics, items])
 
   async function addItem(topicId: string) {
     if (!meeting) return
     const maxSort = items.reduce((m, i) => Math.max(m, i.sort_order), -1)
     const { error } = await supabase.from('meeting_items').insert({
       meeting_id: meeting.id, topic_id: topicId,
-      item_number: nextItemNumber(),      // stamped once, never renumbered
+      item_number: '',
       discussion: '',
       sort_order: maxSort + 1,
     })
@@ -680,8 +687,10 @@ export function MeetingsPage({ projectId }: Props) {
                           return (
                             <tr key={it.id} className="border-b border-gray-50 group align-top">
                               <td className="pl-5 pr-2 py-1.5 w-14 font-mono text-[11px] text-gray-500 whitespace-nowrap">
-                                {it.item_number}
-                                {it.carried_from_item_id && <span title="Carried forward" className="text-amber-500 ml-0.5">↺</span>}
+                                <span title={it.carried_from_item_id ? 'Carried forward — frozen origin number' : undefined}
+                                  className={it.carried_from_item_id ? 'text-amber-600' : undefined}>
+                                  {displayNumbers.get(it.id) ?? it.item_number}
+                                </span>
                               </td>
                               <td className="px-2 py-1 w-[42%]">
                                 <textarea

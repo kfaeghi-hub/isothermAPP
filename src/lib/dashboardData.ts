@@ -9,6 +9,7 @@ import {
   DELIVERABLE_OVERDUE_GRACE_DAYS, daysSince,
 } from './dashboardThresholds'
 import { isOverdue } from './deliverables'
+import { deriveItemNumbers } from './meetingNumbering'
 import type { DeliverableStatus } from '../types/database'
 
 // ── Shared per-project stats (portfolio card + project Overview header) ──────
@@ -175,7 +176,7 @@ export async function fetchDashboard(profileName: string, profileId?: string): P
     supabase.from('projects').select('id, name, com_number, status, start_date, finish_date, created_at, companies(name)'),
     supabase.from('findings').select('id, project_id, number, title, status, date_raised, date_closed, category, created_at, identified_by, responsible_party_id, contacts(company_id, companies(name, abbreviation))'),
     supabase.from('meeting_items')
-      .select('id, item_number, discussion, due_date, status, responsible_assignment_id, responsible_text, created_at, meetings(project_id, meeting_number, meeting_types(name))')
+      .select('id, meeting_id, item_number, discussion, due_date, status, responsible_assignment_id, responsible_text, created_at, meetings(project_id, meeting_number, meeting_types(name))')
       .eq('status', 'open'),
     supabase.from('meetings').select('id, project_id, meeting_number, status, created_at, issued_at, prepared_by, meeting_types(name)'),
     supabase.from('site_reports').select('id, project_id, report_number, report_date, created_at, updated_at, storage_url, authored_by'),
@@ -201,6 +202,39 @@ export async function fetchDashboard(profileName: string, profileId?: string): P
   }))
   const findings = (fRes.data ?? []) as any[]
   const meetingItems = (miRes.data ?? []) as any[]
+
+  // Item numbers DERIVE from meeting structure (2026-08-14) — the dashboard
+  // must show the same number the meeting shows, one derivation, not a stale
+  // stamped copy. Full context (all items + topics of the affected meetings)
+  // is fetched because an open item's position depends on its closed siblings.
+  // On any shortfall the map misses and display falls back to the stored
+  // number — degraded, never blank.
+  const itemDisplay = new Map<string, string>()
+  {
+    const ids = [...new Set(meetingItems.map(i => i.meeting_id).filter(Boolean))]
+    if (ids.length) {
+      const [tRes, aiRes] = await Promise.all([
+        supabase.from('meeting_topics').select('id, meeting_id, sort_order').in('meeting_id', ids).limit(5000),
+        supabase.from('meeting_items')
+          .select('id, meeting_id, topic_id, sort_order, created_at, item_number, carried_from_item_id')
+          .in('meeting_id', ids).limit(5000),
+      ])
+      const topicsByMtg = new Map<string, any[]>()
+      for (const t of tRes.data ?? []) {
+        if (!topicsByMtg.has(t.meeting_id)) topicsByMtg.set(t.meeting_id, [])
+        topicsByMtg.get(t.meeting_id)!.push(t)
+      }
+      const itemsByMtg = new Map<string, any[]>()
+      for (const it of aiRes.data ?? []) {
+        if (!itemsByMtg.has(it.meeting_id)) itemsByMtg.set(it.meeting_id, [])
+        itemsByMtg.get(it.meeting_id)!.push(it)
+      }
+      for (const [mid, its] of itemsByMtg) {
+        for (const [id, disp] of deriveItemNumbers(topicsByMtg.get(mid) ?? [], its)) itemDisplay.set(id, disp)
+      }
+    }
+  }
+  const itemNum = (i: any) => itemDisplay.get(i.id) ?? i.item_number
   const meetings = (mRes.data ?? []) as any[]
   const reports = (srRes.data ?? []) as any[]
   const instances = (ciRes.data ?? []) as any[]
@@ -228,7 +262,7 @@ export async function fetchDashboard(profileName: string, profileId?: string): P
     if (!mtg) continue
     queue.push({
       kind: 'overdue_item', projectId: mtg.project_id,
-      description: `Item ${i.item_number} — ${i.discussion || '(no discussion)'}`,
+      description: `Item ${itemNum(i)} — ${i.discussion || '(no discussion)'}`,
       detail: `due ${i.due_date}`, ageDays: daysSince(i.due_date) ?? 0, tab: 'meetings',
     })
   }
@@ -322,7 +356,7 @@ export async function fetchDashboard(profileName: string, profileId?: string): P
     if (!mtg) continue
     const item: RespGroupItem = {
       projectId: mtg.project_id,
-      label: `${i.item_number} — ${(i.discussion || '').slice(0, 80)}`,
+      label: `${itemNum(i)} — ${(i.discussion || '').slice(0, 80)}`,
       ageDays: daysSince(i.created_at), tab: 'meetings',
     }
     const asg = i.responsible_assignment_id ? asgMap.get(i.responsible_assignment_id) : null

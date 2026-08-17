@@ -4,6 +4,7 @@ import {
   DOC, DOC_SEMANTIC,
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
+import { deriveItemNumbers } from './_shared/meeting-numbering.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -22,6 +23,10 @@ interface MinutesData {
   topics: any[]
   itemsByTopic: Map<string, any[]>
   respLabel: (item: any) => string
+  /** Derived display number — N.k for native items, the frozen ↺-prefixed
+   *  origin-qualified number for carried ones. ONE derivation feeds both
+   *  document formats and the UI (api/_shared/meeting-numbering). */
+  num: (item: any) => string
   findingLabel: (id: string | null) => string | null
   roleSort: Map<string, number>
 }
@@ -116,7 +121,7 @@ function buildPdfHtml(d: MinutesData): string {
       : its.map(it => {
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr${it.status === 'closed' ? ' class="item-closed"' : ''}>
-            <td class="inum">${esc(it.item_number)}${it.carried_from_item_id ? '<span class="carr"> ↺</span>' : ''}</td>
+            <td class="inum">${esc(d.num(it))}</td>
             <td>${esc(it.discussion)}${fl ? `<span class="flink">${esc(fl)}</span>` : ''}</td>
             <td>${esc(d.respLabel(it))}</td>
             <td style="text-align:center;">${esc(isoShort(it.due_date))}</td>
@@ -136,9 +141,9 @@ function buildPdfHtml(d: MinutesData): string {
         <colgroup><col style="width:12%"><col style="width:63%"><col style="width:25%"></colgroup>
         <thead><tr><th style="text-align:center;">Item #</th><th>Action</th><th style="text-align:center;">Due</th></tr></thead>
         ${asumGroups.map(([label, its]) => {
-          const grow = `<tr class="asum-group"><td colspan="3">${esc(label)} — ${its.map((i: any) => i.item_number).join(', ')}</td></tr>`
+          const grow = `<tr class="asum-group"><td colspan="3">${esc(label)} — ${its.map((i: any) => d.num(i)).join(', ')}</td></tr>`
           const rows = its.map((it: any) => `<tr>
-            <td class="inum">${esc(it.item_number)}</td>
+            <td class="inum">${esc(d.num(it))}</td>
             <td>${esc(truncate(it.discussion, 90))}</td>
             <td style="text-align:center;">${esc(isoShort(it.due_date))}</td>
           </tr>`)
@@ -238,7 +243,7 @@ function buildDocxHtml(d: MinutesData): { html: string; tableGrids: number[][] }
           const bg = closed ? 'background-color:#EFEFEF;color:#888;' : ''
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr>
-            <td ${td(`text-align:center;font-weight:bold;${bg}${closed ? '' : `color:${DOC.INK};`}`)}>${esc(it.item_number)}${it.carried_from_item_id ? ' ↺' : ''}</td>
+            <td ${td(`text-align:center;font-weight:bold;${bg}${closed ? '' : `color:${DOC.INK};`}`)}>${esc(d.num(it))}</td>
             <td ${td(bg)}>${esc(it.discussion)}${fl ? `<br><span style="font-size:8pt;color:${DOC_SEMANTIC.ITEM_OPEN};">${esc(fl)}</span>` : ''}</td>
             <td ${td(bg)}>${esc(d.respLabel(it))}</td>
             <td ${td(`text-align:center;${bg}`)}>${esc(isoShort(it.due_date))}</td>
@@ -254,9 +259,9 @@ function buildDocxHtml(d: MinutesData): { html: string; tableGrids: number[][] }
     : `<table style="width:100%;border-collapse:collapse;font-size:9.5pt;">
         <thead><tr><th ${TH} style="text-align:center;">Item #</th><th ${TH}>Action</th><th ${TH} style="text-align:center;">Due</th></tr></thead>
         <tbody>${asumGroups.map(([label, its]) => {
-          const grow = `<tr><td colspan="3" style="background-color:${DOC.BAND_TINT};font-weight:bold;color:${DOC.INK};padding:5px 10px;border:1px solid ${DOC.RULE};">${esc(label)} — ${its.map((i: any) => i.item_number).join(', ')}</td></tr>`
+          const grow = `<tr><td colspan="3" style="background-color:${DOC.BAND_TINT};font-weight:bold;color:${DOC.INK};padding:5px 10px;border:1px solid ${DOC.RULE};">${esc(label)} — ${its.map((i: any) => d.num(i)).join(', ')}</td></tr>`
           const rows = its.map((it: any) => `<tr>
-            <td ${td(`text-align:center;font-weight:bold;color:${DOC.INK};`)}>${esc(it.item_number)}</td>
+            <td ${td(`text-align:center;font-weight:bold;color:${DOC.INK};`)}>${esc(d.num(it))}</td>
             <td ${td()}>${esc(truncate(it.discussion, 90))}</td>
             <td ${td('text-align:center;')}>${esc(isoShort(it.due_date))}</td>
           </tr>`).join('\n')
@@ -397,6 +402,7 @@ export default async function handler(req: any, res: any) {
     const itemsByTopic = new Map<string, any[]>()
     for (const t of topics) itemsByTopic.set(t.id, [])
     for (const it of items) if (itemsByTopic.has(it.topic_id)) itemsByTopic.get(it.topic_id)!.push(it)
+    const displayNum = deriveItemNumbers(topics, items)
 
     const d: MinutesData = {
       project: projRes.data,
@@ -408,6 +414,7 @@ export default async function handler(req: any, res: any) {
       respLabel: (it: any) =>
         (it.responsible_assignment_id && teamMap.get(it.responsible_assignment_id)) ||
         (it.responsible_text ?? '').trim() || '—',
+      num: (it: any) => displayNum.get(it.id) ?? it.item_number,
       findingLabel: (id: string | null) => (id && findingMap.get(id)) || null,
       roleSort,
     }
