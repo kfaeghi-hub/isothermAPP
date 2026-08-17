@@ -21,6 +21,12 @@
         ],
         "createdAt": "2026-07-25T14:29:37.302Z",
         "reason": "Dispositioned intentional 2026-07-24: picker option-row pattern (gray-700 on the near-white teal-50 hover tint), shared with EquipmentPicker/FindingPicker"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-08-17T00:24:07.624Z",
+        "reason": "Owner-ruled 2026-08-16: Arial is the standing generated-document identity; a typeface change is a document-identity ruling of the navy-to-purple class and arrives as an owner decision, not a lint suggestion."
       }
     ]
   }
