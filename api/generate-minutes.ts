@@ -207,7 +207,9 @@ function buildPdfHtml(d: MinutesData): string {
 
 // ── DOCX HTML (inline styles only; no width on th/td — html-to-docx rules) ─────
 
-function buildDocxHtml(d: MinutesData): string {
+// Returns the HTML plus each table's column proportions in emission order
+// (the D1 treatment, owner-ruled onto this family 2026-08-16). No nesting here.
+function buildDocxHtml(d: MinutesData): { html: string; tableGrids: number[][] } {
   const m = d.meeting
   const TH = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid ${DOC.INK};font-size:9pt;"`
   const td = (extra = '') => `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;${extra}"`
@@ -262,7 +264,17 @@ function buildDocxHtml(d: MinutesData): string {
         }).join('\n')}</tbody>
       </table>`
 
-  return `<!DOCTYPE html>
+  // FINAL DOM ORDER, conditionals mirrored exactly — the patcher refuses on a
+  // count mismatch, so a table added to the template MUST add its row here.
+  const tableGrids: number[][] = [
+    [34, 32, 34],                                          // project / type # / date header
+    [20, 20, 20, 20, 20],                                  // date/time/location/prepared/next strip
+    ...(d.attendees.length > 0 ? [[22, 30, 34, 14]] : []), // attendees
+    [8, 42, 26, 12, 12],                                   // minutes items
+    ...(asumGroups.length > 0 ? [[10, 74, 16]] : []),      // action summary
+  ]
+
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8">
 <style>
@@ -328,6 +340,8 @@ ${asumHtml}
 
 </body>
 </html>`
+
+  return { html, tableGrids }
 }
 
 // ── Vercel serverless handler ──────────────────────────────────────────────────
@@ -407,9 +421,10 @@ export default async function handler(req: any, res: any) {
 
     const PDF_FOOTER = footerBand(`<em>${DISCLAIMER}</em>&nbsp;&nbsp;·&nbsp;&nbsp;Page <span class="pageNumber"></span> of <span class="totalPages"></span>`)
 
+    const docxBuilt = buildDocxHtml(d)
     const [pdfBuffer, docxBuffer] = await Promise.all([
       toPdf(buildPdfHtml(d), PDF_FOOTER),
-      toDocx(buildDocxHtml(d)),
+      toDocx(docxBuilt.html, docxBuilt.tableGrids),
     ])
 
     const typeSlug = d.typeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')

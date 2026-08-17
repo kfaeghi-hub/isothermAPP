@@ -10,6 +10,7 @@ import puppeteer from 'puppeteer-core'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import HTMLtoDOCX from 'html-to-docx'
+import { fixDocxTables } from './docx-tables.js'
 
 // Chromium pack hosted on GitHub Releases — downloaded to /tmp on cold start,
 // cached for the lifetime of the Lambda instance (subsequent calls are fast).
@@ -254,7 +255,7 @@ export async function toPdf(html: string, footerTemplate: string): Promise<Buffe
 
 // ── docx via html-to-docx (pure JS, no native binary) ─────────────────────────
 
-export async function toDocx(html: string): Promise<Buffer> {
+export async function toDocx(html: string, tableGrids: number[][] | null = null): Promise<Buffer> {
   // Only strip width: from th/td style attrs — html-to-docx crashes on those.
   // Other inline styles (background-color, color, border, padding) are kept
   // so the DOCX-specific HTML formatting carries through to Word.
@@ -274,7 +275,11 @@ export async function toDocx(html: string): Promise<Buffer> {
     footer:   false,
     header:   false,
   })
-  return Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
+  const buffer = Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer)
+  // Owner-ruled 2026-08-16: the D1 table treatment extends to these families.
+  // Callers declare TOP-LEVEL table proportions in emission order; the patcher
+  // rewrites grids and pins fixed layout, refusing on a count mismatch.
+  return tableGrids ? await fixDocxTables(buffer, tableGrids) : buffer
 }
 
 // ── Storage upload — returns bucket-relative PATHS (storage privacy pass) ─────

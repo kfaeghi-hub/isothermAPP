@@ -241,11 +241,16 @@ const PDF_FOOTER = footerBand(`<em>${DISCLAIMER}</em>`)
 // instead of CSS classes / display:table divs. buildHtml() is left untouched
 // for PDF — this is a separate path so neither output affects the other.
 
+// Returns the HTML plus each TOP-LEVEL table's column proportions in emission
+// order (the D1 treatment, owner-ruled onto this family 2026-08-16): the
+// per-finding photo tables are NESTED inside issue cells and deliberately
+// undeclared — images size themselves, and the shared patcher leaves nested
+// tables exactly as emitted.
 function buildDocxHtml(
   project: any, report: any,
   distribution: any[], findings: any[],
   photoBuffers: Map<string, Buffer>,
-): string {
+): { html: string; tableGrids: number[][] } {
   const TH = `style="background-color:${DOC.BAND};color:#ffffff;font-weight:bold;padding:6px 10px;border:1px solid ${DOC.INK};font-size:9pt;"`
   const td  = (i: number, extra = '') =>
     `style="padding:6px 10px;border:1px solid ${DOC.RULE};vertical-align:top;${i%2===1 ? `background-color:${DOC.ZEBRA};` : ''}${extra}"`
@@ -345,7 +350,16 @@ function buildDocxHtml(
     `<p style="margin:4px 0;">${esc(line) || '&nbsp;'}</p>`
   ).join('')
 
-  return `<!DOCTYPE html>
+  // FINAL DOM ORDER, conditionals mirrored exactly — the patcher refuses on a
+  // count mismatch, so a table added to the template MUST add its row here.
+  const tableGrids: number[][] = [
+    [34, 32, 34],                                   // project / note # / date header
+    [24, 34, 10, 32],                               // distribution
+    ...(docItems.length > 0 ? [[55, 25, 20]] : []), // doc register (PDF's own widths)
+    [6, 80, 14],                                    // issues (PDF: num 6%, act 14%)
+  ]
+
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8">
 <style>
@@ -405,6 +419,8 @@ ${docSection}
 
 </body>
 </html>`
+
+  return { html, tableGrids }
 }
 
 // ── Vercel serverless handler ──────────────────────────────────────────────────
@@ -494,13 +510,13 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const pdfHtml  = buildHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
-    const docxHtml = buildDocxHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
+    const pdfHtml = buildHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
+    const { html: docxHtml, tableGrids } = buildDocxHtml(project, report, distribution ?? [], findings ?? [], photoBuffers)
 
     // Run PDF (Chromium) and docx (html-to-docx) in parallel.
     const [pdfBuffer, docxBuffer] = await Promise.all([
       toPdf(pdfHtml, PDF_FOOTER),
-      toDocx(docxHtml),
+      toDocx(docxHtml, tableGrids),
     ])
 
     // Upload both to Supabase Storage.

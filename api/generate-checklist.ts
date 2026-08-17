@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import HTMLtoDOCX from 'html-to-docx'
-import JSZip from 'jszip'
+import { fixDocxTables } from './_shared/docx-tables.js'
 // Auth is the ONE shared import this endpoint takes — its render pipeline stays
 // deliberately independent of doc-common (landscape + per-mode footers).
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
@@ -1239,67 +1239,10 @@ async function toDocx(html: string, tableGrids: number[][] | null = null): Promi
   return tableGrids ? await fixDocxTables(buffer, tableGrids) : buffer
 }
 
-// ── D1 (2026-08-16): the docx must hold its columns the way the PDF does ───────
-//
-// MEASURED MECHANISM, both families: html-to-docx declares NO w:tblLayout on any
-// table (Word therefore autofits), emits EQUAL-width w:tblGrid columns for every
-// table, and for the colspan-headed nameplate matrix emits an EMPTY grid — so
-// Word re-measures from content, squeezes the label column ("MANUFACT URER"),
-// and the docx re-flows into a different document than the PDF.
-//
-// The repair rewrites each table's grid to the builder's declared proportions
-// (the same numbers the PDF colgroups use) and pins w:tblLayout fixed. It
-// REFUSES WHOLE on a table-count mismatch: splicing widths into the wrong table
-// is worse than leaving autofit, and a refusal names the drift the day a table
-// is added to the template without its grids row (the splice-anchor law).
-async function fixDocxTables(docx: Buffer, tableGrids: number[][]): Promise<Buffer> {
-  const zip = await JSZip.loadAsync(docx)
-  const path = 'word/document.xml'
-  const xml = await zip.file(path)!.async('string')
-
-  // Our tables never nest (the builders emit flat tables only), so the lazy
-  // match is exact; a nested table would break the count and hit the refusal.
-  const tables = xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/g) ?? []
-  if (tables.length !== tableGrids.length) {
-    throw new Error(
-      `fixDocxTables: ${tables.length} tables in the docx vs ${tableGrids.length} declared grids — ` +
-      'refusing to splice widths into the wrong table. A table was added without its tableGrids row.',
-    )
-  }
-
-  let i = 0
-  const patched = xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, (tbl: string) => {
-    const pcts = tableGrids[i++]
-    // The table's own width (dxa); html-to-docx emits 10080 for letter + these margins.
-    const tblW = Number(/<w:tblW[^>]*w:w="(\d+)"/.exec(tbl)?.[1] ?? 10080)
-    // Integer widths that sum EXACTLY to tblW — the remainder rides the last column.
-    const widths = pcts.map(p => Math.floor((tblW * p) / 100))
-    widths[widths.length - 1] += tblW - widths.reduce((a, b) => a + b, 0)
-    const grid = `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`
-
-    // html-to-docx emits up to TWO grids per table: an empty-or-equal one after
-    // tblPr and a second one MID-TABLE after the header rows with FRACTIONAL
-    // widths ("775.3846…") — invalid values in an invalid position. Strip every
-    // grid, then place exactly one correct grid straight after tblPr.
-    if (!/<\/w:tblPr>/.test(tbl)) {
-      throw new Error('fixDocxTables: a table carries no tblPr — refusing to guess where its grid belongs.')
-    }
-    let out = tbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/g, '')
-    out = out.replace(/<\/w:tblPr>/, `</w:tblPr>${grid}`)
-
-    if (!/<w:tblLayout/.test(out)) {
-      // Schema position: tblLayout directly precedes tblCellMar; fall back to
-      // the end of tblPr when a table carries no cell margins.
-      out = /<w:tblCellMar>/.test(out)
-        ? out.replace(/<w:tblCellMar>/, '<w:tblLayout w:type="fixed"/><w:tblCellMar>')
-        : out.replace(/<\/w:tblPr>/, '<w:tblLayout w:type="fixed"/></w:tblPr>')
-    }
-    return out
-  })
-
-  zip.file(path, patched)
-  return await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
-}
+// fixDocxTables moved to api/_shared/docx-tables.ts when the owner ruled the
+// same treatment for doc-common's families (2026-08-16) — one implementation,
+// now depth-aware for the site report's nested photo tables. The evidence
+// tables and the refusal semantics ride with it.
 
 // ── Check-table DOCX (attempted-but-optional per the gate verdict) ─────────────
 // The transposed matrix is a wide fixed table html-to-docx may fight; if it

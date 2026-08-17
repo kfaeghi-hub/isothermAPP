@@ -20,6 +20,11 @@ one written alongside the change is written from the diff.
 
 ### For the team
 
+**Site reports and meeting minutes hold their columns in Word too.** The same
+table fix that repaired the checklist Word copies now covers both — open any
+generated .docx in Word and the columns match the PDF's proportions instead
+of re-flowing.
+
 **The Word copy of a checklist now looks like the PDF.** Before, opening the
 .docx in Word squeezed the first column until field names broke mid-word
 ("MANUFACT URER") and the whole document re-flowed. The tables now carry
@@ -66,6 +71,24 @@ residual, stated: Word's own cell margins still wrap the sub-headers at
 FOUR units ("Sho p Dwg") — bounded by the fixed grid now, one-line at the
 common 2–3-unit counts; the PDF is clean at all counts. Word-rendered
 before/after (Word COM export) beside the fix.
+
+**doc-common series (owner-ruled: same treatment, same standard).** The
+patcher extracted to `api/_shared/docx-tables.ts` — ONE implementation, now
+DEPTH-AWARE: the site report nests photo tables inside issue cells, so
+top-level spans come from a `w:tbl` depth walk and nested tables stay exactly
+as emitted (images autofit correctly). Sentinel masking is NUL-delimited and
+CONSTRUCTED at runtime (`String.fromCharCode(0)`) — this file's first draft
+carried literal NUL characters that rendered as ordinary spaces and defeated
+review twice, the 0x08-backspace lesson verbatim, so the character is built
+and never typed. `generate-checklist` now imports the shared module;
+`doc-common.toDocx` takes declared grids; both `buildDocxHtml`s (report,
+minutes) declare their tables in emission order with conditionals mirrored.
+The IST document rides `generate-report`'s endpoint but was NOT in the ruling
+— it keeps library grids and is named as the remaining same-class candidate.
+Gate: `pw-doc-docx-tables` (battery #50) — mechanism legs counted by the
+patcher's own bundled walker; failing-first proven (4 reds on pre-fix
+production, both families); fixture meeting seeded/removed with resting state
+printed. Word render of the repaired report beside the fix.
 
 **D5 stamp (ruled: every copy, every mode).** `generationStamp()` renders the
 FIRM'S calendar date (`en-CA` @ America/Toronto — UTC rolls to tomorrow at
