@@ -105,17 +105,19 @@ try {
   await itemRow('1.1').locator('select').first().selectOption({ label: 'BAS — Automated Logic Controls' })
   await page.waitForTimeout(600)
 
+  // REVERSED 2026-08-17 (old text: 'second item numbered 1.2' — the global
+  // counter's second stamp). add-item-1 targets SECTION 2, so it derives 2.1.
   await page.locator('[data-testid="add-item-1"]').click({ force: true })
-  await waitUntil(async () => await itemRow('1.2').count() === 1,
-    { timeout: 15000, what: 'second item numbered 1.2' })
-  check(await itemRow('1.2').count() === 1, 'second item numbered 1.2')
-  await itemRow('1.2').locator('textarea').fill('Revised construction schedule to be circulated')
-  await itemRow('1.2').locator('textarea').press('Tab')
+  await waitUntil(async () => await itemRow('2.1').count() === 1,
+    { timeout: 15000, what: 'item under section 2 deriving 2.1' })
+  check(await itemRow('2.1').count() === 1, 'second item derives 2.1 — its section, not the global counter')
+  await itemRow('2.1').locator('textarea').fill('Revised construction schedule to be circulated')
+  await itemRow('2.1').locator('textarea').press('Tab')
   await page.waitForTimeout(600)
-  await itemRow('1.2').locator('select').first().selectOption('__text')
+  await itemRow('2.1').locator('select').first().selectOption('__text')
   await page.waitForTimeout(300)
-  await itemRow('1.2').locator('input[placeholder="responsible"]').fill('GC — site office')
-  await itemRow('1.2').locator('input[placeholder="responsible"]').press('Tab')
+  await itemRow('2.1').locator('input[placeholder="responsible"]').fill('GC — site office')
+  await itemRow('2.1').locator('input[placeholder="responsible"]').press('Tab')
   await page.waitForTimeout(600)
 
   // ── Generate + document content ──────────────────────────────────────────
@@ -200,9 +202,9 @@ try {
   await waitUntil(async () => await carriedRow(1, '1.1').count() === 1,
     { timeout: 15000, what: 'carried item renders frozen origin-qualified: ↺ #1 · 1.1' })
   check(await carriedRow(1, '1.1').count() === 1, 'carried item renders ↺ #1 · 1.1 — frozen, origin named')
-  await waitUntil(async () => await carriedRow(1, '1.2').count() === 1,
-    { timeout: 15000, what: 'second carried item: ↺ #1 · 1.2' })
-  check(await carriedRow(1, '1.2').count() === 1, 'second carried item renders ↺ #1 · 1.2')
+  await waitUntil(async () => await carriedRow(1, '2.1').count() === 1,
+    { timeout: 15000, what: 'second carried item: ↺ #1 · 2.1' })
+  check(await carriedRow(1, '2.1').count() === 1, 'second carried item renders ↺ #1 · 2.1 (its origin-derived number)')
   // THE ROWS PAINTING IS NOT THE CARRY BEING CONFIRMED. The rows render
   // optimistically; the ↺ marker arrives with the server's response, and acting
   // on the view before then hands clicks to mid-reconciliation UI (the 2.1
@@ -239,13 +241,41 @@ try {
     { timeout: 15000, what: 'second item under section 3 deriving 3.2' })
   await itemRow('3.2').locator('textarea').first().fill('Successor item - should become 3.1')
   await itemRow('3.2').locator('textarea').first().press('Tab')
-  await itemRow('3.1').hover()
-  await itemRow('3.1').locator('button', { hasText: '×' }).click()
+  // ANCHOR THE BLUR-SAVE BEFORE CLICKING ANYTHING: the Tab fires updateItem →
+  // fetchDetail → re-render, and a click resolved before that settles lands on
+  // coordinates that may belong to a DIFFERENT row after the shift — the first
+  // run of this leg deleted the SUCCESSOR that way (the suite's own
+  // optimistic-paint lesson, ignored by its author until it bit).
   await waitUntil(async () => {
-    const t = await itemRow('3.1').innerText().catch(() => '')
-    return t.includes('Successor item')
+    const { data } = await sb.from('meeting_items')
+      .select('id').ilike('discussion', 'Successor item%')
+    return (data ?? []).length === 1
+  }, { timeout: 15000, what: 'the successor text landing (blur-save settled)' })
+  // The delete × is the row's LAST cell — a bare hasText '×' can resolve to
+  // another × in the row. Anchor the ARRIVAL of the delete in the database
+  // (one item left under the section), then read the re-derived UI.
+  await itemRow('3.1').hover()
+  await itemRow('3.1').locator('td:last-child button', { hasText: '×' }).click({ force: true })
+  {
+    const { data: mtg2x } = await sb.from('meetings')
+      .select('id').eq('project_id', ZZ).order('meeting_number', { ascending: false }).limit(1).single()
+    const { data: sec3topic } = await sb.from('meeting_topics')
+      .select('id').eq('meeting_id', mtg2x.id).eq('sort_order', 2).single()
+    await waitUntil(async () => {
+      const { count } = await sb.from('meeting_items')
+        .select('*', { count: 'exact', head: true }).eq('topic_id', sec3topic.id)
+      return count === 1
+    }, { timeout: 15000, what: 'the delete landing (one item left under section 3)' })
+  }
+  // The discussion lives in a TEXTAREA — its value is a DOM property, invisible
+  // to innerText, so a text-grep on the row can never see it (this wait was
+  // instrument-blind at birth; the probe showed the right DB state under a
+  // "failing" UI read). Read the value property.
+  await waitUntil(async () => {
+    const v = await itemRow('3.1').locator('textarea').first().inputValue().catch(() => '')
+    return v.includes('Successor item')
   }, { timeout: 15000, what: 'the successor closing the gap to 3.1' })
-  check((await itemRow('3.1').innerText()).includes('Successor item'),
+  check((await itemRow('3.1').locator('textarea').first().inputValue()).includes('Successor item'),
     'delete: the successor closes the gap — the surviving item now derives 3.1')
 
   // cross-section move → BOTH sections re-derive. The UI has no move control;
