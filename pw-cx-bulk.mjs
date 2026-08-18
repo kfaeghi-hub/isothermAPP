@@ -72,19 +72,55 @@ try {
   await waitUntil(async () => await page.locator('[data-unit-row]').count() >= 20 ? true : null,
     { timeout: 20000, what: 'the matrix to paint' })
 
-  // ── The UNIT-scoped stat cell is a door (the amendment's exact claim) ─────
+  // ── W1: THE INSTRUMENT AND THE BUTTON ARE SEPARATE ELEMENTS ───────────────
+  // The stat cell READS (completion by default, toggle to remaining, persisted);
+  // the gesture's door is the column HEADER. These checks fail on the pre-W1
+  // build, where clicking the stat opened the popover — the pinned regression.
   const statCell = page.locator(`td[data-col-stat="${col.id}"]`)
   await waitUntil(async () => await statCell.count() === 1 ? true : null,
     { timeout: 10000, what: 'the footer stat cell to render' })
   const statBefore = (await statCell.innerText()).trim()
   check(/^\d+\/\d+$|^—$/.test(statBefore),
-    `the unit column's stat reads the shared n/N form (found "${statBefore}")`)
-  await statCell.click()
+    `default: the stat reads COMPLETION in the shared n/N form (found "${statBefore}")`)
+  check(await statCell.getAttribute('data-stat-mode') === 'completion',
+    'default: the persisted mode is completion')
 
+  // Toggle → remaining: the outstanding count, amber, persisted across reload.
+  await statCell.click()
+  const remText = await waitUntil(async () => {
+    const t = (await statCell.innerText()).trim()
+    return t !== statBefore ? t : null
+  }, { timeout: 8000, what: 'the stat to flip to remaining' })
+  const [n0, d0] = statBefore.split('/').map(Number)
+  check(remText === String(d0 - n0),
+    `toggled: the stat reads the REMAINING count (${remText} = ${d0}−${n0})`)
+  undo.push(async () => {
+    await rest(`project_cx_columns?id=eq.${col.id}`, {
+      method: 'PATCH', body: JSON.stringify({ stat_display: 'completion' }) })
+  })
+  await page.reload()
+  await waitUntil(async () => await page.locator('[data-unit-row]').count() >= 20 ? true : null,
+    { timeout: 20000, what: 'the matrix to repaint after reload' })
+  check((await statCell.innerText()).trim() === remText &&
+        await statCell.getAttribute('data-stat-mode') === 'remaining',
+    'the remaining mode PERSISTS across reload')
+  await statCell.click()
+  await waitUntil(async () =>
+    (await statCell.innerText()).trim() === statBefore ? true : null,
+    { timeout: 8000, what: 'the stat to toggle back to completion' })
+  check(true, 'toggling back restores the completion reading')
+
+  // The stat cell is NOT the gesture's door any more — no popover appeared
+  // through any of the clicks above.
+  check(await page.locator('button', { hasText: /^mark \d+ done$/ }).count() === 0,
+    'clicking the stat never opened the gesture (the instrument is not the button)')
+
+  // ── The gesture's own affordance: the column HEADER opens the popover ─────
+  await page.locator(`th[data-col-head="${col.id}"]`).click()
   const anyMark = page.locator('button', { hasText: /^mark \d+ done$/ }).first()
   const opened = await waitUntil(async () => await anyMark.count() > 0 ? true : null,
-    { timeout: 8000, what: 'the gesture popover to open on a UNIT-scoped column' })
-  check(!!opened, 'the gesture door opens on a unit-scoped column (amended Q5)')
+    { timeout: 8000, what: 'the gesture popover to open from the column header' })
+  check(!!opened, 'the gesture door opens from the header, on a unit-scoped column (amended Q5 + W1)')
 
   const typeKey = await anyMark.evaluate(b => b.closest('[data-bulk-row]')?.getAttribute('data-bulk-row'))
   const typeRow = page.locator(`[data-bulk-row="${typeKey}"]`)

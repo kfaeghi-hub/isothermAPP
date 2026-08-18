@@ -20,6 +20,9 @@ interface CxColumn {
    *  claim — types complete / types in scope, complete = all applicable units
    *  done (Q6). Editable per project like every column property (§4.3). */
   scope: 'unit' | 'type'
+  /** How the stat READS (W1): completion (n/N — the instrument, firm default)
+   *  or remaining (outstanding count). Display only; the math never moves. */
+  stat_display: 'completion' | 'remaining'
 }
 
 interface CxStageGroup {
@@ -164,7 +167,7 @@ export function CxIndexPage({ projectId }: Props) {
     const [gRes, eRes, cRes, aRes] = await Promise.all([
       supabase
         .from('project_cx_stage_groups')
-        .select('id, project_id, name, sort_order, project_cx_columns(id, stage_group_id, label, sort_order, scope)')
+        .select('id, project_id, name, sort_order, project_cx_columns(id, stage_group_id, label, sort_order, scope, stat_display)')
         .eq('project_id', projectId)
         .order('sort_order'),
       supabase
@@ -512,6 +515,22 @@ export function CxIndexPage({ projectId }: Props) {
     setEditingColId(null)
   }
 
+  /** W1: flip how the stat READS — completion ↔ remaining. A display
+   *  preference (project-scoped, persisted); the math never moves, and the
+   *  exports keep printing completion regardless. */
+  async function toggleStatDisplay(col: CxColumn, groupId: string) {
+    const next = col.stat_display === 'remaining' ? 'completion' : 'remaining'
+    const { error } = await supabase.from('project_cx_columns')
+      .update({ stat_display: next }).eq('id', col.id)
+    if (reportError(error, 'change how the stat reads')) return
+    setGroups(prev => prev.map(x =>
+      x.id !== groupId ? x : {
+        ...x,
+        columns: x.columns.map(c => c.id === col.id ? { ...c, stat_display: next } : c),
+      }
+    ))
+  }
+
   /** Flip how a column counts (§4.3: scope is a column property like its
    *  label). Changes denominators, never storage — no cell fact moves. */
   async function toggleColScope(id: string, groupId: string) {
@@ -572,7 +591,7 @@ export function CxIndexPage({ projectId }: Props) {
     const { data, error } = await supabase
       .from('project_cx_columns')
       .insert({ stage_group_id: groupId, label, sort_order: maxSort + 1 })
-      .select('id, stage_group_id, label, sort_order, scope')
+      .select('id, stage_group_id, label, sort_order, scope, stat_display')
       .single()
     // Keep the inline add row open with the typed label on failure.
     if (reportError(error, 'add the column')) return
@@ -988,11 +1007,13 @@ export function CxIndexPage({ projectId }: Props) {
                 return g.columns.map(col => (
                   <th
                     key={col.id}
-                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200`}
+                    data-col-head={col.id}
+                    onClick={() => setBulkCol(col)}
+                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200 cursor-pointer hover:opacity-80`}
                     style={{ height: '120px', top: '24px', verticalAlign: 'bottom', padding: '4px 2px' }}
-                    title={col.scope === 'type'
-                      ? `${col.label} — counts by type (types complete / types in scope)`
-                      : col.label}
+                    title={`${col.label}${col.scope === 'type'
+                      ? ' — counts by type (types complete / types in scope)'
+                      : ''} · click to mark a whole type`}
                   >
                     <div
                       style={{
@@ -1208,29 +1229,41 @@ export function CxIndexPage({ projectId }: Props) {
                   return g.columns.map(col => {
                     const s = colStats.get(col.id)!
                     const byType = col.scope === 'type'
-                    // ONE display form, shared with the PDF and the workbook
-                    // (statLabel): unit n/N, type K/N. And the gesture's door
-                    // opens on EVERY column — amended Q5: it is a recording
-                    // tool; scope is only a counting rule.
-                    const title = byType
-                      ? `${col.label} — by type: ${s.typesComplete} of ${s.typesInScope} types complete` +
-                        ` (complete = every applicable unit done)` +
+                    // W1 — TWO ELEMENTS, TWO JOBS. This cell is the INSTRUMENT:
+                    // completion by default in the one shared form (statLabel —
+                    // unit n/N, type K/N, what the PDF/workbook/portal print),
+                    // clicking it toggles completion ↔ remaining, persisted.
+                    // The GESTURE lives on the column's header, not here — the
+                    // Phase 2b door on this cell displaced the measurement with
+                    // the button (the owner's field report), and the screen
+                    // does not trade its instrument for its button again.
+                    const remaining = s.den - s.num
+                    const showRem = col.stat_display === 'remaining'
+                    const reading = showRem
+                      ? (s.den === 0 ? '—' : `${remaining}`)
+                      : statLabel(s)
+                    const basis = byType
+                      ? `by type: ${s.typesComplete} of ${s.typesInScope} types complete (complete = every applicable unit done)` +
                         (s.untypedApplicable > 0
-                          ? ` · ${s.untypedDone}/${s.untypedApplicable} untyped units not counted — type them to score them`
-                          : '') +
-                        ` · click to mark a whole type`
-                      : `${col.label} — by unit: ${s.unitDone} of ${s.unitTotal} applicable units done · click to mark a whole type`
+                          ? ` · ${s.untypedDone}/${s.untypedApplicable} untyped units not counted — type them to score them` : '')
+                      : `by unit: ${s.unitDone} of ${s.unitTotal} applicable units done`
+                    const title = `${col.label} — ${basis} · showing ${showRem
+                      ? `REMAINING (${remaining} outstanding) — click for completion`
+                      : 'COMPLETION — click for remaining'}`
                     return (
                       <td
                         key={`${col.id}-foot`}
-                        onClick={() => setBulkCol(col)}
+                        onClick={() => void toggleStatDisplay(col, g.id)}
                         title={title}
                         data-col-stat={col.id}
+                        data-stat-mode={col.stat_display}
                         className={`sticky bottom-0 z-30 border-t border-r border-gray-200 text-center whitespace-nowrap cursor-pointer ${
-                          byType ? 'bg-teal-50/80 text-teal-800 hover:bg-teal-100' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                          showRem ? 'bg-amber-50/80 text-amber-800 hover:bg-amber-100'
+                          : byType ? 'bg-teal-50/80 text-teal-800 hover:bg-teal-100'
+                          : 'bg-white text-gray-500 hover:bg-gray-100'}`}
                         style={{ fontSize: '7px', fontWeight: 600, height: '18px' }}
                       >
-                        {statLabel(s)}
+                        {reading}
                       </td>
                     )
                   })
