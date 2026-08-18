@@ -224,6 +224,31 @@ mapping dry-run), `52dcf53` (seed/backfill + formulas + gesture), `8a4306f`
 - The project-scope observation (Groups 10/12 milestones) is banked as
   proposal §4.5 with a named wake condition, per the red pen.
 
+## Update 1.15 — 2026-08-17 (Seneca register category cleanup)
+
+### For the team
+
+**Seneca's Cx Index category bands read as equipment classes now.** AHU-5
+rejoined the other four air handlers under one band, and the drawing-heading
+names (…SCHEDULE) became class names: HUMIDIFIER, RADIANT PANEL,
+DEHUMIDIFICATION UNIT. These names print on the client-facing export, which
+is what surfaced them.
+
+### Technical record
+
+Owner-ruled 2026-08-17, executed by `apply-seneca-categories.mjs` (dry-run →
+apply → batch-noted → read-back; resolve-and-refuse on the ruled census and a
+re-run keying check at act time). 12 units recategorized. **Two renames
+deliberately HELD by stop-and-show:** BUFFER TANK SCHEDULE and EXPANSION TANK
+SCHEDULE are named by PENDING category-scoped applicability exceptions that
+expand against `equipment.category` at ratify time — renaming under them
+destroys their meaning; they wait on the owner's ruling. DHU-01's
+water-cooled qualifier lived ONLY in its old category string (descriptor
+null); per report-don't-invent it is preserved in the batch note pending the
+owner's call on its permanent home.
+
+---
+
 ## Update 1.14 — 2026-08-17 (meeting item numbers follow their sections)
 
 ### For the team
