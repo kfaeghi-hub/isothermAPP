@@ -16,6 +16,47 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.20 — 2026-08-18 (the stat leads with its percentage; marking-all gets a visible button)
+
+### For the team
+
+**The "% by column" cell now leads with the percentage** — 24% big, the
+89/367 fraction small beneath it (by-type columns: 0% over 0/14). Clicking
+it still flips to the amber remaining count and back, per column, saved for
+everyone. **Marking a whole type now has a real button**: the small **+**
+at the top of every column header (it brightens when you hover the column).
+It opens the same list as before, which still tells you exactly how many
+units it will write.
+
+### Technical record
+
+W1 follow-up, ruled 2026-08-18. Commits `24e7969`, `4fb062c`.
+
+- Measured first: the header door WORKED in production (`data-col-head`
+  present in the served bundle — the same bundle the 17/17 leg had run
+  against), so field-report 1 resolved to discoverability: a functioning,
+  unmarked click zone. Fixed as ruled either way.
+- **AMENDED W1 DISPLAY, old text quoted**: *"(a) the column stat reads
+  completion by default — unit columns n/N, type columns K/N"* → the
+  percentage is the primary figure, fraction secondary. Remaining stays the
+  count (a "remaining %" is a strange instrument). Toggle, persistence,
+  cxCounting, exports, portal: untouched. A % on the PDF stats row is a
+  noted one-line follow-on, not built.
+- The mass-apply door is an explicit control (`data-col-mass`): always
+  rendered at low emphasis, hover-prominent, tooltip naming the applicable
+  count, both scopes (amended Q5 stands). The header's bare whole-surface
+  click is retired — no invisible click zones; the stat cell's only click
+  job is the toggle.
+- pw-cx-bulk failing-first: **4 reds pinned against the deployed build**
+  (no % figure, 0/84 visible controls, no `data-col-mass`), then 19/19
+  green post-deploy, including %-agrees-with-its-own-fraction and the
+  parsed (never string-surgeried) bump assertion — whose staleness the
+  green run itself caught. Screenshots: `stat-toggle-completion.png`
+  (0% over 0/277), `stat-toggle-remaining.png` (amber 277),
+  `header-mass-control.png` (the + on every column).
+- Full guarded battery at the gate (see gate report); tree-hash guard
+  silent over a clean tree both runs.
+
 ## Update 1.19 — 2026-08-18 (the column stat is an instrument again; the ledger and the harness get their guards)
 
 ### For the team
