@@ -16,6 +16,36 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.21 — 2026-08-18 (the mark-all button gets its own row)
+
+### For the team
+
+**The + buttons no longer sit on the column names.** They have their own
+slim row between the coloured group bands and the column labels — one per
+column, always visible, brighter when you hover. Every column name reads
+whole again. Nothing else changed: same button, same list, same counts.
+
+### Technical record
+
+W1 placement fix, ruled 2026-08-18 from the owner's screenshot. Commit
+`edc8619`.
+
+- Measured: **60 of 84 controls intersected rotated-label boxes** on the
+  deployed build — the absolute-positioned + lived inside the lane the
+  2c-1/2c-3 protections exist to defend.
+- The action band: 16px row seamed at +24 between bands and labels; the
+  rotated lane keeps its full 120px (the header grows — the ruled price of
+  a visible door). Corners and the % header now rowSpan=3.
+- **Sticky geometry re-proven, not assumed**: the T7 gate's seams updated in
+  the same commit — action band asserted at +24, labels at +40, on stuck
+  cells per the gate's own calibration; 10/10 green against the deployment.
+- **No-overlap is an assertion now**: pw-cx-bulk checks every control box
+  against every label box across all 84 columns (failing-first: the 60
+  overlaps named on the old build; 0 on the new; 20/20 green). The PDF's
+  no-interactive-controls truth is pinned in vitest.
+- Screenshots verified by eye: `action-band-rest.png`,
+  `action-band-hover.png`. vitest 222/222; guarded battery at the gate.
+
 ## Update 1.20 — 2026-08-18 (the stat leads with its percentage; marking-all gets a visible button)
 
 ### For the team

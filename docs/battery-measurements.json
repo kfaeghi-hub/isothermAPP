@@ -403,5 +403,20 @@
         "seconds": "23"
       }
     ]
+  },
+  {
+    "run": "edc8619:2026-08-18",
+    "at": "2026-08-18T03:45:08.245Z",
+    "passed": 53,
+    "of": 53,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-2281ms",
+        "passed": true,
+        "seconds": "22"
+      }
+    ]
   }
 ]
