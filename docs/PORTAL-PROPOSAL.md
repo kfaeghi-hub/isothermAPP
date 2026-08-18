@@ -542,3 +542,44 @@ checklist item and the navy-vs-purple ruling dated.
 
 *End of proposal. Build only after Part A verdicts (§9.1–9.6) and Part B rulings
 (§9.7–9.9) land in a Tony message.*
+
+---
+
+# AMENDMENT — the Cx Index reaches the portal as AGGREGATES ONLY (2026-08-17)
+
+**Ruled with the CX-INDEX-EXPORT-PROPOSAL Phase 3 package (Q8, ruled
+2026-08-17; ordered built with the Phase 2c acceptance). Recorded
+share-links-style: the default stands, the scope and cost are stated, and the
+old text is quoted.**
+
+## The old text, quoted
+
+§8's NOT-building list includes, verbatim:
+
+> `issued_at` backfill · deliverables/Cx-Index/equipment exposure in any form.
+
+## The amendment
+
+**A single aggregates-only surface is carved out: "05 · Commissioning
+progress."** The project-wide completion percentage, per-stage-group
+percentages, and per-discipline/category breakdowns — **counts and
+percentages only, computed inside `portal_internal`, one definition shared
+with the internal page (the `cx-counting` module), asserted identical by the
+battery.** Build Spec §6B's kept planning notes promised exactly this content
+("Cx Index progress — overall % complete + per-discipline breakdown"); this
+amendment reconciles the promise with the exclusion the way the share-links
+amendment reconciled invite-only.
+
+**Everything else in the exclusion STANDS, unweakened:** no equipment rows,
+no tags, no cells, no column-level drill, no deliverables exposure, no
+write path. The equipment NEVER exclusion is untouched and `pw-portal`
+keeps asserting it in both modes. A client who needs cell-level detail gets
+the issued Cx Index PDF — a frozen artifact on the right side of
+MASTER-BRIEF's working-state line.
+
+**The cost, stated:** register-derived aggregates are working state distilled
+to numbers, crossing to an external audience for the first time. The
+mitigations are the shipped shape: SECURITY DEFINER RPC beside the eight,
+whitelist in `portal_internal` only, link mode through the same inner
+function, anti-drift field-by-field comparison, aggregates computed inline
+(the `dashboard_checklist_coverage` security_invoker lesson).
