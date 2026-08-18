@@ -128,8 +128,10 @@ try {
     const allGroups = await (await fetch(
       `${SB_URL}/rest/v1/project_cx_stage_groups?project_id=eq.${proj.id}&select=name`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` } })).json()
-    const text = pages.join(' ')
-    const absent = allGroups.map(g => g.name).filter(n => !text.includes(n))
+    // Flat-compare (the stamp lesson, third occurrence): pdf.js splits runs
+    // mid-phrase, so "Mechanical Static Verification" may arrive in pieces.
+    const text = flat(pages.join(' '))
+    const absent = allGroups.map(g => g.name).filter(n => !text.includes(flat(n)))
     check(absent.length === 0,
       `every group's full name prints, banded or legend-expanded` +
       `${absent.length ? ` (missing: ${absent.join(', ')})` : ` (${allGroups.length} groups)`}`)
