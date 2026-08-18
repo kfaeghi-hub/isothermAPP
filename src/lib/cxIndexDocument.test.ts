@@ -57,7 +57,9 @@ describe('buildCxIndexHtml — Phase 2b invariants', () => {
     expect(html).toMatch(/<td style="font-size:5\.75pt">3\/3<\/td>/)
     expect(html).toMatch(/<td style="font-size:5\.75pt">1\/2<\/td>/)
     expect(html).toMatch(/<td style="font-size:5\.75pt">0\/2<\/td>/)
-    expect(html).not.toMatch(/<td[^>]*>\d+%<\/td>/)        // no % form in the stats row
+    // No % form IN THE STATS ROW — the cover's group table keeps its %s.
+    const tfoot = html.match(/<tfoot>.*?<\/tfoot>/s)![0]
+    expect(tfoot).not.toMatch(/\d+%/)
   })
 
   it('group bands render inside the strip with their palette', () => {
