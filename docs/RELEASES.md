@@ -16,6 +16,58 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.19 — 2026-08-18 (the column stat is an instrument again; the ledger and the harness get their guards)
+
+### For the team
+
+**The "% by column" cell measures again.** It reads completion by default —
+done over total, the same numbers the PDF, the workbook and the client
+portal print. **Click it to flip that column to a remaining count** (shown
+amber) and it stays flipped for everyone until clicked back — per column,
+per project. **Marking a whole type moved to the column's header**: click
+the column name at the top to open the mark-all list; it still tells you
+exactly how many units it will write before you confirm.
+
+**Why:** the field report was right — the bulk-marking work had made the
+stat cell open the marking list, so the measurement's cell had become the
+button's handle. The two are now separate elements with separate jobs.
+
+**Bookkeeping:** two updates were both numbered 1.15 by parallel sessions;
+the Seneca category cleanup is renumbered 1.17.1 (its true chronological
+place, anchor named in the entry). And the test battery now voids itself if
+any of its own files change while it runs — a lesson learned the expensive
+way now enforced by the harness instead of memory.
+
+### Technical record
+
+W1+W2+W3 combined pass, ruled 2026-08-18. Commits `1ea3745` (W3), `1808fa8`
+(W2), `59374ad` (W1).
+
+- **W1** measured first: no surface printed "remaining" — `24e95e9` (2b's
+  stats unification + amended-Q5 universal door, one commit) had made the
+  stat cell the gesture's door, its titles speaking the gesture's
+  vocabulary; the one-definition law held in math, broke in presentation.
+  The ruled split: stat = instrument (statLabel by default; click toggles
+  completion ↔ remaining, persisted in `project_cx_columns.stat_display`,
+  migration `cx_stat_display`, display-only — cxCounting and every export
+  untouched, exports keep printing completion); gesture = its own door on
+  the column header (`data-col-head`), popover and count-naming unchanged.
+  pw-cx-bulk reworked **failing-first: 5 reds pinned against the pre-W1
+  deployment**, then 17/17 green post-deploy; toggle persistence asserted
+  across reload; ZZ-TEST restored by the leg's cleanup both runs.
+- **W2** the battery tree-guard (`battery-guard.mjs`): content-hash of every
+  executed file (suites + runner + harness) at start, re-checked at end;
+  mismatch names the changed files, explicitly distrusts the summary, exits
+  VOID (3) with the lock released. Self-test 3/3 (untouched identical,
+  modified named, deleted is a change). Born as the fourth
+  written-down-and-violated-by-its-author guard, from the voided 51/53.
+- **W3** the 1.15 double-booking reconciled per KEEL's precedent: RIVET's
+  cleanup entry renumbered **1.17.1** with the anchor named and moved to its
+  chronological slot; content untouched.
+- Gates: vitest 221/221 · pw-cx-bulk 17/17 · toggle screenshots in
+  `out/cx-export/stat-toggle-{completion,remaining}.png` · full battery
+  under the new guard (see gate report).
+
 ## Update 1.18 — 2026-08-17 (the export finishes; commissioning progress reaches the client portal)
 
 ### For the team
