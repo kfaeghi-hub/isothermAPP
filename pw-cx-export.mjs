@@ -84,7 +84,8 @@ try {
   const stamped = pages.filter(t => /reflectsregisteratgeneration/.test(flat(t))).length
   check(stamped === doc.numPages, `the D5 stamp is legible on every page (${stamped}/${doc.numPages})`)
   check(/COMMISSIONING INDEX/.test(pages[0]), 'the cover carries the title')
-  check(/Prepared by/.test(pages[0]), 'the cover is a submittal cover (Prepared by block)')
+  // td.k text-transform:uppercase reaches the text layer uppercased.
+  check(/prepared by/i.test(pages[0]), 'the cover is a submittal cover (Prepared by block)')
   check(/types complete of types in scope/.test(pages.join(' ')), 'the legend rides the document')
   check(screenPct !== null && pages[0].includes(`${screenPct}%`),
     `the cover prints the SCREEN'S project % (${screenPct}%)`)
@@ -100,7 +101,9 @@ try {
   const statsPages = pages.filter(t => /PER COLUMN/.test(t)).length
   check(statsPages >= doc.numPages - 2,
     `the per-column stats row rides every strip page (${statsPages}/${doc.numPages})`)
-  check(/End of Commissioning Index/.test(pages[pages.length - 1]),
+  // letter-spacing splits the closing line into per-glyph runs and uppercase
+  // transforms it — collapse and casefold before testing, like the stamp.
+  check(/ENDOFCOMMISSIONINGINDEX/.test(flat(pages[pages.length - 1]).toUpperCase()),
     'the document ends deliberately (closing block on the final page)')
 
   // ── AMENDMENT 2, physically: colour landed in the deployed render AND the
@@ -123,8 +126,11 @@ try {
       await rasterPage.goto(`http://127.0.0.1:${server.address().port}/`)
       // Scan strip pages until a done cell is in the raster window — the test
       // register's few entries sit at unpredictable coordinates.
+      // Re-read from disk: pdf.js DETACHES the buffer handed to getDocument in
+      // the text pass above, so pdfBytes is a neutered array by now — the
+      // first run's InvalidPDFException was this leg parsing zeroes.
       let found = { teal: false, markOnFill: false, page: 0 }
-      const b64 = Buffer.from(pdfBytes).toString('base64')
+      const b64 = readFileSync('out/cx-export/zz-cx-index.pdf').toString('base64')
       for (let pn = 2; pn <= Math.min(doc.numPages, 12) && !found.markOnFill; pn++) {
         const r = await rasterPage.evaluate(async ({ b64, port, pn }) => {
           const lib = await import(`http://127.0.0.1:${port}/pdf.mjs`)
