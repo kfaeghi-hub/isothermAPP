@@ -80,6 +80,48 @@ amendment). Commits `8cf13fc`/`edd4599` (2c), `235484c` (the amendment),
   hands, which is what it was for) · clean full battery at the gate (see
   gate report).
 
+## Update 1.17.1 — 2026-08-17 (Seneca register category cleanup)
+
+*Renumbered from a double-booked 1.15 in the W3 reconciliation (two parallel
+sessions wrote the same version number; the ledger cannot carry one number
+for two ships). Anchor: this ship (`3ea047b`, `56f5bf2`) landed after 1.17
+(`7f08296`) and before 1.18, so 1.17.1 is its true place and the block moves
+there. Content untouched below the heading.*
+
+### For the team
+
+**Seneca's Cx Index category bands read as equipment classes now.** AHU-5
+rejoined the other four air handlers under one band, and the drawing-heading
+names (…SCHEDULE) became class names: HUMIDIFIER, RADIANT PANEL,
+DEHUMIDIFICATION UNIT. These names print on the client-facing export, which
+is what surfaced them.
+
+### Technical record
+
+Owner-ruled 2026-08-17, executed by `apply-seneca-categories.mjs` (dry-run →
+apply → batch-noted → read-back; resolve-and-refuse on the ruled census and a
+re-run keying check at act time). 12 units recategorized. **Two renames
+deliberately HELD by stop-and-show:** BUFFER TANK SCHEDULE and EXPANSION TANK
+SCHEDULE are named by PENDING category-scoped applicability exceptions that
+expand against `equipment.category` at ratify time — renaming under them
+destroys their meaning; they wait on the owner's ruling. DHU-01's
+water-cooled qualifier lived ONLY in its old category string (descriptor
+null); per report-don't-invent it is preserved in the batch note pending the
+owner's call on its permanent home.
+
+**Act 2 — the held half, released same day** (`apply-seneca-tanks.mjs`,
+ruled order: option a amended). The two pending proposals renamed IN PLACE
+first — move noted on each rationale so the ratifier sees the string moved
+and why, scope unchanged — then the 10 tank rows, so no instant existed where
+a proposal named a category no row carries; read-back proves both sides
+agree. DHU-01's descriptor now carries "Water Cooled" verbatim from the act-1
+batch note (its ruled home). Ruled no-writes: the five name-shaped tags stay
+(re-tagging is an owner-and-team convention call; Fire Pump Disconnect/ATS's
+`ats` typing is correct — the tag is the only oddity); PUMPS (30 units,
+plural) seen and deliberately left, noted in the batch.
+
+---
+
 ## Update 1.17 — 2026-08-17 (Cx Index exports at submittal grade; the bulk gesture goes everywhere)
 
 ### For the team
@@ -287,42 +329,6 @@ mapping dry-run), `52dcf53` (seed/backfill + formulas + gesture), `8a4306f`
   the tfoot.
 - The project-scope observation (Groups 10/12 milestones) is banked as
   proposal §4.5 with a named wake condition, per the red pen.
-
-## Update 1.15 — 2026-08-17 (Seneca register category cleanup)
-
-### For the team
-
-**Seneca's Cx Index category bands read as equipment classes now.** AHU-5
-rejoined the other four air handlers under one band, and the drawing-heading
-names (…SCHEDULE) became class names: HUMIDIFIER, RADIANT PANEL,
-DEHUMIDIFICATION UNIT. These names print on the client-facing export, which
-is what surfaced them.
-
-### Technical record
-
-Owner-ruled 2026-08-17, executed by `apply-seneca-categories.mjs` (dry-run →
-apply → batch-noted → read-back; resolve-and-refuse on the ruled census and a
-re-run keying check at act time). 12 units recategorized. **Two renames
-deliberately HELD by stop-and-show:** BUFFER TANK SCHEDULE and EXPANSION TANK
-SCHEDULE are named by PENDING category-scoped applicability exceptions that
-expand against `equipment.category` at ratify time — renaming under them
-destroys their meaning; they wait on the owner's ruling. DHU-01's
-water-cooled qualifier lived ONLY in its old category string (descriptor
-null); per report-don't-invent it is preserved in the batch note pending the
-owner's call on its permanent home.
-
-**Act 2 — the held half, released same day** (`apply-seneca-tanks.mjs`,
-ruled order: option a amended). The two pending proposals renamed IN PLACE
-first — move noted on each rationale so the ratifier sees the string moved
-and why, scope unchanged — then the 10 tank rows, so no instant existed where
-a proposal named a category no row carries; read-back proves both sides
-agree. DHU-01's descriptor now carries "Water Cooled" verbatim from the act-1
-batch note (its ruled home). Ruled no-writes: the five name-shaped tags stay
-(re-tagging is an owner-and-team convention call; Fire Pump Disconnect/ATS's
-`ats` typing is correct — the tag is the only oddity); PUMPS (30 units,
-plural) seen and deliberately left, noted in the batch.
-
----
 
 ## Update 1.14 — 2026-08-17 (meeting item numbers follow their sections)
 
