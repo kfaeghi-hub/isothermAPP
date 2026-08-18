@@ -16,6 +16,90 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.17 — 2026-08-17 (Cx Index exports at submittal grade; the bulk gesture goes everywhere)
+
+### For the team
+
+**The exports are now the documents you'd hand a client without apology.**
+
+**The PDF** dropped from 157 pages to **29** for Seneca's full register: the
+matrix now packs the whole landscape width (three strips of ~39 columns
+instead of twelve one-group chapters), with the coloured group bands from
+the screen running across the top, teal/amber status fills under the marks,
+and the per-column tallies on **every page**, not just the last one of a
+section. The cover is a proper submittal cover — client, project, address,
+prepared-by, generated date — and the document closes with a totals recap
+and an "End of Commissioning Index" line. Every rotated column label prints
+whole. It still greyscale-prints legibly: the marks carry the status; the
+colour is wayfinding.
+
+**The workbook** opens on a **Summary tab** (project block, group
+percentages, legend), the matrix has a filter row and the screen's colours,
+and printing it now actually works: landscape, fitted to width, the header
+rows repeating on every page, the generation date in the print footer.
+
+**"Mark all ⟨type⟩" now works on every column** — start-ups, tests, and
+inspections, not just document reviews. Click any column's tally at the
+bottom of the matrix. Same rules: it tells you exactly how many units it
+will write, skips N/A, records who did it.
+
+**Per-column tallies read the same everywhere** — screen, PDF, workbook:
+`n/N` units done for by-unit columns, `K/N` types complete for by-type
+columns (marked `*` in the PDF).
+
+**For whoever cleans the Seneca register** (owner's call, not done by this
+build): the category list has AIR HANDLING UNIT and AIR HANDLING UNITS as
+separate bands (AHU-5 sits alone in the plural), and five categories named
+after drawing-schedule headings rather than equipment classes — BUFFER TANK
+SCHEDULE, EXPANSION TANK SCHEDULE, ELECTRONIC HUMIDIFIER SCHEDULE, RADIANT
+PANEL SCHEDULE, DEHUMIDIFICATION UNIT SCHEDULE (WATER COOLED). The export
+prints what the register says.
+
+### Technical record
+
+Phase 2b of CX-INDEX-EXPORT-PROPOSAL.md, from the owner's page-level and
+cell-level audit of the first artifacts. Commits `39bf37e` (the two
+amendments, old text quoted) · `24e95e9` (the rework) · `6d37376` /
+`abf8829` / `9950684` / `8b4b54e` (verification-round fixes).
+
+- **Amended rulings**: Q5 — the gesture decouples from scope (a recording
+  tool on every column; scope is only a counting rule); DOCUMENT-IDENTITY
+  **Amendment 2** — screen palette admitted into this export family only,
+  colour as redundant encoding, grayscale survivability battery-asserted
+  (the export leg rasterizes a strip page and requires a white drawn mark
+  inside a teal fill — BT.601 255-vs-86).
+- **PDF**: width-packed strips (packStrips), bands in-strip with (cont'd),
+  tfoot stats row repeating per page, statLabel (new cx-counting export —
+  one display form across screen/PDF/workbook), submittal cover + closing
+  block, label-fit font sizing (zero truncation by construction), ASCII '*'
+  by-type marker, descriptor auto-narrow. 29 pages for 367×89 (target ≤45).
+- **XLSX**: Summary first tab; sheetPr fitToPage + landscape pageSetup
+  fitToWidth + pageMargins + Print_Titles $1:$2 + bounded Print_Area +
+  oddFooter; autoFilter on the header row (schema-ordered before
+  mergeCells); Amendment 2 patternFills with text values still the carrier.
+- **RECONCILIATION — two 1.16 gate-report claims were false and are
+  findings**: (1) "the stamp is in the print footer" was asserted from the
+  XML string; Excel showed no footer because the sheet had no pageSetup at
+  all — now verified through COM (LeftFooter reads the stamp, orientation
+  xlLandscape, FitToPagesWide 1, PrintTitleRows $1:$2, AutoFilter true, the
+  done cell's Interior.Color exactly teal-700). (2) §3.2's summary/cover
+  sheet was silently dropped and the gate report didn't name the omission —
+  now built as the first tab. The lesson is the standing one: a claim is
+  verified in the consuming application, not in the bytes we wrote.
+- **Verification-round catches**: stats values clipped at fixed size
+  ("0/367" printed "0/36" — a wrong number in full confidence; per-value
+  font fit now), pdf.js detaches the buffer handed to getDocument, CSS
+  text-transform and letter-spacing reshape the text layer, and one commit
+  landed with a red vitest and was fixed in the next commit with the miss
+  named rather than hidden.
+- **Gates**: vitest 219/219 (cxIndexDocument.test.ts new) · pw-cx-export
+  25/25 (stats invariant 21/22 pages with cover+closing tolerance, raster
+  colour + grayscale, print-setup/AutoFilter/Summary greps, D5 22/22) ·
+  pw-cx-bulk 12/12 (the amended door exercised on a unit-scoped column
+  first, §4.3 flip second, ZZ-TEST restored to snapshot) · Excel COM
+  read-back green · **LibreOffice: SKIPPED LOUDLY — still not installed on
+  this machine** · full battery at the gate (see gate report).
+
 ## Update 1.16 — 2026-08-17 (the Cx Index leaves the app: PDF and Excel)
 
 ### For the team
