@@ -120,7 +120,7 @@ const CSS = `
   td.desc { font-size: 6.5pt; color: #333; white-space: nowrap; }
   tr.cat td { background: #e6e6e6; font-weight: 700; font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; height: 0.14in; }
   tr.zebra td.num, tr.zebra td.tag, tr.zebra td.desc { background: ${DOC.ZEBRA}; }
-  tr.stats td { border-top: 1.2pt solid ${DOC.INK}; font-weight: 700; font-size: 5.75pt; text-align: center; background: #fff; height: 0.15in; white-space: nowrap; }
+  tr.stats td { border-top: 1.2pt solid ${DOC.INK}; font-weight: 700; text-align: center; background: #fff; height: 0.15in; white-space: nowrap; padding: 0; letter-spacing: -0.02em; }
   tr.stats td.lbl { text-align: left; font-size: 6pt; letter-spacing: 0.05em; padding-left: 3px; }
   .c-done { background: ${DONE_FILL}; }
   .c-prog { background: ${PROG_FILL}; }
@@ -275,9 +275,17 @@ export function buildCxIndexHtml(input: CxIndexInput): {
         return `<th class="rot"><div style="font-size:${labelFontPt(label).toFixed(2)}pt">${esc(label)}</div></th>`
       }).join('') + `</tr>`
 
+    // Stats values get the label-fit treatment: "0/367" at a fixed 5.75pt
+    // clipped to "0/36" in the first Seneca render — a WRONG NUMBER printed
+    // with full confidence. Size per value so every digit lands.
+    const statFontPt = (t: string) =>
+      t.length <= 4 ? 5.75 : t.length === 5 ? 5.0 : t.length === 6 ? 4.4 : 3.9
     const statsRow =
       `<tr class="stats"><td class="lbl" colspan="3">PER COLUMN — done/total (* by type)</td>` +
-      cols.map(c => `<td>${statLabel(colStats.get(c.id)!)}</td>`).join('') + `</tr>`
+      cols.map(c => {
+        const t = statLabel(colStats.get(c.id)!)
+        return `<td style="font-size:${statFontPt(t)}pt">${esc(t)}</td>`
+      }).join('') + `</tr>`
 
     let zebra = false
     const body = byCategory.map(cat => {
