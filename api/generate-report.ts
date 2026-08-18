@@ -464,7 +464,7 @@ export default async function handler(req: any, res: any) {
 
       const [projRes, groupRes, equipRes, cellRes, naRes] = await Promise.all([
         // The client is a COMPANY reference, not a text column (client_company_id).
-        supabase.from('projects').select('name, com_number, companies:client_company_id(name)').eq('id', project_id).single(),
+        supabase.from('projects').select('name, com_number, address, companies:client_company_id(name)').eq('id', project_id).single(),
         supabase.from('project_cx_stage_groups')
           .select('id, name, sort_order, project_cx_columns(id, label, sort_order, scope)')
           .eq('project_id', project_id).order('sort_order'),
@@ -491,6 +491,7 @@ export default async function handler(req: any, res: any) {
       const { html, stats } = buildCxIndexHtml({
         projectName: projRes.data.name,
         comNumber: projRes.data.com_number,
+        address: (projRes.data as any).address ?? null,
         clientName: (projRes.data as any).companies?.name ?? null,
         groups: idxGroups,
         equipment: (equipRes.data ?? []) as any,

@@ -84,6 +84,7 @@ try {
   const stamped = pages.filter(t => /reflectsregisteratgeneration/.test(flat(t))).length
   check(stamped === doc.numPages, `the D5 stamp is legible on every page (${stamped}/${doc.numPages})`)
   check(/COMMISSIONING INDEX/.test(pages[0]), 'the cover carries the title')
+  check(/Prepared by/.test(pages[0]), 'the cover is a submittal cover (Prepared by block)')
   check(/types complete of types in scope/.test(pages.join(' ')), 'the legend rides the document')
   check(screenPct !== null && pages[0].includes(`${screenPct}%`),
     `the cover prints the SCREEN'S project % (${screenPct}%)`)
@@ -91,7 +92,81 @@ try {
     `${SB_URL}/rest/v1/project_cx_stage_groups?project_id=eq.${proj.id}&select=name&order=sort_order&limit=1`,
     { headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` } })
   const [g0] = await groupsRes.json()
-  check(!!g0 && pages.join(' ').includes(g0.name), `the first group ("${g0?.name}") prints as a chapter`)
+  check(!!g0 && pages.join(' ').includes(g0.name), `the first group ("${g0?.name}") prints in a strip band`)
+
+  // ── THE STATS INVARIANT (Phase 2b): every strip page carries the per-column
+  // stats row — tfoot repeats like thead. Tolerance of 2: the cover, and a
+  // possible closing-only final page.
+  const statsPages = pages.filter(t => /PER COLUMN/.test(t)).length
+  check(statsPages >= doc.numPages - 2,
+    `the per-column stats row rides every strip page (${statsPages}/${doc.numPages})`)
+  check(/End of Commissioning Index/.test(pages[pages.length - 1]),
+    'the document ends deliberately (closing block on the final page)')
+
+  // ── AMENDMENT 2, physically: colour landed in the deployed render AND the
+  // drawn mark survives inside the fill — white-on-teal is what makes the
+  // grayscale (BT.601: 255 vs ~86) still read complete. Rasterize a strip
+  // page and demand a teal pixel with a near-white pixel in its neighbourhood.
+  {
+    const { createServer } = await import('node:http')
+    const { readFileSync } = await import('node:fs')
+    const SRV = {
+      '/pdf.mjs': 'node_modules/pdfjs-dist/build/pdf.min.mjs',
+      '/pdf.worker.mjs': 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
+    }
+    const server = createServer((rq, rs) => {
+      if (SRV[rq.url]) { rs.writeHead(200, { 'Content-Type': 'text/javascript' }); rs.end(readFileSync(SRV[rq.url])) }
+      else { rs.writeHead(200, { 'Content-Type': 'text/html' }); rs.end('<canvas id="c"></canvas>') }
+    }).listen(0)
+    const rasterPage = await browser.newPage()
+    try {
+      await rasterPage.goto(`http://127.0.0.1:${server.address().port}/`)
+      // Scan strip pages until a done cell is in the raster window — the test
+      // register's few entries sit at unpredictable coordinates.
+      let found = { teal: false, markOnFill: false, page: 0 }
+      const b64 = Buffer.from(pdfBytes).toString('base64')
+      for (let pn = 2; pn <= Math.min(doc.numPages, 12) && !found.markOnFill; pn++) {
+        const r = await rasterPage.evaluate(async ({ b64, port, pn }) => {
+          const lib = await import(`http://127.0.0.1:${port}/pdf.mjs`)
+          lib.GlobalWorkerOptions.workerSrc = `http://127.0.0.1:${port}/pdf.worker.mjs`
+          const bin = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0))
+          const d = await lib.getDocument({ data: bin }).promise
+          const p = await d.getPage(pn)
+          const vp = p.getViewport({ scale: 1.5 })
+          const c = document.getElementById('c')
+          c.width = vp.width; c.height = vp.height
+          const ctx = c.getContext('2d')
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height)
+          await p.render({ canvas: c, canvasContext: ctx, viewport: vp }).promise
+          const img = ctx.getImageData(0, 0, c.width, c.height).data
+          const W = c.width
+          const isTeal = (i) => Math.abs(img[i] - 15) < 30 && Math.abs(img[i + 1] - 118) < 30 && Math.abs(img[i + 2] - 110) < 30
+          const isWhite = (i) => img[i] > 235 && img[i + 1] > 235 && img[i + 2] > 235
+          let teal = false, markOnFill = false
+          for (let y = 0; y < c.height && !markOnFill; y += 2) {
+            for (let x = 0; x < W && !markOnFill; x += 2) {
+              const i = (y * W + x) * 4
+              if (!isTeal(i)) continue
+              teal = true
+              for (let dy = -6; dy <= 6 && !markOnFill; dy += 2)
+                for (let dx = -6; dx <= 6; dx += 2) {
+                  const j = ((y + dy) * W + (x + dx)) * 4
+                  if (j >= 0 && j < img.length && isWhite(j)) { markOnFill = true; break }
+                }
+            }
+          }
+          return { teal, markOnFill }
+        }, { b64, port: server.address().port, pn })
+        if (r.teal) found = { ...r, page: pn }
+      }
+      check(found.teal, `Amendment 2 colour landed in the deployed render (teal done-fill, page ${found.page || '—'})`)
+      check(found.markOnFill,
+        'the drawn mark rides the fill — white-in-teal, so BT.601 grayscale (255 vs ~86) still reads')
+    } finally {
+      await rasterPage.close()
+      server.close()
+    }
+  }
 
   // ── XLSX (through the real button and a real browser download) ────────────
   const dl = page.waitForEvent('download', { timeout: 30000 })
@@ -102,7 +177,9 @@ try {
   const { default: JSZip } = await import('jszip')
   const { readFileSync } = await import('node:fs')
   const zip = await JSZip.loadAsync(readFileSync(xlsxPath))
-  const sheet = await zip.file('xl/worksheets/sheet1.xml').async('string')
+  const workbook = await zip.file('xl/workbook.xml').async('string')
+  const summary = await zip.file('xl/worksheets/sheet1.xml').async('string')
+  const sheet = await zip.file('xl/worksheets/sheet2.xml').async('string')
   const styles = await zip.file('xl/styles.xml').async('string')
   check(/state="frozen"/.test(sheet) && /xSplit="3" ySplit="2"/.test(sheet),
     'the pane freezes the identity columns and both header rows')
@@ -110,6 +187,20 @@ try {
   check(/TEST-HP-1/.test(sheet), 'a real tag lands as a real cell value')
   check(/reflects register at generation/.test(sheet), 'the stamp is in the sheet')
   check(/<mergeCells count="/.test(sheet), 'the group bands merge')
+  // Phase 2b — the submittal-grade assertions, including the reconciled print setup:
+  check(workbook.indexOf('name="Summary"') >= 0 &&
+        workbook.indexOf('name="Summary"') < workbook.indexOf('name="Cx Index"'),
+    'the Summary sheet is the first tab (§3.2, reconciled)')
+  check(/Prepared by Isotherm Engineering Ltd\./.test(summary), 'the Summary carries the cover block')
+  check(/<pageSetup paperSize="1" orientation="landscape" fitToWidth="1"/.test(sheet) &&
+        /<sheetPr><pageSetUpPr fitToPage="1"\/><\/sheetPr>/.test(sheet),
+    'a REAL print setup exists (landscape, fit-to-width) — the reconciled finding')
+  check(/_xlnm\.Print_Titles/.test(workbook) && /'Cx Index'!\$1:\$2/.test(workbook),
+    'Print_Titles repeats both header rows')
+  check(/_xlnm\.Print_Area/.test(workbook), 'the print area is bounded')
+  check(/<autoFilter ref="A2:/.test(sheet), 'an AutoFilter is armed on the header row')
+  check(/FF0F766E/.test(styles) && /FFFBBF24/.test(styles) && /FFE2E8F0/.test(styles),
+    'Amendment 2 fills ride styles.xml (teal, amber, band palette)')
 
   // ── REFUSAL: the allow-list refuses by name, never defaults ───────────────
   const bad = await fetch(`${BASE_URL}/api/generate-report`, {

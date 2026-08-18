@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
-import { classifyCell, columnStat, rollup } from '../lib/cxCounting'
+import { classifyCell, columnStat, rollup, statLabel } from '../lib/cxCounting'
 import type { ColumnStat } from '../lib/cxCounting'
 import { authedFetch } from '../lib/api'
 import { cxIndexXlsxBlob } from '../lib/cxIndexXlsx'
@@ -1208,9 +1208,10 @@ export function CxIndexPage({ projectId }: Props) {
                   return g.columns.map(col => {
                     const s = colStats.get(col.id)!
                     const byType = col.scope === 'type'
-                    const text = byType
-                      ? (s.typesInScope === 0 && s.untypedApplicable === 0 ? '—' : `${s.typesComplete}/${s.typesInScope}`)
-                      : (s.unitTotal === 0 ? '—' : `${Math.round((s.unitDone / s.unitTotal) * 100)}%`)
+                    // ONE display form, shared with the PDF and the workbook
+                    // (statLabel): unit n/N, type K/N. And the gesture's door
+                    // opens on EVERY column — amended Q5: it is a recording
+                    // tool; scope is only a counting rule.
                     const title = byType
                       ? `${col.label} — by type: ${s.typesComplete} of ${s.typesInScope} types complete` +
                         ` (complete = every applicable unit done)` +
@@ -1218,18 +1219,18 @@ export function CxIndexPage({ projectId }: Props) {
                           ? ` · ${s.untypedDone}/${s.untypedApplicable} untyped units not counted — type them to score them`
                           : '') +
                         ` · click to mark a whole type`
-                      : `${col.label} — by unit: ${s.unitDone} of ${s.unitTotal} applicable units done`
+                      : `${col.label} — by unit: ${s.unitDone} of ${s.unitTotal} applicable units done · click to mark a whole type`
                     return (
                       <td
                         key={`${col.id}-foot`}
-                        onClick={byType ? () => setBulkCol(col) : undefined}
+                        onClick={() => setBulkCol(col)}
                         title={title}
                         data-col-stat={col.id}
-                        className={`sticky bottom-0 z-30 border-t border-r border-gray-200 text-center whitespace-nowrap ${
-                          byType ? 'bg-teal-50/80 text-teal-800 cursor-pointer hover:bg-teal-100' : 'bg-white text-gray-500'}`}
+                        className={`sticky bottom-0 z-30 border-t border-r border-gray-200 text-center whitespace-nowrap cursor-pointer ${
+                          byType ? 'bg-teal-50/80 text-teal-800 hover:bg-teal-100' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
                         style={{ fontSize: '7px', fontWeight: 600, height: '18px' }}
                       >
-                        {text}
+                        {statLabel(s)}
                       </td>
                     )
                   })
@@ -1600,9 +1601,10 @@ export function CxIndexPage({ projectId }: Props) {
         </div>
       )}
 
-      {/* ── Bulk-by-type (ruled Q5): the gesture, offered from a by-type
-            column's stat cell. Lists each type's standing so the offer shows
-            its arithmetic before anyone confirms; the confirm names the count. */}
+      {/* ── Bulk-by-type (Q5, amended 2026-08-17): the gesture, offered from
+            EVERY column's stat cell — a recording tool, not a scope feature.
+            Lists each type's standing so the offer shows its arithmetic before
+            anyone confirms; the confirm names the count. */}
       {bulkCol && (
         <div
           className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center"
@@ -1663,8 +1665,9 @@ export function CxIndexPage({ projectId }: Props) {
                 return (
                   <p className="px-4 py-2 text-[10px] text-amber-800 bg-amber-50">
                     {applicable} untyped unit{applicable !== 1 ? 's' : ''} can't join a
-                    type claim and aren't counted in this column's K/N — type them
-                    on the Equipment tab to score them.
+                    type action{bulkCol.scope === 'type'
+                      ? " and aren't counted in this column's K/N"
+                      : ''} — type them on the Equipment tab to include them.
                   </p>
                 )
               })()}

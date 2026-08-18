@@ -137,6 +137,20 @@ export function columnStat(
   }
 }
 
+/** THE ONE DISPLAY FORM for a per-column stat, everywhere stats surface —
+ *  screen footer, PDF stats row, workbook stats row (Phase 2b ruling): unit
+ *  columns read "n/N" (done units / applicable units), type columns read
+ *  "K/N" (types complete / types in scope). One definition; three surfaces
+ *  render its string and cannot drift apart. */
+export function statLabel(s: ColumnStat): string {
+  if (s.scope === 'type') {
+    return s.typesInScope === 0 && s.untypedApplicable === 0
+      ? '—'
+      : `${s.typesComplete}/${s.typesInScope}`
+  }
+  return s.unitTotal === 0 ? '—' : `${s.unitDone}/${s.unitTotal}`
+}
+
 /** Claims-weighted rollup over column stats (section or project-wide). */
 export function rollup(stats: Array<{ num: number; den: number }>): {
   num: number
