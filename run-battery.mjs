@@ -77,6 +77,12 @@ import { createClient } from '@supabase/supabase-js'
 // suites this runner spawns, refused to everything else.
 const releaseLock = acquire('run-battery')
 
+// ── W2 TREE-STATE GUARD: suites load from the working tree, so an edit
+// mid-run IS code landing in a running battery (learned by voiding a 51/53
+// by hand). The stamp is taken after SUITES is declared, below; the recheck
+// runs before the summary is trusted.
+import { treeStamp, guardPaths, stampDiff, announceVoid, VOID_EXIT } from './battery-guard.mjs'
+
 const SUITES = [
   'pw-access',
   'pw-agent-arch',
@@ -146,6 +152,9 @@ const SUITES = [
   // above: runs bare, re-entrant (uploads upsert), ZZ-TEST only.
   'pdf-boundary-gate',
 ]
+
+// The guard's opening stamp — everything this run will execute.
+const GUARD_STAMP = treeStamp(guardPaths(SUITES))
 
 // ── THE DEPLOY WINDOW IS A STATE, AND THIS CHECKS FOR IT ────────────────────
 //
@@ -340,6 +349,18 @@ if (measurements.length) {
   }
   writeFileSync(LEDGER, JSON.stringify([...prior, entry].slice(-50), null, 2) + '\n')
   console.log(`  -> appended to ${LEDGER} (${prior.length + 1} runs)`)
+}
+
+// ── W2: the closing re-check. A mutated tree voids the run, whatever the
+// summary above said — a green over changed suites is the silence class
+// wearing a checkmark. Lock still releases; the exit code is distinct.
+{
+  const changed = stampDiff(GUARD_STAMP, treeStamp(guardPaths(SUITES)))
+  if (changed.length) {
+    announceVoid(changed)
+    releaseLock()
+    process.exit(VOID_EXIT)
+  }
 }
 
 releaseLock()
