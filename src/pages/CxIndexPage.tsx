@@ -954,11 +954,11 @@ export function CxIndexPage({ projectId }: Props) {
                   slide under them vertically. */}
               <th
                 className="sticky left-0 top-0 z-50 bg-white border-b border-r border-gray-200"
-                rowSpan={2}
+                rowSpan={3}
               />
               <th
                 className="sticky left-8 top-0 z-50 bg-white border-b border-r border-gray-200 text-left px-2 text-[9px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
-                rowSpan={2}
+                rowSpan={3}
               >
                 Tag / Descriptor
               </th>
@@ -985,10 +985,49 @@ export function CxIndexPage({ projectId }: Props) {
               <th
                 className="sticky top-0 z-40 bg-gray-100 border-b border-r border-gray-200 text-center font-semibold text-gray-400"
                 style={{ fontSize: '9px' }}
-                rowSpan={2}
+                rowSpan={3}
               >
                 %
               </th>
+            </tr>
+
+            {/* ── Row 2: the ACTION BAND (W1 placement fix) — the mass-apply
+                  door gets its own slim row between the group bands and the
+                  rotated labels, clear of the vertical text at every column
+                  width. Always rendered, quiet at rest, prominent on hover.
+                  The rotated lane keeps its full 120px: the header grows
+                  16px, and that is the price of a visible door. */}
+            <tr>
+              {groups.flatMap((g, gi) => {
+                if (collapsed.has(g.id)) {
+                  return [(
+                    <th
+                      key={`${g.id}-action-collapsed`}
+                      className="sticky z-40 border-b border-r border-gray-200 bg-gray-50"
+                      style={{ height: '16px', top: '24px' }}
+                    />
+                  )]
+                }
+                const cellBg = GROUP_CELL[gi % GROUP_CELL.length]
+                return g.columns.map(col => (
+                  <th
+                    key={`${col.id}-action`}
+                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200 text-center`}
+                    style={{ height: '16px', top: '24px', padding: 0 }}
+                  >
+                    <button
+                      data-col-mass={col.id}
+                      onClick={() => setBulkCol(col)}
+                      title={`Mark all "${col.label}" — ${colStats.get(col.id)?.unitTotal ?? 0} applicable units, by type`}
+                      className="inline-block w-3.5 h-3.5 leading-none rounded border border-gray-300 bg-white/80
+                                 text-gray-400 text-[10px] font-bold align-middle
+                                 hover:border-teal-500 hover:text-teal-700 hover:bg-teal-50"
+                    >
+                      +
+                    </button>
+                  </th>
+                ))
+              })}
             </tr>
 
             {/* ── Row 2: Column labels (rotated) ── */}
@@ -999,7 +1038,7 @@ export function CxIndexPage({ projectId }: Props) {
                     <th
                       key={`${g.id}-collapsed-col`}
                       className="sticky z-40 border-b border-r border-gray-200 bg-gray-50"
-                      style={{ height: '120px', top: '24px' }}
+                      style={{ height: '120px', top: '40px' }}
                     />
                   )]
                 }
@@ -1008,26 +1047,12 @@ export function CxIndexPage({ projectId }: Props) {
                   <th
                     key={col.id}
                     data-col-head={col.id}
-                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200 group/head`}
-                    style={{ height: '120px', top: '24px', verticalAlign: 'bottom', padding: '4px 2px', position: 'sticky' }}
+                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200`}
+                    style={{ height: '120px', top: '40px', verticalAlign: 'bottom', padding: '4px 2px' }}
                     title={`${col.label}${col.scope === 'type'
                       ? ' — counts by type (types complete / types in scope)'
                       : ''}`}
                   >
-                    {/* W1 follow-up: A DOOR THAT MOVED MUST LOOK LIKE A DOOR.
-                        The mass-apply affordance is explicit — always drawn at
-                        low emphasis, prominent on hover, never a bare click
-                        zone. The th's whole-surface click is retired. */}
-                    <button
-                      data-col-mass={col.id}
-                      onClick={e => { e.stopPropagation(); setBulkCol(col) }}
-                      title={`Mark all — ${colStats.get(col.id)?.unitTotal ?? 0} applicable units, by type`}
-                      className="absolute top-0.5 left-1/2 -translate-x-1/2 w-4 h-4 leading-none rounded border
-                                 border-gray-300 bg-white/80 text-gray-400 text-[10px] font-bold
-                                 opacity-60 group-hover/head:opacity-100 hover:!border-teal-500 hover:!text-teal-700 hover:bg-teal-50"
-                    >
-                      +
-                    </button>
                     <div
                       style={{
                         writingMode: 'vertical-rl',

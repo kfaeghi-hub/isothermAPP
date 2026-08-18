@@ -127,6 +127,25 @@ try {
   const colCount = await page.locator('th[data-col-head]').count()
   check(massBtns === colCount && colCount > 0,
     `every column header carries the visible mass-apply control (${massBtns}/${colCount})`)
+
+  // ── W1 PLACEMENT (owner screenshot): the control must never sit on the
+  // rotated labels 2c-1/2c-3 exist to protect. NO-OVERLAP IS AN ASSERTION,
+  // NOT A REVIEW: every control's box against every label's box, all columns.
+  // (Failing-first: reds on the deployed in-lane build.)
+  {
+    const overlaps = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('button[data-col-mass]')].map(b => b.getBoundingClientRect())
+      const labels = [...document.querySelectorAll('th[data-col-head] > div')].map(d => d.getBoundingClientRect())
+      let hits = 0
+      for (const b of btns)
+        for (const l of labels)
+          if (b.left < l.right && b.right > l.left && b.top < l.bottom && b.bottom > l.top) hits++
+      return { hits, btns: btns.length, labels: labels.length }
+    })
+    check(overlaps.btns > 0 && overlaps.labels > 0 && overlaps.hits === 0,
+      `the mass-apply control intersects ZERO rotated labels ` +
+      `(${overlaps.hits} overlaps across ${overlaps.btns} controls × ${overlaps.labels} labels)`)
+  }
   await page.locator(`button[data-col-mass="${col.id}"]`).click()
   const anyMark = page.locator('button', { hasText: /^mark \d+ done$/ }).first()
   const opened = await waitUntil(async () => await anyMark.count() > 0 ? true : null,

@@ -89,11 +89,20 @@ try {
     check(!!groupBox && groupBox.y >= s1.top - 1 && groupBox.y <= s1.top + 2,
       `the stage-group band holds the scroller top after scrolling (band y=${Math.round(groupBox?.y ?? NaN)}, scroller top=${Math.round(s1.top)})`)
 
-    // Row 2 seams at +24px — a wrong offset lets the label row slide under row 1.
-    const labelTh = page.locator('thead tr').nth(1).locator('th[title]').first()
+    // THE HEADER STACK IS THREE ROWS since the W1 placement fix (2026-08-18):
+    // bands (24px, top 0) → ACTION BAND (16px, seam +24) → rotated labels
+    // (seam +40). A wrong offset lets a row slide under the one above it; a
+    // new row moves every seam below it, so the gate's numbers moved in the
+    // SAME COMMIT as the geometry (the ruling's own words).
+    const actionTh = page.locator('thead tr').nth(1).locator('th').filter({
+      has: page.locator('button[data-col-mass]') }).first()
+    const actionBox = await actionTh.boundingBox()
+    check(!!actionBox && Math.abs(actionBox.y - (s1.top + 24)) <= 3,
+      `the action band seams at +24px under the group bands (y=${Math.round(actionBox?.y ?? NaN)}, expected ≈${Math.round(s1.top + 24)})`)
+    const labelTh = page.locator('thead tr').nth(2).locator('th[title]').first()
     const labelBox = await labelTh.boundingBox()
-    check(!!labelBox && Math.abs(labelBox.y - (s1.top + 24)) <= 3,
-      `the rotated-label row holds its 24px seam under row 1 (y=${Math.round(labelBox?.y ?? NaN)}, expected ≈${Math.round(s1.top + 24)})`)
+    check(!!labelBox && Math.abs(labelBox.y - (s1.top + 40)) <= 3,
+      `the rotated-label row holds its 40px seam under the action band (y=${Math.round(labelBox?.y ?? NaN)}, expected ≈${Math.round(s1.top + 40)})`)
 
     // ── BOTH AXES: horizontal scroll on top; the corner keeps left AND top pins.
     const corner = page.getByRole('columnheader', { name: 'Tag / Descriptor' })

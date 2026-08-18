@@ -120,4 +120,9 @@ describe('buildCxIndexHtml — Phase 2b invariants', () => {
   it('packing reports its strip count', () => {
     expect(stats.strips).toBe(1)                            // 3 columns fit one strip
   })
+
+  it('the PDF prints NO interactive controls — the screen door never boards the paper', () => {
+    expect(html).not.toContain('data-col-mass')
+    expect(html).not.toContain('<button')
+  })
 })
