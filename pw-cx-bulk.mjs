@@ -79,19 +79,24 @@ try {
   const statCell = page.locator(`td[data-col-stat="${col.id}"]`)
   await waitUntil(async () => await statCell.count() === 1 ? true : null,
     { timeout: 10000, what: 'the footer stat cell to render' })
-  const statBefore = (await statCell.innerText()).trim()
-  check(/^\d+\/\d+$|^—$/.test(statBefore),
-    `default: the stat reads COMPLETION in the shared n/N form (found "${statBefore}")`)
+  // AMENDED W1 DISPLAY: the percentage is the PRIMARY figure, the fraction
+  // secondary beneath it. (Failing-first vs the n/N-only build.)
+  const statBefore = (await statCell.innerText()).replace(/\s+/g, ' ').trim()
+  const m0 = statBefore.match(/^(\d+|—)% ?(\d+)\/(\d+)$/) ?? statBefore.match(/^(—) ?(\d+)\/(\d+)$/)
+  check(!!m0, `default: the stat leads with a % figure over the n/N fraction (found "${statBefore}")`)
   check(await statCell.getAttribute('data-stat-mode') === 'completion',
     'default: the persisted mode is completion')
+  const n0 = m0 ? Number(m0[2]) : NaN
+  const d0 = m0 ? Number(m0[3]) : NaN
+  check(!m0 || m0[1] === '—' || Number(m0[1]) === Math.round((n0 / d0) * 100),
+    `the % figure agrees with its own fraction (${m0?.[1]}% vs ${n0}/${d0})`)
 
   // Toggle → remaining: the outstanding count, amber, persisted across reload.
   await statCell.click()
   const remText = await waitUntil(async () => {
-    const t = (await statCell.innerText()).trim()
+    const t = (await statCell.innerText()).replace(/\s+/g, ' ').trim()
     return t !== statBefore ? t : null
   }, { timeout: 8000, what: 'the stat to flip to remaining' })
-  const [n0, d0] = statBefore.split('/').map(Number)
   check(remText === String(d0 - n0),
     `toggled: the stat reads the REMAINING count (${remText} = ${d0}−${n0})`)
   undo.push(async () => {
@@ -101,12 +106,12 @@ try {
   await page.reload()
   await waitUntil(async () => await page.locator('[data-unit-row]').count() >= 20 ? true : null,
     { timeout: 20000, what: 'the matrix to repaint after reload' })
-  check((await statCell.innerText()).trim() === remText &&
+  check((await statCell.innerText()).replace(/\s+/g, ' ').trim() === remText &&
         await statCell.getAttribute('data-stat-mode') === 'remaining',
     'the remaining mode PERSISTS across reload')
   await statCell.click()
   await waitUntil(async () =>
-    (await statCell.innerText()).trim() === statBefore ? true : null,
+    (await statCell.innerText()).replace(/\s+/g, ' ').trim() === statBefore ? true : null,
     { timeout: 8000, what: 'the stat to toggle back to completion' })
   check(true, 'toggling back restores the completion reading')
 
@@ -115,12 +120,18 @@ try {
   check(await page.locator('button', { hasText: /^mark \d+ done$/ }).count() === 0,
     'clicking the stat never opened the gesture (the instrument is not the button)')
 
-  // ── The gesture's own affordance: the column HEADER opens the popover ─────
-  await page.locator(`th[data-col-head="${col.id}"]`).click()
+  // ── W1 FOLLOW-UP: the door is a VISIBLE AFFORDANCE, not a bare click zone.
+  // Every column carries the mass-apply control; this column's opens the
+  // popover. (Failing-first vs the unmarked-header build.)
+  const massBtns = await page.locator('button[data-col-mass]').count()
+  const colCount = await page.locator('th[data-col-head]').count()
+  check(massBtns === colCount && colCount > 0,
+    `every column header carries the visible mass-apply control (${massBtns}/${colCount})`)
+  await page.locator(`button[data-col-mass="${col.id}"]`).click()
   const anyMark = page.locator('button', { hasText: /^mark \d+ done$/ }).first()
   const opened = await waitUntil(async () => await anyMark.count() > 0 ? true : null,
-    { timeout: 8000, what: 'the gesture popover to open from the column header' })
-  check(!!opened, 'the gesture door opens from the header, on a unit-scoped column (amended Q5 + W1)')
+    { timeout: 8000, what: 'the gesture popover to open from the header control' })
+  check(!!opened, 'the visible control opens the gesture, on a unit-scoped column (amended Q5 + W1)')
 
   const typeKey = await anyMark.evaluate(b => b.closest('[data-bulk-row]')?.getAttribute('data-bulk-row'))
   const typeRow = page.locator(`[data-bulk-row="${typeKey}"]`)

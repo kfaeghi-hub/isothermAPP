@@ -1008,13 +1008,26 @@ export function CxIndexPage({ projectId }: Props) {
                   <th
                     key={col.id}
                     data-col-head={col.id}
-                    onClick={() => setBulkCol(col)}
-                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200 cursor-pointer hover:opacity-80`}
-                    style={{ height: '120px', top: '24px', verticalAlign: 'bottom', padding: '4px 2px' }}
+                    className={`${cellBg} sticky z-40 border-b border-r border-gray-200 group/head`}
+                    style={{ height: '120px', top: '24px', verticalAlign: 'bottom', padding: '4px 2px', position: 'sticky' }}
                     title={`${col.label}${col.scope === 'type'
                       ? ' — counts by type (types complete / types in scope)'
-                      : ''} · click to mark a whole type`}
+                      : ''}`}
                   >
+                    {/* W1 follow-up: A DOOR THAT MOVED MUST LOOK LIKE A DOOR.
+                        The mass-apply affordance is explicit — always drawn at
+                        low emphasis, prominent on hover, never a bare click
+                        zone. The th's whole-surface click is retired. */}
+                    <button
+                      data-col-mass={col.id}
+                      onClick={e => { e.stopPropagation(); setBulkCol(col) }}
+                      title={`Mark all — ${colStats.get(col.id)?.unitTotal ?? 0} applicable units, by type`}
+                      className="absolute top-0.5 left-1/2 -translate-x-1/2 w-4 h-4 leading-none rounded border
+                                 border-gray-300 bg-white/80 text-gray-400 text-[10px] font-bold
+                                 opacity-60 group-hover/head:opacity-100 hover:!border-teal-500 hover:!text-teal-700 hover:bg-teal-50"
+                    >
+                      +
+                    </button>
                     <div
                       style={{
                         writingMode: 'vertical-rl',
@@ -1239,9 +1252,13 @@ export function CxIndexPage({ projectId }: Props) {
                     // does not trade its instrument for its button again.
                     const remaining = s.den - s.num
                     const showRem = col.stat_display === 'remaining'
-                    const reading = showRem
-                      ? (s.den === 0 ? '—' : `${remaining}`)
-                      : statLabel(s)
+                    // AMENDED W1 DISPLAY (2026-08-18), old text quoted: "(a) the
+                    // column stat reads completion by default — unit columns
+                    // n/N, type columns K/N". Amended: the PERCENTAGE is the
+                    // primary figure, the fraction secondary beneath it.
+                    // Remaining stays the amber count — a "remaining %" is a
+                    // strange instrument; the count is the honest form there.
+                    const pct = s.den === 0 ? null : Math.round((s.num / s.den) * 100)
                     const basis = byType
                       ? `by type: ${s.typesComplete} of ${s.typesInScope} types complete (complete = every applicable unit done)` +
                         (s.untypedApplicable > 0
@@ -1257,13 +1274,26 @@ export function CxIndexPage({ projectId }: Props) {
                         title={title}
                         data-col-stat={col.id}
                         data-stat-mode={col.stat_display}
-                        className={`sticky bottom-0 z-30 border-t border-r border-gray-200 text-center whitespace-nowrap cursor-pointer ${
+                        className={`sticky bottom-0 z-30 border-t border-r border-gray-200 text-center whitespace-nowrap cursor-pointer leading-none ${
                           showRem ? 'bg-amber-50/80 text-amber-800 hover:bg-amber-100'
                           : byType ? 'bg-teal-50/80 text-teal-800 hover:bg-teal-100'
                           : 'bg-white text-gray-500 hover:bg-gray-100'}`}
-                        style={{ fontSize: '7px', fontWeight: 600, height: '18px' }}
+                        style={{ height: '24px' }}
                       >
-                        {reading}
+                        {showRem ? (
+                          <span style={{ fontSize: '8px', fontWeight: 700 }}>
+                            {s.den === 0 ? '—' : remaining}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="block" style={{ fontSize: '8px', fontWeight: 700 }}>
+                              {pct === null ? '—' : `${pct}%`}
+                            </span>
+                            <span className="block opacity-70" style={{ fontSize: '6px', fontWeight: 500 }}>
+                              {statLabel(s)}
+                            </span>
+                          </>
+                        )}
                       </td>
                     )
                   })
