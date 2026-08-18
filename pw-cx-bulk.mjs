@@ -176,16 +176,16 @@ try {
     { timeout: 8000, what: "the type row's button to read 'complete'" })
   check(!!completed, `the popover row for "${typeName}" reads complete after the act`)
   await page.mouse.click(200, 450)
-  const bump = (s) => {
-    const [n, d] = s.split('/').map(Number)
-    return `${n + promised}/${d}`
-  }
+  // Expected under the amended display: %-primary over the bumped fraction,
+  // both recomputed from the parsed numbers — never string surgery on the cell.
+  const n1 = n0 + promised
+  const expectedAfter = `${Math.round((n1 / d0) * 100)}% ${n1}/${d0}`
   const statAfter = await waitUntil(async () => {
-    const t = (await statCell.innerText()).trim()
+    const t = (await statCell.innerText()).replace(/\s+/g, ' ').trim()
     return t !== statBefore ? t : null
-  }, { timeout: 8000, what: 'the footer n/N to move' })
-  check(statAfter === bump(statBefore),
-    `the unit stat moved ${statBefore} → ${statAfter} (+${promised} done units)`)
+  }, { timeout: 8000, what: 'the stat to move' })
+  check(statAfter === expectedAfter,
+    `the stat moved ${statBefore} → ${statAfter} (+${promised} done units; expected "${expectedAfter}")`)
 
   // ── §4.3 still holds: the editor flips scope, the form follows ────────────
   await page.getByRole('button', { name: 'Edit Structure' }).click()
