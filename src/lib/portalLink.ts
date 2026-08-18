@@ -11,6 +11,7 @@
 // anti-drift reason: one declaration, two callers.
 import type {
   PortalProject, PortalFinding, PortalPhoto, PortalDocument, PortalStats, PortalTeamRow,
+  PortalCxIndexRow,
 } from './portal'
 
 export interface PortalLinkBundle {
@@ -20,6 +21,7 @@ export interface PortalLinkBundle {
   photos: PortalPhoto[]
   documents: PortalDocument[]
   team: PortalTeamRow[]
+  cx_index: PortalCxIndexRow[]
 }
 
 /** Open a share link. Returns null for invalid / expired / revoked alike — the
@@ -40,6 +42,7 @@ export async function fetchLinkBundle(token: string): Promise<PortalLinkBundle |
     photos: b.photos ?? [],
     documents: b.documents ?? [],
     team: b.team ?? [],
+    cx_index: b.cx_index ?? [],
   }
 }
 

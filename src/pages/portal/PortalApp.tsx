@@ -26,15 +26,16 @@ import { signOut } from '../../lib/auth'
 import { LogoMark } from '../../components/Logo'
 import {
   getPortalProjects, getPortalProject, getPortalFindings, getPortalPhotos,
-  getPortalDocuments, getPortalStats, getPortalTeam,
+  getPortalDocuments, getPortalStats, getPortalTeam, getPortalCxIndex,
   type PortalProject, type PortalFinding, type PortalPhoto, type PortalDocument,
-  type PortalStats, type PortalTeamRow,
+  type PortalStats, type PortalTeamRow, type PortalCxIndexRow,
 } from '../../lib/portal'
 import { useMotionMode } from './motion'
 import { Hero } from './sections/Hero'
 import { Register } from './sections/Register'
 import { Documents } from './sections/Documents'
 import { Team } from './sections/Team'
+import { CxProgress } from './sections/CxProgress'
 import { EmptyState } from './ui/EmptyState'
 
 const STAFF = ['admin', 'developer', 'owner', 'user']
@@ -173,6 +174,7 @@ function ProjectView() {
   const [photos, setPhotos] = useState<PortalPhoto[]>([])
   const [docs, setDocs] = useState<PortalDocument[]>([])
   const [team, setTeam] = useState<PortalTeamRow[]>([])
+  const [cxIndex, setCxIndex] = useState<PortalCxIndexRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -181,11 +183,11 @@ function ProjectView() {
     Promise.all([
       getPortalProjects(), getPortalProject(projectId), getPortalStats(projectId),
       getPortalFindings(projectId), getPortalPhotos(projectId),
-      getPortalDocuments(projectId), getPortalTeam(projectId),
-    ]).then(([ps, pr, st, f, ph, d, t]) => {
+      getPortalDocuments(projectId), getPortalTeam(projectId), getPortalCxIndex(projectId),
+    ]).then(([ps, pr, st, f, ph, d, t, cx]) => {
       if (!alive) return
       setProjects(ps); setProject(pr); setStats(st)
-      setFindings(f); setPhotos(ph); setDocs(d); setTeam(t)
+      setFindings(f); setPhotos(ph); setDocs(d); setTeam(t); setCxIndex(cx)
       setLoading(false)
     })
     return () => { alive = false }
@@ -203,6 +205,7 @@ function ProjectView() {
         <Register findings={findings} photos={photos} />
         <Documents docs={docs} />
         <Team team={team} />
+        <CxProgress rows={cxIndex} />
       </div>
     </Frame>
   )

@@ -22,6 +22,7 @@ import { Hero } from './sections/Hero'
 import { Register } from './sections/Register'
 import { Documents } from './sections/Documents'
 import { Team } from './sections/Team'
+import { CxProgress } from './sections/CxProgress'
 import { PortalContour } from './ui/PortalContour'
 
 /** A share link must never be indexed or leak its token in a Referer header.
@@ -127,6 +128,7 @@ export function PortalLink() {
             onOpen={(doc, kind) => openLinkDocument(token, doc, kind)}
           />
           <Team team={bundle.team} />
+          <CxProgress rows={bundle.cx_index} />
         </div>
       </main>
 

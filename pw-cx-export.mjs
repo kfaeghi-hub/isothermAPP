@@ -243,6 +243,22 @@ try {
   check(/FF0F766E/.test(styles) && /FFFBBF24/.test(styles) && /FFE2E8F0/.test(styles),
     'Amendment 2 fills ride styles.xml (teal, amber, band palette)')
 
+  // ── PHASE 3 PARITY: the portal's project number IS the page's number — one
+  // definition (cx-counting ↔ portal_internal.cx_index_stats), asserted, not
+  // trusted from a comment. This leg already holds both worlds: the screen %
+  // was read above; the RPC answers as staff through portal_can_view.
+  {
+    const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/portal_cx_index`, {
+      method: 'POST',
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pid: proj.id }),
+    })
+    const rows = await rpcRes.json()
+    const projRow = (Array.isArray(rows) ? rows : []).find(r => r.kind === 'project')
+    check(!!projRow && String(projRow.pct ?? 0) === String(screenPct),
+      `PARITY: portal project % equals the screen's (portal ${projRow?.pct ?? '∅'} vs screen ${screenPct})`)
+  }
+
   // ── REFUSAL: the allow-list refuses by name, never defaults ───────────────
   const bad = await fetch(`${BASE_URL}/api/generate-report`, {
     method: 'POST',

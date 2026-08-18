@@ -113,6 +113,20 @@ try {
     const { data } = await cli.rpc('portal_team', { pid: ZZ })
     check(Array.isArray(data), `portal_team returns rows (${data?.length ?? 0})`)
   }
+  // portal_cx_index — the §8 AMENDMENT surface (2026-08-17): aggregates only.
+  // The exact column set is the whole contract: kind/name/num/den/pct/sort and
+  // NOTHING row-shaped — no equipment_id, no tag, no cell, ever.
+  {
+    const { data } = await cli.rpc('portal_cx_index', { pid: ZZ })
+    check((data ?? []).length > 0 && data.some(r => r.kind === 'project'),
+      `portal_cx_index returns aggregates with a project row (${data?.length ?? 0} rows)`)
+    const cols = Object.keys(data?.[0] ?? {}).sort().join(',')
+    check(cols === 'den,kind,name,num,pct,sort',
+      `cx_index returns EXACTLY the aggregate columns (${cols})`)
+    const kinds = [...new Set((data ?? []).map(r => r.kind))].sort().join(',')
+    check(kinds === 'category,group,project',
+      `cx_index kinds are the three aggregates, nothing else (${kinds})`)
+  }
   // portal_project(pid) — the single-project header read, added in Part B.
   // Gated on portal_can_view (so the staff preview has a name to render),
   // NOT on membership. Both halves asserted: the invited project resolves,
@@ -211,7 +225,7 @@ try {
       ['portal_finding_photos', { pid: ZZ }], ['portal_documents', { pid: ZZ }],
       ['portal_stats', { pid: ZZ }], ['portal_team', { pid: ZZ }],
       ['portal_can_view', { pid: ZZ }], ['is_portal_member', { pid: ZZ }],
-      ['portal_project', { pid: ZZ }]]
+      ['portal_project', { pid: ZZ }], ['portal_cx_index', { pid: ZZ }]]
     const reachable = []
     for (const [fn, args] of RPCS) {
       const { error } = await anon.rpc(fn, args)
@@ -346,6 +360,7 @@ try {
         ['documents', 'portal_documents', opened.body.documents],
         ['team', 'portal_team', opened.body.team],
         ['photos', 'portal_finding_photos', opened.body.photos],
+        ['cx_index', 'portal_cx_index', opened.body.cx_index],
       ]) {
         const { data: a } = await cli.rpc(rpc, { pid: ZZ })
         const ac = Object.keys(a?.[0] ?? {}).sort().join(',')

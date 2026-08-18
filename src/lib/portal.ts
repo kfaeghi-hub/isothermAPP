@@ -30,6 +30,14 @@ export interface PortalTeamRow {
   company_name: string | null; role_name: string | null
   role_abbr: string | null; contact_name: string | null
 }
+/** Clause 05 (§8 amendment, 2026-08-17): Cx Index AGGREGATES only — the same
+ *  claims-weighted numbers the internal page computes, and nothing row-shaped.
+ *  kind: 'project' | 'group' | 'category'. For categories, sort carries the
+ *  unit count (display data, not an id). */
+export interface PortalCxIndexRow {
+  kind: 'project' | 'group' | 'category'
+  name: string; num: number; den: number; pct: number | null; sort: number
+}
 
 const rows = async <T,>(fn: string, args?: Record<string, unknown>): Promise<T[]> => {
   const { data, error } = await supabase.rpc(fn, args)
@@ -50,6 +58,7 @@ export const getPortalFindings = (pid: string) => rows<PortalFinding>('portal_fi
 export const getPortalPhotos   = (pid: string) => rows<PortalPhoto>('portal_finding_photos', { pid })
 export const getPortalDocuments = (pid: string) => rows<PortalDocument>('portal_documents', { pid })
 export const getPortalTeam     = (pid: string) => rows<PortalTeamRow>('portal_team', { pid })
+export const getPortalCxIndex  = (pid: string) => rows<PortalCxIndexRow>('portal_cx_index', { pid })
 export const getPortalStats = async (pid: string): Promise<PortalStats | null> =>
   (await rows<PortalStats>('portal_stats', { pid }))[0] ?? null
 
