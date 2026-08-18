@@ -260,3 +260,47 @@ Files already **ISSUED** stay exactly as issued. A long project may now hold
 navy, then purple, then monochrome documents. That mixed set is intentional and
 is not a defect to reconcile — **a document records what it looked like when it
 was issued.**
+
+---
+
+# AMENDMENT 2 — colour admitted into the Cx Index export family only (2026-08-17)
+
+**Ruled by the owner with the Phase 2b package, after holding the first Seneca
+artifacts. Recorded as a dated amendment, not a silent rewrite. The old text it
+modifies, quoted:**
+
+> **Generated documents go monochrome, effective now.** The purple/vermilion
+> brand layer is **retired from documents** until the rebrand lands.
+
+— and doc-common's consequence note: *"these are now the ONLY colour in a
+generated document … Adding a colour here is now a semantic claim."*
+
+## The ruling
+
+**The screen palette is admitted into the Cx Index export family — and only
+there.** Specifically: the matrix's 12-colour stage-group bands, the teal
+done / amber in-progress cell fills under the drawn status marks, and a cover
+that echoes the app header. Every other generated family remains monochrome
+under Amendment 1; the `DOC` palette in doc-common is untouched, and the
+export's colours live in the export's own module, never in `DOC`.
+
+**Why this family is different:** the Cx Index export is the *screen's own
+matrix* leaving the app — the owner's review found the monochrome print harder
+to navigate than the screen it reproduces, and a client who has seen the portal
+reads the group bands as wayfinding. The Site Note's monochrome logic (a field
+document, printed mono, on site) does not describe a 30-page navigational
+matrix.
+
+## The law riding the amendment
+
+**Colour is REDUNDANT ENCODING, never the carrier.** The drawn marks (solid
+square, half square, dot, struck square) carry every status on their own; the
+fills and bands are wayfinding on top. The grayscale rasterization must still
+read complete — battery-asserted, not trusted: the export leg samples the
+rendered page and requires the mark/fill contrast to survive BT.601 grayscale.
+`print-color-adjust: exact` is set and verified against the real deployment;
+xlsx fills ride `styles.xml` patternFills, unzip-asserted plus a real-Excel
+open reading the fill back through COM.
+
+Rule 4, a third time: artifacts generated under the monochrome era stay as
+generated. Regeneration produces the current form; nothing is re-issued.

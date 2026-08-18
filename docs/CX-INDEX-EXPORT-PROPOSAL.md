@@ -558,6 +558,17 @@ The one-act gesture removes the 117-click pain the team is actually reporting.
 
 > **RULED — no shared storage; the bulk gesture, with the count named in the
 > confirmation.** Attributable writes, offer-never-assert.
+>
+> **AMENDED 2026-08-17 (Phase 2b), old text quoted:** the original ruling and
+> §4.4 scoped the gesture to type-scoped columns — *"the header gains 'mark
+> all ⟨type⟩ — N units' as one confirmed act"* was built as a door that opened
+> only where `scope = 'type'`. **The amendment decouples them: the gesture is
+> available on every column in every section.** It is a *recording tool* — one
+> attributable act writing N named per-unit facts — and recording a fleet's
+> start-up completion is the same act as recording its shop drawing. Scope
+> remains only a *counting rule*; nothing about the math moved. The gesture's
+> own discipline is unchanged: count named in the confirmation, N/A units
+> skipped, done units untouched, `updated_by` on every row.
 
 **Q6 · When is a type "complete" for a type-scoped %?**
 → **All applicable units done** (partial families count in the denominator
