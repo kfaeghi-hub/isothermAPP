@@ -101,6 +101,39 @@ try {
   const statsPages = pages.filter(t => /PER COLUMN/.test(t)).length
   check(statsPages >= doc.numPages - 2,
     `the per-column stats row rides every strip page (${statsPages}/${doc.numPages})`)
+
+  // ── 2c-1: IDENTITY NEVER TRUNCATES — every register tag appears in the PDF
+  // byte-identical, once per strip (each strip repeats the identity columns).
+  {
+    const equip = await (await fetch(
+      `${SB_URL}/rest/v1/equipment?project_id=eq.${proj.id}&select=tag`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` } })).json()
+    const tags = [...new Set(equip.map(e => e.tag).filter(Boolean))]
+    const stripCount = parseInt((pages.join(' ').match(/strip 1 of (\d+)/) ?? [])[1] ?? '1', 10)
+    const hay = ` ${pages.join(' ')} `
+    const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const missing = []
+    for (const t of tags) {
+      const hits = (hay.match(new RegExp(`(?<![\\w-])${escRe(t)}(?![\\w-])`, 'g')) ?? []).length
+      if (hits < stripCount) missing.push(`${t}(${hits}/${stripCount})`)
+    }
+    check(missing.length === 0,
+      `every tag prints whole on every strip (${tags.length} tags × ${stripCount} strips` +
+      `${missing.length ? ` — short: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}` : ''})`)
+  }
+
+  // ── 2c-3: BAND LABELS NEVER TRUNCATE — every group's full name reaches the
+  // text layer, in its band or in a strip legend's G-marker expansion.
+  {
+    const allGroups = await (await fetch(
+      `${SB_URL}/rest/v1/project_cx_stage_groups?project_id=eq.${proj.id}&select=name`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` } })).json()
+    const text = pages.join(' ')
+    const absent = allGroups.map(g => g.name).filter(n => !text.includes(n))
+    check(absent.length === 0,
+      `every group's full name prints, banded or legend-expanded` +
+      `${absent.length ? ` (missing: ${absent.join(', ')})` : ` (${allGroups.length} groups)`}`)
+  }
   // letter-spacing splits the closing line into per-glyph runs and uppercase
   // transforms it — collapse and casefold before testing, like the stamp.
   check(/ENDOFCOMMISSIONINGINDEX/.test(flat(pages[pages.length - 1]).toUpperCase()),

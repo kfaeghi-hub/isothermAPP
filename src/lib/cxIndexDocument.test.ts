@@ -52,14 +52,40 @@ describe('buildCxIndexHtml — Phase 2b invariants', () => {
     expect(html).toContain('PER COLUMN')
   })
 
-  it('stats use the one shared form: unit n/N, type K/N — each value size-fitted', () => {
-    // c3 unit: 3/3 · c1 type: ahu complete, pump not → 1/2 · c2 unit: 2 applicable, 0 done → 0/2
-    expect(html).toMatch(/<td style="font-size:5\.75pt">3\/3<\/td>/)
-    expect(html).toMatch(/<td style="font-size:5\.75pt">1\/2<\/td>/)
-    expect(html).toMatch(/<td style="font-size:5\.75pt">0\/2<\/td>/)
-    // No % form IN THE STATS ROW — the cover's group table keeps its %s.
+  it('2c-2: stats are STACKED at one fixed size — the named floor, no per-value shrink', () => {
+    // c3 unit: 3/3 · c1 type: ahu complete, pump not → 1/2 · c2 unit: 0/2
+    expect(html).toContain('<span class="sn">3</span><span class="sd">3</span>')
+    expect(html).toContain('<span class="sn">1</span><span class="sd">2</span>')
+    expect(html).toContain('<span class="sn">0</span><span class="sd">2</span>')
     const tfoot = html.match(/<tfoot>.*?<\/tfoot>/s)![0]
-    expect(tfoot).not.toMatch(/\d+%/)
+    expect(tfoot).not.toMatch(/\d+%/)          // no % form in the stats row
+    expect(tfoot).not.toMatch(/font-size/)     // ONE treatment — no per-value sizing
+    expect(html).toContain('.sn, tr.stats .sd { display: block; font-size: 5.5pt')
+  })
+
+  it('2c-1: the tag column sizes to the longest tag in the register', () => {
+    const long = buildCxIndexHtml({ ...FIXTURE,
+      equipment: [...FIXTURE.equipment,
+        { id: 'e9', tag: 'DHWT-MECH-PENTHOUSE-01A', descriptor: null, category: 'Tanks', equipment_type: null }] })
+    const w = (h: string) => parseFloat(h.match(/col style="width:(\d+\.\d+)in"/g)![1].match(/[\d.]+/)![0])
+    // 23 chars × 0.0563 + 0.12 ≈ 1.41in vs the 0.95in floor for short tags.
+    expect(long.html).toContain('width:1.415in')
+    expect(html).toContain('width:0.950in')
+    expect(w).toBeDefined()
+  })
+
+  it('2c-3: a band that cannot fit its words abbreviates and the legend expands it', () => {
+    // The base fixture's own bands span 1–2 columns — too narrow for words, so
+    // both abbreviate WITH their legend expansions (the mechanism, not a bug):
+    expect(html).toMatch(/>G1<\/th>/)
+    expect(html).toContain('G1 = Doc Review Stage')
+    expect(html).toContain('G2 = Start Up')
+    // A band with real room keeps its words — 8 columns carries the name whole.
+    const wide = buildCxIndexHtml({ ...FIXTURE,
+      groups: [{ name: 'Doc Review Stage',
+        columns: Array.from({ length: 8 }, (_, i) => ({ id: `w${i}`, label: `Col ${i}`, scope: 'unit' as const })) }] })
+    expect(wide.html).toContain('>Doc Review Stage</th>')
+    expect(wide.html).not.toMatch(/>G\d+\+?<\/th>/)
   })
 
   it('group bands render inside the strip with their palette', () => {

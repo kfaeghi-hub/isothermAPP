@@ -71,12 +71,38 @@ const APP_BRAND = '#443C8F'   // the app header the cover echoes
 // ── Geometry (inches; landscape letter, 0.45in side margins) ─────────────────
 const USABLE_W   = 10.1
 const W_NUM      = 0.28
-const W_TAG      = 0.95
 const W_DESC_ON  = 1.35
 const W_DESC_OFF = 0.45
 const W_CELL     = 0.19
 const HEAD_H     = 2.0        // rotated-label row
 const LABEL_BUDGET_PT = 137   // ≈ 1.9in of writing length inside HEAD_H
+
+/** 2c-1: THE TAG COLUMN SIZES TO THE REGISTER. Identity never truncates — the
+ *  column is as wide as the longest tag needs at 6.75pt monospace
+ *  (~0.0563in/char) plus breathing room, floored at the old fixed width. */
+const tagColWidth = (equipment: Array<{ tag: string | null }>): number => {
+  const longest = equipment.reduce((m, e) => Math.max(m, (e.tag ?? '').length), 0)
+  return Math.max(0.95, 0.12 + longest * 0.0563)
+}
+
+/** 2c-2: STATS ARE STACKED, ONE TREATMENT, ONE SIZE. Per-value shrinking hit
+ *  3.9pt on "89/367" — below any legibility floor. Every stat now renders as
+ *  numerator over denominator at a single fixed size with a fraction rule;
+ *  three characters a line fits the cell at 5.5pt with margin. */
+const STAT_FONT_PT = 5.5
+
+/** 2c-3: BAND LABELS NEVER TRUNCATE. A band shrinks toward 5pt to fit its
+ *  segment; if even 5pt cannot carry the words, the band shows a G-number
+ *  marker and the strip's legend expands it. Returns the render decision. */
+function fitBand(name: string, contd: boolean, cols: number, gi: number):
+  { text: string; fontPt: number; expanded: string | null } {
+  const label = `${name}${contd ? ' (cont’d)' : ''}`
+  const budgetPt = cols * W_CELL * 72 - 4
+  const fit = budgetPt / (label.length * 0.52)
+  if (fit >= 5) return { text: label, fontPt: Math.min(6.5, fit), expanded: null }
+  const marker = `G${gi + 1}${contd ? '+' : ''}`
+  return { text: marker, fontPt: 6.5, expanded: `${marker} = ${label}` }
+}
 
 /** Font size at which a rotated label fits its budget WHOLE — zero truncation
  *  by construction (Phase 2b acceptance). 0.52em/char is a conservative Arial
@@ -120,8 +146,11 @@ const CSS = `
   td.desc { font-size: 6.5pt; color: #333; white-space: nowrap; }
   tr.cat td { background: #e6e6e6; font-weight: 700; font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; height: 0.14in; }
   tr.zebra td.num, tr.zebra td.tag, tr.zebra td.desc { background: ${DOC.ZEBRA}; }
-  tr.stats td { border-top: 1.2pt solid ${DOC.INK}; font-weight: 700; text-align: center; background: #fff; height: 0.15in; white-space: nowrap; padding: 0; letter-spacing: -0.02em; }
-  tr.stats td.lbl { text-align: left; font-size: 6pt; letter-spacing: 0.05em; padding-left: 3px; }
+  tr.stats td { border-top: 1.2pt solid ${DOC.INK}; font-weight: 700; text-align: center; background: #fff; height: 0.26in; white-space: nowrap; padding: 0; }
+  tr.stats td.lbl { text-align: left; font-size: 6pt; letter-spacing: 0.05em; padding-left: 3px; vertical-align: middle; }
+  tr.stats .sn, tr.stats .sd { display: block; font-size: ${STAT_FONT_PT}pt; line-height: 1.15; }
+  tr.stats .sd { border-top: 0.5pt solid #999; margin: 0 2px; }
+  tr.stats .sdash { font-size: ${STAT_FONT_PT}pt; }
   .c-done { background: ${DONE_FILL}; }
   .c-prog { background: ${PROG_FILL}; }
   .c-na   { background: ${NA_FILL}; }
@@ -215,10 +244,11 @@ export function buildCxIndexHtml(input: CxIndexInput): {
   const generated = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
 
   // Descriptor column narrows when the register carries no descriptors (grows
-  // only if content exists — Phase 2b).
+  // only if content exists — Phase 2b). Tag column sizes to the register (2c-1).
   const hasDesc = equipment.some(e => (e.descriptor ?? '').trim() !== '')
   const wDesc = hasDesc ? W_DESC_ON : W_DESC_OFF
-  const idW = W_NUM + W_TAG + wDesc
+  const wTag = tagColWidth(equipment)
+  const idW = W_NUM + wTag + wDesc
   const maxCols = Math.floor((USABLE_W - idW) / W_CELL)
   const strips = packStrips(groups, maxCols)
 
@@ -257,16 +287,24 @@ export function buildCxIndexHtml(input: CxIndexInput): {
     const title = names.length > 2 ? `${names[0]} → ${names[names.length - 1]}` : names.join(' · ')
 
     const colgroup =
-      `<colgroup><col style="width:${W_NUM}in"><col style="width:${W_TAG}in"><col style="width:${wDesc}in">` +
+      `<colgroup><col style="width:${W_NUM}in"><col style="width:${wTag.toFixed(3)}in"><col style="width:${wDesc}in">` +
       cols.map(() => `<col style="width:${W_CELL}in">`).join('') + `</colgroup>`
 
+    // 2c-3: bands fit or hand their words to the strip legend, never clip.
+    const expansions: string[] = []
     const bandRow =
       `<tr><th class="idcol" colspan="3" style="background:#fff;border:none"></th>` +
       segs.map(s => {
         const b = BANDS[s.gi % BANDS.length]
-        return `<th class="band" colspan="${s.columns.length}" style="background:${b.bg};color:${b.text}">` +
-               `${esc(s.group.name)}${s.contd ? ' (cont’d)' : ''}</th>`
+        const fit = fitBand(s.group.name, s.contd, s.columns.length, s.gi)
+        if (fit.expanded) expansions.push(fit.expanded)
+        return `<th class="band" colspan="${s.columns.length}" ` +
+               `style="background:${b.bg};color:${b.text};font-size:${fit.fontPt.toFixed(2)}pt">` +
+               `${esc(fit.text)}</th>`
       }).join('') + `</tr>`
+    const stripLegend = expansions.length
+      ? LEGEND.replace('</p>', `${SEP}${expansions.map(esc).join(' · ')}</p>`)
+      : LEGEND
 
     const labelRow =
       `<tr><th class="idcol">#</th><th class="idcol">Tag</th><th class="idcol">${hasDesc ? 'Descriptor' : ''}</th>` +
@@ -275,16 +313,16 @@ export function buildCxIndexHtml(input: CxIndexInput): {
         return `<th class="rot"><div style="font-size:${labelFontPt(label).toFixed(2)}pt">${esc(label)}</div></th>`
       }).join('') + `</tr>`
 
-    // Stats values get the label-fit treatment: "0/367" at a fixed 5.75pt
-    // clipped to "0/36" in the first Seneca render — a WRONG NUMBER printed
-    // with full confidence. Size per value so every digit lands.
-    const statFontPt = (t: string) =>
-      t.length <= 4 ? 5.75 : t.length === 5 ? 5.0 : t.length === 6 ? 4.4 : 3.9
+    // 2c-2: every stat renders STACKED — numerator over denominator at one
+    // fixed size (STAT_FONT_PT, the named floor). The Phase 2b per-value
+    // shrink bottomed at 3.9pt, which is not a floor, it is a basement.
     const statsRow =
-      `<tr class="stats"><td class="lbl" colspan="3">PER COLUMN — done/total (* by type)</td>` +
+      `<tr class="stats"><td class="lbl" colspan="3">PER COLUMN — done over total (* by type)</td>` +
       cols.map(c => {
         const t = statLabel(colStats.get(c.id)!)
-        return `<td style="font-size:${statFontPt(t)}pt">${esc(t)}</td>`
+        if (t === '—') return `<td><span class="sdash">—</span></td>`
+        const [n, d] = t.split('/')
+        return `<td><span class="sn">${esc(n)}</span><span class="sd">${esc(d)}</span></td>`
       }).join('') + `</tr>`
 
     let zebra = false
@@ -306,7 +344,7 @@ export function buildCxIndexHtml(input: CxIndexInput): {
 
     return `<div class="strip">
       <h2>${esc(title)} — columns ${cols.length ? `${strips.slice(0, si).reduce((s, x) => s + x.reduce((a, b) => a + b.columns.length, 0), 0) + 1}–${strips.slice(0, si + 1).reduce((s, x) => s + x.reduce((a, b) => a + b.columns.length, 0), 0)}` : ''} of ${totalCols} (strip ${si + 1} of ${strips.length})</h2>
-      ${LEGEND}
+      ${stripLegend}
       <table class="idx">${colgroup}<thead>${bandRow}${labelRow}</thead><tfoot>${statsRow}</tfoot><tbody>${body}</tbody></table>
     </div>`
   }).join('')
