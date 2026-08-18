@@ -247,6 +247,17 @@ water-cooled qualifier lived ONLY in its old category string (descriptor
 null); per report-don't-invent it is preserved in the batch note pending the
 owner's call on its permanent home.
 
+**Act 2 — the held half, released same day** (`apply-seneca-tanks.mjs`,
+ruled order: option a amended). The two pending proposals renamed IN PLACE
+first — move noted on each rationale so the ratifier sees the string moved
+and why, scope unchanged — then the 10 tank rows, so no instant existed where
+a proposal named a category no row carries; read-back proves both sides
+agree. DHU-01's descriptor now carries "Water Cooled" verbatim from the act-1
+batch note (its ruled home). Ruled no-writes: the five name-shaped tags stay
+(re-tagging is an owner-and-team convention call; Fire Pump Disconnect/ATS's
+`ats` typing is correct — the tag is the only oddity); PUMPS (30 units,
+plural) seen and deliberately left, noted in the batch.
+
 ---
 
 ## Update 1.14 — 2026-08-17 (meeting item numbers follow their sections)
