@@ -52,12 +52,12 @@ describe('buildCxIndexHtml — Phase 2b invariants', () => {
     expect(html).toContain('PER COLUMN')
   })
 
-  it('stats use the one shared form: unit n/N, type K/N', () => {
+  it('stats use the one shared form: unit n/N, type K/N — each value size-fitted', () => {
     // c3 unit: 3/3 · c1 type: ahu complete, pump not → 1/2 · c2 unit: 2 applicable, 0 done → 0/2
-    expect(html).toContain('<td>3/3</td>')
-    expect(html).toContain('<td>1/2</td>')
-    expect(html).toContain('<td>0/2</td>')
-    expect(html).not.toMatch(/<td>\d+%<\/td>/)             // no % form in the stats row
+    expect(html).toMatch(/<td style="font-size:5\.75pt">3\/3<\/td>/)
+    expect(html).toMatch(/<td style="font-size:5\.75pt">1\/2<\/td>/)
+    expect(html).toMatch(/<td style="font-size:5\.75pt">0\/2<\/td>/)
+    expect(html).not.toMatch(/<td[^>]*>\d+%<\/td>/)        // no % form in the stats row
   })
 
   it('group bands render inside the strip with their palette', () => {
