@@ -16,6 +16,70 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.18 — 2026-08-17 (the export finishes; commissioning progress reaches the client portal)
+
+### For the team
+
+**Three finishing touches on the Cx Index PDF**, from the owner's line-by-line
+review: the Tag column now sizes itself to the project's longest tag, so no
+identity ever clips; the per-column tallies print stacked (the number done
+over the number applicable) at one readable size — "89 over 367" instead of
+a cramped "89/3"; and a group band too narrow for its name shows a short
+G-marker with the full name spelled out in that page's legend line. Seneca's
+register prints at 30 pages.
+
+**Clients now see commissioning progress in the portal** — a new "05 ·
+Commissioning progress" section in both the account portal and share links:
+the project completion figure, a bar per stage group, and per-equipment-class
+percentages. **Numbers only** — no equipment list, no tags, no cells cross
+the wall; those stay internal, and the client-grade PDF remains the vehicle
+for detail. The numbers are computed by the same rules as the app and the
+PDF, and the test battery checks all three agree.
+
+**The workbook's external check is closed:** the regenerated Excel file was
+opened in LibreOffice externally and verified — Summary tab, print setup,
+filters, and colours all confirmed. Both halves of the open-clean gate now
+stand.
+
+### Technical record
+
+Cx Index Phase 2c + Phase 3 (CX-INDEX-EXPORT-PROPOSAL.md; PORTAL-PROPOSAL §8
+amendment). Commits `8cf13fc`/`edd4599` (2c), `235484c` (the amendment),
+`2181b6b` (clause 05).
+
+- **2c-1** tag column computes from the register (tagColWidth, floored at the
+  old fixed width); leg asserts every tag byte-identical in the text layer,
+  once per strip. **2c-2** stats stack numerator-over-denominator at a single
+  5.5pt — the named floor; the per-value shrink (bottomed 3.9pt) is gone; one
+  treatment, pinned. **2c-3** fitBand: words down to 5pt, else a G-marker
+  with the expansion appended to that strip's legend; leg asserts every
+  group's full name reaches the text layer (flat-compared — pdf.js splits
+  runs mid-phrase, the stamp lesson's third occurrence).
+- **Header-font observation, disposed**: the rotated labels' per-label fit
+  sizes give the header an uneven texture; kept deliberately — zero
+  truncation outranks uniform texture. A two-tier size scheme is available
+  polish if the owner wants it later.
+- **Phase 3**: `portal_internal.cx_index_stats` computes the claims-weighted
+  formulas in SQL (one definition with cx-counting, asserted by
+  pw-cx-export's PARITY leg: portal project % ≡ the screen's for the same
+  register); gated `public.portal_cx_index` wrapper; `portal_link_bundle`
+  replaced whole for the `cx_index` key; one `CxProgress` section, both
+  shells (clause 05 after Team — numbering stays monotone rather than
+  renumbering four shipped clauses); pw-portal gains the aggregates leg
+  (exact column set `den,kind,name,num,pct,sort`, three kinds only), the
+  anon-wall entry, and the anti-drift loop entry.
+- **HARNESS VIOLATION, recorded**: the first 2c gate battery ran while
+  pw-portal and pw-cx-export were being edited mid-flight to assert the
+  then-unapplied RPC — 51/53, both fails carrying exactly that cause; the
+  run was VOIDED and re-run clean after landing. The lesson joins the
+  harness law: suites load from the working tree, so **editing a suite
+  during a battery is landing code in it**.
+- **Gates**: vitest 221/221 · pw-cx-export 28/28 · pw-portal full pass ·
+  Seneca 30 pages (target ≤45) · artifacts `Seneca-Cx-Index-2c.pdf/.xlsx`
+  (the un-suffixed PDF was EBUSY — held open, presumably in the owner's
+  hands, which is what it was for) · clean full battery at the gate (see
+  gate report).
+
 ## Update 1.17 — 2026-08-17 (Cx Index exports at submittal grade; the bulk gesture goes everywhere)
 
 ### For the team
