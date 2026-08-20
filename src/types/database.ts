@@ -1,5 +1,7 @@
 // Database types — mirror the Supabase schema exactly
 
+import type { RichDoc } from '../lib/richText'
+
 export type UserRole = 'admin' | 'developer' | 'owner' | 'user' | 'client'
 export type FindingStatus = 'open' | 'closed'
 // `design_review` was added to finding_origin_enum in the database and never
@@ -609,7 +611,10 @@ export interface MeetingItem {
   topic_id: string
   item_number: string
   carried_from_item_id: string | null
+  /** The trio-maintained plain projection (RICH-TEXT Phase 3) — every raw
+   *  reader (Action Summary, dashboard, ilike) reads this, never the JSON. */
   discussion: string
+  discussion_rich: RichDoc | null
   responsible_assignment_id: string | null
   responsible_text: string | null
   due_date: string | null

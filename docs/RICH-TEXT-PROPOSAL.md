@@ -223,9 +223,24 @@ door, counted.
 | Phase | Surface | Ships | Gate |
 |---|---|---|---|
 | **1** | Cx Plan | The trio + schema module + pins + render-twins; `cx_plan_sections.rich jsonb` (drafted + final); editor in `CxPlanPage`; writer contract markdown-lite + lift; verifier on `toPlainText`; assembly expands JSON → Blocks (paragraphs finally separate; bullets real); snapshots carry the JSON; zip-reader touch-policy conversion in `pw-cx-plan` | Render-twins byte-stable; the F2-class flattener dead (a two-paragraph + bulleted section prints as such in docx AND PDF, pinned in raw XML per the `w:br` idiom); untouched plans byte-identical; lift round-trip asserted; battery green |
-| **2** | Issues log | `findings.description_rich` (+ `corrective_action_rich`); editor; the three dash-bullet rows normalize at door; `generate-report` issues table via `richToHtml`; portal decision executed (Q6) | Legacy findings byte-identical in reports; portal anti-drift green in whichever shape Q6 rules; `toPlainText` asserted as the summary/truncation source |
-| **3** | Meetings | `meeting_items.discussion_rich`; the expand modal becomes the TipTap editor (same one-draft-two-views shape); `discussionHtml` demoted to legacy fallback; carry copies the JSON; dash-counter retired with the §1.1 baseline noted | KEEL's F2 legs stay green (the `w:br` pin now proves the fallback); a bulleted discussion prints bulleted in both formats; Action Summary truncates the plain projection |
-| **4** | Site reports | `progress_narrative_rich`; the `split('\n')` renderer demoted to fallback | Same shape as 3 |
+| **2** | Issues log | `findings.description_rich` (+ `corrective_action_rich`); editor **+ expand shell** (shipped without the shell — the gap Amendment 1 names; retrofit rides Phase 3); the three dash-bullet rows normalize at door; `generate-report` issues table via `richToHtml`; portal decision executed (Q6) | Legacy findings byte-identical in reports; portal anti-drift green in whichever shape Q6 rules; `toPlainText` asserted as the summary/truncation source |
+| **3** | Meetings | `meeting_items.discussion_rich`; the expand modal becomes the TipTap editor (same one-draft-two-views shape), **expand control visible at rest** (the W1 door law — measured hover-gated on the deployed build 2026-08-20); `discussionHtml` demoted to legacy fallback; carry copies the JSON; dash-counter retired with the §1.1 baseline noted; **+ the Amendment 1 retrofit: expand shell onto both Issues-log editors** (description + corrective, create + edit) | KEEL's F2 legs stay green (the `w:br` pin now proves the fallback); a bulleted discussion prints bulleted in both formats; Action Summary truncates the plain projection; both Issues-log editors expand/collapse without losing a draft; meetings expand visible-at-rest asserted (bounding box rendered, not hover-conjured) |
+| **4** | Site reports | `progress_narrative_rich`; the `split('\n')` renderer demoted to fallback; **editor + expand shell as one package** (Amendment 1) | Same shape as 3 |
+
+**Amendment 1 (owner, 2026-08-20, on field evidence from the Issues log).**
+The expand shell and the rich editor are **one package** — every surface that
+adopts rich text gets both: compact inline + ⤢ expand-to-full-size, one draft
+state, two views. The ladder's per-phase "editor" deliverable reads "editor +
+expand shell" from this date. Phase 2 shipped the Issues-log editors without
+the shell — a CxA writing a long deficiency description with bullets is
+exactly the user the full-size editor exists for — and that gap is the reason
+this amendment exists; the retrofit rides Phase 3. Companion field finding,
+measured on the deployed build before the Phase 3 build began: the meetings ⤢
+was **present-but-hidden** (rendered 16×11, `opacity: 0` at rest, revealed
+only by hovering the discussion cell itself — not even the row), birth-form
+since KEEL's F2, not a regression. The W1 door law applies: a control must
+look like a control — expand controls render visibly at rest on every
+rich-text surface.
 
 **Exclusions restated as ruled**: IST content (S1001 bytes untouchable),
 checklist template items, tags/descriptors/labels, anything extraction or

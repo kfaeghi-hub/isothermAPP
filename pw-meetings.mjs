@@ -99,8 +99,10 @@ try {
   await waitUntil(async () => await itemRow('1.1').count() === 1,
     { timeout: 15000, what: 'first item numbered 1.1' })
   check(await itemRow('1.1').count() === 1, 'first item numbered 1.1')
-  await itemRow('1.1').locator('textarea').fill('BAS graphics review outstanding for AHU floors')
-  await itemRow('1.1').locator('textarea').press('Tab')
+  // RICH-TEXT Phase 3: discussion cells are ProseMirror editors now — the 3u
+  // pricing's "textarea drivers" line-item, firing on schedule.
+  await itemRow('1.1').locator('.ProseMirror').fill('BAS graphics review outstanding for AHU floors')
+  await itemRow('1.1').locator('.ProseMirror').press('Tab')
   await page.waitForTimeout(600)
   await itemRow('1.1').locator('select').first().selectOption({ label: 'BAS — Automated Logic Controls' })
   await page.waitForTimeout(600)
@@ -111,8 +113,8 @@ try {
   await waitUntil(async () => await itemRow('2.1').count() === 1,
     { timeout: 15000, what: 'item under section 2 deriving 2.1' })
   check(await itemRow('2.1').count() === 1, 'second item derives 2.1 — its section, not the global counter')
-  await itemRow('2.1').locator('textarea').fill('Revised construction schedule to be circulated')
-  await itemRow('2.1').locator('textarea').press('Tab')
+  await itemRow('2.1').locator('.ProseMirror').fill('Revised construction schedule to be circulated')
+  await itemRow('2.1').locator('.ProseMirror').press('Tab')
   await page.waitForTimeout(600)
   await itemRow('2.1').locator('select').first().selectOption('__text')
   await page.waitForTimeout(300)
@@ -267,15 +269,15 @@ try {
       { timeout: 15000, what: `item under section ${ti + 1} deriving ${num}` })
     check(await itemRow(num).count() === 1, `item under section ${ti + 1} derives ${num}`)
   }
-  await itemRow('3.1').locator('textarea').first().fill('First item under PFC status')
-  await itemRow('3.1').locator('textarea').first().press('Tab')
+  await itemRow('3.1').locator('.ProseMirror').first().fill('First item under PFC status')
+  await itemRow('3.1').locator('.ProseMirror').first().press('Tab')
 
   // delete → the successor closes the gap
   await page.locator('[data-testid="add-item-2"]').click({ force: true })
   await waitUntil(async () => await itemRow('3.2').count() === 1,
     { timeout: 15000, what: 'second item under section 3 deriving 3.2' })
-  await itemRow('3.2').locator('textarea').first().fill('Successor item - should become 3.1')
-  await itemRow('3.2').locator('textarea').first().press('Tab')
+  await itemRow('3.2').locator('.ProseMirror').first().fill('Successor item - should become 3.1')
+  await itemRow('3.2').locator('.ProseMirror').first().press('Tab')
   // ANCHOR THE BLUR-SAVE BEFORE CLICKING ANYTHING: the Tab fires updateItem →
   // fetchDetail → re-render, and a click resolved before that settles lands on
   // coordinates that may belong to a DIFFERENT row after the shift — the first
@@ -302,15 +304,15 @@ try {
       return count === 1
     }, { timeout: 15000, what: 'the delete landing (one item left under section 3)' })
   }
-  // The discussion lives in a TEXTAREA — its value is a DOM property, invisible
-  // to innerText, so a text-grep on the row can never see it (this wait was
-  // instrument-blind at birth; the probe showed the right DB state under a
-  // "failing" UI read). Read the value property.
+  // REVERSED 2026-08-20 (old text: "The discussion lives in a TEXTAREA — its
+  // value is a DOM property, invisible to innerText... Read the value
+  // property"). Phase 3 made the cell a ProseMirror contenteditable, whose
+  // content IS the DOM — innerText is the correct instrument now.
   await waitUntil(async () => {
-    const v = await itemRow('3.1').locator('textarea').first().inputValue().catch(() => '')
+    const v = await itemRow('3.1').locator('.ProseMirror').first().innerText().catch(() => '')
     return v.includes('Successor item')
   }, { timeout: 15000, what: 'the successor closing the gap to 3.1' })
-  check((await itemRow('3.1').locator('textarea').first().inputValue()).includes('Successor item'),
+  check((await itemRow('3.1').locator('.ProseMirror').first().innerText()).includes('Successor item'),
     'delete: the successor closes the gap — the surviving item now derives 3.1')
 
   // cross-section move → BOTH sections re-derive. The UI has no move control;
@@ -412,18 +414,64 @@ try {
     check(rowTxt.includes('BAS — Automated Logic Controls') && rowTxt.includes('Dialogue Architects'),
       'F1: both chips render on the row')
 
-    // F2 shell: the expanded editor edits the same draft; newlines persist
-    await itemRow('1.1').hover()
-    await page.locator(`[data-testid="expand-item-${nat.id}"]`).click({ force: true })
+    // AMENDMENT 1 (2026-08-20): the ⤢ renders VISIBLE AT REST — opacity and
+    // bounding box measured with the pointer parked far away, never
+    // hover-conjured. Failing-first record: the rider probe measured
+    // opacity 0 at rest on the pre-fix deployed build (2026-08-20).
+    await page.mouse.move(5, 5)
+    await page.waitForTimeout(300)
+    const expBtn = page.locator(`[data-testid="expand-item-${nat.id}"]`)
+    const rest = await expBtn.evaluate(el => {
+      const cs = getComputedStyle(el), r = el.getBoundingClientRect()
+      return { o: cs.opacity, w: r.width, h: r.height }
+    })
+    check(rest.o === '1' && rest.w > 0 && rest.h > 0,
+      `AMENDMENT 1: expand control visible AT REST (opacity ${rest.o}, box ${Math.round(rest.w)}x${Math.round(rest.h)})`)
+
+    // F2 shell: the expanded editor edits the same draft — now rich. Two
+    // paragraphs typed, then a BULLETED tail through the exact chrome (the
+    // "prints bulleted in both formats" gate fixture, RICHM1/RICHM2).
+    // No hover before the click — a visible control needs none.
+    await expBtn.click()
     await waitUntil(async () => await page.locator('[data-testid="expanded-editor"]').count() === 1,
       { timeout: 15000, what: 'the full-size editor opening' })
-    await page.locator('[data-testid="expanded-editor"]').fill('Coordinate envelope review\nDialogue to provide comments')
+    const modalEd = page.locator('[data-testid="expanded-editor"] .ProseMirror')
+    await modalEd.click()
+    await page.keyboard.type('Coordinate envelope review')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('Dialogue to provide comments')
+    await page.keyboard.press('Enter')
+    await page.locator('[data-testid="expanded-editor"] button[title="Bulleted list"]').click()
+    await page.keyboard.type('Envelope flashing detail RICHM1')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('Glazing schedule RICHM2')
     await page.getByRole('button', { name: 'Done', exact: true }).click()
     await waitUntil(async () => {
-      const { data } = await sb.from('meeting_items').select('discussion').eq('id', nat.id).single()
-      return (data?.discussion ?? '').includes(String.fromCharCode(10))
-    }, { timeout: 15000, what: 'the newline persisting through the modal commit' })
-    check(true, 'F2: the expanded editor commits multi-line text through the same draft path')
+      const { data } = await sb.from('meeting_items').select('discussion, discussion_rich').eq('id', nat.id).single()
+      return (data?.discussion ?? '').includes(String.fromCharCode(10)) && !!data?.discussion_rich
+    }, { timeout: 15000, what: 'the rich doc + projection landing through the modal commit' })
+    {
+      const { data: natRow } = await sb.from('meeting_items')
+        .select('discussion, discussion_rich').eq('id', nat.id).single()
+      const kinds = (natRow.discussion_rich?.content ?? []).map(n => n.type).join(',')
+      check(kinds === 'paragraph,paragraph,bulletList',
+        `F2+RICH: the stored doc is two paragraphs + a bulletList (got: ${kinds})`)
+      check(natRow.discussion.includes('- Envelope flashing detail RICHM1'),
+        'RICH: the projection renders bullets as "- " lines — toPlainText is the summary source')
+    }
+    check(true, 'F2: the expanded editor commits through the same draft path')
+
+    // THE LEGACY FALLBACK, seeded as data (discussion_rich NULL, newline in
+    // the string): the w:br pin below proves discussionHtml's demoted branch —
+    // untouched rows render byte-identically (the F1 gate riding the same
+    // regeneration).
+    const { data: lastTopic } = await sb.from('meeting_topics')
+      .select('id').eq('meeting_id', mtg2row.id).order('sort_order', { ascending: false }).limit(1).single()
+    const { data: legacyIt, error: legacyErr } = await sb.from('meeting_items').insert({
+      meeting_id: mtg2row.id, topic_id: lastTopic.id, item_number: '',
+      discussion: 'Legacy fallback line one\nLegacy fallback line two', sort_order: 990,
+    }).select('id').single()
+    check(!!legacyIt, `legacy fixture item seeded, rich NULL (${legacyErr?.message ?? 'ok'})`)
 
     // regenerate #2 — ANCHORED ON CONTENT. issued_at stamps on first issue only
     // (the 7-day clock), so a DB poll is already-true and races the upload: the
@@ -437,7 +485,9 @@ try {
       try {
         const u = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'docx' })
         const x = docxXml(Buffer.from(await (await fetch(u)).arrayBuffer()))
-        if (x.replace(/<[^>]+>/g, ' ').includes('Dialogue Architects')) { xml3 = x; break }
+        // anchor on the NEWEST content — the rich bullets AND the legacy fixture
+        const flatX = x.replace(/<[^>]+>/g, ' ')
+        if (flatX.includes('RICHM2') && flatX.includes('Legacy fallback line one')) { xml3 = x; break }
       } catch { /* mid-upload — keep polling */ }
       await new Promise(r => setTimeout(r, 1000))
     }
@@ -445,12 +495,41 @@ try {
     const txt3 = xml3.replace(/<[^>]+>/g, ' ')
     check(txt3.includes('BAS — Automated Logic Controls') && txt3.includes('Dialogue Architects'),
       'doc: BOTH parties render in the responsible column (stacked, never squeezed)')
-    // pinned to THE ITEM'S OWN text — the header block already uses <br>, so a
-    // bare xml.includes('<w:br') is vacuously true (caught on the first run).
-    check(/Coordinate envelope review<\/w:t>[^]{0,400}?<w:br/.test(xml3),
-      'doc: the typed newline is a REAL <w:br> inside the discussion runs, not a flattened space')
+    // REVERSED 2026-08-20 (old pin: "Coordinate envelope review...<w:br" — the
+    // item was PLAIN then, its newline honored as a break). Phase 3 made the
+    // item rich: its lines are separate PARAGRAPHS now, so the w:br pin moves
+    // to the seeded LEGACY row where it proves the demoted discussionHtml
+    // fallback branch; the rich item pins structural separation (Phase 2 idiom).
+    check(/Coordinate envelope review<\/w:t>[^]{0,600}?(<\/w:p>|<w:br\/?>)/.test(xml3),
+      'doc: the rich item’s paragraphs are structurally separated, not flattened')
     check(txt3.includes('Coordinate envelope review') && txt3.includes('Dialogue to provide comments'),
       'doc: both lines of the multi-line discussion render')
+    check(txt3.includes('Envelope flashing detail RICHM1') && txt3.includes('Glazing schedule RICHM2'),
+      'doc: both BULLET items render in the discussion cell')
+    check(/RICHM1<\/w:t>[^]{0,600}?(<\/w:p>|<w:br\/?>)[^]{0,600}?Glazing schedule RICHM2/.test(xml3),
+      'doc: the bullet items are structurally separated (the Phase 2 idiom)')
+    console.log(`  [MEASURE] w:numPr near bullet items: ${/RICHM1[^]{0,1200}?<w:numPr>|<w:numPr>[^]{0,1200}?RICHM1/.test(xml3)}`)
+    check(/Legacy fallback line one<\/w:t>[^]{0,400}?<w:br/.test(xml3),
+      'doc: the LEGACY row’s newline is a REAL <w:br> — the fallback branch proven (the w:br pin)')
+    check(txt3.includes('Legacy fallback line one') && txt3.includes('Legacy fallback line two'),
+      'doc: the legacy row renders byte-identically through the fallback')
+
+    // BOTH formats (the gate): the PDF carries the bullets and the fallback —
+    // flat-compared (pdf.js splits runs at ligatures/kerning; standing lesson).
+    const pu = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'pdf' })
+    const pdfBytes = new Uint8Array(await (await fetch(pu)).arrayBuffer())
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    const pdoc = await pdfjs.getDocument({ data: pdfBytes, disableWorker: true }).promise
+    let flatPdf = ''
+    for (let pn = 1; pn <= pdoc.numPages; pn++) {
+      const tc = await (await pdoc.getPage(pn)).getTextContent()
+      flatPdf += tc.items.map(x => x.str).join('')
+    }
+    flatPdf = flatPdf.replace(/\s+/g, '')
+    const pdfMissing = ['Envelope flashing detail RICHM1', 'Glazing schedule RICHM2', 'Legacy fallback line two']
+      .map(s => s.replace(/\s+/g, '')).filter(w => !flatPdf.includes(w))
+    check(pdfMissing.length === 0,
+      `pdf: rich bullets + legacy fallback all render (${pdfMissing.length ? 'missing ' + pdfMissing.join(',') : '3/3'})`)
 
     // carry-forward preserves ALL parties: meeting #3
     await page.getByRole('button', { name: '+ New Meeting' }).first().click()
@@ -471,6 +550,53 @@ try {
       return count === 2
     }, { timeout: 30000, what: 'the carried copy arriving with BOTH parties' })
     check(true, 'F1: carry-forward preserves all responsible parties (junction copied whole)')
+
+    // RICH-TEXT Phase 3 (ruled): carry copies the JSON doc WHOLE, and the
+    // projection travels with it as one pair.
+    {
+      const { data: m3 } = await sb.from('meetings').select('id')
+        .eq('project_id', ZZ).eq('meeting_number', 3).single()
+      const { data: cRow } = await sb.from('meeting_items')
+        .select('discussion, discussion_rich').eq('meeting_id', m3.id)
+        .eq('carried_from_item_id', nat.id).single()
+      const { data: nRow } = await sb.from('meeting_items')
+        .select('discussion, discussion_rich').eq('id', nat.id).single()
+      check(!!cRow.discussion_rich && JSON.stringify(cRow.discussion_rich) === JSON.stringify(nRow.discussion_rich),
+        'RICH: carry-forward copies the JSON doc WHOLE (deep-equal, non-null)')
+      check(cRow.discussion === nRow.discussion,
+        'RICH: the projection travels with the doc as one pair')
+    }
+
+    // ── INTERPLAY (the Phase 3 gate leg): an issued RICH meeting, a deleted
+    //    seat, a regeneration — the b020e6a snapshot and the rich rendering
+    //    coexist, neither disturbed. Seat captured whole, restored after.
+    {
+      const { data: jr } = await sb.from('meeting_item_responsibles')
+        .select('assignment_id').eq('item_id', nat.id)
+        .not('assignment_id', 'is', null).limit(1).single()
+      const { data: seat2 } = await sb.from('project_team_assignments')
+        .select('*').eq('id', jr.assignment_id).single()
+      const { error: del2 } = await adm.from('project_team_assignments').delete().eq('id', seat2.id)
+      check(!del2, `interplay: the seat deletes for the test (${del2?.message ?? 'deleted'})`)
+      const { data: sess2 } = await sb.auth.getSession()
+      const rr2 = await fetch(`${process.env.PW_BASE_URL ?? 'https://cx.isothermengineering.com'}/api/generate-minutes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess2.session.access_token}` },
+        body: JSON.stringify({ meeting_id: mtg2row.id }),
+      })
+      check(rr2.ok, `interplay: regenerate after seat deletion returns 200 (got ${rr2.status})`)
+      const iu = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'docx' })
+      const ixml = docxXml(Buffer.from(await (await fetch(iu)).arrayBuffer()))
+      const itxt = ixml.replace(/<[^>]+>/g, ' ')
+      check(itxt.includes('BAS — Automated Logic Controls'),
+        'INTERPLAY: the snapshot name survives seat deletion (b020e6a undisturbed)')
+      check(itxt.includes('Envelope flashing detail RICHM1') && itxt.includes('Glazing schedule RICHM2'),
+        'INTERPLAY: the rich bullets survive the same regeneration (neither disturbed)')
+      check(/RICHM1<\/w:t>[^]{0,600}?(<\/w:p>|<w:br\/?>)/.test(ixml),
+        'INTERPLAY: structure intact, not flattened, in the post-deletion artifact')
+      const { error: rest2 } = await adm.from('project_team_assignments').insert(seat2)
+      check(!rest2, `interplay: the seat restored verbatim (${rest2?.message ?? 'restored'})`)
+    }
   }
 
   // ── Self-clean via ADMIN (issued meeting #1 is a frozen record for employees —

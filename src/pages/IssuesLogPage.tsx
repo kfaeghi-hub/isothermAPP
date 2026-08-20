@@ -934,6 +934,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <RichTextEditor
               value={createForm.description_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
               onChange={doc => setCreateForm(f => ({ ...f, description_rich: doc, description: toPlainText(doc) }))}
+              expand={{ title: 'Issue Description — full editor', testId: 'expand-desc-create' }}
             />
             <p className="text-[11px] text-gray-400 mt-1">
               The diary below the finding stays the dated resolution record — add updates there as work progresses.
@@ -1075,6 +1076,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <RichTextEditor
               value={createForm.corrective_action_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
               onChange={doc => setCreateForm(f => ({ ...f, corrective_action_rich: doc, corrective_action: toPlainText(doc) }))}
+              expand={{ title: 'Corrective Action — full editor', testId: 'expand-corr-create' }}
             />
           </div>
 
@@ -1180,6 +1182,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <RichTextEditor
               value={editForm.description_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
               onChange={doc => setEditForm(f => ({ ...f, description_rich: doc, description: toPlainText(doc) }))}
+              expand={{ title: 'Issue Description — full editor', testId: 'expand-desc-edit' }}
             />
           </div>
 
@@ -1294,6 +1297,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <RichTextEditor
               value={editForm.corrective_action_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
               onChange={doc => setEditForm(f => ({ ...f, corrective_action_rich: doc, corrective_action: toPlainText(doc) }))}
+              expand={{ title: 'Corrective Action — full editor', testId: 'expand-corr-edit' }}
             />
           </div>
 

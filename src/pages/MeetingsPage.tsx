@@ -11,6 +11,8 @@ import { useAuth } from '../contexts/AuthContext'
 import type { Meeting, MeetingType, MeetingTopic, MeetingAttendee, MeetingItem } from '../types/database'
 import { canDeleteMeeting } from '../lib/capabilities'
 import { deriveItemNumbers, frozenCarryNumber } from '../lib/meetingNumbering'
+import { RichTextEditor } from '../components/RichTextEditor'
+import { liftMarkdownLite, toPlainText, type RichDoc } from '../lib/richText'
 
 // ── Local types ────────────────────────────────────────────────────────────
 
@@ -68,8 +70,8 @@ export function MeetingsPage({ projectId }: Props) {
   const [items, setItems]         = useState<MeetingItem[]>([])
   // F1: every party of every item on this meeting (junction rows, ordered).
   const [responsibles, setResponsibles] = useState<Map<string, ItemResponsible[]>>(new Map())
-  // F2: which item's discussion is open in the full-size editor (null = none).
-  const [expandedItem, setExpandedItem] = useState<string | null>(null)
+  // F2 (Phase 3): the full-size editor state moved into RichTextEditor with
+  // the Amendment 1 shell; only the shared draft record lives here now.
   const [itemDrafts, setItemDrafts] = useState<Record<string, Partial<MeetingItem>>>({})
   // Items whose Responsible is in free-text mode ("Other…") before any text exists.
   const [textModeItems, setTextModeItems] = useState<Set<string>>(new Set())
@@ -301,6 +303,9 @@ export function MeetingsPage({ projectId }: Props) {
           item_number: frozenCarryNumber(carryInfo.prior.meeting_number, it, originDisplay),
           carried_from_item_id: it.id,
           discussion: it.discussion,
+          // RICH-TEXT Phase 3 (ruled): carry copies the rich doc WHOLE — the
+          // projection above and the JSON here travel as the same pair.
+          discussion_rich: it.discussion_rich,
           responsible_assignment_id: it.responsible_assignment_id,
           responsible_text: it.responsible_text,
           due_date: it.due_date,
@@ -521,11 +526,24 @@ export function MeetingsPage({ projectId }: Props) {
     setItemDrafts(d => ({ ...d, [id]: { ...(d[id] ?? {}), ...patch } }))
   }
   function commitDraft(id: string, field: keyof MeetingItem) {
-    const v = (itemDrafts[id] as any)?.[field]
+    const d = itemDrafts[id]
+    const v = (d as any)?.[field]
     if (v === undefined) return
-    updateItem(id, { [field]: v } as Partial<MeetingItem>)
-    setItemDrafts(d => { const { [id]: gone, ...rest } = d; void gone; return rest })
+    const patch = { [field]: v } as Partial<MeetingItem>
+    // RICH-TEXT Phase 3: a discussion draft carries doc + projection together —
+    // committing one without the other would let the pair drift.
+    if (field === 'discussion' && d?.discussion_rich !== undefined) patch.discussion_rich = d.discussion_rich
+    updateItem(id, patch)
+    setItemDrafts(dr => { const { [id]: gone, ...rest } = dr; void gone; return rest })
   }
+
+  /** RICH-TEXT Phase 3: the editable doc for an item — draft first, stored
+   *  JSON second, legacy text lifted at the door (lazily: nothing is written
+   *  until the user edits, and the commit then stores doc + projection). */
+  const richDraftFor = (it: MeetingItem): RichDoc =>
+    (draftFor(it.id).discussion_rich as RichDoc | undefined)
+      ?? it.discussion_rich
+      ?? liftMarkdownLite(it.discussion, 'platform')
 
   // ── Generate / delete ───────────────────────────────────────────────────
 
@@ -740,7 +758,6 @@ export function MeetingsPage({ projectId }: Props) {
                     <table className="w-full text-xs">
                       <tbody>
                         {topicItems.map(it => {
-                          const d = draftFor(it.id)
                           return (
                             <tr key={it.id} className="border-b border-gray-50 group align-top">
                               <td className="pl-5 pr-2 py-1.5 w-14 font-mono text-[11px] text-gray-500 whitespace-nowrap">
@@ -750,22 +767,22 @@ export function MeetingsPage({ projectId }: Props) {
                                 </span>
                               </td>
                               <td className="px-2 py-1 w-[42%]">
-                                <div className="relative group/disc">
-                                  <textarea
-                                    value={(d.discussion ?? it.discussion) as string}
-                                    rows={Math.max(1, Math.min(6, ((d.discussion ?? it.discussion) as string).split('\n')
-                                      .reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 70)), 0)))}
-                                    placeholder="Discussion…"
-                                    onChange={e => setDraft(it.id, { discussion: e.target.value })}
-                                    onBlur={() => commitDraft(it.id, 'discussion')}
-                                    className="w-full border border-transparent hover:border-gray-200 focus:border-teal-400 rounded px-1.5 py-1 resize-none focus:outline-none"
-                                  />
-                                  {/* F2: expand to a real editor. The modal edits the SAME
-                                      draft, so nothing is lost between the two views. */}
-                                  <button title="Open full editor" data-testid={`expand-item-${it.id}`}
-                                    onClick={() => setExpandedItem(it.id)}
-                                    className="absolute top-0.5 right-0.5 text-gray-300 hover:text-teal-600 opacity-0 group-hover/disc:opacity-100 text-[11px] leading-none px-1">⤢</button>
-                                </div>
+                                {/* RICH-TEXT Phase 3: the F2 shell now lives inside
+                                    RichTextEditor (Amendment 1 — editor + expand are one
+                                    package, ⤢ visible AT REST; the original opacity-0
+                                    hover gate was the W1 door lesson re-learned). One
+                                    draft, two views: modal and inline share this
+                                    onChange, commit rides onCommit (same blur path). */}
+                                <RichTextEditor
+                                  value={richDraftFor(it)}
+                                  chrome={false}
+                                  onChange={doc => setDraft(it.id, { discussion_rich: doc, discussion: toPlainText(doc) })}
+                                  onCommit={() => commitDraft(it.id, 'discussion')}
+                                  expand={{
+                                    title: `Item ${displayNumbers.get(it.id) ?? it.item_number} — full editor`,
+                                    testId: `expand-item-${it.id}`,
+                                  }}
+                                />
                               </td>
                               <td className="px-2 py-1.5 w-44">
                                 {/* F1: one chip per party; the add-select reads naturally at
@@ -991,38 +1008,10 @@ export function MeetingsPage({ projectId }: Props) {
       </Modal>
 
       {/* ── Attendee directory picker ────────────────────────────── */}
-      {/* F2: the full-size discussion editor. It edits the SAME draft state as
-          the inline textarea — expanding and collapsing never loses a keystroke —
-          and closing commits through the same onBlur path (commitDraft). */}
-      {(() => {
-        const exp = expandedItem ? items.find(i => i.id === expandedItem) : null
-        if (!exp) return null
-        const close = () => { commitDraft(exp.id, 'discussion'); setExpandedItem(null) }
-        return (
-          <Modal title={`Item ${displayNumbers.get(exp.id) ?? exp.item_number} — full editor`}
-            open onClose={close} maxWidth="lg">
-            <textarea
-              autoFocus
-              data-testid="expanded-editor"
-              value={(draftFor(exp.id).discussion ?? exp.discussion) as string}
-              onChange={e => setDraft(exp.id, { discussion: e.target.value })}
-              onBlur={() => commitDraft(exp.id, 'discussion')}
-              rows={18}
-              placeholder="Discussion…"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-teal-400 leading-relaxed"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-[11px] text-gray-400">
-                Line breaks appear in the minutes exactly as typed. Saves as you go.
-              </p>
-              <button onClick={close}
-                className="text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800">
-                Done
-              </button>
-            </div>
-          </Modal>
-        )
-      })()}
+      {/* F2 NOTE (Phase 3): the full-size discussion editor that lived here
+          moved INTO RichTextEditor — Amendment 1 made editor + expand shell
+          one package, so the modal, the one-draft-two-views wiring, and the
+          commit-on-close path now ship with the component. */}
 
       <Modal title="Add Attendee" open={attendeeOpen} onClose={() => setAttendeeOpen(false)} maxWidth="sm">
         <div className="space-y-3">

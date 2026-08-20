@@ -1109,6 +1109,15 @@ verbatim in the strip until then.
 **BANKED 2026-08-19 (the F1 audit's finding), on-touch wake: the next change to
 any of the three consumers unifies, or says why not.**
 
+**ON-TOUCH FIRED 2026-08-20 (rich-text Phase 3 touched the cell renderers) —
+answer: why not.** The phase changed WHAT the discussion cells print (rich
+JSON vs projection), not how any consumer GROUPS responsibility — the
+Action Summary still keys on the label string, the dashboard rollup on
+company id / lowered text, and this phase deliberately kept responsibility
+data untouched (its interplay gate leg protects the b020e6a snapshot, the
+opposite of restructuring it). The debt stands, un-narrowed and un-widened;
+next responsibility-grouping touch re-fires this clause.
+
 Three consumers, three contracts on the same responsibility data: the minutes
 Action Summary keys on the LABEL STRING (case-sensitive; renders a '—' group),
 the dashboard rollup keys on COMPANY ID / lowercased free text (and SILENTLY
@@ -1118,6 +1127,14 @@ surface but did not unify the contracts. The debt: one documented grouping
 rule (key, case posture, empty-party disposition) that all three consume.
 
 ### 3u. Constrained-rich item text — its own arc, with a self-measuring wake
+**FOLDED 2026-08-20 into RICH-TEXT-PROPOSAL Phase 3 (the arc this entry
+priced arrived by ruling, not by the wake measurement — the counter never
+moved and RETIRES at its baseline: 0 of 32 meetings, 0/3/0 overall per Q7,
+the 3 findings normalized at Phase 2's door). The pricing below was used as
+written: canonical stored format = the F1-shape `discussion_rich` +
+projection; both generators native via `richToHtml`; suite flatteners and
+textarea drivers rewritten in the phase's gate work.**
+
 **BANKED 2026-08-19 per the (c) ruling. WAKE CONDITION IS A MEASUREMENT, not a
 feeling: bullet-shaped lines appearing in production discussions. The
 instrument, baseline zero at banking (0 of 32):**

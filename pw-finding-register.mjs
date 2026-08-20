@@ -77,6 +77,32 @@ try {
   await modal.locator('input[placeholder^="e.g. Level 3"]').fill(AREA)
   await modal.locator('.ProseMirror').nth(1).fill(CORR)
 
+  // ── AMENDMENT 1 retrofit (2026-08-20): both editors carry the ⤢ shell,
+  //    visible AT REST, and expand/collapse loses nothing either direction.
+  for (const [tid, name] of [['expand-desc-create', 'description'], ['expand-corr-create', 'corrective']]) {
+    const r = await page.locator(`[data-testid="${tid}"]`).evaluate(el => {
+      const cs = getComputedStyle(el), bb = el.getBoundingClientRect()
+      return { o: cs.opacity, w: bb.width, h: bb.height }
+    })
+    check(r.o === '1' && r.w > 0 && r.h > 0,
+      `AMENDMENT 1: ${name} ⤢ visible at rest (opacity ${r.o}, box ${Math.round(r.w)}x${Math.round(r.h)})`)
+  }
+  await page.locator('[data-testid="expand-desc-create"]').click()
+  await waitUntil(async () => await page.locator('[data-testid="expanded-editor"]').count() === 1,
+    { timeout: 15000, what: 'the full-size description editor opening' })
+  const bigEd = page.locator('[data-testid="expanded-editor"] .ProseMirror')
+  check((await bigEd.innerText()).includes(DESC),
+    'expand: the inline draft is IN the full editor (no loss inward)')
+  await bigEd.click()
+  await page.keyboard.press('Control+End')
+  await page.keyboard.type(' EXPANDWORDS')
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await waitUntil(async () => await page.locator('[data-testid="expanded-editor"]').count() === 0,
+    { timeout: 15000, what: 'the full editor closing' })
+  const inlineTxt = await modal.locator('.ProseMirror').nth(0).innerText()
+  check(inlineTxt.includes(DESC) && inlineTxt.includes('EXPANDWORDS'),
+    'collapse: the modal words are IN the inline view (no loss outward)')
+
   // Auto-defaults present and editable
   check(await modal.locator('input[type="date"]').inputValue() === todayISO,
     'Date Identified defaults to today')

@@ -5,6 +5,7 @@ import {
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 import { deriveItemNumbers } from './_shared/meeting-numbering.js'
+import { richToHtml, type RichDoc } from './_shared/rich-text.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -94,9 +95,23 @@ function groupOpenByResponsible(d: MinutesData) {
 
  *  becomes a literal space — measured against the installed 1.8.0, which DOES
  *  emit <w:br w:type="textWrapping"/> for <br>). One renderer for both formats,
- *  applied after esc() so typed markup stays literal text. */
+ *  applied after esc() so typed markup stays literal text.
+ *
+ *  RICH-TEXT Phase 3: DEMOTED to the legacy-fallback branch — rich items
+ *  render through the shared richToHtml (discussionCellHtml below); this
+ *  function now serves only rows whose discussion_rich is NULL, keeping
+ *  untouched meetings byte-identical. The suite's w:br pin proves THIS branch. */
 function discussionHtml(text: string): string {
   return esc(text).replace(/\n/g, '<br>')
+}
+
+/** One discussion cell, both formats: rich-first via the shared trio, legacy
+ *  fallback via discussionHtml. The projection column is never rendered for a
+ *  rich row — structure comes from the JSON or not at all. */
+function discussionCellHtml(it: { discussion: string; discussion_rich?: unknown }): string {
+  return it.discussion_rich
+    ? richToHtml(it.discussion_rich as RichDoc)
+    : discussionHtml(it.discussion)
 }
 
 // ── PDF HTML ───────────────────────────────────────────────────────────────────
@@ -116,6 +131,8 @@ const CSS = `${BASE_CSS}
   .dist { font-size: 8.5pt; color: #666; margin-top: 4px; }
   .asum-group td { background: ${DOC.BAND_TINT} !important; font-weight: 700; color: ${DOC.INK}; }
   tbody.keep { page-break-inside: avoid; break-inside: avoid; }
+  td.disc p { margin: 0 0 4px 0; } td.disc p:last-child { margin-bottom: 0; }
+  td.disc ul, td.disc ol { margin: 2px 0 4px 0; padding-left: 16px; }
 `
 
 function buildPdfHtml(d: MinutesData): string {
@@ -144,7 +161,7 @@ function buildPdfHtml(d: MinutesData): string {
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr${it.status === 'closed' ? ' class="item-closed"' : ''}>
             <td class="inum">${esc(d.num(it))}</td>
-            <td class="disc">${discussionHtml(it.discussion)}${fl ? `<span class="flink">${esc(fl)}</span>` : ''}</td>
+            <td class="disc">${discussionCellHtml(it)}${fl ? `<span class="flink">${esc(fl)}</span>` : ''}</td>
             <td>${d.respLabels(it).map(esc).join('<br>')}</td>
             <td style="text-align:center;">${esc(isoShort(it.due_date))}</td>
             <td class="st"><span class="st-${it.status}">${statusLabel(it.status)}</span></td>
@@ -266,7 +283,7 @@ function buildDocxHtml(d: MinutesData): { html: string; tableGrids: number[][] }
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr>
             <td ${td(`text-align:center;font-weight:bold;${bg}${closed ? '' : `color:${DOC.INK};`}`)}>${esc(d.num(it))}</td>
-            <td ${td(bg)}>${discussionHtml(it.discussion)}${fl ? `<br><span style="font-size:8pt;color:${DOC_SEMANTIC.ITEM_OPEN};">${esc(fl)}</span>` : ''}</td>
+            <td ${td(bg)}>${discussionCellHtml(it)}${fl ? `<br><span style="font-size:8pt;color:${DOC_SEMANTIC.ITEM_OPEN};">${esc(fl)}</span>` : ''}</td>
             <td ${td(bg)}>${d.respLabels(it).map(esc).join('<br>')}</td>
             <td ${td(`text-align:center;${bg}`)}>${esc(isoShort(it.due_date))}</td>
             <td ${td(`text-align:center;font-weight:bold;${bg || (it.status === 'open' ? `color:${DOC_SEMANTIC.ITEM_OPEN};` : `color:${DOC_SEMANTIC.ITEM_INFO};`)}`)}>${statusLabel(it.status)}</td>
