@@ -275,9 +275,14 @@ try {
         }
       }
 
-      // The accepted narrative — not the drafted text it replaced.
-      check(text.includes('Accepted text for background'),
-        'the ACCEPTED text is what reached the document, not the draft')
+      // The accepted narrative — not the drafted text it replaced. 'background'
+      // became the rich-fixture section (Phase 1e), so the plain-path claim
+      // pins on 'roles', and the rich section proves the same law through its
+      // accepted rich content plus its mocked draft's absence.
+      check(text.includes('Accepted text for roles'),
+        'the ACCEPTED text is what reached the document, not the draft (plain path)')
+      check(!text.includes('Mocked narrative for background'),
+        "the rich section's mocked DRAFT never reached the document (accepted rich won)")
 
       // Appendices are references, not embeds.
       check(text.includes('Maintained live in the Issues Log'),
