@@ -16,6 +16,60 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.23 — 2026-08-20 (rich text arrives: the Cx Plan writes in structure)
+
+### For the team
+
+**Cx Plan narrative sections now hold real structure.** The review screen's
+editor does bold, italic, bulleted and numbered lists, and sub-headings —
+and what you see is what both documents print: separate paragraphs stay
+separate (they used to silently merge into one in both the Word and PDF
+outputs), bullets are real Word bullets in the plan's own styles, and bold
+survives to the page. The AI's drafts arrive with the same structure. Old
+plans are untouched and render exactly as before; a legacy section picks up
+the editor the first time someone edits it.
+
+### Technical record
+
+RICH-TEXT-PROPOSAL Phase 1 (ruled 2026-08-20; Q6 recorded as an
+owner-vetoable departure). Commits `ef0f159` (fold) · `88f97f2` (1a) ·
+`de44f1e` (1b) · `1a41f99`/`ab28f39` (1c+1d) · `6c69cf8`/`228e258` (1e).
+
+- **1a**: ten TipTap packages pinned exact at 3.30.2 (the editor's own
+  extension list — never StarterKit); the server trio + markdown-lite lift
+  in `api/_shared/rich-text.ts`, dependency-free by design (a deviation from
+  §1.5's package list, named); render-twins committed under
+  `fixtures/rich-text/` as the ruled Q5 upgrade gate; `liftOrRefuse` built
+  as two independent projections agreeing (agreement-as-oracle); 26 tests.
+- **1b**: `drafted_rich`/`final_rich` jsonb + the Q2 tripwire — which the
+  negative probe caught INERT in its first cut (`->>'type'` on a jsonb
+  string is NULL; a NULL CHECK verdict passes; the constraint waved through
+  exactly the catastrophes it exists for). `jsonb_typeof` made it
+  null-hostile; string/array refuse 23514, a doc passes, probed live in
+  rolled-back transactions before the record landed.
+- **1c+1d**: writer.md rule 5 (the five-token subset, reason attached);
+  the draft endpoint lifts, refuses on projection disagreement (502
+  `lift-refused`, nothing stored), stores the JSON beside the
+  projection-maintained legacy column, and **the verifier now reads the
+  projection** — its string-quoted spans quote the text every raw consumer
+  reads. Assembly splices `richToBlocks` (separate `<w:p>`s, Bullet1-ABC,
+  Bulletnumbered-ABC — present in the skeleton, so Q3's regeneration never
+  fired — bold/italic runs); `blocksToHtml` twins the stream for PDF.
+  The editor: exact-extension chrome, H2/H3 via the cxplan tier, lazy lift
+  for legacy rows, Accept stores both columns. One commit escaped with a
+  red build (a piped tsc exit swallowed by tail) and was fixed in the next
+  with the miss named.
+- **1e**: pw-cx-plan's PK-scan zip walker converted to the central
+  directory (the touch-policy firing on schedule), and the deployed-build
+  pins: two paragraphs as two `<w:p>` with `</w:p>` between them, the
+  bullet under its style, the ordered item under its style, `<w:b/>` in the
+  bold run's rPr, and the PDF carrying all five texts flat-compared. The
+  accepted-not-drafted pin repointed when its fixture key became the rich
+  section — strengthened, not weakened.
+- Gates: vitest 248/248 · pw-cx-plan full pass against the deployed build ·
+  demo artifacts generated from ZZ-TEST and cleaned to zero residual ·
+  guarded full battery (see gate report).
+
 ## Update 1.22 — 2026-08-19 (meetings: shared responsibility + a real item editor)
 
 ### For the team
