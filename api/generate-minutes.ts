@@ -398,7 +398,7 @@ export default async function handler(req: any, res: any) {
       supabase.from('meeting_attendees')
         .select('*, contacts(name, companies(name))').eq('meeting_id', meeting_id).order('sort_order'),
       supabase.from('meeting_items').select('*').eq('meeting_id', meeting_id).order('sort_order'),
-      supabase.from('meeting_item_responsibles').select('item_id, assignment_id, text_label, sort_order')
+      supabase.from('meeting_item_responsibles').select('id, item_id, assignment_id, text_label, sort_order, label_snapshot')
         .order('sort_order'),
       supabase.from('project_team_assignments')
         .select('id, companies(name, abbreviation), company_role_types(name, abbreviation)')
@@ -437,6 +437,46 @@ export default async function handler(req: any, res: any) {
       respByItem.get(r.item_id)!.push(r)
     }
 
+    // ── FREEZE THE RESPONSIBLE COLUMN AT ISSUE (the attendee precedent's
+    //    sibling, ruled 2026-08-19). Every junction row without a snapshot gets
+    //    its party resolved NOW and frozen — never overwritten, so a deleted
+    //    seat can no longer blank an issued document, and a party added after
+    //    issue freezes at its first regenerate. Legacy-pair items (no junction
+    //    rows) are materialized INTO the junction with their snapshot, so the
+    //    frozen record is one shape.
+    {
+      const stamps: { id: string; label: string }[] = []
+      for (const rows of respByItem.values()) {
+        for (const r of rows as any[]) {
+          if ((r.label_snapshot ?? '').trim()) continue
+          const label = (r.assignment_id && teamMap.get(r.assignment_id)) ||
+            (r.text_label ?? '').trim() || '—'
+          stamps.push({ id: r.id, label })
+          r.label_snapshot = label   // render THIS request from the frozen value
+        }
+      }
+      for (const st of stamps) {
+        await supabase.from('meeting_item_responsibles')
+          .update({ label_snapshot: st.label }).eq('id', st.id).is('label_snapshot', null)
+      }
+      const legacyStamps: { item: any; assignment_id: string | null; label: string }[] = []
+      for (const it of items as any[]) {
+        if (respByItem.has(it.id)) continue
+        const label = (it.responsible_assignment_id && teamMap.get(it.responsible_assignment_id)) ||
+          (it.responsible_text ?? '').trim() || ''
+        if (!label) continue
+        legacyStamps.push({ item: it, assignment_id: it.responsible_assignment_id ?? null, label })
+      }
+      for (const ls of legacyStamps) {
+        const { data: made } = await supabase.from('meeting_item_responsibles')
+          .insert({ item_id: ls.item.id, assignment_id: ls.assignment_id,
+            text_label: ls.assignment_id ? null : ls.label,
+            sort_order: 0, label_snapshot: ls.label })
+          .select('id, item_id, assignment_id, text_label, sort_order, label_snapshot').single()
+        if (made) respByItem.set(ls.item.id, [made])
+      }
+    }
+
     const d: MinutesData = {
       project: projRes.data,
       meeting,
@@ -450,7 +490,11 @@ export default async function handler(req: any, res: any) {
       respLabels: (it: any) => {
         const rows = respByItem.get(it.id) ?? []
         if (rows.length) {
+          // SNAPSHOT-FIRST (ruled 2026-08-19): an issued document's responsible
+          // column can never change retroactively. Live resolution is only for
+          // rows not yet frozen (pre-issue).
           return rows.map((r: any) =>
+            (r.label_snapshot ?? '').trim() ||
             (r.assignment_id && teamMap.get(r.assignment_id)) ||
             (r.text_label ?? '').trim() || '—')
         }

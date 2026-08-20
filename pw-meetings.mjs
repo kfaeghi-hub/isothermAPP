@@ -175,6 +175,41 @@ try {
   check(txt.includes('No items — reviewed, nothing arising.'), 'doc: empty topics render the muted No-items row')
   check(txt.includes('within seven (7) days of issue'), 'doc: 7-day disclaimer')
 
+  // ── SNAPSHOT AT ISSUE (ruled 2026-08-19): delete the seat, regenerate — the
+  //    name survives. Failing-first: without the snapshot, the regenerated doc
+  //    renders '—' where the client read a company. The seat is captured whole
+  //    and restored in this leg; the suite's later legs depend on it.
+  {
+    const { data: seat } = await sb.from('project_team_assignments')
+      .select('*').eq('project_id', ZZ).eq('id',
+        (await sb.from('meeting_item_responsibles').select('assignment_id')
+          .not('assignment_id', 'is', null).limit(1).single()).data.assignment_id).single()
+    const { error: delErr } = await adm.from('project_team_assignments').delete().eq('id', seat.id)
+    check(!delErr, `the seat can be deleted for the test (${delErr?.message ?? 'deleted'})`)
+
+    // regenerate via the endpoint directly — its 200 IS the completion signal
+    const { data: sess } = await sb.auth.getSession()
+    const rr = await fetch(`${process.env.PW_BASE_URL ?? 'https://cx.isothermengineering.com'}/api/generate-minutes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess.session.access_token}` },
+      body: JSON.stringify({ meeting_id: mtg1.id }),
+    })
+    check(rr.ok, `regenerate after seat deletion returns 200 (got ${rr.status})`)
+    const su = await signedFileUrl(credentials(), { table: 'meetings', id: mtg1.id, kind: 'docx' })
+    const stxt = docxXml(Buffer.from(await (await fetch(su)).arrayBuffer())).replace(/<[^>]+>/g, ' ')
+    check(stxt.includes('BAS — Automated Logic Controls'),
+      'SNAPSHOT: the responsible name SURVIVES seat deletion in the regenerated issued doc')
+
+    // restore the seat verbatim (same id — later legs pick it from the dropdown)
+    const { error: restErr } = await adm.from('project_team_assignments').insert(seat)
+    check(!restErr, `the seat is restored (${restErr?.message ?? 'restored'})`)
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByRole('button', { name: 'Meetings', exact: true }).click()
+    await page.locator('button', { hasText: '#1' }).first().click()
+    await waitUntil(async () => await itemRow('1.1').count() === 1,
+      { timeout: 15000, what: 'meeting #1 re-opened after the seat round-trip' })
+  }
+
   // ── Meeting #2: carry-forward, number retention ──────────────────────────
   await page.getByRole('button', { name: '+ New Meeting' }).first().click()
   await page.waitForTimeout(600)
