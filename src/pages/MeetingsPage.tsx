@@ -25,6 +25,11 @@ interface TeamOption {
   role_name: string
 }
 
+interface ItemResponsible {
+  id: string; item_id: string; assignment_id: string | null
+  text_label: string | null; sort_order: number
+}
+
 interface AttendeeRow extends MeetingAttendee {
   contacts: { id: string; name: string; companies: { name: string } | null } | null
 }
@@ -61,6 +66,10 @@ export function MeetingsPage({ projectId }: Props) {
   const [topics, setTopics]       = useState<MeetingTopic[]>([])
   const [attendees, setAttendees] = useState<AttendeeRow[]>([])
   const [items, setItems]         = useState<MeetingItem[]>([])
+  // F1: every party of every item on this meeting (junction rows, ordered).
+  const [responsibles, setResponsibles] = useState<Map<string, ItemResponsible[]>>(new Map())
+  // F2: which item's discussion is open in the full-size editor (null = none).
+  const [expandedItem, setExpandedItem] = useState<string | null>(null)
   const [itemDrafts, setItemDrafts] = useState<Record<string, Partial<MeetingItem>>>({})
   // Items whose Responsible is in free-text mode ("Other…") before any text exists.
   const [textModeItems, setTextModeItems] = useState<Set<string>>(new Set())
@@ -161,7 +170,20 @@ export function MeetingsPage({ projectId }: Props) {
     ])
     setTopics((tRes.data ?? []) as MeetingTopic[])
     setAttendees((aRes.data ?? []) as unknown as AttendeeRow[])
-    setItems((iRes.data ?? []) as MeetingItem[])
+    const itemRows = (iRes.data ?? []) as MeetingItem[]
+    setItems(itemRows)
+    // F1 junction, per item — after items so the id list is exact
+    if (itemRows.length) {
+      const { data: rr } = await supabase.from('meeting_item_responsibles')
+        .select('id, item_id, assignment_id, text_label, sort_order')
+        .in('item_id', itemRows.map(i => i.id)).order('sort_order')
+      const m = new Map<string, ItemResponsible[]>()
+      for (const r of (rr ?? []) as ItemResponsible[]) {
+        if (!m.has(r.item_id)) m.set(r.item_id, [])
+        m.get(r.item_id)!.push(r)
+      }
+      setResponsibles(m)
+    } else setResponsibles(new Map())
   }, [])
 
   useEffect(() => { fetchMeetings(); fetchSupport() }, [fetchMeetings, fetchSupport])
@@ -273,7 +295,7 @@ export function MeetingsPage({ projectId }: Props) {
         const priorTitle = (priorTopics.get(it.topic_id) ?? '').trim().toLowerCase()
         const targetTopic = topicByTitle.get(priorTitle) ?? await ensureOldBusiness()
         if (!targetTopic) break   // Old Business topic couldn't be created (reported) — stop carry-forward
-        const { error: itemErr } = await supabase.from('meeting_items').insert({
+        const { data: carried, error: itemErr } = await supabase.from('meeting_items').insert({
           meeting_id: mtg.id,
           topic_id: targetTopic,
           item_number: frozenCarryNumber(carryInfo.prior.meeting_number, it, originDisplay),
@@ -285,8 +307,16 @@ export function MeetingsPage({ projectId }: Props) {
           status: 'open',
           linked_finding_id: it.linked_finding_id,
           sort_order: sort++,
-        })
+        }).select('id').single()
         if (reportError(itemErr, 'carry forward an open item')) break
+        // F1: a carried item carries ALL its parties, order preserved.
+        const { data: priorResp } = await supabase.from('meeting_item_responsibles')
+          .select('assignment_id, text_label, sort_order').eq('item_id', it.id).order('sort_order')
+        if (carried && priorResp?.length) {
+          const { error: rErr } = await supabase.from('meeting_item_responsibles').insert(
+            priorResp.map(r => ({ item_id: carried.id, assignment_id: r.assignment_id, text_label: r.text_label, sort_order: r.sort_order })))
+          if (reportError(rErr, 'carry the responsible parties')) break
+        }
       }
     }
 
@@ -455,6 +485,35 @@ export function MeetingsPage({ projectId }: Props) {
     const { error } = await supabase.from('meeting_items').delete().eq('id', id)
     if (reportError(error, 'delete the item')) return
     if (meeting) fetchDetail(meeting.id)
+  }
+
+  // ── F1: responsible-party CRUD (junction writes only; the legacy pair is
+  //    frozen history — supersede, never delete) ─────────────────────────────
+  async function addResponsible(itemId: string, party: { assignment_id?: string; text_label?: string }) {
+    const cur = responsibles.get(itemId) ?? []
+    // no duplicate seats on one item; a repeated add is a no-op, not an error
+    if (party.assignment_id && cur.some(r => r.assignment_id === party.assignment_id)) return
+    const { error } = await supabase.from('meeting_item_responsibles').insert({
+      item_id: itemId,
+      assignment_id: party.assignment_id ?? null,
+      text_label: party.text_label ?? null,
+      sort_order: cur.length,
+    })
+    if (reportError(error, 'add the responsible party')) return
+    if (meeting) fetchDetail(meeting.id)
+  }
+  async function removeResponsible(rowId: string) {
+    const { error } = await supabase.from('meeting_item_responsibles').delete().eq('id', rowId)
+    if (reportError(error, 'remove the responsible party')) return
+    if (meeting) fetchDetail(meeting.id)
+  }
+  const respLabelOf = (r: ItemResponsible) =>
+    (r.assignment_id && team.find(t => t.id === r.assignment_id)?.label) ||
+    (r.text_label ?? '').trim() || '—'
+  /** Legacy fallback: an item with no junction rows renders its frozen pair. */
+  const legacyParty = (it: MeetingItem): string | null => {
+    if (it.responsible_assignment_id) return team.find(t => t.id === it.responsible_assignment_id)?.label ?? '—'
+    return (it.responsible_text ?? '').trim() || null
   }
 
   const draftFor = (id: string) => itemDrafts[id] ?? {}
@@ -682,8 +741,6 @@ export function MeetingsPage({ projectId }: Props) {
                       <tbody>
                         {topicItems.map(it => {
                           const d = draftFor(it.id)
-                          const respValue = it.responsible_assignment_id
-                            ?? ((it.responsible_text || textModeItems.has(it.id)) ? '__text' : '')
                           return (
                             <tr key={it.id} className="border-b border-gray-50 group align-top">
                               <td className="pl-5 pr-2 py-1.5 w-14 font-mono text-[11px] text-gray-500 whitespace-nowrap">
@@ -693,38 +750,64 @@ export function MeetingsPage({ projectId }: Props) {
                                 </span>
                               </td>
                               <td className="px-2 py-1 w-[42%]">
-                                <textarea
-                                  value={(d.discussion ?? it.discussion) as string}
-                                  rows={Math.max(1, Math.ceil(((d.discussion ?? it.discussion) as string).length / 70))}
-                                  placeholder="Discussion…"
-                                  onChange={e => setDraft(it.id, { discussion: e.target.value })}
-                                  onBlur={() => commitDraft(it.id, 'discussion')}
-                                  className="w-full border border-transparent hover:border-gray-200 focus:border-teal-400 rounded px-1.5 py-1 resize-none focus:outline-none"
-                                />
+                                <div className="relative group/disc">
+                                  <textarea
+                                    value={(d.discussion ?? it.discussion) as string}
+                                    rows={Math.max(1, Math.min(6, ((d.discussion ?? it.discussion) as string).split('\n')
+                                      .reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 70)), 0)))}
+                                    placeholder="Discussion…"
+                                    onChange={e => setDraft(it.id, { discussion: e.target.value })}
+                                    onBlur={() => commitDraft(it.id, 'discussion')}
+                                    className="w-full border border-transparent hover:border-gray-200 focus:border-teal-400 rounded px-1.5 py-1 resize-none focus:outline-none"
+                                  />
+                                  {/* F2: expand to a real editor. The modal edits the SAME
+                                      draft, so nothing is lost between the two views. */}
+                                  <button title="Open full editor" data-testid={`expand-item-${it.id}`}
+                                    onClick={() => setExpandedItem(it.id)}
+                                    className="absolute top-0.5 right-0.5 text-gray-300 hover:text-teal-600 opacity-0 group-hover/disc:opacity-100 text-[11px] leading-none px-1">⤢</button>
+                                </div>
                               </td>
                               <td className="px-2 py-1.5 w-44">
+                                {/* F1: one chip per party; the add-select reads naturally at
+                                    one value (the single-party case stays one click). Junction
+                                    rows are the truth; an item untouched since the migration
+                                    shows its frozen legacy pair until a party is added. */}
+                                {(responsibles.get(it.id) ?? []).map(r => (
+                                  <span key={r.id} className="inline-flex items-center gap-1 max-w-full mb-0.5 mr-1 text-[11px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700">
+                                    <span className="truncate">{respLabelOf(r)}</span>
+                                    <button onClick={() => removeResponsible(r.id)} title="Remove party"
+                                      className="text-slate-300 hover:text-red-500 leading-none">×</button>
+                                  </span>
+                                ))}
+                                {(responsibles.get(it.id) ?? []).length === 0 && legacyParty(it) && (
+                                  <span className="inline-flex items-center mb-0.5 mr-1 text-[11px] bg-slate-50 border border-dashed border-slate-200 rounded px-1.5 py-0.5 text-slate-500"
+                                        title="From before multi-party — add a party to manage the list">
+                                    {legacyParty(it)}
+                                  </span>
+                                )}
                                 <select
-                                  value={respValue}
+                                  value=""
                                   onChange={e => {
                                     const v = e.target.value
-                                    if (v === '__text') {
-                                      setTextModeItems(s => new Set(s).add(it.id))
-                                      updateItem(it.id, { responsible_assignment_id: null })
-                                    } else {
-                                      setTextModeItems(s => { const n = new Set(s); n.delete(it.id); return n })
-                                      updateItem(it.id, { responsible_assignment_id: v || null, responsible_text: null })
-                                    }
+                                    if (!v) return
+                                    if (v === '__text') { setTextModeItems(s => new Set(s).add(it.id)); return }
+                                    setTextModeItems(s => { const n = new Set(s); n.delete(it.id); return n })
+                                    void addResponsible(it.id, { assignment_id: v })
                                   }}
-                                  className="w-full text-[11px] border border-gray-200 rounded px-1 py-1 bg-white text-gray-600">
-                                  <option value="">—</option>
+                                  className="w-full text-[11px] border border-gray-200 rounded px-1 py-1 bg-white text-gray-500">
+                                  <option value="">{(responsibles.get(it.id) ?? []).length || legacyParty(it) ? '+ add party…' : '— assign…'}</option>
                                   {team.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
                                   <option value="__text">Other…</option>
                                 </select>
-                                {respValue === '__text' && (
+                                {textModeItems.has(it.id) && (
                                   <input
-                                    defaultValue={it.responsible_text ?? ''}
+                                    autoFocus
                                     placeholder="responsible"
-                                    onBlur={e => updateItem(it.id, { responsible_text: e.target.value.trim() || null })}
+                                    onBlur={e => {
+                                      const v = e.target.value.trim()
+                                      setTextModeItems(s => { const n = new Set(s); n.delete(it.id); return n })
+                                      if (v) void addResponsible(it.id, { text_label: v })
+                                    }}
                                     className="w-full mt-1 text-[11px] border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-teal-400"
                                   />
                                 )}
@@ -908,6 +991,39 @@ export function MeetingsPage({ projectId }: Props) {
       </Modal>
 
       {/* ── Attendee directory picker ────────────────────────────── */}
+      {/* F2: the full-size discussion editor. It edits the SAME draft state as
+          the inline textarea — expanding and collapsing never loses a keystroke —
+          and closing commits through the same onBlur path (commitDraft). */}
+      {(() => {
+        const exp = expandedItem ? items.find(i => i.id === expandedItem) : null
+        if (!exp) return null
+        const close = () => { commitDraft(exp.id, 'discussion'); setExpandedItem(null) }
+        return (
+          <Modal title={`Item ${displayNumbers.get(exp.id) ?? exp.item_number} — full editor`}
+            open onClose={close} maxWidth="lg">
+            <textarea
+              autoFocus
+              data-testid="expanded-editor"
+              value={(draftFor(exp.id).discussion ?? exp.discussion) as string}
+              onChange={e => setDraft(exp.id, { discussion: e.target.value })}
+              onBlur={() => commitDraft(exp.id, 'discussion')}
+              rows={18}
+              placeholder="Discussion…"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-teal-400 leading-relaxed"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-[11px] text-gray-400">
+                Line breaks appear in the minutes exactly as typed. Saves as you go.
+              </p>
+              <button onClick={close}
+                className="text-xs bg-teal-700 text-white rounded px-3 py-1.5 hover:bg-teal-800">
+                Done
+              </button>
+            </div>
+          </Modal>
+        )
+      })()}
+
       <Modal title="Add Attendee" open={attendeeOpen} onClose={() => setAttendeeOpen(false)} maxWidth="sm">
         <div className="space-y-3">
           <input type="text" value={attendeeQuery} autoFocus

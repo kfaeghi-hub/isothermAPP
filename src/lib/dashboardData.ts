@@ -235,6 +235,18 @@ export async function fetchDashboard(profileName: string, profileId?: string): P
     }
   }
   const itemNum = (i: any) => itemDisplay.get(i.id) ?? i.item_number
+
+  // F1: every party of every open item, one query, grouped client-side.
+  const respByItemDash = new Map<string, any[]>()
+  if (meetingItems.length) {
+    const { data: respRows } = await supabase.from('meeting_item_responsibles')
+      .select('item_id, assignment_id, text_label, sort_order')
+      .in('item_id', meetingItems.map(i => i.id)).order('sort_order').limit(5000)
+    for (const r of respRows ?? []) {
+      if (!respByItemDash.has(r.item_id)) respByItemDash.set(r.item_id, [])
+      respByItemDash.get(r.item_id)!.push(r)
+    }
+  }
   const meetings = (mRes.data ?? []) as any[]
   const reports = (srRes.data ?? []) as any[]
   const instances = (ciRes.data ?? []) as any[]
@@ -359,9 +371,21 @@ export async function fetchDashboard(profileName: string, profileId?: string): P
       label: `${itemNum(i)} — ${(i.discussion || '').slice(0, 80)}`,
       ageDays: daysSince(i.created_at), tab: 'meetings',
     }
-    const asg = i.responsible_assignment_id ? asgMap.get(i.responsible_assignment_id) : null
-    if (asg) addToGroup(`co:${asg.companyId}`, asg.label, true, item)
-    else if ((i.responsible_text ?? '').trim()) addToGroup(`txt:${i.responsible_text.trim().toLowerCase()}`, i.responsible_text.trim(), false, item)
+    // A shared item lands in EACH party's group (F1) — junction rows when any
+    // exist, the legacy single pair otherwise. The grouping contracts stay as
+    // documented: matched by company id, free text surfaced never string-matched.
+    const parties = respByItemDash.get(i.id) ?? []
+    if (parties.length) {
+      for (const r of parties) {
+        const asg = r.assignment_id ? asgMap.get(r.assignment_id) : null
+        if (asg) addToGroup(`co:${asg.companyId}`, asg.label, true, item)
+        else if ((r.text_label ?? '').trim()) addToGroup(`txt:${r.text_label.trim().toLowerCase()}`, r.text_label.trim(), false, item)
+      }
+    } else {
+      const asg = i.responsible_assignment_id ? asgMap.get(i.responsible_assignment_id) : null
+      if (asg) addToGroup(`co:${asg.companyId}`, asg.label, true, item)
+      else if ((i.responsible_text ?? '').trim()) addToGroup(`txt:${i.responsible_text.trim().toLowerCase()}`, i.responsible_text.trim(), false, item)
+    }
   }
   for (const f of openFindings) {
     const c = one<any>(f.contacts)

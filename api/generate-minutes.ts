@@ -23,6 +23,9 @@ interface MinutesData {
   topics: any[]
   itemsByTopic: Map<string, any[]>
   respLabel: (item: any) => string
+  /** ALL responsible parties, in order (F1, 2026-08-19). Junction rows when
+   *  any exist; the legacy single pair otherwise — supersede, never delete. */
+  respLabels: (item: any) => string[]
   /** Derived display number — N.k for native items, the frozen ↺-prefixed
    *  origin-qualified number for carried ones. ONE derivation feeds both
    *  document formats and the UI (api/_shared/meeting-numbering). */
@@ -62,19 +65,38 @@ const attendeeCompany = (a: any) => {
   return co?.name ?? a.company_snapshot ?? ''
 }
 
-/** Open items grouped by responsible label for the Action Summary. */
+/** Open items grouped by responsible label for the Action Summary.
+ *
+ *  A SHARED item appears under EACH of its parties (F1): "Isotherm to update,
+ *  Dialogue to provide feedback" belongs in both parties' action lists — that
+ *  is what shared responsibility means in a summary a party reads for its own
+ *  actions. The per-group item numbers still join on the band line. */
 function groupOpenByResponsible(d: MinutesData) {
   const groups = new Map<string, any[]>()
   for (const topic of d.topics) {
     for (const it of d.itemsByTopic.get(topic.id) ?? []) {
       if (it.status !== 'open') continue
-      const label = d.respLabel(it)
-      if (!groups.has(label)) groups.set(label, [])
-      groups.get(label)!.push(it)
+      for (const label of d.respLabels(it)) {
+        if (!groups.has(label)) groups.set(label, [])
+        groups.get(label)!.push(it)
+      }
     }
   }
   return [...groups.entries()].sort((a, b) =>
     (a[0] === '—' ? 1 : 0) - (b[0] === '—' ? 1 : 0) || a[0].localeCompare(b[0]))
+}
+
+/** Discussion text for a cell: escaped, then 
+ honored as <br>.
+ *
+ *  10 of 32 production discussions already carried newlines that BOTH formats
+ *  silently flattened (PDF: default white-space collapses; html-to-docx: 
+
+ *  becomes a literal space — measured against the installed 1.8.0, which DOES
+ *  emit <w:br w:type="textWrapping"/> for <br>). One renderer for both formats,
+ *  applied after esc() so typed markup stays literal text. */
+function discussionHtml(text: string): string {
+  return esc(text).replace(/\n/g, '<br>')
 }
 
 // ── PDF HTML ───────────────────────────────────────────────────────────────────
@@ -122,8 +144,8 @@ function buildPdfHtml(d: MinutesData): string {
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr${it.status === 'closed' ? ' class="item-closed"' : ''}>
             <td class="inum">${esc(d.num(it))}</td>
-            <td>${esc(it.discussion)}${fl ? `<span class="flink">${esc(fl)}</span>` : ''}</td>
-            <td>${esc(d.respLabel(it))}</td>
+            <td class="disc">${discussionHtml(it.discussion)}${fl ? `<span class="flink">${esc(fl)}</span>` : ''}</td>
+            <td>${d.respLabels(it).map(esc).join('<br>')}</td>
             <td style="text-align:center;">${esc(isoShort(it.due_date))}</td>
             <td class="st"><span class="st-${it.status}">${statusLabel(it.status)}</span></td>
           </tr>`
@@ -144,7 +166,7 @@ function buildPdfHtml(d: MinutesData): string {
           const grow = `<tr class="asum-group"><td colspan="3">${esc(label)} — ${its.map((i: any) => d.num(i)).join(', ')}</td></tr>`
           const rows = its.map((it: any) => `<tr>
             <td class="inum">${esc(d.num(it))}</td>
-            <td>${esc(truncate(it.discussion, 90))}</td>
+            <td>${esc(truncate(String(it.discussion ?? '').replace(/\s+/g, ' '), 90))}</td>
             <td style="text-align:center;">${esc(isoShort(it.due_date))}</td>
           </tr>`)
           return `<tbody class="keep">${grow}\n${rows[0]}</tbody>${rows.length > 1 ? `<tbody>${rows.slice(1).join('\n')}</tbody>` : ''}`
@@ -244,8 +266,8 @@ function buildDocxHtml(d: MinutesData): { html: string; tableGrids: number[][] }
           const fl = d.findingLabel(it.linked_finding_id)
           return `<tr>
             <td ${td(`text-align:center;font-weight:bold;${bg}${closed ? '' : `color:${DOC.INK};`}`)}>${esc(d.num(it))}</td>
-            <td ${td(bg)}>${esc(it.discussion)}${fl ? `<br><span style="font-size:8pt;color:${DOC_SEMANTIC.ITEM_OPEN};">${esc(fl)}</span>` : ''}</td>
-            <td ${td(bg)}>${esc(d.respLabel(it))}</td>
+            <td ${td(bg)}>${discussionHtml(it.discussion)}${fl ? `<br><span style="font-size:8pt;color:${DOC_SEMANTIC.ITEM_OPEN};">${esc(fl)}</span>` : ''}</td>
+            <td ${td(bg)}>${d.respLabels(it).map(esc).join('<br>')}</td>
             <td ${td(`text-align:center;${bg}`)}>${esc(isoShort(it.due_date))}</td>
             <td ${td(`text-align:center;font-weight:bold;${bg || (it.status === 'open' ? `color:${DOC_SEMANTIC.ITEM_OPEN};` : `color:${DOC_SEMANTIC.ITEM_INFO};`)}`)}>${statusLabel(it.status)}</td>
           </tr>`
@@ -262,7 +284,7 @@ function buildDocxHtml(d: MinutesData): { html: string; tableGrids: number[][] }
           const grow = `<tr><td colspan="3" style="background-color:${DOC.BAND_TINT};font-weight:bold;color:${DOC.INK};padding:5px 10px;border:1px solid ${DOC.RULE};">${esc(label)} — ${its.map((i: any) => d.num(i)).join(', ')}</td></tr>`
           const rows = its.map((it: any) => `<tr>
             <td ${td(`text-align:center;font-weight:bold;color:${DOC.INK};`)}>${esc(d.num(it))}</td>
-            <td ${td()}>${esc(truncate(it.discussion, 90))}</td>
+            <td ${td()}>${esc(truncate(String(it.discussion ?? '').replace(/\s+/g, ' '), 90))}</td>
             <td ${td('text-align:center;')}>${esc(isoShort(it.due_date))}</td>
           </tr>`).join('\n')
           return `${grow}\n${rows}`
@@ -370,12 +392,14 @@ export default async function handler(req: any, res: any) {
 
     await requireProjectAccess(supabase, userId, meeting.project_id)
 
-    const [projRes, topicRes, attRes, itemRes, teamRes, roleRes] = await Promise.all([
+    const [projRes, topicRes, attRes, itemRes, respRes, teamRes, roleRes] = await Promise.all([
       supabase.from('projects').select('*').eq('id', meeting.project_id).single(),
       supabase.from('meeting_topics').select('*').eq('meeting_id', meeting_id).order('sort_order'),
       supabase.from('meeting_attendees')
         .select('*, contacts(name, companies(name))').eq('meeting_id', meeting_id).order('sort_order'),
       supabase.from('meeting_items').select('*').eq('meeting_id', meeting_id).order('sort_order'),
+      supabase.from('meeting_item_responsibles').select('item_id, assignment_id, text_label, sort_order')
+        .order('sort_order'),
       supabase.from('project_team_assignments')
         .select('id, companies(name, abbreviation), company_role_types(name, abbreviation)')
         .eq('project_id', meeting.project_id),
@@ -403,6 +427,15 @@ export default async function handler(req: any, res: any) {
     for (const t of topics) itemsByTopic.set(t.id, [])
     for (const it of items) if (itemsByTopic.has(it.topic_id)) itemsByTopic.get(it.topic_id)!.push(it)
     const displayNum = deriveItemNumbers(topics, items)
+    // junction rows grouped per item (already ordered by sort_order). The query
+    // is unfiltered by meeting — item ids scope it here; RLS scopes it too.
+    const itemIds = new Set(items.map((i: any) => i.id))
+    const respByItem = new Map<string, any[]>()
+    for (const r of (respRes.data ?? []) as any[]) {
+      if (!itemIds.has(r.item_id)) continue
+      if (!respByItem.has(r.item_id)) respByItem.set(r.item_id, [])
+      respByItem.get(r.item_id)!.push(r)
+    }
 
     const d: MinutesData = {
       project: projRes.data,
@@ -414,6 +447,20 @@ export default async function handler(req: any, res: any) {
       respLabel: (it: any) =>
         (it.responsible_assignment_id && teamMap.get(it.responsible_assignment_id)) ||
         (it.responsible_text ?? '').trim() || '—',
+      respLabels: (it: any) => {
+        const rows = respByItem.get(it.id) ?? []
+        if (rows.length) {
+          return rows.map((r: any) =>
+            (r.assignment_id && teamMap.get(r.assignment_id)) ||
+            (r.text_label ?? '').trim() || '—')
+        }
+        // legacy pair — an item untouched since the F1 migration renders
+        // exactly as it always did
+        const single =
+          (it.responsible_assignment_id && teamMap.get(it.responsible_assignment_id)) ||
+          (it.responsible_text ?? '').trim() || '—'
+        return [single]
+      },
       num: (it: any) => displayNum.get(it.id) ?? it.item_number,
       findingLabel: (id: string | null) => (id && findingMap.get(id)) || null,
       roleSort,

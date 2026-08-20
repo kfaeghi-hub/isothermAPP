@@ -348,6 +348,89 @@ try {
     check(/3\.1/.test(txt2), 'doc: derived section numbers render (3.1)')
   }
 
+  // ── F1/F2 (2026-08-19): shared responsibility + the honored newline ──────
+  {
+    // the native item in #2 section 1, created above with no parties yet
+    const { data: nat } = await sb.from('meeting_items')
+      .select('id').eq('meeting_id', mtg2row.id).is('carried_from_item_id', null)
+      .order('created_at').limit(1).single()
+
+    // two parties: a matrix seat + a free-text name, via the SAME add control
+    await itemRow('1.1').locator('select').first().selectOption({ label: 'BAS — Automated Logic Controls' })
+    await waitUntil(async () => {
+      const { count } = await sb.from('meeting_item_responsibles')
+        .select('*', { count: 'exact', head: true }).eq('item_id', nat.id)
+      return count === 1
+    }, { timeout: 15000, what: 'the first party landing in the junction' })
+    await itemRow('1.1').locator('select').first().selectOption('__text')
+    await itemRow('1.1').locator('input[placeholder="responsible"]').fill('Dialogue Architects')
+    await itemRow('1.1').locator('input[placeholder="responsible"]').press('Tab')
+    await waitUntil(async () => {
+      const { count } = await sb.from('meeting_item_responsibles')
+        .select('*', { count: 'exact', head: true }).eq('item_id', nat.id)
+      return count === 2
+    }, { timeout: 15000, what: 'the second party landing' })
+    check(true, 'F1: two parties added through one control (seat + free text)')
+    await waitUntil(async () => (await itemRow('1.1').innerText().catch(() => '')).includes('Dialogue Architects'),
+      { timeout: 15000, what: 'both party chips rendering' })
+    const rowTxt = await itemRow('1.1').innerText()
+    check(rowTxt.includes('BAS — Automated Logic Controls') && rowTxt.includes('Dialogue Architects'),
+      'F1: both chips render on the row')
+
+    // F2 shell: the expanded editor edits the same draft; newlines persist
+    await itemRow('1.1').hover()
+    await page.locator(`[data-testid="expand-item-${nat.id}"]`).click({ force: true })
+    await waitUntil(async () => await page.locator('[data-testid="expanded-editor"]').count() === 1,
+      { timeout: 15000, what: 'the full-size editor opening' })
+    await page.locator('[data-testid="expanded-editor"]').fill('Coordinate envelope review\nDialogue to provide comments')
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await waitUntil(async () => {
+      const { data } = await sb.from('meeting_items').select('discussion').eq('id', nat.id).single()
+      return (data?.discussion ?? '').includes(String.fromCharCode(10))
+    }, { timeout: 15000, what: 'the newline persisting through the modal commit' })
+    check(true, 'F2: the expanded editor commits multi-line text through the same draft path')
+
+    // regenerate #2: both parties stack in the docx; the newline is a real <w:br>
+    await page.locator('[data-testid="generate-minutes"]').click()
+    const g3 = Date.now()
+    let m2b = null
+    while (Date.now() - g3 < 90_000) {
+      const { data } = await sb.from('meetings').select('storage_url, issued_at, id').eq('id', mtg2row.id).single()
+      if (data?.storage_url && data?.issued_at) { m2b = data; break }
+      await new Promise(r => setTimeout(r, 500))
+    }
+    check(!!m2b, 'meeting #2 regenerated with parties + newline')
+    const url3 = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'docx' })
+    const xml3 = docxXml(Buffer.from(await (await fetch(url3)).arrayBuffer()))
+    const txt3 = xml3.replace(/<[^>]+>/g, ' ')
+    check(txt3.includes('BAS — Automated Logic Controls') && txt3.includes('Dialogue Architects'),
+      'doc: BOTH parties render in the responsible column (stacked, never squeezed)')
+    check(xml3.includes('<w:br'),
+      'doc: the typed newline is a REAL line break in the docx (w:br), not a flattened space')
+    check(txt3.includes('Coordinate envelope review') && txt3.includes('Dialogue to provide comments'),
+      'doc: both lines of the multi-line discussion render')
+
+    // carry-forward preserves ALL parties: meeting #3
+    await page.getByRole('button', { name: '+ New Meeting' }).first().click()
+    await page.waitForTimeout(600)
+    await modal.locator('select').first().selectOption({ label: 'Recurring Cx Meeting' })
+    await waitUntil(async () => await modal.locator('input[type="number"]').inputValue() === '3',
+      { timeout: 15000, what: 'meeting number auto-suggested as 3' })
+    await modal.getByRole('button', { name: 'Create Meeting' }).click()
+    await waitUntil(async () => {
+      const { data: m3 } = await sb.from('meetings').select('id').eq('project_id', ZZ)
+        .eq('meeting_number', 3).maybeSingle()
+      if (!m3) return false
+      const { data: c } = await sb.from('meeting_items').select('id')
+        .eq('meeting_id', m3.id).eq('carried_from_item_id', nat.id).maybeSingle()
+      if (!c) return false
+      const { count } = await sb.from('meeting_item_responsibles')
+        .select('*', { count: 'exact', head: true }).eq('item_id', c.id)
+      return count === 2
+    }, { timeout: 30000, what: 'the carried copy arriving with BOTH parties' })
+    check(true, 'F1: carry-forward preserves all responsible parties (junction copied whole)')
+  }
+
   // ── Self-clean via ADMIN (issued meeting #1 is a frozen record for employees —
   // its delete correctly requires owner rights under access control) ─────────
   await adm.from('meetings').delete().eq('project_id', ZZ)
