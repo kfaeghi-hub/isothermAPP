@@ -1,0 +1,28 @@
+{
+  "type": "doc",
+  "content": [
+    { "type": "heading", "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "Commissioning Approach" }] },
+    { "type": "paragraph", "content": [
+      { "type": "text", "text": "The process follows " },
+      { "type": "text", "text": "ASHRAE Guideline 0", "marks": [{ "type": "italic" }] },
+      { "type": "text", "text": " with " },
+      { "type": "text", "text": "witnessed testing", "marks": [{ "type": "bold" }] },
+      { "type": "text", "text": " at each stage." } ] },
+    { "type": "paragraph", "content": [
+      { "type": "text", "text": "Deficiencies file into the findings register." } ] },
+    { "type": "bulletList", "content": [
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [
+        { "type": "text", "text": "Pre-functional checks" } ] }] },
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [
+        { "type": "text", "text": "Functional performance tests, " },
+        { "type": "text", "text": "witnessed", "marks": [{ "type": "bold" }] } ] }] }
+    ] },
+    { "type": "orderedList", "content": [
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [
+        { "type": "text", "text": "Mobilize" } ] }] },
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [
+        { "type": "text", "text": "Verify" } ] }] }
+    ] }
+  ]
+}

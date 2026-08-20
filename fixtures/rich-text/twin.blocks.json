@@ -1,0 +1,77 @@
+[
+  {
+    "kind": "heading",
+    "level": 2,
+    "runs": [
+      {
+        "text": "Commissioning Approach"
+      }
+    ]
+  },
+  {
+    "kind": "para",
+    "runs": [
+      {
+        "text": "The process follows "
+      },
+      {
+        "text": "ASHRAE Guideline 0",
+        "italic": true
+      },
+      {
+        "text": " with "
+      },
+      {
+        "text": "witnessed testing",
+        "bold": true
+      },
+      {
+        "text": " at each stage."
+      }
+    ]
+  },
+  {
+    "kind": "para",
+    "runs": [
+      {
+        "text": "Deficiencies file into the findings register."
+      }
+    ]
+  },
+  {
+    "kind": "bullet",
+    "runs": [
+      {
+        "text": "Pre-functional checks"
+      }
+    ]
+  },
+  {
+    "kind": "bullet",
+    "runs": [
+      {
+        "text": "Functional performance tests, "
+      },
+      {
+        "text": "witnessed",
+        "bold": true
+      }
+    ]
+  },
+  {
+    "kind": "numbered",
+    "runs": [
+      {
+        "text": "Mobilize"
+      }
+    ]
+  },
+  {
+    "kind": "numbered",
+    "runs": [
+      {
+        "text": "Verify"
+      }
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+Commissioning Approach
+
+The process follows ASHRAE Guideline 0 with witnessed testing at each stage.
+
+Deficiencies file into the findings register.
+
+- Pre-functional checks
+- Functional performance tests, witnessed
+
+1. Mobilize
+2. Verify

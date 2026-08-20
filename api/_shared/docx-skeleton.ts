@@ -22,10 +22,16 @@ import JSZip from 'jszip'
 export const BODY_START = 'ISOTHERM_BODY_START'
 export const BODY_END = 'ISOTHERM_BODY_END'
 
+/** Inline run — bold/italic inside a paragraph-class block (rich-text Phase 1).
+ *  When `runs` is present it wins over `text`; when absent, behavior is
+ *  byte-identical to the pre-rich build (the F1 gate). */
+export interface Run { text: string; bold?: boolean; italic?: boolean }
+
 export type Block =
-  | { kind: 'heading'; level: 1 | 2 | 3; text: string }
-  | { kind: 'para'; text: string }
-  | { kind: 'bullet'; text: string }
+  | { kind: 'heading'; level: 1 | 2 | 3; text: string; runs?: Run[] }
+  | { kind: 'para'; text: string; runs?: Run[] }
+  | { kind: 'bullet'; text: string; runs?: Run[] }
+  | { kind: 'numbered'; text: string; runs?: Run[] }
   | { kind: 'title'; text: string }
   | { kind: 'cover'; text: string }
   | { kind: 'pagebreak' }
@@ -43,6 +49,9 @@ const STYLE_FOR: Record<string, string> = {
   title: 'Title', cover: 'FrontCoverBody',
   h1: 'Heading1', h2: 'Heading2', h3: 'Heading3',
   para: 'BodyText-ABC', bullet: 'Bullet1-ABC',
+  // Ordered lists (rich-text Phase 1). Verified present in the skeleton's
+  // styles.xml 2026-08-20 — Q3's regeneration contingency never fired.
+  numbered: 'Bulletnumbered-ABC',
 }
 
 /**
@@ -83,9 +92,16 @@ export function esc(s: unknown): string {
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
 
-const p = (style: string, text: string) =>
+const run = (r: { text: string; bold?: boolean; italic?: boolean }) => {
+  const pr = (r.bold ? '<w:b/>' : '') + (r.italic ? '<w:i/>' : '')
+  return `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ''}` +
+         `<w:t xml:space="preserve">${esc(r.text)}</w:t></w:r>`
+}
+
+const p = (style: string, text: string, runs?: { text: string; bold?: boolean; italic?: boolean }[]) =>
   `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>` +
-  (text ? `<w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r>` : '') +
+  (runs?.length ? runs.map(run).join('')
+   : text ? `<w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r>` : '') +
   `</w:p>`
 
 const pageBreak = () =>
@@ -151,9 +167,10 @@ export function renderBlocks(blocks: Block[]): string {
     switch (b.kind) {
       case 'title':     out.push(p(STYLE_FOR.title, b.text)); break
       case 'cover':     out.push(p(STYLE_FOR.cover, b.text)); break
-      case 'heading':   out.push(p(STYLE_FOR[`h${b.level}`], b.text)); break
-      case 'para':      out.push(p(STYLE_FOR.para, b.text)); break
-      case 'bullet':    out.push(p(STYLE_FOR.bullet, b.text)); break
+      case 'heading':   out.push(p(STYLE_FOR[`h${b.level}`], b.text, b.runs)); break
+      case 'para':      out.push(p(STYLE_FOR.para, b.text, b.runs)); break
+      case 'bullet':    out.push(p(STYLE_FOR.bullet, b.text, b.runs)); break
+      case 'numbered':  out.push(p(STYLE_FOR.numbered, b.text, b.runs)); break
       case 'pagebreak': out.push(pageBreak()); break
       case 'toc':       out.push(tocField()); break
       case 'table':     out.push(table(b.header, b.rows)); break
