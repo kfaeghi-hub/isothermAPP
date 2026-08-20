@@ -1,7 +1,12 @@
 # Platform rich text — TipTap, adopted for the narrative surfaces
 
-**Status: PROPOSAL PENDING RULING.** Audit + design + numbered questions; no
-code until rulings, per the arc brief.
+**Status: RULED 2026-08-20 — all eight questions ruled; PHASE 1 GREENLIT on
+this fold.** Rulings appended to each question in §3 per the 3o precedent.
+Q6 is a **departure from the recommendation, owner-vetoable** — the veto path
+is recorded in place. One gate addition rides the greenlight: the
+two-paragraph-plus-bulleted-section pin runs **against the deployed build**
+per the content-string pattern — the U+2713 family's lesson is that local
+belief cannot see serverless rendering.
 
 *Written by `ATLAS`. The owner's frame is already ruled and this proposal
 designs inside it: TipTap, MIT core only, version-pinned; the locked platform
@@ -228,7 +233,10 @@ checklist template items, tags/descriptors/labels, anything extraction or
 
 ---
 
-## 3. Open questions for ruling
+## 3. The eight questions — recommendations, and the rulings
+
+**All eight ruled 2026-08-20.** Original text kept; rulings appended. Q6 is a
+departure, owner-vetoable, veto path banked in place.
 
 **Q1 · AI emission: markdown-lite + deterministic lift (recommended), or
 JSON-direct from the model?**
@@ -239,6 +247,14 @@ day one. *JSON-direct's honest case:* no lift layer to maintain — but it buys
 that by putting a ProseMirror grammar inside an AI contract, which is the
 larger surface.
 
+> **RULED — text + lift, as recommended.** The verifier's string-span
+> mechanism is decisive. The writer's contract gains the five-token
+> markdown-lite subset; the lift is deterministic, whitelist-constrained,
+> unknown syntax left literal; **the round-trip assertion
+> (toPlainText(lift(text)) ≈ text, whitespace-normalized) is a boundary
+> REFUSAL, not a log line** — a lift that loses content refuses before
+> storage.
+
 **Q2 · Where is the whitelist enforced — boundary only, or also a DB
 constraint?**
 → **Boundary normalization + battery, no DB trigger.** A jsonb CHECK deep
@@ -247,6 +263,12 @@ constraint; the door function is one auditable body, and the trio's
 unknown-node refusals catch anything that somehow lands. *The compromise
 available if ruled:* a shallow CHECK (`doc.type = 'doc'`) as a tripwire.
 
+> **RULED — boundary + battery, PLUS the shallow tripwire ships:** the
+> doc.type = 'doc' CHECK validates nothing deep — it exists so a
+> catastrophically wrong write (a string, an array, someone's HTML) dies at
+> the table instead of at the first render. The door function remains the
+> real whitelist; the trio's unknown-node refusals remain the net.
+
 **Q3 · Ordered lists in the Cx Plan docx — if the skeleton lacks a decimal
 numbering style, do we regenerate the skeleton?**
 → **Yes, as its own commit** via `build-skeleton.mjs` with its
@@ -254,15 +276,27 @@ no-client-strings assertion, before Phase 1's renderer lands. Rule 4 note:
 issued plans keep their bytes; the skeleton edit affects future generates
 only.
 
+> **RULED — yes.** Skeleton regenerates if the decimal numbering style is
+> absent: own commit, build-skeleton.mjs with its no-client-strings assertion
+> re-run, before the renderer lands. Rule 4 stands — issued plans keep their
+> bytes; the edit reaches future generates only.
+
 **Q4 · The editor chrome** — which controls render?
 → **Exactly the schema**: B, I, bullets, ordered; Cx Plan tier adds H2/H3.
 No color pickers, no tables, nothing the door would strip — a control that
 inserts what storage refuses is a lie in button form.
 
+> **RULED — chrome = schema exactly; the Cx Plan tier adds H2/H3. Promoted
+> to the pattern record verbatim:** *a control that inserts what storage
+> refuses is a lie in button form.*
+
 **Q5 · The upgrade gate for the pins?**
 → **Render-twin fixtures** (§1.5): bump-pins commits must show the twin diff
 or byte-stability. A pin bump that changes no twin is still its own commit
 (the deliberate-step ruling), just a boring one.
+
+> **RULED — render-twin upgrade gate as designed.** A pin bump that changes
+> no twin is still its own commit; a boring diff is still the record.
 
 **Q6 · Does `description_rich` join the portal whitelist at Phase 2?**
 → **Yes, both modes in one migration, rendered through the shared
@@ -274,11 +308,25 @@ trio-maintained) — zero portal changes, slightly stale-looking bullets. If
 the owner prefers zero portal motion this arc, the alternative is safe and
 reversible.
 
+> **RULED — DEPARTURE, owner-vetoable: the portal keeps the plain projection
+> this arc.** description stays the whitelisted column, now trio-maintained
+> and never stale; description_rich does NOT join the whitelist at Phase 2.
+> Zero portal-RLS motion; anti-drift legs unchanged. **The banked reversal
+> path:** one migration + richToHtml through the strict-side shim, its own
+> future ruling on evidence (a client legibility ask, or the owner's word).
+> **If the owner strikes this ruling, the recommendation executes instead** —
+> both modes, one migration, anti-drift extended.
+
 **Q7 · Phase 3's fold of the banked (b): confirm the dash-counter's
 retirement baseline as measured** (0 meetings / 3 findings / 0 elsewhere),
 with the three findings normalizing at their own phase's door?
 → **Yes as stated.** Nothing else to retire — production never adopted the
 convention.
+
+> **RULED — confirmed as measured.** The dash-counter retires at baseline
+> **0 / 3 / 0**; the three findings normalize at Phase 2's door, counted in
+> the migration note; the banked (b) entry folds at Phase 3 with this
+> baseline cited.
 
 **Q8 · Sequencing.**
 → **Strictly 1→2→3→4; the trio and pins land only inside Phase 1; each phase
@@ -288,6 +336,10 @@ or Cx-Index-export files except the two generators, whose changes ride the
 per-phase gates. Stop-and-show stands for anything that would touch ratified
 document content — nothing in this design does; snapshots and issued
 artifacts keep their bytes everywhere.
+
+> **RULED — strict 1→2→3→4; trio and pins inside Phase 1 only; per-phase
+> battery-gated series under the tree-hash guard; stop-and-show on anything
+> nearing ratified bytes — which, per §4, nothing does.**
 
 ---
 
