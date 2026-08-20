@@ -16,6 +16,50 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.24 — 2026-08-20 (findings write in structure; the portal keeps its plain text)
+
+### For the team
+
+**Issue descriptions and corrective actions now hold real structure.** The
+create and edit forms have the same editor the Cx Plan review screen got —
+bold, italic, bulleted and numbered lists — and what you write is what the
+site report prints, in both the PDF and the Word copy. The three old
+findings that used typed `- ` dashes as makeshift bullets (Seneca's DR-2.12,
+DR-2.14, DR-2.24) were converted to real bullets. Everything else renders
+exactly as before.
+
+**Clients see no change**: the portal keeps showing the plain text of each
+finding, which the system now maintains automatically from the structured
+version — it can never drift out of date.
+
+### Technical record
+
+RICH-TEXT-PROPOSAL Phase 2 (GO 2026-08-20). Commit `1a13889`. Phase 3's
+registered precondition confirmed landed beforehand: KEEL's
+snapshot-at-issue (`b020e6a`) — deleted seats can no longer blank issued
+minutes.
+
+- Migration `findings_rich_is_doc` null-hostile FROM BIRTH (the 1b lesson
+  applied, not re-learned). Door normalization counted against the Q7
+  baseline: **3/3 dash-bullet findings lifted** (all Seneca), 263 rows
+  untouched legacy.
+- `generate-report`: both builders' description/corrective cells rich-first
+  through `richToHtml`; legacy fallback branch keeps untouched rows
+  byte-identical. IssuesLogPage: exact-chrome platform-tier editor on both
+  fields in create + edit; lazy legacy lift at first edit; rich-first detail
+  rendering; the string columns maintained as live projections on every
+  editor change — `toPlainText` is the truncation/summary source by
+  construction (the register list and portal read the projection column).
+- **Q6 executes as the recorded departure**: `description_rich` joins
+  nothing portal-facing. pw-portal pins the absence BY NAME in both modes
+  (account whitelist + link bundle) — the exclusion is a pin, not a hope.
+- pw-doc-docx-tables: rich fixture finding rides the standing report
+  regeneration; raw-XML pins (both items present, structurally separated,
+  `<w:b/>` in rPr) + PDF flat-compare 3/3; fixture deleted by id in finally,
+  resting count printed. 30 checks green against the deployed build;
+  pw-portal full pass.
+- vitest 248/248; guarded battery at the gate (see gate report).
+
 ## Update 1.23 — 2026-08-20 (rich text arrives: the Cx Plan writes in structure)
 
 ### For the team

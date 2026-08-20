@@ -71,9 +71,11 @@ try {
   const modal = page.locator('div.fixed.inset-0')
 
   await modal.locator('input[placeholder^="Brief subject"]').fill(TITLE)
-  await modal.locator('textarea[placeholder^="Describe the deficiency"]').fill(DESC)
+  // RICH-TEXT Phase 2: the description is a ProseMirror editor now (first of
+  // two in the modal); fill() drives contenteditable directly.
+  await modal.locator('.ProseMirror').nth(0).fill(DESC)
   await modal.locator('input[placeholder^="e.g. Level 3"]').fill(AREA)
-  await modal.locator('textarea[placeholder^="Required measure"]').fill(CORR)
+  await modal.locator('.ProseMirror').nth(1).fill(CORR)
 
   // Auto-defaults present and editable
   check(await modal.locator('input[type="date"]').inputValue() === todayISO,
