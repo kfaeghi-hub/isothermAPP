@@ -5,6 +5,7 @@
 // sections exist, and two lists would drift. Same argument as portal_internal.
 import { supabase } from './supabase'
 import { authedFetch, apiErrorMessage } from './api'
+import type { RichDoc } from './richText'
 
 export type Tier = 'standard' | 'tender'
 export type PlanStatus = 'draft' | 'approved' | 'issued'
