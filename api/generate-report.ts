@@ -26,6 +26,7 @@ import {
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 import { gridsFromHtmlTables } from './_shared/docx-tables.js'
+import { richToHtml } from './_shared/rich-text.js'
 import { buildIstHtml, IST_FOOTER, type IstMode } from './_shared/ist-document.js'
 import { assembleIstDoc } from './_shared/ist-assemble.js'
 import { buildCxIndexHtml } from './_shared/cx-index-document.js'
@@ -165,10 +166,12 @@ function buildHtml(
     // register columns null must produce identical bytes on regeneration.
     const locationHtml = f.building_area
       ? `<div class="floc">Location: ${esc(f.building_area)}</div>` : ''
-    const descHtml = f.description
-      ? `<div class="fdesc">${esc(f.description)}</div>` : ''
-    const corrHtml = f.corrective_action
-      ? `<div class="fcorr"><span class="lbl">Corrective action:</span> ${esc(f.corrective_action)}</div>` : ''
+    const descHtml = f.description_rich
+      ? `<div class="fdesc">${richToHtml(f.description_rich)}</div>`
+      : f.description ? `<div class="fdesc">${esc(f.description)}</div>` : ''
+    const corrHtml = f.corrective_action_rich
+      ? `<div class="fcorr"><span class="lbl">Corrective action:</span> ${richToHtml(f.corrective_action_rich)}</div>`
+      : f.corrective_action ? `<div class="fcorr"><span class="lbl">Corrective action:</span> ${esc(f.corrective_action)}</div>` : ''
 
     return `<tr${closed ? ' class="closed"' : ''}>
       <td class="num">${esc(f.number)}${closed ? '<span class="closedtag">CLOSED</span>' : ''}</td>
@@ -340,9 +343,12 @@ function buildDocxHtml(
     // Register lines render ONLY when present (byte-clean regen for historical findings).
     const locationHtml = f.building_area
       ? `<p style="margin:2px 0 4px 0;font-size:8pt;color:#767676;">Location: ${esc(f.building_area)}</p>` : ''
-    const descHtml = f.description
-      ? `<p style="margin:2px 0 6px 0;">${esc(f.description)}</p>` : ''
-    const corrHtml = f.corrective_action
+    const descHtml = f.description_rich
+      ? richToHtml(f.description_rich)
+      : f.description ? `<p style="margin:2px 0 6px 0;">${esc(f.description)}</p>` : ''
+    const corrHtml = f.corrective_action_rich
+      ? `<p style="margin:4px 0 2px 0;font-size:8.5pt;"><strong style="color:${closed ? `${DOC_SEMANTIC.CLOSED_TEXT}` : `${DOC.INK}`};">Corrective action:</strong> ${richToHtml(f.corrective_action_rich)}</p>`
+      : f.corrective_action
       ? `<p style="margin:4px 0 2px 0;font-size:8.5pt;"><strong style="color:${closed ? `${DOC_SEMANTIC.CLOSED_TEXT}` : `${DOC.INK}`};">Corrective action:</strong> ${esc(f.corrective_action)}</p>` : ''
 
     return `<tr>
@@ -566,7 +572,7 @@ export default async function handler(req: any, res: any) {
       .eq('project_id', report.project_id)
 
     let fQ = supabase.from('findings')
-      .select('id,number,title,category,status,date_raised,date_closed,building_area,description,corrective_action,contacts(name,trade,companies(name,abbreviation)),finding_diary_entries(id,entry_date,body,created_at),finding_photos(id,storage_url,caption,uploaded_at)')
+      .select('id,number,title,category,status,date_raised,date_closed,building_area,description,corrective_action,description_rich,corrective_action_rich,contacts(name,trade,companies(name,abbreviation)),finding_diary_entries(id,entry_date,body,created_at),finding_photos(id,storage_url,caption,uploaded_at)')
       .eq('project_id', report.project_id)
       .order('number')
     if (!report.show_closed) fQ = fQ.eq('status', 'open')

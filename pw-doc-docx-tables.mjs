@@ -81,9 +81,33 @@ function assertDocx(name, xml, opts = {}) {
   }
 }
 
-const CLEAN = { meetingId: null, slugBase: null, istPlanId: null, istBase: null }
+const CLEAN = { meetingId: null, slugBase: null, istPlanId: null, istBase: null, richFindingId: null }
 try {
   // ── site report: the standing ZZ fixture, regenerated in place ────────────
+  // RICH-TEXT Phase 2: a fixture finding with a RICH description (two bullets,
+  // a bold run) rides the regeneration — both formats must carry the
+  // structure, against the deployed build. Deleted by id in finally.
+  const RICH_ITEM1 = 'Rich gate bullet one for the docx pin'
+  const RICH_ITEM2 = 'Rich gate bullet two, separately itemized'
+  const RICH_BOLDW = 'gateloadbearing'
+  {
+    const { data: rf, error: rfErr } = await svc.from('findings').insert({
+      project_id: ZZ, title: 'ZZ-RICH-GATE finding', category: 'INFO',
+      origin: 'site_visit', date_raised: '2026-08-20', status: 'open',
+      description: `Intro line ${RICH_BOLDW}\n\n- ${RICH_ITEM1}\n- ${RICH_ITEM2}`,
+      description_rich: { type: 'doc', content: [
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'Intro line ' },
+          { type: 'text', text: RICH_BOLDW, marks: [{ type: 'bold' }] }] },
+        { type: 'bulletList', content: [
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: RICH_ITEM1 }] }] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: RICH_ITEM2 }] }] },
+        ] },
+      ] },
+    }).select('id').single()
+    check(!rfErr && !!rf, `a rich fixture finding seeds (${rfErr?.message ?? 'ok'})`)
+    CLEAN.richFindingId = rf?.id ?? null
+  }
   const { data: reports } = await svc.from('site_reports').select('id, report_number')
     .eq('project_id', ZZ).order('report_number')
   check((reports?.length ?? 0) > 0, `a standing ZZ-TEST site report exists (${reports?.length ?? 0})`)
@@ -97,6 +121,32 @@ try {
       const buf = Buffer.from(await (await fetch(sig.body.url)).arrayBuffer())
       const xml = await (await JSZip.loadAsync(buf)).file('word/document.xml').async('string')
       assertDocx('report', xml, { expectNested: true })
+
+      // ── The rich pins, in the raw XML ───────────────────────────────────
+      const i1 = xml.indexOf(RICH_ITEM1), i2 = xml.indexOf(RICH_ITEM2)
+      check(i1 >= 0 && i2 > i1, 'both rich bullet items reach the docx')
+      check(i1 >= 0 && i2 > i1 && /<\/w:p>|<w:br\/?>/.test(xml.slice(i1, i2)),
+        'the two bullet items are structurally separated (a </w:p> or w:br between them) — not flattened')
+      const bIdx = xml.indexOf(RICH_BOLDW)
+      check(bIdx >= 0 && /<w:b\s?\/>/.test(xml.slice(Math.max(0, bIdx - 300), bIdx)),
+        'the bold run carries <w:b/> within its run properties')
+    }
+    // The PDF twin: both items + the bold word, flat-compared (pdf.js splits runs).
+    const psig = await api('/api/get-file-url', { table: 'site_reports', id: rep.id, kind: 'pdf' })
+    if (psig.body?.url) {
+      const pdfBytes = new Uint8Array(await (await fetch(psig.body.url)).arrayBuffer())
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+      const pdoc = await pdfjs.getDocument({ data: pdfBytes, disableWorker: true }).promise
+      let flat = ''
+      for (let pn = 1; pn <= pdoc.numPages; pn++) {
+        const tc = await (await pdoc.getPage(pn)).getTextContent()
+        flat += tc.items.map(x => x.str).join('')
+      }
+      flat = flat.replace(/\s+/g, '')
+      const missing = [RICH_ITEM1, RICH_ITEM2, RICH_BOLDW]
+        .map(s => s.replace(/\s+/g, '')).filter(w => !flat.includes(w))
+      check(missing.length === 0,
+        `the PDF carries the rich description's every text (${missing.length ? 'missing: ' + missing.length : '3/3'})`)
     }
   }
 
@@ -162,6 +212,12 @@ try {
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
 } finally {
+  if (CLEAN.richFindingId) {
+    await svc.from('findings').delete().eq('id', CLEAN.richFindingId)
+    const { count: rfLeft } = await svc.from('findings').select('id', { count: 'exact', head: true }).eq('id', CLEAN.richFindingId)
+    console.log(`cleanup: rich fixture finding rows left ${rfLeft} (must be 0)`)
+    if (rfLeft !== 0) fails.push('cleanup left the rich fixture finding on ZZ-TEST')
+  }
   if (CLEAN.istPlanId) {
     await svc.from('ist_plans').delete().eq('id', CLEAN.istPlanId)
     if (CLEAN.istBase) {

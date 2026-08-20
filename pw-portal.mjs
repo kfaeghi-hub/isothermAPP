@@ -104,6 +104,11 @@ try {
     check(cols === expected, 'register returns EXACTLY the whitelisted columns')
     check(!cols.includes('identified_by'), 'register never exposes identified_by (internal staff name)')
     check(!cols.includes('origin'), 'register never exposes origin')
+    // RICH-TEXT Phase 2, ruled Q6 (the recorded departure): the portal keeps
+    // the plain projection — description stays whitelisted, trio-maintained;
+    // the rich column joins NOTHING. THE EXCLUSION IS A PIN, NOT A HOPE.
+    check(!cols.includes('description_rich') && !cols.includes('corrective_action_rich'),
+      'register never exposes the rich columns (Q6 posture — plain projection only)')
   }
   {
     const { data } = await cli.rpc('portal_stats', { pid: ZZ })
@@ -349,6 +354,9 @@ try {
       const linkF = opened.body.findings ?? []
       const acctCols = Object.keys(acctF?.[0] ?? {}).sort().join(',')
       const linkCols = Object.keys(linkF[0] ?? {}).sort().join(',')
+      // Q6's pin holds in LINK MODE too — the rich columns cross in neither world.
+      check(!linkCols.includes('description_rich') && !linkCols.includes('corrective_action_rich'),
+        'link-mode findings never expose the rich columns (Q6 posture, both modes)')
       check(acctCols === linkCols && acctCols.length > 0,
         acctCols === linkCols
           ? `ANTI-DRIFT findings columns identical account vs link (${acctCols.split(',').length} fields)`

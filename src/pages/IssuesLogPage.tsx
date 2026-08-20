@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { liftMarkdownLite, richToHtml, toPlainText } from '../lib/richText'
+import type { RichDoc } from '../lib/richText'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { formatDate } from '../lib/format'
 import { uploadFindingPhoto } from '../lib/photos'
 import { getFindingPhotoUrls } from '../lib/fileUrl'
@@ -30,6 +33,8 @@ interface FindingRow {
   building_area: string | null
   description: string | null
   corrective_action: string | null
+  description_rich: RichDoc | null
+  corrective_action_rich: RichDoc | null
   contacts: {
     id: string
     name: string
@@ -52,6 +57,10 @@ interface FindingForm {
   identified_by: string
   corrective_action: string
   date_closed: string    // edit-only, shown when the finding is closed
+  // RICH-TEXT Phase 2: the docs; the string fields above are their live
+  // projections (toPlainText), maintained on every editor change.
+  description_rich: RichDoc | null
+  corrective_action_rich: RichDoc | null
 }
 
 const EMPTY_FORM: FindingForm = {
@@ -67,6 +76,8 @@ const EMPTY_FORM: FindingForm = {
   identified_by: '',
   corrective_action: '',
   date_closed: '',
+  description_rich: null,
+  corrective_action_rich: null,
 }
 
 const ORIGIN_LABELS: Record<string, string> = {
@@ -145,7 +156,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from('findings')
-      .select('id, number, title, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, linked_equipment_id, identified_by, building_area, description, corrective_action, contacts(id, name, trade, companies(name, abbreviation))')
+      .select('id, number, title, category, responsible_party_id, status, origin, date_raised, date_closed, phase_id, linked_equipment_id, identified_by, building_area, description, corrective_action, description_rich, corrective_action_rich, contacts(id, name, trade, companies(name, abbreviation))')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true })
     setFindings((data ?? []) as unknown as FindingRow[])
@@ -254,6 +265,8 @@ export function IssuesLogPage({ projectId, phases }: Props) {
         date_raised: createForm.date_raised || todayISO(),
         identified_by: createForm.identified_by.trim() || null,
         corrective_action: createForm.corrective_action.trim() || null,
+        description_rich: createForm.description_rich,
+        corrective_action_rich: createForm.corrective_action_rich,
         // number auto-set by DB trigger. The diary starts EMPTY — it is the dated
         // resolution record; the description column holds the issue itself.
       })
@@ -332,6 +345,10 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       identified_by: selectedFinding.identified_by ?? '',
       corrective_action: selectedFinding.corrective_action ?? '',
       date_closed: selectedFinding.date_closed ?? '',
+      description_rich: selectedFinding.description_rich
+        ?? (selectedFinding.description ? liftMarkdownLite(selectedFinding.description) : null),
+      corrective_action_rich: selectedFinding.corrective_action_rich
+        ?? (selectedFinding.corrective_action ? liftMarkdownLite(selectedFinding.corrective_action) : null),
     })
     setEditOpen(true)
   }
@@ -344,6 +361,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
       .update({
         title: editForm.title.trim() || null,
         description: editForm.description.trim() || null,
+        description_rich: editForm.description_rich,
         category: editForm.category.trim() || 'INFO',
         linked_equipment_id: editForm.linked_equipment_id || null,
         building_area: editForm.building_area.trim() || null,
@@ -353,6 +371,7 @@ export function IssuesLogPage({ projectId, phases }: Props) {
         date_raised: editForm.date_raised || selectedFinding.date_raised,
         identified_by: editForm.identified_by.trim() || null,
         corrective_action: editForm.corrective_action.trim() || null,
+        corrective_action_rich: editForm.corrective_action_rich,
         // Date Resolved is editable only while closed; open findings keep it null
         // (toggleStatus owns the open/closed transitions).
         ...(selectedFinding.status === 'closed'
@@ -664,17 +683,34 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             {selectedFinding.description && (
               <div>
                 <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Issue Description</h4>
-                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                  selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
-                }`}>{selectedFinding.description}</p>
+                {selectedFinding.description_rich ? (
+                  /* Rich-first through the trio's own renderer (it escapes). */
+                  <div
+                    className={`text-sm leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 ${
+                      selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'}`}
+                    dangerouslySetInnerHTML={{ __html: richToHtml(selectedFinding.description_rich) }}
+                  />
+                ) : (
+                  <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                    selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
+                  }`}>{selectedFinding.description}</p>
+                )}
               </div>
             )}
             {selectedFinding.corrective_action && (
               <div>
                 <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Corrective Action</h4>
-                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                  selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
-                }`}>{selectedFinding.corrective_action}</p>
+                {selectedFinding.corrective_action_rich ? (
+                  <div
+                    className={`text-sm leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 ${
+                      selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'}`}
+                    dangerouslySetInnerHTML={{ __html: richToHtml(selectedFinding.corrective_action_rich) }}
+                  />
+                ) : (
+                  <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                    selectedFinding.status === 'closed' ? 'text-gray-400' : 'text-gray-700'
+                  }`}>{selectedFinding.corrective_action}</p>
+                )}
               </div>
             )}
 
@@ -895,12 +931,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Issue Description <span className="text-red-400">*</span>
             </label>
-            <textarea
-              value={createForm.description}
-              onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
-              rows={4}
-              placeholder="Describe the deficiency or observation found…"
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+            <RichTextEditor
+              value={createForm.description_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
+              onChange={doc => setCreateForm(f => ({ ...f, description_rich: doc, description: toPlainText(doc) }))}
             />
             <p className="text-[11px] text-gray-400 mt-1">
               The diary below the finding stays the dated resolution record — add updates there as work progresses.
@@ -1039,12 +1072,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Corrective Action
             </label>
-            <textarea
-              value={createForm.corrective_action}
-              onChange={e => setCreateForm(f => ({ ...f, corrective_action: e.target.value }))}
-              rows={2}
-              placeholder="Required measure — fill when known"
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            <RichTextEditor
+              value={createForm.corrective_action_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
+              onChange={doc => setCreateForm(f => ({ ...f, corrective_action_rich: doc, corrective_action: toPlainText(doc) }))}
             />
           </div>
 
@@ -1147,12 +1177,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Issue Description
             </label>
-            <textarea
-              value={editForm.description}
-              onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-              rows={4}
-              placeholder="Describe the deficiency or observation found…"
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            <RichTextEditor
+              value={editForm.description_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
+              onChange={doc => setEditForm(f => ({ ...f, description_rich: doc, description: toPlainText(doc) }))}
             />
           </div>
 
@@ -1264,12 +1291,9 @@ export function IssuesLogPage({ projectId, phases }: Props) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Corrective Action</label>
-            <textarea
-              value={editForm.corrective_action}
-              onChange={e => setEditForm(f => ({ ...f, corrective_action: e.target.value }))}
-              rows={2}
-              placeholder="Required measure — fill when known"
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            <RichTextEditor
+              value={editForm.corrective_action_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
+              onChange={doc => setEditForm(f => ({ ...f, corrective_action_rich: doc, corrective_action: toPlainText(doc) }))}
             />
           </div>
 
