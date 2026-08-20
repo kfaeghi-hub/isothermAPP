@@ -142,9 +142,32 @@ try {
   }
 
   // ── 6 · Accept everything, then generate ────────────────────────────────
+  // RICH-TEXT Phase 1: ONE section accepts as a rich document — two
+  // paragraphs, a bold run, real bullets and a numbered list. The generated
+  // artifacts must carry the STRUCTURE (the F2-class flattener is dead by
+  // construction), asserted in the raw XML below, against the deployed build.
+  const RICH_P1 = 'Rich paragraph alpha for the pin.'
+  const RICH_P2 = 'Rich paragraph beta, separately.'
+  const RICH_BOLD = 'loadbearing'
+  const RICH_B1 = 'First rich bullet'
+  const RICH_N1 = 'First numbered step'
+  const richFixture = { type: 'doc', content: [
+    { type: 'paragraph', content: [{ type: 'text', text: RICH_P1 }] },
+    { type: 'paragraph', content: [
+      { type: 'text', text: RICH_P2 + ' ' },
+      { type: 'text', text: RICH_BOLD, marks: [{ type: 'bold' }] }] },
+    { type: 'bulletList', content: [
+      { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: RICH_B1 }] }] }] },
+    { type: 'orderedList', content: [
+      { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: RICH_N1 }] }] }] },
+  ] }
   for (const k of narrativeKeys) {
+    const rich = k === 'background'
     await adm.from('cx_plan_sections')
-      .update({ final_text: `Accepted text for ${k}.`, accepted: true })
+      .update(rich
+        ? { final_text: `${RICH_P1}\n\n${RICH_P2} ${RICH_BOLD}\n\n- ${RICH_B1}\n\n1. ${RICH_N1}`,
+            final_rich: richFixture, accepted: true }
+        : { final_text: `Accepted text for ${k}.`, accepted: true })
       .eq('plan_id', planId).eq('section_key', k)
   }
   const gen = await post(adm, '/api/cx-plan-generate', { plan_id: planId })
@@ -163,18 +186,30 @@ try {
     if (url) {
       const buf = Buffer.from(await (await fetch(url)).arrayBuffer())
       const { inflateRawSync } = await import('node:zlib')
+      // CENTRAL-DIRECTORY reader (touch-policy conversion, Phase 1 of the
+      // rich-text arc — this suite was on the residue list's PK-scan walkers,
+      // and the 2026-08-05 re-zip incident is why local-header scanning walks
+      // wrong: the central directory is the zip's authoritative index).
       const docXml = (() => {
-        let i = 0
-        while ((i = buf.indexOf('PK\x03\x04', i, 'latin1')) !== -1) {
-          const m = buf.readUInt16LE(i + 8), cs = buf.readUInt32LE(i + 18)
-          const nl = buf.readUInt16LE(i + 26), el = buf.readUInt16LE(i + 28)
-          const n = buf.subarray(i + 30, i + 30 + nl).toString('latin1')
-          const s = i + 30 + nl + el
-          if (n === 'word/document.xml' && cs > 0) {
-            const d = buf.subarray(s, s + cs)
-            return (m === 8 ? inflateRawSync(d) : d).toString('utf8')
+        let e = buf.length - 22
+        while (e >= 0 && !(buf[e] === 0x50 && buf[e + 1] === 0x4b && buf[e + 2] === 0x05 && buf[e + 3] === 0x06)) e--
+        if (e < 0) return ''
+        const count = buf.readUInt16LE(e + 10)
+        let off = buf.readUInt32LE(e + 16)
+        for (let i = 0; i < count; i++) {
+          if (buf.readUInt32LE(off) !== 0x02014b50) return ''
+          const method = buf.readUInt16LE(off + 10)
+          const csize = buf.readUInt32LE(off + 20)
+          const nl = buf.readUInt16LE(off + 28), el = buf.readUInt16LE(off + 30), cl = buf.readUInt16LE(off + 32)
+          const name = buf.subarray(off + 46, off + 46 + nl).toString('latin1')
+          const lho = buf.readUInt32LE(off + 42)
+          if (name === 'word/document.xml') {
+            const lnl = buf.readUInt16LE(lho + 26), lel = buf.readUInt16LE(lho + 28)
+            const s = lho + 30 + lnl + lel
+            const d = buf.subarray(s, s + csize)
+            return (method === 8 ? inflateRawSync(d) : d).toString('utf8')
           }
-          i = s + (cs || 1)
+          off += 46 + nl + el + cl
         }
         return ''
       })()
@@ -204,6 +239,41 @@ try {
         'renders the ruled role designation "Commissioning Authority (CxA)"')
       check(!/Commissioning Agent/.test(text),
         'the retired term "Commissioning Agent" appears nowhere')
+
+      // ── RICH-TEXT Phase 1 pins, in the RAW XML (the w:br idiom) ─────────
+      // Two paragraphs must be two <w:p> elements — the F2-class flattener
+      // dead by construction, provable only in the bytes.
+      const p1 = docXml.indexOf(RICH_P1), p2 = docXml.indexOf(RICH_P2)
+      check(p1 >= 0 && p2 > p1 && docXml.slice(p1, p2).includes('</w:p>'),
+        'rich paragraphs land as SEPARATE <w:p> elements (a </w:p> sits between them)')
+      check(new RegExp(`<w:pStyle w:val="Bullet1-ABC"/>[\\s\\S]{0,400}?${RICH_B1}`).test(docXml),
+        'the rich bullet lands under Bullet1-ABC')
+      check(new RegExp(`<w:pStyle w:val="Bulletnumbered-ABC"/>[\\s\\S]{0,400}?${RICH_N1}`).test(docXml),
+        'the rich ordered item lands under Bulletnumbered-ABC')
+      check(new RegExp(`<w:rPr><w:b/></w:rPr><w:t[^>]*>${RICH_BOLD}`).test(docXml),
+        'the bold run carries <w:b/> in its rPr')
+
+      // The PDF twin of the same stream: both paragraphs, the bullet glyph
+      // line, the numbered line. Flat-compared — pdf.js splits runs.
+      if (gen.body.pdf_url) {
+        const pr = await post(adm, '/api/get-file-url', { table: 'cx_plans', id: planId, kind: 'pdf' })
+        if (pr.body.url) {
+          const pdfBytes = new Uint8Array(await (await fetch(pr.body.url)).arrayBuffer())
+          const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+          const pdoc = await pdfjs.getDocument({ data: pdfBytes, disableWorker: true }).promise
+          let flat = ''
+          for (let pn = 1; pn <= pdoc.numPages; pn++) {
+            const tc = await (await pdoc.getPage(pn)).getTextContent()
+            flat += tc.items.map(x => x.str).join('')
+          }
+          flat = flat.replace(/\s+/g, '')
+          const want = [RICH_P1, RICH_P2, RICH_BOLD, RICH_B1, RICH_N1]
+            .map(s => s.replace(/\s+/g, ''))
+          const absent = want.filter(w => !flat.includes(w))
+          check(absent.length === 0,
+            `the PDF carries the rich structure's every text (${absent.length ? 'missing: ' + absent.join(', ') : '5/5'})`)
+        }
+      }
 
       // The accepted narrative — not the drafted text it replaced.
       check(text.includes('Accepted text for background'),
