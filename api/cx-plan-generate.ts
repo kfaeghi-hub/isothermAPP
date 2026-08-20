@@ -131,9 +131,12 @@ export default async function handler(req: any, res: any) {
 
     const narrative = Object.fromEntries(
       narrativeKeys.map(k => [k, byKey[k]?.final_text || byKey[k]?.drafted_text || '']))
+    // RICH-TEXT Phase 1: rich wins where present (JSON-first, legacy fallback).
+    const narrativeRich = Object.fromEntries(
+      narrativeKeys.map(k => [k, byKey[k]?.final_rich || byKey[k]?.drafted_rich || null]))
 
     // ── Assemble and render ────────────────────────────────────────────────
-    const blocks = buildDeterministic(facts, narrative)
+    const blocks = buildDeterministic(facts, narrative, narrativeRich)
     const skeleton = readFileSync(join(process.cwd(), 'firm-knowledge/skeletons/cx-plan.docx'))
     const injected = await injectIntoSkeleton(skeleton, blocks)
     if (injected.missingStyles.length) {
@@ -185,13 +188,26 @@ import { BASE_CSS, FIRM_HEADER_PDF, esc, DOC, footerBand } from './_shared/doc-c
 const PDF_FOOTER = footerBand('<em>Isotherm Engineering Ltd. — Building Commissioning Plan</em>')
 
 function blocksToHtml(blocks: any[]): string {
+  // Runs (rich-text Phase 1): bold/italic inside a block. When absent, the
+  // legacy text path renders byte-identically.
+  const inline = (b: any) => b.runs?.length
+    ? b.runs.map((r: any) => {
+        let h = esc(r.text)
+        if (r.italic) h = `<em>${h}</em>`
+        if (r.bold) h = `<strong>${h}</strong>`
+        return h
+      }).join('')
+    : esc(b.text)
+  let num = 0
   const body = blocks.map(b => {
+    if (b.kind !== 'numbered') num = 0
     switch (b.kind) {
       case 'title':     return `<h1 style="text-align:center;color:${DOC.INK};font-size:22pt;">${esc(b.text)}</h1>`
       case 'cover':     return `<p style="text-align:center;font-size:12pt;">${esc(b.text)}</p>`
-      case 'heading':   return `<h2 class="sec" style="font-size:${b.level === 1 ? 13 : 11}pt;">${esc(b.text)}</h2>`
-      case 'para':      return `<p style="margin:6px 0;">${esc(b.text)}</p>`
-      case 'bullet':    return `<p style="margin:2px 0 2px 18px;">&bull;&nbsp;${esc(b.text)}</p>`
+      case 'heading':   return `<h2 class="sec" style="font-size:${b.level === 1 ? 13 : 11}pt;">${inline(b)}</h2>`
+      case 'para':      return `<p style="margin:6px 0;">${inline(b)}</p>`
+      case 'bullet':    return `<p style="margin:2px 0 2px 18px;">&bull;&nbsp;${inline(b)}</p>`
+      case 'numbered':  return `<p style="margin:2px 0 2px 18px;">${++num}.&nbsp;${inline(b)}</p>`
       case 'pagebreak': return `<div style="page-break-after:always;"></div>`
       // The Word TOC is a live field; a PDF cannot have one, and a rendered list
       // of page numbers would be a different document. Omitted deliberately.

@@ -41,6 +41,15 @@ opportunity**, which is a stronger guarantee than an instruction.
 4. Return the prose **and an enumeration of every factual claim it contains**,
    each citing the fact key that supports it. An unsupported claim must be
    omitted, not cited to nothing.
+5. **Structure, when the section calls for it, uses the markdown-lite subset
+   and nothing beyond it**: blank lines between paragraphs; `- ` for bullet
+   items; `1. ` for ordered items; `**bold**`; `*italic*`; `## ` / `### ` for
+   sub-headings within the section. No tables, no links, no code, no other
+   markdown — anything else is treated as literal text. *(Added 2026-08-20,
+   RICH-TEXT-PROPOSAL ruling Q1: the prose is lifted deterministically into
+   the platform's rich-text schema at the boundary, and a lift that loses
+   content refuses the draft — a token outside the subset survives as visible
+   literal text in the CxA's review, which is the honest failure mode.)*
 
 ## Return shape
 

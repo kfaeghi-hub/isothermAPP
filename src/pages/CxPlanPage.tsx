@@ -6,6 +6,7 @@
 // refuses generation on an unapproved plan regardless of what the UI allows.
 import { useCallback, useEffect, useState } from 'react'
 import { FileText, Check, ChevronRight, ChevronLeft, Download, Loader2 } from 'lucide-react'
+import type { RichDoc } from '../lib/richText'
 import { supabase } from '../lib/supabase'
 import { reportError, reportWriteBlocked } from '../lib/mutationError'
 import { useAuth } from '../contexts/AuthContext'
@@ -153,9 +154,9 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
 
   const redraft = (key: string, note?: string) => draftOne(key, note)
 
-  async function accept(key: string, text: string) {
+  async function accept(key: string, text: string, rich: RichDoc | null = null) {
     if (!plan) return
-    const res = await acceptSection(plan.id, key, text)
+    const res = await acceptSection(plan.id, key, text, rich)
     if (reportWriteBlocked(res as any, 'accept section')) return
 
     // Ledger: accepted VERBATIM or accepted AFTER EDITING. The distinction is the
@@ -467,7 +468,7 @@ export function CxPlanPage({ projectId, canApprove }: { projectId: string; canAp
                   title={SECTIONS.find(s => s.key === k)?.title ?? k}
                   section={byKey[k]} facts={factsFor()}
                   busy={busy === `draft:${k}`}
-                  onAccept={t => accept(k, t)}
+                  onAccept={(t, rich) => accept(k, t, rich)}
                   onRuleOnFlag={(f, ok) => ruleOnFlag(k, f, ok)}
                   onRegenerate={note => redraft(k, note)} />
               ))}

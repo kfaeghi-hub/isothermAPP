@@ -12,6 +12,8 @@
 // model is never handed the team table, so it cannot restate it wrongly — it is
 // not given the opportunity, which is stronger than an instruction.
 import type { Block } from './docx-skeleton.js'
+import { richToBlocks } from './rich-text.js'
+import type { RichNode } from './rich-text.js'
 
 export interface TeamRow {
   role_name: string | null; role_abbr: string | null
@@ -100,8 +102,25 @@ export function merge(template: string, facts: PlanFacts): string {
  */
 export function buildDeterministic(
   facts: PlanFacts, narrative: Record<string, string>,
+  narrativeRich: Record<string, RichNode | null> = {},
 ): Block[] {
   const b: Block[] = []
+  // RICH-TEXT Phase 1: a section with a rich document splices real blocks —
+  // separate paragraphs, real bullets/numbering, bold/italic runs — killing
+  // the family's own F2-class flattener by construction. A legacy section
+  // (rich null) pushes the single para it always did: untouched rows render
+  // byte-identically (the F1 gate).
+  const pushNarrative = (key: string, legacyText: string) => {
+    const rich = narrativeRich[key]
+    if (rich) {
+      for (const rb of richToBlocks(rich, 'cxplan')) {
+        if (rb.kind === 'heading') b.push({ kind: 'heading', level: (rb.level ?? 2) as 1|2|3, text: rb.runs.map(r => r.text).join(''), runs: rb.runs })
+        else b.push({ kind: rb.kind, text: rb.runs.map(r => r.text).join(''), runs: rb.runs })
+      }
+    } else if (legacyText) {
+      b.push({ kind: 'para', text: legacyText })
+    }
+  }
   const p = facts.project
   const role = roleText(p.cx_role_designation)
 
@@ -137,7 +156,7 @@ export function buildDeterministic(
 
       case 'background': {
         const text = N('background') || p.background_description || ''
-        if (text) b.push({ kind: 'para', text })
+        pushNarrative('background', text)
         if (facts.systems.length) {
           b.push({ kind: 'para', text: merge(
             'Systems served by the new equipment include ⟦systems_list⟧.', facts) })
@@ -187,7 +206,7 @@ export function buildDeterministic(
           `responsibilities of those participating in the commissioning process. The Cx Plan ` +
           `here only explains the process and substantiates each team member's ` +
           `interrelationship. If questions arise, the specifications take precedence.` })
-        if (N('roles')) b.push({ kind: 'para', text: N('roles') })
+        pushNarrative('roles', N('roles'))
         break
 
       case 'install':
@@ -198,7 +217,7 @@ export function buildDeterministic(
         break
 
       case 'operational':
-        if (N('operational')) b.push({ kind: 'para', text: N('operational') })
+        pushNarrative('operational', N('operational'))
         b.push({ kind: 'bullet', text: 'Functional Performance Testing (FPT) by Isotherm' })
         b.push({ kind: 'bullet', text: 'Training for Operation and Maintenance Staff (GC)' })
         b.push({ kind: 'bullet', text: 'Issue O&M Manual (GC)' })
@@ -234,7 +253,7 @@ export function buildDeterministic(
         break
 
       default:
-        if (N(s.key)) b.push({ kind: 'para', text: N(s.key) })
+        pushNarrative(s.key, N(s.key))
         break
     }
   }

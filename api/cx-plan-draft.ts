@@ -23,6 +23,7 @@ import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shar
 import { runAgent, logAgentRun, knowledgeVersion, AiError } from './_shared/ai-common.js'
 import type { WriterOutput, VerifierOutput } from './_shared/agent-schemas.js'
 import { SECTIONS } from './_shared/cx-plan-assembly.js'
+import { liftOrRefuse, toPlainText } from './_shared/rich-text.js'
 
 const SUPABASE_URL              = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -164,6 +165,26 @@ export default async function handler(req: any, res: any) {
     }
     const parsed = draft.value!
 
+    // ── The lift (RICH-TEXT Phase 1, ruled Q1) ────────────────────────────
+    // The writer emits markdown-lite prose; the boundary lifts it into the
+    // platform schema. liftOrRefuse is the ruled BOUNDARY REFUSAL: two
+    // independent projections (toPlainText over the lifted tree vs a
+    // positional token-strip) must agree, or nothing is stored.
+    let liftedRich: ReturnType<typeof liftOrRefuse>
+    try {
+      liftedRich = liftOrRefuse(parsed.prose, 'cxplan')
+    } catch (e: any) {
+      console.error(`[cx-plan-draft] ${section_key}: lift refused — ${e.message}`)
+      return res.status(502).json({
+        error: `The ${def.title} draft used formatting the platform cannot carry, ` +
+               `and lifting it would have lost content. Nothing was saved. Retry.`,
+        reason: 'lift-refused', retryable: true,
+      })
+    }
+    // The verifier reads THE PROJECTION — the same plain text every raw
+    // consumer reads, and the text its string-quoted spans must quote.
+    const projection = toPlainText(liftedRich, 'cxplan')
+
     // ── The verifier agent ────────────────────────────────────────────────
     // Isolation is now a DATA FACT, not a discipline at the call site:
     // verifier.md declares `slices: []`, so the runtime sends it an empty system
@@ -171,7 +192,7 @@ export default async function handler(req: any, res: any) {
     // framing — it sees the prose and the facts, which is the only question it is
     // being asked.
     const verify = await runAgent<VerifierOutput>('verifier',
-      { prose: parsed.prose, facts },
+      { prose: projection, facts },
       { task:
           'You are verifying a commissioning document for factual support. You did ' +
           'not write this text. Assume it contains errors. Flag every claim the ' +
@@ -202,14 +223,17 @@ export default async function handler(req: any, res: any) {
     const ordinal = SECTIONS.findIndex(s => s.key === section_key)
     await service.from('cx_plan_sections').upsert({
       plan_id, section_key, ordinal, kind: 'narrative',
-      drafted_text: parsed.prose, flags, regenerate_note: note ?? null,
+      // drafted_text is THE PROJECTION from this phase on — maintained by the
+      // trio, never stale, exactly what the verifier read and quoted spans of.
+      drafted_text: projection, drafted_rich: liftedRich,
+      flags, regenerate_note: note ?? null,
       // A redraft un-accepts the section: an approval applies to text a human
       // read, and this is not that text any more.
-      accepted: false,
+      accepted: false, final_rich: null,
     }, { onConflict: 'plan_id,section_key' })
 
     return res.status(200).json({
-      prose: parsed.prose, claims: parsed.claims ?? [], flags,
+      prose: projection, rich: liftedRich, claims: parsed.claims ?? [], flags,
       knowledge_version: knowledgeVersion(),
     })
   } catch (err: any) {

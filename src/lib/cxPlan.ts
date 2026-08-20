@@ -22,6 +22,7 @@ export interface PlanSection {
   id: string; plan_id: string; section_key: string; ordinal: number
   kind: 'boilerplate' | 'data' | 'narrative'
   drafted_text: string | null; final_text: string | null
+  drafted_rich: RichDoc | null; final_rich: RichDoc | null
   accepted: boolean
   flags: Flag[] | null
   regenerate_note: string | null
@@ -132,9 +133,13 @@ export async function createPlan(projectId: string, tier: Tier, revisionIndex = 
   }).select('*').single()
 }
 
-export async function acceptSection(planId: string, key: string, finalText: string) {
+export async function acceptSection(
+  planId: string, key: string, finalText: string, finalRich: RichDoc | null = null,
+) {
+  // RICH-TEXT Phase 1: finalText is the trio's plain projection of finalRich —
+  // the maintained legacy column, never stale (RICH-TEXT-PROPOSAL §2.4).
   return supabase.from('cx_plan_sections')
-    .update({ final_text: finalText, accepted: true })
+    .update({ final_text: finalText, final_rich: finalRich, accepted: true })
     .eq('plan_id', planId).eq('section_key', key).select('id')
 }
 

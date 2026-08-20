@@ -11,6 +11,9 @@
 import { useState } from 'react'
 import { AlertTriangle, Check, RefreshCw, Pencil } from 'lucide-react'
 import type { PlanSection, Flag } from '../../lib/cxPlan'
+import { liftMarkdownLite, richToHtml, toPlainText } from '../../lib/richText'
+import type { RichDoc } from '../../lib/richText'
+import { RichTextEditor } from '../RichTextEditor'
 
 const SEVERITY: Record<Flag['severity'], { label: string; cls: string }> = {
   unsupported:  { label: 'Not in the facts', cls: 'bg-red-50 text-red-700' },
@@ -25,20 +28,24 @@ export function SectionReview({
   section: PlanSection | undefined
   facts: Record<string, unknown>
   busy: boolean
-  onAccept: (text: string) => void
+  onAccept: (text: string, rich: RichDoc | null) => void
   /** Ruling on a flag feeds the ledger. Flags never blocked and still do not —
    *  this records what the CxA thought of each one. */
   onRuleOnFlag?: (flag: Flag, confirmed: boolean) => void
   onRegenerate: (note?: string) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [text, setText] = useState(section?.final_text ?? section?.drafted_text ?? '')
   const [noteOpen, setNoteOpen] = useState(false)
   // Ruled-on flags stay visible — a dismissed flag is a record, not a deletion.
   const [ruled, setRuled] = useState<Record<number, 'confirmed' | 'dismissed'>>({})
   const [note, setNote] = useState('')
   const flags = section?.flags ?? []
   const current = section?.final_text ?? section?.drafted_text ?? ''
+  // RICH-TEXT Phase 1: JSON-first with legacy fallback. A legacy row lifts
+  // LAZILY here, at its first edit — the door's own lift, via the shim.
+  const currentRich = section?.final_rich ?? section?.drafted_rich
+    ?? (current ? liftMarkdownLite(current, 'cxplan') : null)
+  const [rich, setRich] = useState<RichDoc | null>(currentRich)
 
   return (
     <div className={`border rounded-lg overflow-hidden ${
@@ -58,7 +65,7 @@ export function SectionReview({
           )}
         </h4>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button onClick={() => { setEditing(e => !e); setText(current) }}
+          <button onClick={() => { setEditing(e => !e); setRich(currentRich) }}
             className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-standard-600">
             <Pencil size={12} strokeWidth={2} /> {editing ? 'Cancel' : 'Edit'}
           </button>
@@ -66,7 +73,13 @@ export function SectionReview({
             className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-standard-600 disabled:opacity-50">
             <RefreshCw size={12} strokeWidth={2} /> Regenerate
           </button>
-          <button onClick={() => onAccept(editing ? text : current)}
+          <button
+            onClick={() => {
+              // Accept stores BOTH: the JSON and its plain projection — the
+              // legacy column stays maintained, never stale (§2.4).
+              const doc = editing ? rich : currentRich
+              onAccept(doc ? toPlainText(doc, 'cxplan') : current, doc ?? null)
+            }}
             disabled={busy || !current}
             className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-standard-600 text-white font-medium disabled:opacity-50">
             <Check size={12} strokeWidth={2.5} /> Accept
@@ -125,9 +138,17 @@ export function SectionReview({
 
         {/* ── DRAFT ────────────────────────────────────────────────────── */}
         <div className="p-3">
-          {editing ? (
-            <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
-              className="w-full text-sm border border-gray-200 rounded p-2 focus:outline-none focus:border-standard-600" />
+          {editing && rich ? (
+            <RichTextEditor value={rich} tier="cxplan" onChange={setRich} />
+          ) : currentRich ? (
+            /* Read view through the TRIO's own renderer — the same HTML the
+               PDF path derives from, and it escapes all text itself. */
+            <div
+              className="text-sm text-gray-800 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5
+                         [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-base [&_h2]:font-bold
+                         [&_h3]:font-bold [&_p]:my-1"
+              dangerouslySetInnerHTML={{ __html: richToHtml(currentRich, 'cxplan') }}
+            />
           ) : current ? (
             <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{current}</p>
           ) : (
