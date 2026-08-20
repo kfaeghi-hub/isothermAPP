@@ -390,23 +390,30 @@ try {
     }, { timeout: 15000, what: 'the newline persisting through the modal commit' })
     check(true, 'F2: the expanded editor commits multi-line text through the same draft path')
 
-    // regenerate #2: both parties stack in the docx; the newline is a real <w:br>
+    // regenerate #2 — ANCHORED ON CONTENT. issued_at stamps on first issue only
+    // (the 7-day clock), so a DB poll is already-true and races the upload: the
+    // first run of this leg fetched the PREVIOUS docx and failed on text the
+    // new one carried. Settlement is the fetched artifact containing the new
+    // marker, deadline = failure.
     await page.locator('[data-testid="generate-minutes"]').click()
     const g3 = Date.now()
-    let m2b = null
+    let xml3 = ''
     while (Date.now() - g3 < 90_000) {
-      const { data } = await sb.from('meetings').select('storage_url, issued_at, id').eq('id', mtg2row.id).single()
-      if (data?.storage_url && data?.issued_at) { m2b = data; break }
-      await new Promise(r => setTimeout(r, 500))
+      try {
+        const u = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'docx' })
+        const x = docxXml(Buffer.from(await (await fetch(u)).arrayBuffer()))
+        if (x.replace(/<[^>]+>/g, ' ').includes('Dialogue Architects')) { xml3 = x; break }
+      } catch { /* mid-upload — keep polling */ }
+      await new Promise(r => setTimeout(r, 1000))
     }
-    check(!!m2b, 'meeting #2 regenerated with parties + newline')
-    const url3 = await signedFileUrl(credentials(), { table: 'meetings', id: mtg2row.id, kind: 'docx' })
-    const xml3 = docxXml(Buffer.from(await (await fetch(url3)).arrayBuffer()))
+    check(!!xml3, 'meeting #2 regenerated and the new content arrived in storage')
     const txt3 = xml3.replace(/<[^>]+>/g, ' ')
     check(txt3.includes('BAS — Automated Logic Controls') && txt3.includes('Dialogue Architects'),
       'doc: BOTH parties render in the responsible column (stacked, never squeezed)')
-    check(xml3.includes('<w:br'),
-      'doc: the typed newline is a REAL line break in the docx (w:br), not a flattened space')
+    // pinned to THE ITEM'S OWN text — the header block already uses <br>, so a
+    // bare xml.includes('<w:br') is vacuously true (caught on the first run).
+    check(/Coordinate envelope review<\/w:t>[^]{0,400}?<w:br/.test(xml3),
+      'doc: the typed newline is a REAL <w:br> inside the discussion runs, not a flattened space')
     check(txt3.includes('Coordinate envelope review') && txt3.includes('Dialogue to provide comments'),
       'doc: both lines of the multi-line discussion render')
 
