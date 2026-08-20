@@ -52,11 +52,22 @@ measured on 1.8.0 which does emit <w:br> for <br>). One renderer
 Expand modal edits the same draft state; commit path unchanged. The rich-text
 decision is a separate stop-and-show (options priced in the audit report).
 
+Closers (ruled same day): RESPONSIBILITY SNAPSHOTS AT ISSUE — the attendee
+precedent's sibling: label_snapshot frozen per party at generate, never
+overwritten, documents read snapshot-first, so a deleted team seat can no
+longer blank an issued minutes' responsible column (gate: delete the seat,
+regenerate, the name survives). The failing-first run also caught the F1
+constraint blocking seat deletion outright (mir_exactly_one vs ON DELETE SET
+NULL — corrected to mir_never_both; both-null is the named degraded state).
+The rich-text decision is ruled (c): big-plain stands; constrained-rich banked
+as BACKBURNER 3u with a self-measuring wake (bullet-line count query, baseline
+0/32); the grouping-contract divergence banked as 3t, on-touch.
+
 Gate: failing-first pw-meetings legs — two parties via one control, chips,
 both parties + both lines + a w:br PINNED INSIDE the discussion runs in the
 regenerated docx (content-anchored fetch; issued_at stamps once so a DB poll
-is already-true), carry arrives with both parties. Two assertion-calibration
-lessons recorded in the suite.
+is already-true), carry arrives with both parties, and the snapshot survival
+leg. Assertion-calibration lessons recorded in the suite.
 
 ---
 

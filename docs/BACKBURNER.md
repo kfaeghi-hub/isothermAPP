@@ -1105,6 +1105,37 @@ FIELDS — a value plus the condition it was rated at, stored and rendered
 together — which is schema and product surface, not a matcher entry. Ruled:
 verbatim in the strip until then.
 
+### 3t. One grouping contract for responsibility consumers — named debt
+**BANKED 2026-08-19 (the F1 audit's finding), on-touch wake: the next change to
+any of the three consumers unifies, or says why not.**
+
+Three consumers, three contracts on the same responsibility data: the minutes
+Action Summary keys on the LABEL STRING (case-sensitive; renders a '—' group),
+the dashboard rollup keys on COMPANY ID / lowercased free text (and SILENTLY
+DROPS items with no party — invisible on the dashboard, printed to the
+client), the cell renderers just print. Junction-first reading narrowed the
+surface but did not unify the contracts. The debt: one documented grouping
+rule (key, case posture, empty-party disposition) that all three consume.
+
+### 3u. Constrained-rich item text — its own arc, with a self-measuring wake
+**BANKED 2026-08-19 per the (c) ruling. WAKE CONDITION IS A MEASUREMENT, not a
+feeling: bullet-shaped lines appearing in production discussions. The
+instrument, baseline zero at banking (0 of 32):**
+
+```sql
+select count(*) from meeting_items
+where discussion ~ '(^|\n)\s*[-*•]\s'
+```
+
+When the count moves, the arc proposal returns with the F2 audit's pricing
+already attached: one canonical stored format; native rendering in BOTH
+generators (html-to-docx + the shared fixed-grid patcher — indifferent to
+inline runs, refuses only on top-level table count); every docx gate's
+flattener rewritten (run boundaries become mid-phrase spaces in three suites);
+esc(), the dashboard's slice(0,80) labels, the textarea drivers, and
+pw-meetings' ilike probes all touched. Big-plain (shipped) is the floor it
+builds on.
+
 **Gray-on-color punch items.** UI instances that render gray text on a tinted
 field, against the standing rule (tinted field + same-hue text, e.g.
 `bg-green-50 text-green-700`, never gray-on-color — ARCHITECTURE §UI). Collected
