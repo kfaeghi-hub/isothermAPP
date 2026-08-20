@@ -16,6 +16,50 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.22 — 2026-08-19 (meetings: shared responsibility + a real item editor)
+
+### For the team
+
+**A meeting item can now name several responsible parties.** Each party is a
+chip — pick from the project team or type a name — and remove any with its ×.
+The minutes show all parties stacked in the Responsible column, the Action
+Summary lists a shared item under EACH party (everyone sees their own
+actions), and the dashboard's Open Items by Responsible counts it for every
+party named. Carried-forward items keep all their parties.
+
+**And the item editor grew up.** The ⤢ button on any discussion opens a
+full-size editor for real writing; it saves as you type and nothing is lost
+switching between the small and large views. Line breaks you type now appear
+in the minutes — both PDF and Word — exactly as typed. (They were silently
+flattened before; existing multi-line items start rendering correctly on the
+next regenerate.)
+
+### Technical record
+
+F1: meeting_item_responsibles junction (seat-ref XOR free-text per row,
+ordered, RLS via meeting membership, ON DELETE SET NULL kept). Supersede-
+never-delete: legacy pair frozen, 20/20 backfilled as first entries, readers
+prefer junction and fall back. Four consumers converted: generate-minutes
+respLabels() stacks with <br> in both formats (docx responsible column stays
+26% — stacking never squeezes Discussion's 42%); Action Summary groups per
+party; dashboard groups per party under unchanged contracts; carry copies the
+junction whole. Chips UI retires the '—'-wipes-typed-text footgun.
+
+F2 shell + measured defect: 10/32 production discussions carried newlines
+both formats flattened (PDF default white-space; html-to-docx \n→space,
+measured on 1.8.0 which does emit <w:br> for <br>). One renderer
+(discussionHtml) fixes both; summaries collapse whitespace before truncation.
+Expand modal edits the same draft state; commit path unchanged. The rich-text
+decision is a separate stop-and-show (options priced in the audit report).
+
+Gate: failing-first pw-meetings legs — two parties via one control, chips,
+both parties + both lines + a w:br PINNED INSIDE the discussion runs in the
+regenerated docx (content-anchored fetch; issued_at stamps once so a DB poll
+is already-true), carry arrives with both parties. Two assertion-calibration
+lessons recorded in the suite.
+
+---
+
 ## Update 1.21 — 2026-08-18 (the mark-all button gets its own row)
 
 ### For the team
