@@ -433,5 +433,20 @@
         "seconds": "36"
       }
     ]
+  },
+  {
+    "run": "ba175ca:2026-08-20",
+    "at": "2026-08-20T16:54:17.868Z",
+    "passed": 53,
+    "of": 53,
+    "measurements": [
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-2289ms",
+        "passed": true,
+        "seconds": "38"
+      }
+    ]
   }
 ]
