@@ -709,6 +709,55 @@ Those are judgment, and they are asked for on every call including band calls. I
 accuracy holds but questions stop being raised, the number will look fine and the
 capability will be gone.
 
+### 3v. Procore integration — read-first
+
+**BANKED 2026-08-21, owner-ruled. Priorities set against the CURRENT Procore
+developer surface — RFIs, submittals, drawings, inspections and daily logs
+confirmed as versioned first-class APIs with seeded sandboxes — not against a
+recollection of it.**
+
+> **Label note.** The ruling said **3t**; that label was already taken (3t —
+> the grouping-contract debt, banked 2026-08-19), so this banks as **3v** and
+> its phases read 3v-1…3v-5. The owner's 3t-1…3t-5 numbering maps one-to-one,
+> in the ruled order below.
+
+**The shape: read first — and the first reads benefit ISOTHERM, not the GC.**
+Every phase is a pull until 3v-4. That order is the ruling's substance, not its
+packaging: an integration that starts by writing into a GC's record buys
+goodwill and no leverage, while one that starts by reading saves the firm
+typing on day one.
+
+| # | Phase | Direction | What it buys |
+|---|---|---|---|
+| **3v-1** | **Directory pull** — the GC/owner project directory seeds the team matrix and responsible-party options | read-only, per-project connection | the first slice, and the one that pays immediately: the matrix stops being typed twice |
+| **3v-2** | **Schedule pull** — the GC's schedule feeds Cx milestone tracking and meeting agendas | read-only | closes the competitive audit's **schedule-sync gap** (cf. 3g) by reading the GC's live schedule rather than importing P6/MSP files |
+| **3v-3** | **Submittals / shop-drawings pull** — the SD register read directly for the MNF/MDL-vs-basis-of-design review workflow | read-only | approved SDs referenced as **§4.4 evidence** — receipt without custody, no re-upload |
+| **3v-4** | **Findings → Observations/Punch push** — the `toPlainText` projection, already battery-proven | **first write** | demoted from the first slice by this ruling; inbound status webhooks land as **proposals only** — offer, never assert |
+| **3v-5** | Document publishing to Procore Documents, Daily Log summaries, Drawings-pull-to-extractor, Photos | mixed | later, each earning its own ruling |
+
+**Permanently out of scope, recorded so it is not re-litigated:** their
+Inspections as a replacement for our checklist engine (**ours is the
+differentiator** — the product thesis sits there), Financials, and
+write-mastering any GC record. We read their record and master ours.
+
+**Standing constraints, all binding:**
+
+- **OAuth per client instance.** Token storage plus per-project connection
+  mapping is the real new work; the API calls are the easy half.
+- **Everything inbound crosses the boundary disciplines.** Nothing external
+  writes a register without a human disposition, and reads land as
+  reference/seed data **with their source named**, never silently merged —
+  the import law unchanged: a source may suggest, only ratification assigns.
+- **Sandbox-first validation** against Procore's own seeded sandboxes, before
+  any client instance is touched.
+- **Vercel slot dependency, named:** `api/` sits at its function ceiling, and
+  an OAuth callback plus per-resource pulls need slots.
+
+**Wakes when:** **3b lands** (portal endpoint consolidation — the slot relief
+and the router pattern this integration reuses), **or on an explicit owner
+override** if a client asks for Procore sooner. The override is the likelier
+trigger and it outranks the sequencing.
+
 ---
 
 ### Not backlogged, and the reason is the point

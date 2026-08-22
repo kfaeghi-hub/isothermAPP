@@ -370,6 +370,11 @@ From the codebase and docs, as of 2026-08-05:*
   common owner requirement.
 - **Scheduling Gantt / schedule sync (P6, MS Project):** Facility Grid Schedule
   Sync, Bluerithm Gantt, CxPlanner MS Project import.
+  **A second route to this gap banked 2026-08-21:** [BACKBURNER 3v — Procore
+  integration](BACKBURNER.md), phase **3v-2**, pulls the GC's schedule directly
+  from Procore — closing the gap by *reading the live schedule* rather than
+  importing P6/MSP files. 3g (file import) and 3v-2 (API pull) answer the same
+  gap from opposite directions; whichever a real GC hands us first, wins.
 - **Multi-language:** Bluerithm 9, CxPlanner 5 — relevant only if Isotherm goes
   international.
 - **Third-party review presence & benchmarking data:** incumbents have G2/Capterra
