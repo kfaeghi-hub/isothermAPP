@@ -16,6 +16,74 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.28 — 2026-08-22 (the type editor can propose; coils become coils)
+
+### For the team
+
+**Typing a type the library doesn't have no longer fails.** On the equipment
+editor, typing something like "Hydronic Coils" used to pop a database error
+and refuse to save. Now the save works, and choosing *"No matching type —
+propose …"* saves the unit with the name you typed and sends it for approval
+— exactly as the Add form has always done. If a database rule ever does stop
+you, you get a sentence you can act on instead of a constraint name.
+
+**Coils are their own equipment type now.** The five SJWS coils (PHC-1,
+RHC-1…4) are **Hydronic Coil** — a real type with the fields the IVC master
+asks for, and a **Duty** field that says Heating / Cooling / Preheat /
+Reheat, so one type covers all four rather than four near-identical types.
+Typing "Heating Coil", "Preheat Coil" or "Hydronic Coils" finds it.
+
+**And SJWS's coil numbers now read in the right units.** Air Flow said GPM
+and the fluid flow said CFM — the numbers were right, the labels were
+crossed. RHC-1 now reads 9000 CFM air and 6.9 GPM fluid, which is what the
+schedule always said. **No value was changed** — only the labels.
+
+### Technical record
+
+**E1 — the edit surface can propose (owner-ruled).** Both of the editor's
+gestures died at `equipment_equipment_type_fkey`: typing unpicked text, and
+choosing the propose row (`r.key ?? ''`), because `saveEdit` spread the
+picker's raw `''` into an FK'd column. The add form normalised inline and the
+editor did not; the queue proved the cost — **zero successful proposals from
+the edit surface, ever**. Fix: `typeColumns()` in `typeVocabulary` is now THE
+normaliser, **shared** by both surfaces (two normalisers is how they
+diverged), a resolved key outranking an observed name; `saveEdit` keys its
+propose call off the normalised value. `plainError` is wired at
+`reportError`/`reportWriteBlocked` — the one place every mutation failure
+surfaces — so no raw constraint text reaches any user from any call site,
+including ones not yet written, and it gains a sentence for this FK that
+names the way out. Gate: `pw-type-picker` drives **both gestures in the real
+editor**; failing-first captured the reporter's exact string. **Leg A was
+recalibrated after going red on the fixed build** — it asserted that unpicked
+text saves *as* a proposal, which TypePicker deliberately refuses on both
+surfaces (offer without asserting); the leg now asserts what E1 actually
+fixed: the write no longer dies, and the text is not silently committed.
+
+**E2 — the coil package.** *(a)* `hydronic_coil` minted with the IVC master's
+own coil-block rows (11 fields × 3 sections), a **Duty** discriminator —
+because the master carries heating and cooling blocks with *identical* rows,
+which is variants-are-DATA, not two types — and 8 exact-match variant
+aliases. *(b)* The five SJWS coils re-keyed from `hydronic_heating_system`,
+**their sovereign 29-row def copy migrating first**: `equipment_seed_defs`
+fires on a type change and would have seeded the firm's set beside the
+hand-built one, leaving values (keyed by field NAME — "EAT", "Fluid PD") to
+render under neither cleanly. Defs first, so the trigger correctly declined.
+**124 filled values read back identical.** `hydronic_heating_system` keeps
+its row — measured `kind = 'system'`, and an empty system-kind type is the
+normal state before a system entry is registered, so the ruling's
+deactivate-if-empty branch (written for an equipment-kind orphan) does not
+apply. *(c)* The crossed labels corrected against the master — Air Flow →
+CFM in all three sections, Fluid Flow → GPM in spec — **values untouched**,
+two batch notes, read-back clean, screenshot taken. *(d)* Recorded follow-up,
+cheapest shape: `hydronic_heating_system` was minted with **zero** field defs
+and the drafter never ran for it (`ai_generations` shows no drafter call
+since 2026-08-05), so the gap is *minted-and-forgotten* — the cheapest honest
+mechanism is a **derived "no field set" marker on the Classifications type
+list** (a count at render, no new table, no new job), which makes the gap
+visible where types are managed rather than relying on anyone remembering.
+
+---
+
 ## Update 1.27 — 2026-08-22 (finding photos reach the Word report again)
 
 ### For the team
