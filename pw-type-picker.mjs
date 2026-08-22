@@ -231,28 +231,34 @@ try {
 
       if (boxThere) {
         // GESTURE A — free text, never picked, straight to Save.
+        //
+        // CALIBRATED AGAINST THE RULED BEHAVIOUR, not against my first guess.
+        // This leg originally asserted that unpicked text saves AS a proposal;
+        // it went red on the fixed build and the reason was the assertion, not
+        // the code. TypePicker refuses to commit unresolved text on BOTH
+        // surfaces by design — "offer without asserting", the same law that
+        // stopped the finder pre-ticking a checklist page — so the user must
+        // choose the propose row. What E1 actually fixed is that this gesture
+        // no longer DIES: the write used to hit equipment_equipment_type_fkey
+        // and show the constraint name. Now it saves, untyped, in parity with
+        // the add form, and the propose row (gesture B) is the way in.
         dialogs.length = 0
         await typeBox.fill(E1_FREEHAND)
         await page.getByRole('button', { name: 'Save', exact: true }).first().click()
 
-        const saved = await waitUntil(async () => {
+        const savedA = await waitUntil(async () => {
           const { data } = await adm.from('equipment')
             .select('equipment_type, observed_type_name').eq('id', e1unit.id).single()
-          return data && data.equipment_type === null && data.observed_type_name === E1_FREEHAND ? data : null
-        }, { timeout: 12000, what: 'the free-hand type to save as observed + null key' })
-        check(!!saved,
-          `GESTURE A — unpicked free text SAVES as observed_type_name with a null key ` +
-          `(this is the write that used to die on equipment_equipment_type_fkey)`)
+          return data && data.equipment_type === null ? data : null
+        }, { timeout: 12000, what: 'the save to land with a null type rather than dying at the FK' })
+        check(!!savedA,
+          'GESTURE A — unpicked free text SAVES (null type) instead of dying on ' +
+          'equipment_equipment_type_fkey — the write that used to fail outright')
+        check(savedA?.observed_type_name == null,
+          'GESTURE A — and the unresolved text is NOT silently committed as a type ' +
+          '(parity with the add form: the propose row is the way in)')
         check(!dialogs.some(d => /foreign key|fkey|violates/i.test(d)),
-          `no raw constraint text reached the user (${dialogs.length ? dialogs[0].slice(0, 60) : 'no dialog'})`)
-
-        const queued = await waitUntil(async () => {
-          const { data } = await adm.from('proposed_equipment_types')
-            .select('id, status').eq('status', 'proposed').ilike('observed_name', E1_FREEHAND)
-          return data?.length ? data : null
-        }, { timeout: 12000, what: 'the proposal filed from the EDIT surface' })
-        check(!!queued,
-          'GESTURE A — the edit surface files a queue entry: the first successful propose this surface has ever made')
+          `GESTURE A — no raw constraint text reached the user (${dialogs.length ? dialogs[0].slice(0, 60) : 'no dialog'})`)
 
         // GESTURE B — the propose ROW itself. It set `r.key ?? ''`, so the
         // gesture the UI offers as the way out died at the same FK as the one
