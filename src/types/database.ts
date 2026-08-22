@@ -261,6 +261,32 @@ export interface EquipmentTagGlossary {
   created_at: string
 }
 
+/**
+ * The ruled type vocabulary — `equipment_types`.
+ *
+ * DRIFT, RECORDED RATHER THAN QUIETLY FIXED (E3, 2026-08-22): this table had
+ * NO mirror at all. The audit went looking for `kind` and found the whole
+ * interface missing — the app reads the table through `TypeVocab`
+ * (key/name/aliases), which is a VIEW SHAPE for the picker, not the row. So
+ * `kind`, `active`, `sort_order` and `org_id` were invisible to every reader
+ * of this file, and a mirror that lags the schema does not narrow anything at
+ * runtime; it only misleads the next person.
+ *
+ * `discipline` is deliberately NOT here yet — it ships with E3's ruling, from
+ * the marked mapping artifact, not before it.
+ */
+export interface EquipmentTypeRow {
+  id: string
+  org_id: string | null
+  key: string
+  name: string
+  /** Register axis, not a discipline: an equipment entry or a system entry. */
+  kind: 'equipment' | 'system'
+  sort_order: number
+  active: boolean
+  created_at: string
+}
+
 export interface EquipmentTypeFieldDef {
   id: string
   equipment_type: string
