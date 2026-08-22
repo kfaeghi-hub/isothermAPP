@@ -529,5 +529,41 @@
         "seconds": "34"
       }
     ]
+  },
+  {
+    "run": "a69dff7:2026-08-22",
+    "at": "2026-08-22T04:42:12.956Z",
+    "passed": 54,
+    "of": 54,
+    "measurements": [
+      {
+        "suite": "pw-doc-docx-tables",
+        "tag": "MEASURE",
+        "value": "legacy-narrative artifact: 3 top-level tables, 0 nested",
+        "passed": true,
+        "seconds": "26"
+      },
+      {
+        "suite": "pw-doc-docx-tables",
+        "tag": "MEASURE",
+        "value": "w:numPr near narrative bullets: true",
+        "passed": true,
+        "seconds": "26"
+      },
+      {
+        "suite": "pw-meetings",
+        "tag": "GENERATION",
+        "value": "appeared-after-2245ms",
+        "passed": true,
+        "seconds": "35"
+      },
+      {
+        "suite": "pw-meetings",
+        "tag": "MEASURE",
+        "value": "w:numPr near bullet items: true",
+        "passed": true,
+        "seconds": "35"
+      }
+    ]
   }
 ]
