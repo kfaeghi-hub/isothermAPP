@@ -368,10 +368,14 @@ From the codebase and docs, as of 2026-08-05:*
 - **BIM/IFC integration & 3D model viewing:** CxPlanner (3D viewer + ACC),
   Bluerithm (Revit/ACC/Willow), Fieldwire/Procore (BIM360). IFC ingestion is a
   common owner requirement.
+  **Market note, owner-ruled 2026-08-21 from the project-ledger survey:**
+  **Autodesk is not observed on current projects** — live jobs run Procore and
+  SharePoint only. Revisit only on evidence of a job running it; **no
+  speculative adapter seam** is built for it (BACKBURNER 3v, amendment).
 - **Scheduling Gantt / schedule sync (P6, MS Project):** Facility Grid Schedule
   Sync, Bluerithm Gantt, CxPlanner MS Project import.
   **A second route to this gap banked 2026-08-21:** [BACKBURNER 3v — Procore
-  integration](BACKBURNER.md), phase **3v-2**, pulls the GC's schedule directly
+  integration](BACKBURNER.md), lane **3v-A**, phase **3v-2**, pulls the GC's schedule directly
   from Procore — closing the gap by *reading the live schedule* rather than
   importing P6/MSP files. 3g (file import) and 3v-2 (API pull) answer the same
   gap from opposite directions; whichever a real GC hands us first, wins.

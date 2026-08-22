@@ -760,6 +760,56 @@ trigger and it outranks the sequencing.
 
 ---
 
+#### AMENDMENT — 2026-08-21, same day, owner-ruled after the project-ledger survey
+
+**The original entry above stands as written; this supersedes it in place.**
+Nothing above is deleted — the ruling that produced it was correct on the
+evidence it had, and the survey arrived after the act was banked.
+
+**The reason, quoted:** *"live projects run Procore and SharePoint only — no
+Autodesk observed."* The entry was banked against a developer surface; the
+survey measured the **projects**, and the projects are the specification.
+
+**Three changes, and the phases are not among them.**
+
+**(1) No adapter abstraction — Procore is the sole API target for lane A.** The
+original entry implied a general integration seam; the survey removes its
+justification. One observed platform is not a family, and a seam built for a
+second implementation that no job runs is speculative structure with a
+maintenance bill. **Autodesk demotes to a market note:** *not observed on
+current projects; revisit only on evidence of a job running it; no speculative
+adapter seam.*
+
+**(2) A new lane: 3v-B · SharePoint** — and it is the nearer one.
+
+> **It rides the EXISTING M365 integration. No new OAuth, no new token store,
+> no new connection mapping** — which is precisely the "real new work" the
+> original entry named as lane A's cost. Three capabilities:
+>
+> - **pull current drawing sets** from project libraries into intake;
+> - **reference submittals by link** as **§4.4 evidence** — receipt without
+>   custody, unchanged;
+> - **publish issued PDFs** (Cx Index, minutes, reports) to the project
+>   library **as an explicit act**, never as a background sync.
+>
+> **Wake condition, deliberately independent:** the owner's word alone. It does
+> **not** wait on 3b, because it needs no slot-heavy API client and the
+> credentials already exist. **Smaller than lane A and may land first.**
+
+**(3) Everything else stands unchanged:** lane A's phase order (1 Directory
+pull → 2 Schedule pull → 3 Submittals/SD pull → 4 Findings→Observations push
+with proposals-only inbound → 5 publishing/logs/drawings/photos), the
+permanently-out-of-scope list, and every standing constraint — OAuth per client
+instance, nothing external writes without a human disposition, sandbox-first,
+wake after 3b or owner override.
+
+**Label mapping** (the collision noted at the head of this entry, carried
+through): the ruling's **3t-A** is this entry's **lane A** — the phases
+numbered 3v-1…3v-5 above; the ruling's **3t-B** is **3v-B**, the SharePoint
+lane defined here.
+
+---
+
 ### Not backlogged, and the reason is the point
 
 **Tier-3 enterprise items — SOC 2 / ISO 27001, SSO, public API, BIM/IFC,
