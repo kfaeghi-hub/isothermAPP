@@ -1764,9 +1764,22 @@ same kind of mistake, and every one of them is the same sentence.
 | 9 | Killing a running battery to save wall-clock, then starting a fresh one | Three suites in the next run failed on the ZZ-TEST guard — *"did not appear in the projects list within 15s"* — none of which was a real defect. Stopping the run to save ~7 minutes cost a full extra cycle and **briefly made a clean state look dirty**, which is the expensive direction to be wrong in. | **Let batteries finish.** The suites are the slow part for a reason. Worth keeping for the other half: the guard **refused correctly in both directions** — it never ran against a real project, and it re-ran clean at 31/31 — and that is the only reason the noise was legible as noise rather than investigated as a finding. |
 | 8 | `.select()` on the template census — a read, and therefore assumed complete | **PostgREST caps a select at 1000 rows and truncates SILENTLY.** The census read 1000 sections, matched none of them to the 9,116 items it never fetched, and reported **"0 items" on every template in the library.** No error, no warning, no partial-result flag. | Paginate with `.range(from, from+999)` **and print the read counts**, so the input is visible before any conclusion rests on it. Survived only because "0 items on all 113 templates" was absurd on its face — **a subtler cap would have produced a plausible wrong answer, and a merge plan built on it would have deleted real content.** The lesson is not "paginate": it is that **a truncated read is indistinguishable from a small dataset unless you print what you read.** |
 
+| 10 | `check(nestedCount > 0 ? spans.length > 0 : true, 'nested photo tables present (N) and left as emitted')` — the site report's nested-table leg | **A ternary whose false branch is the literal `true`.** At `nestedCount === 0` it asserts nothing and passes; it can only fail in a state that never occurs. Measured 2026-08-20: the ZZ standing report emits **no photos at all** — no `w:drawing`, no `word/media` — so from the day it was written this leg passed on zero nested tables while reading as proof of the patcher's hardest case. Seeding a real photo did not move it; the buffer never reaches the builder. **THE LONG-LIVED SPECIMEN: it survived every battery run between its birth and 2026-08-20**, green each time. | Two parts, and both are needed. The leg now **reports its count and claims proof only when there is one** (`nested table count 0 — NO photos in this fixture, nesting NOT exercised here`). The mechanism gets its own assertion: the patcher's **own** depth walker is fed a synthetic hard case — an outer table whose cell holds a nested photo table beside rich-narrative list paragraphs — and must see one top-level span, find the nested table inside, and leave its bytes whole. *A vacuous leg is repaired by making it honest AND by proving the thing it claimed, elsewhere.* |
+
+> **An assertion's first proof is that it can fail.** #4 passed vacuously for
+> one run; #10 passed vacuously for its entire life, through every battery, at
+> the exact place the family's hardest mechanism was supposed to be guarded.
+> The difference is only exposure — nothing about #10 was subtler, it was
+> simply never watched failing. **An assertion nobody has watched fail has
+> proven nothing yet**, and the age of a green is not evidence for it: a check
+> that cannot fail accrues confidence with every run while earning none.
+> Write the failing state first, see the red, then make it green — and where a
+> gate rides a fixture that cannot produce the condition, say so in the
+> assertion's own words rather than letting the count speak for itself.
+
 **Read the table by column two.** The failures span a database index, a test
 assertion, a model contract, an empty-array property, a UI default, a whole
-screen, and a shell pipe. Nothing about them is a category of bug you could
+screen, a shell pipe, and a ternary that asserts nothing on its own fixture. Nothing about them is a category of bug you could
 grep for. What they share is the shape: *in the state this was meant to catch,
 it produced the same output as in the state it was meant to allow.*
 
@@ -1831,6 +1844,46 @@ exit came from a trailing `echo`. The real verdict, `RUN-BATTERY EXIT: 1`, was
 inside the output. **Anything appended after the runner becomes the exit code you
 are told about** — the same masking as the `| tail -12` incident, wearing a
 different costume. Read the summary line, not the wrapper's status.
+
+### A gate is passed only when its session's report LANDS
+
+*Ruled 2026-08-21, folded into the provenance family beside the in-flight law
+because it is the same class: a claim about the state of the work, believed
+without the evidence that would make it true.*
+
+**Silence is not green.** A phase whose gate battery was never reported is not
+a phase that passed — it is a phase nobody looked at. The report is not the
+paperwork that follows the gate; the report **is** the gate. Until it lands,
+the only honest status is *unknown*, and unknown must never be spent as
+*accepted*.
+
+**Acceptance-on-assumption is a provenance failure.** The house already refuses
+anonymous evidence (CLAUDE.md, the callsign rule) and already records where
+every write came from (`import_batches`, the batch note, the commit series).
+An acceptance resting on an unsent report has exactly the defect those
+mechanisms exist to prevent: **a decision whose stated basis does not exist.**
+The owner ruling on it is not at fault — they were handed a silence and read
+it as the only thing a silence can be read as.
+
+**Two instances on the record:**
+
+| Instance | What was believed | What was true |
+|---|---|---|
+| **The phantom matcher thread** *(2026-08-14)* | `matchScheduleSpec` was a shipped capability — twenty-one green tests said so. | Zero production invocations, June to August. The green was real and proved the function, and nobody had reported on the **path**. Capability was inferred from test output nobody was asked to interpret. |
+| **Rich text Phase 3** *(2026-08-20)* | The phase had passed and was ready for acceptance. | Its gate battery stood at **5 failing checks** — a real content-loss bug on issued meetings — and the session had gone quiet mid-diagnosis without reporting. Acceptance arrived on the silence. The build was correct only *after* the miss was named and fixed (`9803465`). |
+
+> **The law: no gate closes on silence.** A session that cannot report green
+> reports the red, with the failing legs named and the diagnosis where it
+> stands. A session that goes quiet has not deferred its report — it has
+> **withheld the gate's only evidence**, and any acceptance built on that
+> quiet is built on nothing. *Skip loudly, never silently green* already
+> governs the suites; this governs the sessions running them.
+
+**Read alongside** *"a gate report that claimed what wasn't there is itself a
+finding"* (the 1.16 reconciliation): that rule covers reports which **overclaim**,
+this one covers reports which **never arrive**. Both are the same failure of
+provenance, and the second is harder to see precisely because nothing is
+written down to be wrong.
 
 ### A field report describes the SCREEN, not the system
 
