@@ -47,6 +47,15 @@ const DISCLAIMER =
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
+/** How a MISSING photo names itself on the page, in both formats. The caption
+ *  when it is a real caption, otherwise the stored file name — enough for a
+ *  reader to say which photo is absent and go find it, without printing a
+ *  storage path into a client document. */
+function photoRef(ph: any): string {
+  const cap = isFilenameCaption(ph?.caption) ? '' : (ph?.caption ?? '')
+  return cap || (ph?.storage_url ?? '').split('/').pop() || 'unidentified photo'
+}
+
 function statusHtml(status: string): string {
   const t = (status ?? '').toUpperCase().replace('_', ' ')
   if (status === 'received')    return `<span class="st-rec">${t}</span>`
@@ -89,6 +98,8 @@ const CSS = `${BASE_CSS}
   .photo-grid-item { display: flex; flex-direction: column; align-items: flex-start; }
   .photo-grid-item img { width: 140px; height: 105px; object-fit: cover; border-radius: 3px; display: block; }
   .photo-cap  { font-size: 7.5pt; font-style: italic; color: #777; margin-top: 2px; max-width: 140px; }
+  /* A photo that could not be loaded says so where it is missing (2026-08-22). */
+  .photo-missing { font-size: 7.5pt; font-style: italic; color: #777; margin: 4px 0; }
   .closeddate { font-style: italic; font-size: 8.5pt; color: #888; margin-top: 6px; }
 
   /* closed rows */
@@ -153,9 +164,13 @@ function buildHtml(
 
     const photoItems = (f.finding_photos ?? []).map((ph: any) => {
       const buf = photoBuffers.get(ph.id)
-      if (!buf) return ''
-      const b64  = toBase64(buf)
       const cap  = isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '')
+      // Same rule as the docx builder: a photo that could not be loaded says
+      // so where it is missing, rather than leaving a gap only its absence
+      // explains. The PDF path has always carried images correctly — this
+      // placeholder is about the FETCH failing, not the render.
+      if (!buf) return `<div class="photo-missing">[photo unavailable: ${esc(photoRef(ph))}]</div>`
+      const b64  = toBase64(buf)
       return `<div class="photo-grid-item"><img src="data:image/jpeg;base64,${b64}" alt="">${cap ? `<div class="photo-cap">${esc(cap)}</div>` : ''}</div>`
     }).filter(Boolean)
     const photosHtml = photoItems.length > 0 ? `<div class="photo-grid">${photoItems.join('')}</div>` : ''
@@ -323,25 +338,31 @@ function buildDocxHtml(
       `<p style="margin:4px 0;"><em style="color:#767676;font-size:8.5pt;">${esc(isoShort(e.entry_date))}</em><br>${esc(e.body ?? '')}</p>`
     ).join('')
 
-    const allPhotos = (f.finding_photos ?? []).map((ph: any) => {
+    // ONE PARAGRAPH PER PHOTO — NEVER A NESTED TABLE (ruled 2026-08-22).
+    //
+    // html-to-docx SILENTLY DROPS an image inside a nested table: measured,
+    // one variable at a time — bare <img> emits (media 3 / drawing 1), <img>
+    // in a TOP-LEVEL cell emits, <img> in table→td→table→td emits NOTHING,
+    // with no error and a successful write. `96b2060` (2026-06-25, "photo
+    // grid layout") replaced these very paragraphs with a 2-per-row table for
+    // Word, and every docx since shipped without its photos — two months
+    // latent, caught only because no production finding had a photo yet.
+    //
+    // The layout trade is accepted and recorded: ONE-PER-ROW THAT SHIPS BEATS
+    // TWO-ACROSS THAT VANISHES. Two-across in Word is a new capability
+    // against the library's limits and needs its own ruling — do not
+    // "improve" this back into a table.
+    const photosHtml = (f.finding_photos ?? []).map((ph: any) => {
       const buf = photoBuffers.get(ph.id)
-      if (!buf) return null
-      return { b64: toBase64(buf), cap: isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '') }
-    }).filter(Boolean) as { b64: string; cap: string }[]
-    // 2-per-row table for DOCX (flexbox not supported by html-to-docx)
-    let photosHtml = ''
-    if (allPhotos.length > 0) {
-      const rows: string[] = []
-      for (let i = 0; i < allPhotos.length; i += 2) {
-        const cell = (ph: { b64: string; cap: string }) =>
-          `<td style="padding:4px;vertical-align:top;">${ph.cap ? `<p style="font-size:8pt;font-style:italic;color:#777;margin:0 0 2px 0;">${esc(ph.cap)}</p>` : ''}<img src="data:image/jpeg;base64,${ph.b64}" style="max-width:200px;" alt=""></td>`
-        const row = allPhotos[i + 1]
-          ? `<tr>${cell(allPhotos[i])}${cell(allPhotos[i + 1])}</tr>`
-          : `<tr>${cell(allPhotos[i])}<td></td></tr>`
-        rows.push(row)
+      const cap = isFilenameCaption(ph.caption) ? '' : (ph.caption ?? '')
+      const capHtml = cap ? `<em style="font-size:8pt;color:#777;">${esc(cap)}</em><br>` : ''
+      // A photo that could not be loaded SAYS SO, on the page it is missing
+      // from. Silence was this path's whole disease.
+      if (!buf) {
+        return `<p style="margin:4px 0;font-size:8pt;font-style:italic;color:#777;">${capHtml}[photo unavailable: ${esc(photoRef(ph))}]</p>`
       }
-      photosHtml = `<table style="border-collapse:collapse;margin:6px 0 8px 0;"><tbody>${rows.join('')}</tbody></table>`
-    }
+      return `<p style="margin:4px 0;">${capHtml}<img src="data:image/jpeg;base64,${toBase64(buf)}" style="max-width:200px;" alt=""></p>`
+    }).join('')
 
     const closedTag = closed && f.date_closed
       ? `<br><span style="font-size:8pt;font-weight:bold;color:#888;">CLOSED: ${esc(isoShort(f.date_closed))}</span>` : ''
@@ -597,15 +618,28 @@ export default async function handler(req: any, res: any) {
     const photoBuffers = new Map<string, Buffer>()
     for (const f of findings ?? []) {
       for (const ph of f.finding_photos ?? []) {
+        // A FAILED PHOTO IS NAMED, NEVER SWALLOWED (ruled 2026-08-22). This
+        // block used to end in `catch { /* skip unloadable photos */ }` AND
+        // discard storage's own `error` — the download returns
+        // {data:null,error} rather than throwing, so the commonest failure
+        // never even reached the catch. Logged: finding id, photo id, path
+        // and error class. NEVER the caption — that is client content, and
+        // client content never reaches a log.
         try {
           if (ph.storage_url?.startsWith('http')) {
             const r = await fetch(ph.storage_url)
             if (r.ok) photoBuffers.set(ph.id, Buffer.from(await r.arrayBuffer()))
+            else console.warn(`[report] photo ${ph.id} (finding ${f.id}) legacy-URL fetch failed: HTTP ${r.status} — ${ph.storage_url}`)
           } else if (ph.storage_url) {
-            const { data } = await supabase.storage.from('finding-photos').download(ph.storage_url)
-            if (data) photoBuffers.set(ph.id, Buffer.from(await data.arrayBuffer()))
+            const { data, error } = await supabase.storage.from('finding-photos').download(ph.storage_url)
+            if (error) console.warn(`[report] photo ${ph.id} (finding ${f.id}) download failed: ${error.name ?? 'StorageError'} — ${ph.storage_url}`)
+            else if (data) photoBuffers.set(ph.id, Buffer.from(await data.arrayBuffer()))
+          } else {
+            console.warn(`[report] photo ${ph.id} (finding ${f.id}) has no storage_url — nothing to load`)
           }
-        } catch { /* skip unloadable photos */ }
+        } catch (err: any) {
+          console.warn(`[report] photo ${ph.id} (finding ${f.id}) threw: ${err?.name ?? 'Error'} — ${ph.storage_url}`)
+        }
       }
     }
 

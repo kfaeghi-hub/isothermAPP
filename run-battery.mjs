@@ -121,6 +121,7 @@ const SUITES = [
   'pw-portal',
   'pw-project-delete',
   'pw-projects-toolbar',
+  'pw-report-photos',
   'pw-signoff-order',
   'pw-storage-privacy',
   'pw-team',

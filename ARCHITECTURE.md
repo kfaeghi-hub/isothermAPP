@@ -2590,6 +2590,13 @@ The standing battery (repo root, `pw-*.mjs`) — all self-cleaning:
   grids, so Word autofit squeezed the label column); the D2 ruled header
   abbreviations; the D4 ruled legend with its blocked-cells premise proven
   first. Real endpoint, ZZ-TEST AHU fixture, admin.
+- `pw-report-photos.mjs` — a seeded finding photo reaches BOTH documents
+  (2026-08-22): premise (the seeded object downloads), then `word/media/`
+  non-empty and `<w:drawing>` ≥ 1 in the docx, plus the PDF twin. Pins the
+  `96b2060` regression — **html-to-docx silently drops an image inside a
+  nested table**, no error and a successful write — which shipped photo-less
+  Word reports for two months because no gate had ever asserted that a
+  generated docx CONTAINS AN IMAGE. Seeded and self-cleaning both directions.
 - `pw-doc-docx-tables.mjs` — site reports and minutes hold their docx columns
   (the doc-common half of the D1 ruling, 2026-08-16): every TOP-LEVEL table
   declares fixed layout with exactly one integer grid summing to its width,

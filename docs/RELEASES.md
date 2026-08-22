@@ -16,6 +16,64 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.27 — 2026-08-22 (finding photos reach the Word report again)
+
+### For the team
+
+**Photos on a finding now appear in the Word copy of a site report.** They
+never have. The PDF has always carried them correctly, so nothing looked
+wrong unless you opened the .docx and counted — and no real project had a
+finding photo yet, so no client document was ever short one.
+
+**One layout change, deliberate:** in Word, photos now stack **one per row**
+instead of two across. That is the fix, not a compromise — the two-across
+layout was a table, and Word's converter silently drops images inside a
+nested table. A one-per-row photo that ships beats a two-across photo that
+vanishes.
+
+**And a photo that cannot be loaded now says so** — the document prints
+"photo unavailable: <name>" where the image would be, in both formats,
+instead of leaving a gap that only its absence explains.
+
+### Technical record
+
+**The defect, dated: `96b2060` (2026-06-25, "PDF top margin on continuation
+pages + photo grid layout") — two months latent.** That commit gave the PDF a
+flex `.photo-grid` and, in the same breath, replaced the docx builder's
+photo **paragraphs** with a 2-per-row **nested table**. Measured one variable
+at a time against raw html-to-docx, no patcher in the path: bare `<img>` →
+media 3 / drawing 1; `<img>` in a **top-level** cell → media 3 / drawing 1;
+`<img>` in table→td→**table**→td → **media 0, drawing 0, no error, successful
+write.** Same generation run, same `photoBuffers` map: PDF 4 image XObjects,
+DOCX 0. The cycle-2 `fixDocxTables` patcher is exonerated by construction —
+the library emits zero media before it is ever called, and nested tables are
+the one thing it deliberately leaves alone.
+
+**Blast radius, measured not assumed: zero client documents.** All four
+finding photos in the system are on ZZ-TEST; the four production reports with
+a stored docx (Alexander Muir #1, Clairlea #1/#2, JG Workman #1) belong to
+projects with no finding photos at all.
+
+**Why nothing caught it:** `pw-report-regen` compares visible TEXT with tags
+stripped (an image is not text), `pdf-boundary-gate` reads page boundaries on
+a PDF that was always right, and the builder's integrity guard counts rows.
+No gate had ever asserted that a generated docx *contains an image*.
+
+**The fix** reverts the docx half of `96b2060` to paragraphs — the shape the
+diff shows working before that commit, re-proven in the report's real cell
+structure (2 photos → media 3, drawings 2). The PDF's flex grid is untouched.
+Two-across in Word is a new capability against the library's limits and needs
+its own ruling; the constraint is named in the code so nobody improves it
+back into the broken shape. **The silent catch went with it:** the fetch loop
+discarded storage's own `{data, error}` — the commonest failure never even
+reached the `catch` — and now logs finding id, photo id, path and error class
+(never the caption: client content never reaches a log), while the document
+renders the placeholder. Gate: `pw-report-photos` (battery #51) — premise
+(the seeded object downloads), docx media + `<w:drawing>`, and the PDF twin;
+failing-first proven, 2 reds on exactly the docx legs with the PDF green at 5.
+
+---
+
 ## Update 1.26 — 2026-08-20 (site reports write in structure — the rich-text ladder closes)
 
 ### For the team
