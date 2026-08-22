@@ -361,7 +361,15 @@ function buildDocxHtml(
       if (!buf) {
         return `<p style="margin:4px 0;font-size:8pt;font-style:italic;color:#777;">${capHtml}[photo unavailable: ${esc(photoRef(ph))}]</p>`
       }
-      return `<p style="margin:4px 0;">${capHtml}<img src="data:image/jpeg;base64,${toBase64(buf)}" style="max-width:200px;" alt=""></p>`
+      // `width:`, NEVER `max-width:` — THE SECOND MECHANISM, and it corrupts
+      // the file rather than emptying it. html-to-docx sizes the drawing from
+      // an explicit width; a `max-width` yields `<wp:extent/>` with NO cx/cy,
+      // which is schema-invalid OOXML, and WORD REFUSES TO OPEN THE DOCUMENT.
+      // Measured: width:200px → extent cx=1905000 cy=879231, Word opens;
+      // max-width:200px → empty extent, "Word experienced an error trying to
+      // open the file". Width only — the height comes from the real image, so
+      // no photo is distorted.
+      return `<p style="margin:4px 0;">${capHtml}<img src="data:image/jpeg;base64,${toBase64(buf)}" style="width:200px;" alt=""></p>`
     }).join('')
 
     const closedTag = closed && f.date_closed

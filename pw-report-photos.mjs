@@ -108,6 +108,18 @@ try {
     const drawings = (xml.match(/<w:drawing>/g) ?? []).length
     check(media.length > 0, `the docx carries image parts (word/media entries: ${media.length}) — zero is the 96b2060 defect`)
     check(drawings >= 1, `the docx renders at least the seeded photo (<w:drawing>: ${drawings})`)
+
+    // THE FILE MUST ALSO OPEN. Counting parts is not the claim — the first
+    // version of this gate passed on a docx WORD REFUSED TO OPEN, because
+    // html-to-docx sizes a drawing from an explicit `width` and emits
+    // `<wp:extent/>` with NO cx/cy for a `max-width`. An empty extent is
+    // schema-invalid and Word rejects the whole document. Word itself cannot
+    // run in the battery, so the assertion lands on the exact invalidity it
+    // rejects: every extent carries non-zero dimensions.
+    const extents = [...xml.matchAll(/<wp:extent([^>]*)\/>/g)].map(m => m[1])
+    const sized = extents.filter(a => /cx="[1-9]\d*"/.test(a) && /cy="[1-9]\d*"/.test(a))
+    check(extents.length > 0 && sized.length === extents.length,
+      `every image extent carries non-zero cx/cy (${sized.length}/${extents.length}) — an empty <wp:extent/> is what makes Word refuse the file`)
     check(!/\[photo unavailable:/.test(xml),
       'no "photo unavailable" placeholder — the seeded photo loaded, so the document shows it rather than naming it')
   }
