@@ -369,3 +369,65 @@ artifacts keep their bytes everywhere.
 - **It will not build the Procore integration.** It builds the projection
   that integration will consume, and proves it in the battery from Phase 1.
 - **It will not float versions.** Exact pins, deliberate bumps, twin-diffed.
+
+---
+
+## 5. The arc, closed — 2026-08-20
+
+**All four rungs shipped and gated.** RELEASES 1.23 (Cx Plan), 1.24 (issues),
+1.25 (meetings + Amendment 1), 1.26 (site reports).
+
+**The architecture as delivered, in one sentence:** *one stored truth, one
+trio, every consumer through it* — the JSON document is what the CxA writes,
+`richToHtml` / `richToBlocks` / `toPlainText` are the only ways it becomes
+anything else, and the legacy string column stopped being old data the moment
+it became the trio's maintained plain projection.
+
+**The Procore projection is battery-proven before Procore exists.**
+`toPlainText` was load-bearing on day one — the Cx Plan verifier reads it, so
+Phase 1 could not ship without it working — and by Phase 4 every summary,
+truncation, dashboard, and portal payload on the platform reads that same
+projection. The integration question that opened this arc is answered by a
+renderer already under assertion, not by a future migration.
+
+**The four rungs, as built:**
+
+| Phase | Surface | Column | The thing that made it hard |
+|---|---|---|---|
+| 1 | Cx Plan | `drafted_rich` / `final_rich` | The AI writer's contract — solved by markdown-lite + `liftOrRefuse`, so the verifier's span-quoting still works against a projection |
+| 2 | Issues log | `description_rich`, `corrective_action_rich` | Five consumers on one field; the portal among them (Q6) |
+| 3 | Meetings | `discussion_rich` | Carry-forward copying the doc whole, and the snapshot-at-issue interplay |
+| 4 | Site reports | `progress_narrative_rich` | The nested-photo-table patcher — asserted at the depth walk, not assumed |
+
+**Amendment 1 (owner, 2026-08-20)** — the editor and the ⤢ expand shell are
+one package on every adopting surface: compact inline, expand-to-full-size,
+one draft, two views, the control **visible at rest**. Phase 2 shipped the
+Issues-log editors without the shell; that gap is why the amendment exists,
+and Phase 3 carried the retrofit. The shell lives in `RichTextEditor`, so
+Phase 4 and every future surface inherit it by construction rather than by
+remembering — *a rule enforced by memory is enforced by nothing.*
+
+**The Q6 posture stands as ruled, with its reversal path intact.** The portal
+keeps the plain projection: `description` is the whitelisted column, now
+trio-maintained and never stale; `description_rich` joins nothing
+portal-facing, and its absence is pinned BY NAME in `pw-portal` in **both**
+modes — the exclusion is a pin, not a hope. **The banked reversal path is
+unchanged and still one step:** one migration plus `richToHtml` through the
+strict-side shim, on its own future ruling — a client legibility ask, or the
+owner's word. Striking the ruling executes the original recommendation: both
+modes, one migration, anti-drift extended.
+
+**The render-twins are the standing upgrade gate.** `fixtures/rich-text/`
+holds one document rendered through all three renderers, pinned byte-for-byte
+in the battery. The editor packages are pinned exact (3.30.2, never
+StarterKit — the extension list IS the whitelist). An upgrade is therefore a
+deliberate step with a visible diff: bump the pins, re-run, diff the twins,
+and commit the delta *as the record of what the upgrade changed*. Nothing
+about a dependency bump can quietly change what this platform stores or
+prints.
+
+**What the arc deliberately did not do**, restated because the exclusions are
+load-bearing: no IST content (S1001 bytes untouchable), no checklist template
+items, no tags/labels/descriptors, nothing extraction or `ilike` reads, no
+§4.4 evidence strings, equipment notes plain until asked twice. No HTML was
+ever stored. No ratified byte moved.

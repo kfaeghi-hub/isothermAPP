@@ -16,6 +16,100 @@ one written alongside the change is written from the diff.
 
 ---
 
+## Update 1.26 — 2026-08-20 (site reports write in structure — the rich-text ladder closes)
+
+### For the team
+
+**Site progress observations get the same editor as everything else.** Write
+paragraphs and bullets in the site report form, and they print that way in
+both the PDF and the Word copy. As on every other surface, the compact editor
+has a ⤢ control that opens a full-size one — same draft, nothing lost either
+way. Reports you never reopen are untouched and print exactly as before.
+
+**That completes the rollout**: Cx Plan, issues, meeting minutes, and now site
+reports all write in real structure.
+
+### Technical record
+
+RICH-TEXT-PROPOSAL Phase 4, the ladder's last rung. Commit `c4db868`.
+
+- `site_reports.progress_narrative_rich` with `site_reports_rich_is_doc`
+  null-hostile from birth (fourth surface, lesson never re-learned; probed —
+  a jsonb string is refused 23514, a doc passes). No door normalization
+  needed: the Q7 baseline measured 0 dash-bullet narratives.
+- Both builders render the narrative rich-first through `richToHtml`; the
+  `split('\n')` renderer is the demoted legacy-fallback branch, so untouched
+  reports stay byte-identical. `progress_narrative` is the maintained
+  projection — the plain text every raw reader sees, rewritten on every
+  keystroke, never stale.
+- **The patcher, asserted rather than assumed.** Rich narrative adds list
+  paragraphs, never tables: pw-doc-docx-tables captures the legacy artifact's
+  table counts and pins them unchanged with rich narrative present (3 → 3
+  top-level). `w:numPr` measured present on the narrative bullets — real Word
+  list numbering.
+- **A vacuous gate leg, found and fixed.** `nested photo tables present (0)
+  and left as emitted` had passed since birth while proving nothing — the ZZ
+  standing report emits no photos (no `w:drawing`, no `word/media`), and a
+  seeded photo does not change that. The leg now reports its count honestly,
+  and the patcher's own depth walker is fed this family's hard case directly:
+  an outer table whose cell holds a nested photo table beside list
+  paragraphs — one top-level span, the nested table found inside, bytes
+  whole. **Open observation, not diagnosed:** a seeded finding photo never
+  reaches the report docx though the finding does. Recorded for its own look.
+- pw-doc-docx-tables 48 checks; the standing report's narrative is superseded
+  and restored verbatim in `finally`, resting state printed.
+
+## Update 1.25 — 2026-08-20 (meetings write in structure; the expand control comes out of hiding)
+
+### For the team
+
+**Meeting discussions hold real structure now** — paragraphs, bullets,
+numbered lists — and they print that way in both the PDF and the Word minutes.
+
+**The ⤢ full-size editor is visible.** It was always there, but only appeared
+if your pointer happened to land on the discussion cell, which meant most
+people never found it. It now shows at rest on every rich-text surface,
+including the issue description and corrective action fields, which got the
+control they were missing.
+
+**A bug worth naming**, found at the gate and fixed before this shipped: on an
+issued meeting, clicking a formatting button and typing could lose the list
+and the first word typed after it. Every formatting click was also writing to
+the database. Both are gone.
+
+### Technical record
+
+RICH-TEXT-PROPOSAL Phase 3 + **Amendment 1** (owner, on Issues-log field
+evidence): the editor and the expand shell are ONE PACKAGE on every adopting
+surface. Commits `ff4ecb3`, `9803465`.
+
+- `meeting_items.discussion_rich`, null-hostile CHECK from birth; carry-forward
+  copies the JSON doc whole and the projection with it, both asserted
+  deep-equal. `discussionHtml` demoted to the legacy-fallback branch — the
+  standing `w:br` pin moved onto a seeded legacy row, where it now proves that
+  branch rather than the rich one (old pin quoted in place, per the protocol).
+- The expand shell moved into `RichTextEditor`: ⤢ **visible at rest**, asserted
+  by computed opacity and bounding box with the pointer parked away. Measured
+  on the deployed build first: opacity 0, revealed only by hovering the
+  discussion cell — birth-form since KEEL's F2 (`5d7f0a3`), not a regression.
+  The W1 door law applies — a control must look like a control.
+- **A toolbar button must never take focus** (`9803465`). Measured on an
+  issued meeting: two paragraphs plus a bullet toggle came back as four
+  paragraphs with the first typed word gone. The click blurred the editor,
+  `onBlur` committed mid-edit, and `updateItem`'s save re-seeded the editor
+  from the committed value. `onMouseDown` preventDefault on all six controls.
+- **Interplay leg** (the phase's own gate): an issued rich-discussion meeting,
+  a deleted seat, a regeneration — KEEL's snapshot (`b020e6a`) and the rich
+  bullets coexist, neither disturbed, seat restored verbatim.
+- Action Summary and the dashboard truncate the plain projection by
+  construction — they read the string column, which the trio maintains.
+- BACKBURNER **3u folded** (its wake counter retires at its 0-of-32 baseline —
+  the arc arrived by ruling, not by the measurement); **3t's on-touch clause
+  fired and was answered "why not"** — this phase changed what cells print,
+  not how any consumer groups responsibility.
+- pw-meetings green end-to-end (`w:numPr` present on the bullets);
+  pw-finding-register green including the no-loss expand/collapse legs.
+
 ## Update 1.24 — 2026-08-20 (findings write in structure; the portal keeps its plain text)
 
 ### For the team
