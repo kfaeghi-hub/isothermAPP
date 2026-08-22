@@ -76,13 +76,19 @@ function assertDocx(name, xml, opts = {}) {
   check(sums, `${name}: every grid sums exactly to its table width`)
   if (opts.expectNested) {
     const nestedCount = spans.reduce((n, s) => n + topLevelTables(xml.slice(s.start + 7, s.end - 8)).length, 0)
-    check(nestedCount > 0 ? spans.length > 0 : true,
-      `${name}: nested photo tables present (${nestedCount}) and left as emitted`)
+    // HONEST 2026-08-20 (old text: "nested photo tables present (N) and left
+    // as emitted" — which PASSED at N=0, proving nothing). Measured: the ZZ
+    // standing report emits no photos at all (no w:drawing, no word/media),
+    // so this leg has been vacuous since birth. It now reports the count and
+    // only claims proof when there IS one; the depth walk itself is asserted
+    // against a nested fixture in the Phase 4 mechanism leg below.
+    check(true, `${name}: nested table count ${nestedCount}` +
+      (nestedCount === 0 ? ' — NO photos in this fixture, nesting NOT exercised here' : ' — left as emitted'))
   }
 }
 
 const CLEAN = { meetingId: null, slugBase: null, istPlanId: null, istBase: null, richFindingId: null,
-                narrativeReportId: null, narrativeBefore: null }
+                narrativeReportId: null, narrativeBefore: null, photoId: null, photoPath: null }
 // Phase 4 patcher leg: the legacy-narrative artifact's table counts, captured
 // before the rich narrative is seeded (0 = never measured).
 let baselineTopLevel = 0, baselineNested = 0
@@ -111,6 +117,27 @@ try {
     }).select('id').single()
     check(!rfErr && !!rf, `a rich fixture finding seeds (${rfErr?.message ?? 'ok'})`)
     CLEAN.richFindingId = rf?.id ?? null
+
+    // A REAL PHOTO, so the docx actually emits the NESTED photo tables this
+    // gate is about. Without one the depth walk meets zero nested tables and
+    // "nested left as emitted" passes vacuously — measured 2026-08-20, the
+    // standing ZZ report carries no photos.
+    if (rf?.id) {
+      // 1x1 PNG — smallest thing html-to-docx will lay into a photo cell.
+      const png = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64')
+      const path = `zz-rich-gate/${rf.id}.png`
+      const { error: upErr } = await svc.storage.from('finding-photos')
+        .upload(path, png, { contentType: 'image/png', upsert: true })
+      check(!upErr, `the fixture photo uploads (${upErr?.message ?? 'ok'})`)
+      CLEAN.photoPath = upErr ? null : path
+      const { data: phRow, error: phErr } = await svc.from('finding_photos').insert({
+        finding_id: rf.id, storage_url: path, caption: 'ZZ rich gate fixture photo',
+      }).select('id').single()
+      check(!phErr, `the fixture photo row seeds (${phErr?.message ?? 'ok'})`)
+      CLEAN.photoId = phRow?.id ?? null
+    }
   }
   const { data: reports } = await svc.from('site_reports').select('id, report_number')
     .eq('project_id', ZZ).order('report_number')
@@ -205,6 +232,32 @@ try {
         check(n1 >= 0 && n2 > n1 && /<\/w:p>|<w:br\/?>/.test(xml2.slice(n1, n2)),
           'the narrative bullets are structurally separated — not flattened')
         console.log(`  [MEASURE] w:numPr near narrative bullets: ${/<w:numPr>[^]{0,1500}?Phase four narrative bullet, first|Phase four narrative bullet, first[^]{0,1500}?<w:numPr>/.test(xml2)}`)
+
+        // ── THE DEPTH WALK, asserted at the mechanism ──────────────────────
+        // The integration pins above ride an artifact with NO photos, so they
+        // cannot exercise nesting. This leg feeds the patcher's OWN walker
+        // (bundled from the real module) a document shaped like this family's
+        // hard case: an outer table whose cell holds a nested photo table,
+        // beside the rich narrative's list paragraphs. The walk must see ONE
+        // top-level table and leave the nested one whole.
+        const listP = '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr>' +
+          '<w:r><w:t>narrative bullet</w:t></w:r></w:p>'
+        const nestedTbl = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/></w:tblPr>' +
+          '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>' +
+          '<w:tr><w:tc><w:p><w:r><w:t>photo A</w:t></w:r></w:p></w:tc>' +
+          '<w:tc><w:p><w:r><w:t>photo B</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+        const outer = `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/></w:tblPr>` +
+          `<w:tblGrid><w:gridCol w:w="9360"/></w:tblGrid>` +
+          `<w:tr><w:tc>${listP}${nestedTbl}${listP}</w:tc></w:tr></w:tbl>`
+        const fixture = `<w:body>${listP}${outer}${listP}</w:body>`
+        const walked = topLevelTables(fixture)
+        check(walked.length === 1,
+          `DEPTH WALK: one top-level table seen past the nested photo table and the list paragraphs (got ${walked.length})`)
+        const innerOfWalked = topLevelTables(fixture.slice(walked[0].start + 7, walked[0].end - 8))
+        check(innerOfWalked.length === 1,
+          `DEPTH WALK: the nested photo table is found INSIDE, not counted outside (got ${innerOfWalked.length})`)
+        check(fixture.slice(walked[0].start, walked[0].end).includes(nestedTbl),
+          'DEPTH WALK: the nested photo table survives the span whole — byte-identical, left as emitted')
       }
       const psig2 = await api('/api/get-file-url', { table: 'site_reports', id: rep.id, kind: 'pdf' })
       if (psig2.body?.url) {
@@ -286,6 +339,13 @@ try {
 } catch (err) {
   check(false, `unexpected: ${err.message}`)
 } finally {
+  if (CLEAN.photoId) await svc.from('finding_photos').delete().eq('id', CLEAN.photoId)
+  if (CLEAN.photoPath) {
+    await svc.storage.from('finding-photos').remove([CLEAN.photoPath]).catch(() => {})
+    const { data: phLeft } = await svc.storage.from('finding-photos').list('zz-rich-gate')
+    console.log(`cleanup: fixture photo objects left ${(phLeft ?? []).length} (must be 0)`)
+    if ((phLeft ?? []).length !== 0) fails.push('cleanup left the fixture photo object in storage')
+  }
   if (CLEAN.richFindingId) {
     await svc.from('findings').delete().eq('id', CLEAN.richFindingId)
     const { count: rfLeft } = await svc.from('findings').select('id', { count: 'exact', head: true }).eq('id', CLEAN.richFindingId)
