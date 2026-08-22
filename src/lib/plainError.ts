@@ -22,6 +22,12 @@ export const PLAIN_ERRORS: [RegExp, string][] = [
    'That note is scoped to something it does not point at.'],
   [/one_per_protocol_per_session/,
    'This protocol already has a result recorded in this session.'],
+  // E1, 2026-08-22: the edit surface sent equipment_type:'' and the user read
+  // "violates foreign key constraint equipment_equipment_type_fkey". The write
+  // path is fixed so this is unreachable; this is what shows if it is reached
+  // anyway — and it names the way OUT, because there always is one.
+  [/equipment_equipment_type_fkey/,
+   'That equipment type is not in the firm library yet. Pick a type from the list, or choose “propose” to save the unit with the name you typed and send it for approval.'],
 ]
 
 export function plainError(message: string): string {

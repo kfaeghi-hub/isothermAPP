@@ -12,13 +12,22 @@
 // (see the many handled sites that already alert). Swap for a toast later in
 // one place if desired.
 
+// Constraint names become sentences here, at the ONE place every mutation
+// failure surfaces (E1, 2026-08-22). plainError existed and was wired into a
+// single page, so an FK violation on the equipment editor reached the user as
+// "violates foreign key constraint equipment_equipment_type_fkey". Wiring it
+// at the reporter covers every call site at once, including the ones not
+// written yet — a translation that depends on each caller remembering it is a
+// translation that will be missing somewhere.
+import { plainError } from './plainError'
+
 type PgError = { message: string } | null
 
 /** Surface a mutation error. Returns true if there was one (caller should stop/revert). */
 export function reportError(error: PgError, action: string): boolean {
   if (!error) return false
   console.error(`[mutation] ${action} failed:`, error)
-  alert(`Couldn't ${action}.\n\n${error.message}`)
+  alert(`Couldn't ${action}.\n\n${plainError(error.message)}`)
   return true
 }
 
@@ -33,7 +42,7 @@ export function reportWriteBlocked(
 ): boolean {
   if (res.error) {
     console.error(`[mutation] ${action} failed:`, res.error)
-    alert(`Couldn't ${action}.\n\n${res.error.message}`)
+    alert(`Couldn't ${action}.\n\n${plainError(res.error.message)}`)
     return true
   }
   if (!res.data || res.data.length === 0) {

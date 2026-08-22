@@ -64,6 +64,31 @@ export function matchCaption(query: string, t: TypeVocab): string | null {
   return alias ? `alias "${alias}"` : null
 }
 
+/**
+ * THE ONE PLACE picker state becomes equipment columns (E1, 2026-08-22).
+ *
+ * The add surface normalised `'' → null` and the edit surface did not, so the
+ * edit surface sent `equipment_type: ''` to a column with an FK — and BOTH of
+ * its gestures died there: typing unpicked text, and choosing the propose row
+ * (which set `r.key ?? ''`). The user saw the raw constraint name. The queue
+ * proved it had never once succeeded: zero coil proposals from any edit.
+ *
+ * Shared rather than mirrored, deliberately — two normalisers is how the two
+ * surfaces diverged in the first place. `equipment_type` wins when both are
+ * present: a resolved key is an answer, an observed name is a question.
+ */
+export function typeColumns(
+  equipmentType: string | null | undefined,
+  observedName: string | null | undefined,
+): { equipment_type: string | null; observed_type_name: string | null } {
+  const key = (equipmentType ?? '').trim()
+  const observed = (observedName ?? '').trim()
+  return {
+    equipment_type: key || null,
+    observed_type_name: key ? null : (observed || null),
+  }
+}
+
 export interface ProposeResult { queued: boolean; waiting: number; error?: string }
 
 /** File a type proposal for text the vocabulary could not resolve.

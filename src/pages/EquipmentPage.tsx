@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { reportError } from '../lib/mutationError'
 import { Combobox } from '../components/ui/Combobox'
 import { TypePicker } from '../components/equipment/TypePicker'
-import { loadTypeVocabulary, proposeType, type TypeVocab } from '../lib/typeVocabulary'
+import { loadTypeVocabulary, proposeType, typeColumns, type TypeVocab } from '../lib/typeVocabulary'
 import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import { IntakePanel } from '../components/intake/IntakePanel'
@@ -236,10 +236,11 @@ export function EquipmentPage({ projectId }: Props) {
       .insert({
         project_id:     projectId,
         kind:           addForm.kind,
-        equipment_type: addForm.equipment_type.trim() || null,
         // NEVER BLOCKED: an unknown type saves with the text the user typed and
-        // files a queue entry. The unit exists either way.
-        observed_type_name: addForm.equipment_type.trim() ? null : (addForm.observed_type_name.trim() || null),
+        // files a queue entry. The unit exists either way. `typeColumns` is the
+        // ONE normaliser, shared with saveEdit — this surface had it inline and
+        // the edit surface did not, which is exactly how E1's defect existed.
+        ...typeColumns(addForm.equipment_type, addForm.observed_type_name),
         category:       addForm.category.trim() || null,
         tag:            addForm.tag.trim() || null,
         descriptor:     addForm.descriptor.trim() || null,
@@ -500,10 +501,19 @@ export function EquipmentPage({ projectId }: Props) {
       model:         installed['Model Number']  ?? null,
       serial_number: installed['Serial Number'] ?? null,
     }
+    // TYPE COLUMNS THROUGH THE SHARED NORMALISER (E1, 2026-08-22). `editValues`
+    // carries the picker's raw state, and BOTH of its gestures produce '' for
+    // equipment_type — typing unpicked text, and choosing the propose row
+    // (`r.key ?? ''`). Spreading that raw sent '' into an FK'd column: the save
+    // died, the user read the constraint name, and the propose path on this
+    // surface had never once succeeded. Normalised here, an unresolved type
+    // saves as observed_type_name and queues, exactly as the add form does.
+    const typed = typeColumns(editValues.equipment_type, editValues.observed_type_name)
     const { error } = await supabase
       .from('equipment')
       .update({
         ...editValues,
+        ...typed,
         ...mirror,
         nameplate_extra: editNameplate,
         updated_at: new Date().toISOString(),
@@ -515,13 +525,14 @@ export function EquipmentPage({ projectId }: Props) {
     // A type change seeds its defs via the equipment_seed_defs trigger inside
     // the UPDATE above (old ≠ new fires it) — the client only re-reads. The
     // ensureFieldDefs call that used to sit here was T5's second writer.
-    if (editValues.equipment_type && editValues.equipment_type !== eq.equipment_type) {
+    if (typed.equipment_type && typed.equipment_type !== eq.equipment_type) {
       await fetchFieldDefs()
     }
     // A newly proposed name goes to the queue. The unit is already saved above —
-    // the proposal never gates the write.
-    if (editValues.observed_type_name && editValues.observed_type_name !== eq.observed_type_name) {
-      const r = await proposeType(editValues.observed_type_name, projectId)
+    // the proposal never gates the write. Keyed off the NORMALISED value, so
+    // the propose row's own gesture reaches the queue from this surface too.
+    if (typed.observed_type_name && typed.observed_type_name !== eq.observed_type_name) {
+      const r = await proposeType(typed.observed_type_name, projectId)
       if (r.error) reportError({ message: r.error } as any, 'queue the type proposal')
     }
 

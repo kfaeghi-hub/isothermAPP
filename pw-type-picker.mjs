@@ -193,6 +193,103 @@ try {
       fs.promises.readFile('src/components/intake/IntakeReview.tsx', 'utf8'))),
     'the old bare <select> is GONE, not merely bypassed')
 
+  // ── 6. E1: THE EDIT SURFACE PROPOSES TOO (2026-08-22) ─────────────────────
+  //
+  // Both of the editor's gestures used to die at the FK: typing unpicked text,
+  // and choosing the propose row (which set `r.key ?? ''`). saveEdit spread
+  // that '' straight into an FK'd column, the user read the constraint name,
+  // and the queue proved the surface had NEVER once proposed successfully.
+  // These legs drive the real editor, both gestures, and assert the unit saved
+  // as observed + queued — with no raw constraint text anywhere on screen.
+  const dialogs = []
+  page.on('dialog', async d => { dialogs.push(d.message()); await d.dismiss().catch(() => {}) })
+
+  const E1_TAG = `ZZ-E1-${Date.now().toString().slice(-6)}`
+  const E1_FREEHAND = `ZZ Freehand Coil ${Date.now().toString().slice(-5)}`
+  const { data: e1unit } = await adm.from('equipment').insert({
+    project_id: zz.id, kind: 'equipment', tag: E1_TAG,
+    descriptor: 'E1 edit-surface fixture', equipment_type: 'pump', sort_order: 9910,
+  }).select('id').single()
+  if (e1unit) madeEquipment.push(e1unit.id)
+  check(!!e1unit, `E1 fixture unit seeds (${E1_TAG})`)
+
+  if (e1unit) {
+    await page.goto(`${BASE_URL}/projects/${zz.id}?tab=equipment`, { waitUntil: 'domcontentloaded' })
+    const row = page.getByText(E1_TAG, { exact: true })
+    const found = await waitUntil(async () => await row.count() > 0, { what: `${E1_TAG} in the register` })
+    check(!!found, 'E1 fixture is findable on the Equipment tab')
+
+    if (found) {
+      await row.first().click()
+      const editBtn = page.getByRole('button', { name: 'Edit', exact: true })
+      await waitUntil(async () => await editBtn.count() > 0, { what: 'the Edit control' })
+      await editBtn.first().click()
+
+      const typeBox = page.getByRole('combobox', { name: 'Type' })
+      const boxThere = await waitUntil(async () => await typeBox.count() > 0, { what: 'the edit-mode type picker' })
+      check(!!boxThere, 'the editor renders the type picker')
+
+      if (boxThere) {
+        // GESTURE A — free text, never picked, straight to Save.
+        dialogs.length = 0
+        await typeBox.fill(E1_FREEHAND)
+        await page.getByRole('button', { name: 'Save', exact: true }).first().click()
+
+        const saved = await waitUntil(async () => {
+          const { data } = await adm.from('equipment')
+            .select('equipment_type, observed_type_name').eq('id', e1unit.id).single()
+          return data && data.equipment_type === null && data.observed_type_name === E1_FREEHAND ? data : null
+        }, { timeout: 12000, what: 'the free-hand type to save as observed + null key' })
+        check(!!saved,
+          `GESTURE A — unpicked free text SAVES as observed_type_name with a null key ` +
+          `(this is the write that used to die on equipment_equipment_type_fkey)`)
+        check(!dialogs.some(d => /foreign key|fkey|violates/i.test(d)),
+          `no raw constraint text reached the user (${dialogs.length ? dialogs[0].slice(0, 60) : 'no dialog'})`)
+
+        const queued = await waitUntil(async () => {
+          const { data } = await adm.from('proposed_equipment_types')
+            .select('id, status').eq('status', 'proposed').ilike('observed_name', E1_FREEHAND)
+          return data?.length ? data : null
+        }, { timeout: 12000, what: 'the proposal filed from the EDIT surface' })
+        check(!!queued,
+          'GESTURE A — the edit surface files a queue entry: the first successful propose this surface has ever made')
+
+        // GESTURE B — the propose ROW itself. It set `r.key ?? ''`, so the
+        // gesture the UI offers as the way out died at the same FK as the one
+        // it was offering a way out of.
+        const E1_PROPOSED = `ZZ Proposed Coil ${Date.now().toString().slice(-5)}`
+        dialogs.length = 0
+        await page.getByRole('button', { name: 'Edit', exact: true }).first().click()
+        const box2 = page.getByRole('combobox', { name: 'Type' })
+        await waitUntil(async () => await box2.count() > 0, { what: 'the type picker for gesture B' })
+        await box2.fill(E1_PROPOSED)
+        const proposeRow = page.locator('[role="option"]').filter({ hasText: 'No matching type' })
+        const rowThere = await waitUntil(async () => await proposeRow.count() > 0, { what: 'the propose row' })
+        check(!!rowThere, 'GESTURE B — the editor offers the propose row')
+        if (rowThere) {
+          await proposeRow.first().click()
+          await page.getByRole('button', { name: 'Save', exact: true }).first().click()
+          const savedB = await waitUntil(async () => {
+            const { data } = await adm.from('equipment')
+              .select('equipment_type, observed_type_name').eq('id', e1unit.id).single()
+            return data && data.equipment_type === null && data.observed_type_name === E1_PROPOSED ? data : null
+          }, { timeout: 12000, what: 'the proposed type to save' })
+          check(!!savedB, 'GESTURE B — choosing propose SAVES the unit with the typed name')
+          check(!dialogs.some(d => /foreign key|fkey|violates/i.test(d)),
+            `GESTURE B — no raw constraint text (${dialogs.length ? dialogs[0].slice(0, 50) : 'no dialog'})`)
+          const queuedB = await waitUntil(async () => {
+            const { data } = await adm.from('proposed_equipment_types')
+              .select('id').eq('status', 'proposed').ilike('observed_name', E1_PROPOSED)
+            return data?.length ? data : null
+          }, { timeout: 12000, what: 'gesture B proposal' })
+          check(!!queuedB, 'GESTURE B — and it reaches the queue')
+          await adm.from('proposed_equipment_types').delete().ilike('observed_name', E1_PROPOSED)
+        }
+      }
+    }
+    await adm.from('proposed_equipment_types').delete().ilike('observed_name', E1_FREEHAND)
+  }
+
 } finally {
   for (const id of madeEquipment) await adm.from('equipment').delete().eq('id', id)
   await adm.from('proposed_equipment_types').delete().ilike('observed_name', UNKNOWN)
