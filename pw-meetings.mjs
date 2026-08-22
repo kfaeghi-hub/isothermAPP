@@ -441,7 +441,19 @@ try {
     await page.keyboard.press('Enter')
     await page.keyboard.type('Dialogue to provide comments')
     await page.keyboard.press('Enter')
+    await page.waitForTimeout(250)
     await page.locator('[data-testid="expanded-editor"] button[title="Bulleted list"]').click()
+    // assert the toggle APPLIED before typing into it — a silent no-op here
+    // surfaced as four paragraphs downstream on the first run (2026-08-20);
+    // fail at the source with the editor's actual HTML named.
+    await waitUntil(async () =>
+      await page.locator('[data-testid="expanded-editor"] .ProseMirror ul').count() === 1,
+      { timeout: 5000, what: 'the bullet toggle applying (ul present in the editor)' })
+      .catch(async e => {
+        console.log('  [DEBUG] editor html at toggle failure: ' +
+          await page.locator('[data-testid="expanded-editor"] .ProseMirror').evaluate(el => el.innerHTML).catch(() => 'gone'))
+        throw e
+      })
     await page.keyboard.type('Envelope flashing detail RICHM1')
     await page.keyboard.press('Enter')
     await page.keyboard.type('Glazing schedule RICHM2')

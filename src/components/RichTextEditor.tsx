@@ -73,25 +73,32 @@ function EditorPane({ value, tier, onChange, chrome, compact, onBlurCommit }: {
       ? 'border-standard-600 bg-standard-600/10 text-standard-700 font-semibold'
       : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'}`
 
+  // A TOOLBAR BUTTON MUST NEVER TAKE FOCUS. Without this the click blurs the
+  // editor, onBlur commits mid-edit, and the consumer's save re-seeds the
+  // editor from the committed value — the toggle and the next keystrokes are
+  // lost. Measured 2026-08-20 on an issued meeting: two paragraphs + a bullet
+  // toggle came back as four paragraphs, the first typed word gone.
+  const keepFocus = (e: React.MouseEvent) => e.preventDefault()
+
   return (
     <>
       {chrome && (
         <div className="flex items-center gap-1 px-2 py-1 border-b border-gray-100 bg-gray-50/60">
-          <button type="button" onClick={() => editor.chain().focus().toggleBold().run()}
+          <button type="button" onMouseDown={keepFocus} onClick={() => editor.chain().focus().toggleBold().run()}
             className={btn(editor.isActive('bold'))} title="Bold"><b>B</b></button>
-          <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()}
+          <button type="button" onMouseDown={keepFocus} onClick={() => editor.chain().focus().toggleItalic().run()}
             className={btn(editor.isActive('italic'))} title="Italic"><i>I</i></button>
           <span className="w-px h-4 bg-gray-200 mx-0.5" />
-          <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()}
+          <button type="button" onMouseDown={keepFocus} onClick={() => editor.chain().focus().toggleBulletList().run()}
             className={btn(editor.isActive('bulletList'))} title="Bulleted list">•&nbsp;list</button>
-          <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          <button type="button" onMouseDown={keepFocus} onClick={() => editor.chain().focus().toggleOrderedList().run()}
             className={btn(editor.isActive('orderedList'))} title="Numbered list">1.&nbsp;list</button>
           {tier === 'cxplan' && (
             <>
               <span className="w-px h-4 bg-gray-200 mx-0.5" />
-              <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              <button type="button" onMouseDown={keepFocus} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                 className={btn(editor.isActive('heading', { level: 2 }))} title="Sub-heading">H2</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+              <button type="button" onMouseDown={keepFocus} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
                 className={btn(editor.isActive('heading', { level: 3 }))} title="Minor heading">H3</button>
             </>
           )}
