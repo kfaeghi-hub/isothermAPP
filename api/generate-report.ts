@@ -26,7 +26,7 @@ import {
 } from './_shared/doc-common.js'
 import { applyCors, requireUser, requireProjectAccess, AuthError } from './_shared/auth-common.js'
 import { gridsFromHtmlTables } from './_shared/docx-tables.js'
-import { richToHtml } from './_shared/rich-text.js'
+import { richToHtml, type RichDoc } from './_shared/rich-text.js'
 import { buildIstHtml, IST_FOOTER, type IstMode } from './_shared/ist-document.js'
 import { assembleIstDoc } from './_shared/ist-assemble.js'
 import { buildCxIndexHtml } from './_shared/cx-index-document.js'
@@ -59,6 +59,7 @@ function statusHtml(status: string): string {
 const CSS = `${BASE_CSS}
   .intro     { margin: 12px 0 2px 0; font-style: italic; color: #333; }
   .narrative { padding: 2px 0; margin: 4px 0; }
+  .narrative p { margin: 4px 0; } .narrative ul, .narrative ol { margin: 4px 0; padding-left: 20px; }
   .none      { font-style: italic; color: #888; font-size: 9.5pt; margin-top: 4px; }
 
   /* status */
@@ -190,9 +191,14 @@ function buildHtml(
     console.error(`[report] FINDING ROW MISMATCH: input=${findings.length} rendered=${renderedFindingRows}`)
   }
 
-  const narrativeHtml = (report.progress_narrative ?? '').split('\n').map((line: string) =>
-    `<p class="narrative">${esc(line) || '&nbsp;'}</p>`
-  ).join('')
+  // RICH-TEXT Phase 4: rich-first through the shared trio; the split('\n')
+  // renderer below is the DEMOTED legacy-fallback branch, which keeps
+  // untouched reports byte-identical.
+  const narrativeHtml = report.progress_narrative_rich
+    ? `<div class="narrative">${richToHtml(report.progress_narrative_rich as RichDoc)}</div>`
+    : (report.progress_narrative ?? '').split('\n').map((line: string) =>
+        `<p class="narrative">${esc(line) || '&nbsp;'}</p>`
+      ).join('')
 
   return `<!DOCTYPE html>
 <html>
@@ -362,9 +368,15 @@ function buildDocxHtml(
     </tr>`
   }).join('\n')
 
-  const narrativeHtml = (report.progress_narrative ?? '').split('\n').map((line: string) =>
-    `<p style="margin:4px 0;">${esc(line) || '&nbsp;'}</p>`
-  ).join('')
+  // RICH-TEXT Phase 4: rich-first; split('\n') demoted to legacy fallback.
+  // Lists here become list PARAGRAPHS in the docx, never tables — the
+  // top-level table count the patcher walks is unchanged (asserted, not
+  // assumed, in pw-doc-docx-tables).
+  const narrativeHtml = report.progress_narrative_rich
+    ? richToHtml(report.progress_narrative_rich as RichDoc)
+    : (report.progress_narrative ?? '').split('\n').map((line: string) =>
+        `<p style="margin:4px 0;">${esc(line) || '&nbsp;'}</p>`
+      ).join('')
 
   // FINAL DOM ORDER, conditionals mirrored exactly — the patcher refuses on a
   // count mismatch, so a table added to the template MUST add its row here.

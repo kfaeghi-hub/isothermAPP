@@ -8,6 +8,8 @@ import { openStoredFile } from '../lib/fileUrl'
 import { useAuth } from '../contexts/AuthContext'
 import type { SiteReport, DocRegisterItem } from '../types/database'
 import { canDeleteSiteReport } from '../lib/capabilities'
+import { RichTextEditor } from '../components/RichTextEditor'
+import { liftMarkdownLite, toPlainText, type RichDoc } from '../lib/richText'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,7 @@ interface ReportForm {
   report_date: string
   authored_by: string
   progress_narrative: string
+  progress_narrative_rich: RichDoc | null
   show_closed: boolean
   doc_register: DocRegisterItem[]
 }
@@ -36,6 +39,7 @@ const DEFAULT_FORM = (): ReportForm => ({
   report_date: new Date().toISOString().slice(0, 10),
   authored_by: 'Tony Faeghi',
   progress_narrative: '',
+  progress_narrative_rich: null,
   show_closed: true,
   doc_register: [],
 })
@@ -97,6 +101,10 @@ export function SiteReportsPage({ projectId }: Props) {
       report_date:        r.report_date,
       authored_by:        r.authored_by,
       progress_narrative: r.progress_narrative ?? '',
+      // RICH-TEXT Phase 4: legacy rows lift lazily at the door — nothing is
+      // written until the CxA saves, so untouched reports stay byte-identical.
+      progress_narrative_rich:
+        r.progress_narrative_rich ?? liftMarkdownLite(r.progress_narrative ?? '', 'platform'),
       show_closed:        r.show_closed,
       doc_register:       r.doc_register ?? [],
     })
@@ -121,6 +129,7 @@ export function SiteReportsPage({ projectId }: Props) {
       report_date:        form.report_date,
       authored_by:        form.authored_by.trim() || 'Tony Faeghi',
       progress_narrative: form.progress_narrative.trim() || null,
+      progress_narrative_rich: form.progress_narrative.trim() ? form.progress_narrative_rich : null,
       show_closed:        form.show_closed,
       doc_register:       form.doc_register.filter(i => i.label.trim()),
     }
@@ -478,12 +487,13 @@ export function SiteReportsPage({ projectId }: Props) {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Site Progress Observations
             </label>
-            <textarea
-              value={form.progress_narrative}
-              onChange={e => setForm(f => ({ ...f, progress_narrative: e.target.value }))}
-              rows={5}
-              placeholder="Describe site progress observed during this visit…"
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-y"
+            {/* RICH-TEXT Phase 4: editor + expand shell as one package (the
+                standing amendment). The string column stays the maintained
+                projection — every keystroke rewrites it through toPlainText. */}
+            <RichTextEditor
+              value={form.progress_narrative_rich ?? { type: 'doc', content: [{ type: 'paragraph', content: [] }] }}
+              onChange={doc => setForm(f => ({ ...f, progress_narrative_rich: doc, progress_narrative: toPlainText(doc) }))}
+              expand={{ title: 'Site Progress Observations — full editor', testId: 'expand-narrative' }}
             />
           </div>
 

@@ -454,7 +454,9 @@ export interface SiteReport {
   site_visit_date: string
   report_date: string
   authored_by: string
+  /** The trio-maintained plain projection (RICH-TEXT Phase 4). */
   progress_narrative: string | null
+  progress_narrative_rich: RichDoc | null
   show_closed: boolean
   doc_register: DocRegisterItem[] | null
   storage_url: string | null

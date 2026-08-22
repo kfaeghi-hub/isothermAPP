@@ -81,7 +81,11 @@ function assertDocx(name, xml, opts = {}) {
   }
 }
 
-const CLEAN = { meetingId: null, slugBase: null, istPlanId: null, istBase: null, richFindingId: null }
+const CLEAN = { meetingId: null, slugBase: null, istPlanId: null, istBase: null, richFindingId: null,
+                narrativeReportId: null, narrativeBefore: null }
+// Phase 4 patcher leg: the legacy-narrative artifact's table counts, captured
+// before the rich narrative is seeded (0 = never measured).
+let baselineTopLevel = 0, baselineNested = 0
 try {
   // ── site report: the standing ZZ fixture, regenerated in place ────────────
   // RICH-TEXT Phase 2: a fixture finding with a RICH description (two bullets,
@@ -130,6 +134,13 @@ try {
       const bIdx = xml.indexOf(RICH_BOLDW)
       check(bIdx >= 0 && /<w:b\s?\/>/.test(xml.slice(Math.max(0, bIdx - 300), bIdx)),
         'the bold run carries <w:b/> within its run properties')
+      // BASELINE for the Phase 4 patcher leg: this artifact's narrative is
+      // still LEGACY, so its top-level table count is the undisturbed truth
+      // the rich narrative must not change.
+      baselineTopLevel = topLevelTables(xml).length
+      baselineNested = topLevelTables(xml).reduce(
+        (n, s) => n + topLevelTables(xml.slice(s.start + 7, s.end - 8)).length, 0)
+      console.log(`  [MEASURE] legacy-narrative artifact: ${baselineTopLevel} top-level tables, ${baselineNested} nested`)
     }
     // The PDF twin: both items + the bold word, flat-compared (pdf.js splits runs).
     const psig = await api('/api/get-file-url', { table: 'site_reports', id: rep.id, kind: 'pdf' })
@@ -147,6 +158,69 @@ try {
         .map(s => s.replace(/\s+/g, '')).filter(w => !flat.includes(w))
       check(missing.length === 0,
         `the PDF carries the rich description's every text (${missing.length ? 'missing: ' + missing.length : '3/3'})`)
+    }
+
+    // ── RICH-TEXT PHASE 4: a RICH NARRATIVE on the same standing report ─────
+    // The narrative is superseded in place and RESTORED in finally. This
+    // family's hard part is the nested-photo-table patcher: rich narrative
+    // adds list PARAGRAPHS, never tables, so the top-level count the depth
+    // walk sees must be IDENTICAL to the legacy baseline captured above.
+    const NARR_B1 = 'Phase four narrative bullet, first'
+    const NARR_B2 = 'Phase four narrative bullet, second'
+    {
+      const { data: before } = await svc.from('site_reports')
+        .select('progress_narrative, progress_narrative_rich').eq('id', rep.id).single()
+      CLEAN.narrativeReportId = rep.id
+      CLEAN.narrativeBefore = before
+      const richNarr = { type: 'doc', content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Phase four narrative intro paragraph.' }] },
+        { type: 'bulletList', content: [
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: NARR_B1 }] }] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: NARR_B2 }] }] },
+        ] },
+      ] }
+      const { error: nErr } = await svc.from('site_reports').update({
+        progress_narrative: `Phase four narrative intro paragraph.\n\n- ${NARR_B1}\n- ${NARR_B2}`,
+        progress_narrative_rich: richNarr,
+      }).eq('id', rep.id)
+      check(!nErr, `the rich narrative seeds on the standing report (${nErr?.message ?? 'ok'})`)
+
+      const gen2 = await api('/api/generate-report', { report_id: rep.id })
+      check(gen2.status === 200, `regenerate with rich narrative returns 200 (got ${gen2.status})`)
+      const sig2 = await api('/api/get-file-url', { table: 'site_reports', id: rep.id, kind: 'docx' })
+      if (sig2.body?.url) {
+        const buf2 = Buffer.from(await (await fetch(sig2.body.url)).arrayBuffer())
+        const xml2 = await (await JSZip.loadAsync(buf2)).file('word/document.xml').async('string')
+        // the standing grid contract still holds, rich narrative present
+        assertDocx('report+rich-narrative', xml2, { expectNested: true })
+        const now = topLevelTables(xml2).length
+        const nowNested = topLevelTables(xml2).reduce(
+          (n, s) => n + topLevelTables(xml2.slice(s.start + 7, s.end - 8)).length, 0)
+        check(now === baselineTopLevel,
+          `PATCHER UNDISTURBED: top-level table count unchanged by rich narrative (${baselineTopLevel} → ${now})`)
+        check(nowNested === baselineNested,
+          `PATCHER UNDISTURBED: nested photo tables unchanged (${baselineNested} → ${nowNested})`)
+        const n1 = xml2.indexOf(NARR_B1), n2 = xml2.indexOf(NARR_B2)
+        check(n1 >= 0 && n2 > n1, 'both narrative bullets reach the docx')
+        check(n1 >= 0 && n2 > n1 && /<\/w:p>|<w:br\/?>/.test(xml2.slice(n1, n2)),
+          'the narrative bullets are structurally separated — not flattened')
+        console.log(`  [MEASURE] w:numPr near narrative bullets: ${/<w:numPr>[^]{0,1500}?Phase four narrative bullet, first|Phase four narrative bullet, first[^]{0,1500}?<w:numPr>/.test(xml2)}`)
+      }
+      const psig2 = await api('/api/get-file-url', { table: 'site_reports', id: rep.id, kind: 'pdf' })
+      if (psig2.body?.url) {
+        const pdfBytes2 = new Uint8Array(await (await fetch(psig2.body.url)).arrayBuffer())
+        const pdfjs2 = await import('pdfjs-dist/legacy/build/pdf.mjs')
+        const pdoc2 = await pdfjs2.getDocument({ data: pdfBytes2, disableWorker: true }).promise
+        let flat2 = ''
+        for (let pn = 1; pn <= pdoc2.numPages; pn++) {
+          const tc = await (await pdoc2.getPage(pn)).getTextContent()
+          flat2 += tc.items.map(x => x.str).join('')
+        }
+        flat2 = flat2.replace(/\s+/g, '')
+        const miss2 = [NARR_B1, NARR_B2].map(s => s.replace(/\s+/g, '')).filter(w => !flat2.includes(w))
+        check(miss2.length === 0,
+          `pdf: the rich narrative's bullets render (${miss2.length ? 'missing ' + miss2.length : '2/2'})`)
+      }
     }
   }
 
@@ -217,6 +291,23 @@ try {
     const { count: rfLeft } = await svc.from('findings').select('id', { count: 'exact', head: true }).eq('id', CLEAN.richFindingId)
     console.log(`cleanup: rich fixture finding rows left ${rfLeft} (must be 0)`)
     if (rfLeft !== 0) fails.push('cleanup left the rich fixture finding on ZZ-TEST')
+  }
+  // The standing report's narrative is SUPERSEDED for the Phase 4 leg, never
+  // destroyed — restore it verbatim and print the resting state.
+  if (CLEAN.narrativeReportId && CLEAN.narrativeBefore) {
+    await svc.from('site_reports').update({
+      progress_narrative: CLEAN.narrativeBefore.progress_narrative,
+      progress_narrative_rich: CLEAN.narrativeBefore.progress_narrative_rich,
+    }).eq('id', CLEAN.narrativeReportId)
+    const { data: after } = await svc.from('site_reports')
+      .select('progress_narrative, progress_narrative_rich').eq('id', CLEAN.narrativeReportId).single()
+    const restored = after?.progress_narrative === CLEAN.narrativeBefore.progress_narrative &&
+      JSON.stringify(after?.progress_narrative_rich) === JSON.stringify(CLEAN.narrativeBefore.progress_narrative_rich)
+    console.log(`cleanup: standing report narrative restored verbatim = ${restored}` +
+      ` (rich now ${after?.progress_narrative_rich ? 'present' : 'null'})`)
+    if (!restored) fails.push('cleanup did not restore the standing report narrative')
+    // leave the artifact matching the restored row, not the fixture
+    await api('/api/generate-report', { report_id: CLEAN.narrativeReportId }).catch(() => {})
   }
   if (CLEAN.istPlanId) {
     await svc.from('ist_plans').delete().eq('id', CLEAN.istPlanId)
