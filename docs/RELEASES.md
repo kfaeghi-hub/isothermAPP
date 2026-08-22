@@ -59,9 +59,34 @@ stripped (an image is not text), `pdf-boundary-gate` reads page boundaries on
 a PDF that was always right, and the builder's integrity guard counts rows.
 No gate had ever asserted that a generated docx *contains an image*.
 
+**A SECOND MECHANISM, found by opening the file — and it is worse than the
+first.** The paragraph fix made images *emit*, and emitting exposed what the
+nested table had been masking: **html-to-docx sizes a drawing from an
+explicit `width`; a `max-width` yields `<wp:extent/>` with no `cx`/`cy`** —
+schema-invalid OOXML — and **Word refuses to open the document at all.**
+Measured in Word itself, on raw library output with no patcher in the path
+and on a bare `<img>` with no table: `max-width:200px` → empty extent, *"Word
+experienced an error trying to open the file"*; `width:200px` → extent
+`cx=1905000 cy=879231`, opens clean. **This rewrites the history above:** the
+pre-`96b2060` paragraphs also used `max-width`, so that era emitted corrupt
+files whenever a finding had a photo, and `96b2060`'s nested table dropped
+the images and thereby *masked an older corruption bug*. Both eras were
+broken, differently — one loses content, the other loses the file. The
+shipped state is the first in which a photo both appears and opens; the
+constraint is named at the call site so `max-width` is never restored.
+
+**And the first version of this gate went green on a file Word would not
+open** — it counted `word/media` entries and `<w:drawing>` elements, which is
+the wrong-artifact check inside a gate written to prevent exactly that. Word
+cannot run in the battery, so the gate now asserts the precise invalidity
+Word rejects: **every `wp:extent` carries non-zero `cx`/`cy`**. Verified at
+the artifact level too — the repaired docx was exported through Word itself
+and the photo renders on the page.
+
 **The fix** reverts the docx half of `96b2060` to paragraphs — the shape the
-diff shows working before that commit, re-proven in the report's real cell
-structure (2 photos → media 3, drawings 2). The PDF's flex grid is untouched.
+diff shows before that commit — **with `width:` in place of its `max-width:`**,
+re-proven in the report's real cell structure. The PDF's flex grid is
+untouched.
 Two-across in Word is a new capability against the library's limits and needs
 its own ruling; the constraint is named in the code so nobody improves it
 back into the broken shape. **The silent catch went with it:** the fetch loop
